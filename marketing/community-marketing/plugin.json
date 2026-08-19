@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "community-marketing",
+  "version": "1.0.0",
+  "description": "Headless marketing sub-agent: inbox triage, content drafting, GA4 and audience metrics — reports to a community-support lead agent, never publishes itself",
+  "extensions": {
+    "ai.nanoco.nanoclaw": { "agentName": "Community Marketing" }
+  }
+}

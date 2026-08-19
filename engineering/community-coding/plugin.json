@@ -1,0 +1,9 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "community-coding",
+  "version": "1.0.0",
+  "description": "Headless coding/GitHub-ops sub-agent: issue and PR triage, security sweeps, dev metrics — reports to a community-support lead agent, never posts publicly itself",
+  "extensions": {
+    "ai.nanoco.nanoclaw": { "agentName": "Community Coding" }
+  }
+}
