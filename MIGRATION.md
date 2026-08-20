@@ -122,12 +122,15 @@ deployment (appendix has its concrete values) but generic in structure.
 
 | Where | Value |
 |---|---|
-| Lead persona **Your project** | ChurchCRM; repos `ChurchCRM/CRM`, `ChurchCRM/docs.churchcrm.io`; docs site docs.churchcrm.io; English primary; ChurchCRM topics only |
+| Lead persona **Your project** | ChurchCRM; repo map — product `ChurchCRM/CRM`, docs `ChurchCRM/docs.churchcrm.io`, site `ChurchCRM/ChurchCRM.io`, marketing `ChurchCRM/marketing`; docs site docs.churchcrm.io; English primary; ChurchCRM topics only. Keeping all four current is in scope |
 | `channel-routing.md` support tier | #user-support, #general-support, #introductions, #showcase, #localization (+ guild catch-all) |
 | `channel-routing.md` developer tier | #dev-chat, #security (never auto-reply), GitHub-bugs notification channel |
 | `channel-routing.md` team-lead tier | #marketers, #announcements (post-only) |
 | `escalation-paths.md` | Security → #security channel + owner DM, never public issues; maintainer = George |
-| Coding persona / `config.env` | `COMMUNITY_REPOS="ChurchCRM/CRM"` (add docs repo if triaging it); default branch master |
+| Coding persona / `config.env` | `COMMUNITY_REPOS="ChurchCRM/CRM ChurchCRM/docs.churchcrm.io ChurchCRM/ChurchCRM.io"` — all functions triaged, cross-repo currency rule applies; default branch master |
 | Marketing persona / `config.env` | `CONTENT_REPO="ChurchCRM/marketing"`; brand source = ChurchCRM/marketing repo (voice, pillars, personas); site repo ChurchCRM/ChurchCRM.io; GA4 property 253632751 (later, optional) |
 | Backup target | New repo, e.g. `DawoudIO/community-agent-backup`; `ChurchCRM/hazel-agent-backup` frozen as evidence archive |
-| Deferred (reconnect later if wanted) | Gmail inbox-check, GA4 report, PostHog review — creds stay in old OneCLI vault until then |
+| **The one export from the old system** | `churchcrm/metrics-history.json` (social follower counts over time — the only data that can't be rebuilt from the web). Copy it from the old workspace/backup repo into the new marketing group as `plugin-data/community-marketing/social-metrics-history.jsonl` (one JSON object per line). Everything else — memory, transcripts, notes — is deliberately NOT migrated: agents rebuild context from GitHub on cold start |
+| Deferred (reconnect later if wanted) | Gmail inbox-check, GA4 report — creds stay in old OneCLI vault until then |
+| `posthog-weekly-review` | **Keep — proactive issue detection** ("find issues before users report them"). Enable when ready: PostHog key into the new vault + `us.posthog.com` added to the sandbox allowlist + `POSTHOG_PROJECT_ID` in config.env. The standalone CRM skill (per 2026-08-19, `.claude/commands/` in ChurchCRM/CRM) is complementary for on-demand deep dives — it still needs its own PostHog key |
+| Deterministic GitHub→Discord notifications | Restore as GitHub Actions webhooks (they were deleted in CRM PR #9042 and moved into the agent — inverted; agent notifications silently die when token limits hit). Agent keeps judgment replies only |

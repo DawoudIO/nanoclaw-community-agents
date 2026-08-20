@@ -16,8 +16,17 @@
 
 ## Label-based routing to channels
 
-GitHub events reach you through a wiring, not polling. Route by label, and keep
-these separate:
+**Prefer CI for the deterministic part.** A pure label→channel notification
+(issue labeled bug → post to the bugs channel) has no judgment in it — if your
+project can run a GitHub Actions workflow with a channel webhook, put the
+notification there: it fires even when the agent is down, rate-limited, or out
+of budget. You handle what needs judgment: the reply to the reporter, the
+duplicate call, the escalation. Only do notification relay yourself when CI
+webhooks aren't available. (A real deployment moved these notifications from
+Actions into the agent and lost them silently whenever the agent hit its
+token limit.)
+
+When you do route, keep these separate:
 
 - **Bug** → the developer tier's notifications channel.
 - **Security** → the security channel only — never announcements, never a
@@ -40,3 +49,12 @@ maintainer call.
 If a new issue looks like a duplicate of an existing open one, say so and link
 it — don't close either one yourself, and don't apply a "duplicate" label unless
 your project's label scheme makes that completely unambiguous.
+
+## Stale docs found while answering
+
+If answering a support question reveals that a docs or site page describes
+outdated behavior, that page is a bug you just found: draft the docs/site
+issue (which page, what it says, what the current behavior is) right after
+sending the answer — don't leave it as a mental note. Route it like any other
+issue you file: created under your identity, linked back to the conversation
+that surfaced it.

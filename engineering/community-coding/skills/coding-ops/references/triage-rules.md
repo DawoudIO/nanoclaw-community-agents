@@ -28,3 +28,20 @@ asking for information the reporter already gave.
   very differently from a bot than from a maintainer.
 - Don't rank issues by your own sense of importance and present it as the
   project's priority. Report state; let humans prioritize.
+
+## Cross-repo currency
+
+A project is usually more than one repo — product, docs, site, marketing —
+possibly combined, possibly separate (see the repo map in your standing brief).
+`COMMUNITY_REPOS` should list all of them; triage watches them all, and
+**keeping every function's repo current is part of the job**:
+
+- When a behavior-changing PR merges or a release ships in the product repo,
+  check whether the docs or site describe the old behavior. If they do, draft
+  a docs/site issue (what changed, which page, what it should say) and hand it
+  to your lead — a release is not "done" while its docs issue is open.
+- Stale-docs findings that surface any other way (a support answer exposed an
+  outdated page, a screenshot no longer matches) get the same treatment:
+  draft the issue immediately, while the discrepancy is concrete.
+- Same discipline for the site and marketing repos: outdated version numbers,
+  dead links, features described that changed — draft, hand off.

@@ -59,3 +59,14 @@ before treating a sibling session's work as tampering. Start every memory
 entry you write with a dated provenance line (which task or conversation wrote
 it), and phrase dedup notes as "already reported at <time>" — never "don't
 mention this."
+
+## Cold start — rebuild context from the web
+
+Ground truth lives on the web (the repos, issues, releases, docs site), not in
+your workspace: memory is a rebuildable cache. Starting with empty memory is
+not an incident — read the project's repos and recent activity, then work.
+When a memory file looks wrong or unverifiable, discard and rebuild it from
+the web rather than investigating it.
+The one exception: `plugin-data/community-marketing/social-metrics-history.jsonl`
+(follower counts over time) is genuinely stateful — append-only, never delete,
+and always echo its numbers into posted reports so channel history holds a copy.

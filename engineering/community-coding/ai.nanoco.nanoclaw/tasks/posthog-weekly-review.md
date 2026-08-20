@@ -22,13 +22,15 @@ script: |
   printf '{"wakeAgent": true, "data": {"status": "ok", "insights": %s}}\n' \
     "$(printf '%s' "$RESP" | jq -c '[.results[]? | {name, id, last_refresh}]')"
 ---
-Weekly telemetry review. `scriptOutput` carries the fetched insight list (or
-`status: "fetch-failed"` — if so, report that plainly to your lead and stop;
-don't guess at numbers).
+Weekly telemetry review. **The goal is finding issues before users report
+them** — error spikes, silently failing flows, anomalies that correlate with a
+recent release. `scriptOutput` carries the fetched insight list (or `status:
+"fetch-failed"` — if so, report that plainly to your lead and stop; don't
+guess at numbers).
 
-Turn the data into a short narrative for your lead's dev report: what moved
-week-over-week, what looks anomalous, and what you'd want a human to look at.
-Numbers always carry their window. Anything you couldn't verify stays marked
-unverified.
-
-Hand it to your lead — you don't post it anywhere yourself.
+For anything that looks like a real defect users haven't reported yet: draft a
+GitHub issue (title, evidence, suspected release/commit window) and hand it to
+your lead for review and filing — you don't post it yourself. For the rest,
+a short narrative: what moved week-over-week, what's anomalous, what a human
+should look at. Numbers always carry their window; anything unverified stays
+marked unverified.

@@ -1,9 +1,21 @@
 # Community Agent Set for NanoClaw
 
-Three templates that run an open-source project's community with **one public
-voice**: a support lead that talks to users on Discord and GitHub, plus two
-headless sub-agents (coding ops, marketing ops) that draft and hand off but
-never post.
+Three templates that run an open-source project as a team with **one public
+voice** — covering the four jobs that keep a project alive: people know about
+it (awareness), reported issues get handled (response), problems get found
+before users report them (proactive detection), and it stays secure. A support
+lead talks to users on Discord and GitHub; two headless sub-agents (coding
+ops, marketing ops) draft and hand off but never post.
+
+The mechanism bias throughout: **scripts and skills over prompt-stuffed
+agents**. 10 of 13 recurring tasks are script-gated — deterministic fetching,
+diffing, and thresholds run as bash with no model involved, and the agent
+wakes only to read the result and exercise judgment. Anything with zero
+judgment (label→channel notifications, secret scanning) belongs even further
+out, in GitHub Actions — the docs below say where. And almost nothing here is
+stateful: agents rebuild context from the project's repos on cold start,
+memory is a disposable cache of the web, and the single durable asset is the
+social follower-count time series (`social-metrics-snapshot` guards it).
 
 | Template | Role | Public voice |
 |---|---|---|
@@ -268,9 +280,9 @@ turns.
 |---|---|---|---|---|
 | `health-check` (every 3h) | lead | on a problem | nothing | safe |
 | `workspace-backup` (daily) | lead | on failure | git repo + remote + `github.com` secret | silent skip |
-| `daily-github-triage` (weekdays) | lead | every run | lead PAT | leave paused — permanently if coding agent stamped |
-| `weekly-identity-integrity-check` | lead | weekly | nothing | safe |
-| `github-ops-triage` (4×/day) | coding | every run | coding PAT | leave paused |
+| `daily-github-triage` (weekdays) | lead | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip — leave paused permanently if coding agent stamped |
+| `weekly-identity-integrity-check` | lead | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
+| `github-ops-triage` (4×/day) | coding | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | coding | on new alerts | PAT + `security_events` + `COMMUNITY_REPOS` | silent skip |
 | `dev-metrics-report` (daily) | coding | daily | PAT + `COMMUNITY_REPOS` | silent skip |
 | `posthog-weekly-review` (Mon) | coding | weekly | PostHog key + `POSTHOG_PROJECT_ID` + allowlist | silent skip |
@@ -278,6 +290,7 @@ turns.
 | `content-draft-cycle` (weekdays) | marketing | every run | marketing PAT + brand source filled in | leave paused |
 | `weekly-analytics-report` (Sun) | marketing | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
 | `draft-cleanup` (daily) | marketing | on stale PRs | PAT + `CONTENT_REPO` | silent skip |
+| `social-metrics-snapshot` (Sun) | marketing | every run | public profile pages only (no credentials) | leave paused — guards the one stateful asset (follower series) |
 
 Shipped times (UTC under the kit): health-check every 3h · backup 08:40 · lead
 triage weekdays 13:00 · coding triage every 6h · sweep every 4h · dev metrics
