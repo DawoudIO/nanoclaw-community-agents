@@ -288,6 +288,17 @@ channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
 (6×) exceed it.
 
-> This root README is for the staging repo. A PR to
-> `nanocoai/nanoclaw-templates` submits only the three template directories;
-> the catalog has its own root README.
+## Companion documents (staging repo only)
+
+- **[MIGRATION.md](MIGRATION.md)** — step-by-step for replacing an existing
+  NanoClaw install with this set in a sandbox: evidence preservation, the
+  keep-OneCLI/minimal-rotation credential stance, cutover order, and the
+  ChurchCRM deployment's concrete fill-in values.
+- **[UPSTREAM-ISSUES.md](UPSTREAM-ISSUES.md)** — platform issues observed on
+  the previous install, each with repro-on-clean-install steps; confirm during
+  testing, then file against `nanocoai/nanoclaw` so the template works for
+  every user, not just this deployment.
+
+> This root README, MIGRATION.md, and UPSTREAM-ISSUES.md are for the staging
+> repo. A PR to `nanocoai/nanoclaw-templates` submits only the three template
+> directories; the catalog has its own root README.
