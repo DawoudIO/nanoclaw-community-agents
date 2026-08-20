@@ -60,9 +60,10 @@ Developer settings → Personal access tokens):
 1. **Lead token** (classic): scopes `repo` (or `public_repo` for public-only
    projects) + `read:org`. This one comments on issues — it needs write. Never
    `admin:*`.
-2. **Coding token** (classic): same but treat as **read-only** in spirit; add
-   `security_events` (read) if you want the Dependabot advisory sweep. This
-   agent never posts — don't give it more.
+2. **Coding token** (fine-grained): all triaged repos, **read-only**
+   (Contents/Issues/PRs read; add Dependabot alerts read for the advisory
+   sweep). A classic `repo`-scope PAT is inherently read/write — don't use one
+   here; this agent never posts, so give it a token that *can't*.
 3. **Marketing token** (fine-grained): Fine-grained tokens → limit to the
    **content repo only** → Contents + Pull requests read/write. It opens draft
    PRs and nothing else.
@@ -94,7 +95,8 @@ that walks bot creation and invite during setup (step 3).
 sbx run --name nanoclaw --kit "git+https://github.com/docker/sbx-kits-contrib.git#dir=nanoclaw" nanoclaw
 ```
 
-(Alternatives: prebuilt `--kit docker.io/sbx/nanoclaw-kit:latest`, or a local
+(The trailing `nanoclaw` is the kit's app argument — keep it as-is.
+Alternatives: prebuilt `--kit docker.io/sbx/nanoclaw-kit:latest`, or a local
 clone `--kit ./nanoclaw` — the local route is also how you edit the network
 allowlist, see step 5.)
 
@@ -149,7 +151,9 @@ or drive it conversationally via `sbx exec -it -w /home/agent/nanoclaw
 nanoclaw claude`):
 
 ```bash
-# Stamp — check each create response's templateReport for skipped parts
+# Stamp — check each create response's templateReport for skipped parts,
+# and note each group's id from the response: the destination wiring below
+# and the OneCLI selective-mode step need them.
 ./bin/ncl groups create --template support/community-support     --name "Community Support"
 ./bin/ncl groups create --template engineering/community-coding  --name "Community Coding"
 ./bin/ncl groups create --template marketing/community-marketing --name "Community Marketing"
@@ -160,6 +164,11 @@ nanoclaw claude`):
 ./bin/ncl destinations add --agent-group-id <marketing-id> --name parent    --target <lead-id>
 ./bin/ncl destinations add --agent-group-id <lead-id>      --name marketing --target <marketing-id>
 ```
+
+(Credential registration is step 4 — the welcome interview below runs before
+it by design, so its verification pass will first report services as unwired;
+it walks you through the vault entries and re-verifies. That's expected, not
+broken.)
 
 Then connect Discord: in the sandbox's Claude Code session, run
 `/add-discord` and follow it (bot creation, invite with Manage-Server rights
@@ -208,11 +217,15 @@ gating the outbound request at the proxy is enforcement no prompt can bypass.
 
 ## 5 · Extend the network allowlist (only if you use the optional services)
 
-The kit's default allowlist does **not** include GA4, PostHog, or Gmail hosts —
-those tasks will hit `502 Bad Gateway` until you add them. Clone the kit, edit
+The kit's default allowlist does **not** include GA4, PostHog, Gmail — or the
+**social platform hosts the follower snapshot reads** (`x.com:443`,
+`www.linkedin.com:443`, `www.facebook.com:443`, `www.instagram.com:443`,
+`www.youtube.com:443` — whichever your platform list uses). Those tasks hit
+`502 Bad Gateway` until you add them. Clone the kit, edit
 `nanoclaw/spec.yaml` → `permissions.network.allow` (e.g. add
 `analyticsdata.googleapis.com:443`, `us.posthog.com:443`,
-`gmail.googleapis.com:443`), and start with `--kit ./nanoclaw`. Verify with:
+`gmail.googleapis.com:443`, plus the social hosts), and start with
+`--kit ./nanoclaw`. Verify with:
 
 ```bash
 sbx policy ls nanoclaw --type network
@@ -347,7 +360,7 @@ turns.
 | `content-draft-cycle` (weekdays) | marketing | every run | marketing PAT + brand source filled in | leave paused |
 | `weekly-analytics-report` (Sun) | marketing | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
 | `draft-cleanup` (daily) | marketing | on stale PRs | PAT + `CONTENT_REPO` | silent skip |
-| `social-metrics-snapshot` (Sun) | marketing | every run | public profile pages only (no credentials) | leave paused — guards the one stateful asset (follower series) |
+| `social-metrics-snapshot` (Sun) | marketing | every run | public profile pages (no credentials) + **sandbox allowlist entries for the platform hosts** | leave paused until platforms are configured and allowlisted — it guards the one stateful asset (follower series; durable copy = the lead's ledger) |
 
 Shipped times (UTC under the kit): health-check every 3h · backup 08:40 · lead
 triage weekdays 13:00 · coding triage every 6h · sweep every 4h · dev metrics
@@ -376,8 +389,11 @@ refreshes when the issue appears.
 
 **The refresh procedure** (~1 hour, mostly waiting on pulls):
 
-1. Confirm the last workspace backup ran — it carries `project-config.md` and
-   the follower-count series, the only things worth restoring.
+1. Confirm the last workspace backup ran — the lead's workspace carries
+   `project-config.md` and the durable follower-series ledger
+   (`plugin-data/community-support/social-metrics-history.jsonl`, appended by
+   the lead each time marketing hands over a snapshot), the only things worth
+   restoring.
 2. `sbx rm nanoclaw` → `docker pull nanoco/nanoclaw:sbx-claude-alpha` (belt
    and braces against tag caching) → `sbx run …` (the git kit ref is always
    fetched fresh).
@@ -386,8 +402,9 @@ refreshes when the issue appears.
    the VM's stored copy died with the VM); re-verify the owner-DM round trip.
 4. Re-enter the 3 GitHub PATs in the fresh vault, selective mode (~5 min).
    No rotation needed — refresh isn't compromise.
-5. Restore `social-metrics-history.jsonl` from the backup repo; either restore
-   `project-config.md` too or just answer the welcome interview again.
+5. Restore the follower-series ledger from the backup repo into the lead's
+   `plugin-data/community-support/`; either restore `project-config.md` too or
+   just answer the welcome interview again.
 6. Smoke tests per §7, and re-test anything in UPSTREAM-ISSUES.md against the
    new build before closing the watch issue.
 

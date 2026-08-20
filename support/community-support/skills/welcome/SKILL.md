@@ -24,7 +24,12 @@ flow through it. Before any configuration:
   confirm they received it. Inbound-only wiring looks fine until your first
   escalation silently vanishes.
 - Record the owner's identity (platform user id) in `project-config.md` as
-  part of step 5 — it's config like everything else.
+  part of step 5 — it's config like everything else. Be explicit about the
+  trust root: whoever the admin wired this DM to IS the owner you serve — the
+  wiring is the anchor, so say so in the config entry. Offer to establish the
+  owner-verification nonce protocol now (one signed file pushed to the backup
+  repo — see the community-support skill's `references/task-integrity.md`),
+  so identity has an out-of-band anchor from day one, not just wiring order.
 
 After setup, everything owner-facing happens in this DM. The only exception is
 a bad state — the DM itself broken, or an unresolvable verification deadlock —
@@ -136,9 +141,13 @@ them the dashboard is the published port from `sbx run` (default 10254):
 | Workspace backup push | `github.com` (git, separate from REST) | step 8 below |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | PostHog review | key on `us.` or `eu.posthog.com` | sandbox allowlist entry |
+| Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
 | Inbox check | provider OAuth (read-only scope) | an email MCP server added to the marketing group — a platform config change, not something you can do from in here; point the owner at the template README |
 
-Then **verify instead of assuming**: make one harmless read-only call per
+If this interview runs before the owner has registered credentials (the
+normal order — DM wiring comes first), expect verification to fail cleanly:
+walk them through the vault entries, then re-verify. Then **verify instead of
+assuming**: make one harmless read-only call per
 enabled service (e.g. fetch a repo's metadata, one GA4 row) and report each as
 working / not. Diagnose by symptom: `401/403` = vault entry missing or
 host-mismatched; `502` = sandbox network policy, not the service. Have the

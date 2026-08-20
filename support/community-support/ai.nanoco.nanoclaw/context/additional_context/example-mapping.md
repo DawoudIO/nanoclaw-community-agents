@@ -1,9 +1,9 @@
 # Example: a real deployment's channel mapping
 
 This is a worked example from an actual open-source project's Discord, included
-to show what a filled-in `channel-routing.md` looks like. Delete this file (or
-replace it with your own) once you've filled in the real one — it isn't loaded
-unless `instructions.md` references it.
+to show what a filled-in `channel-routing.md` looks like. **Delete this file
+before stamping your own deployment** (or replace it with your real mapping) —
+don't rely on it being ignored.
 
 ## Support tier (auto-reply)
 

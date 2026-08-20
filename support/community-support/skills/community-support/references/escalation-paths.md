@@ -35,6 +35,10 @@ something, anything that commits the project to a direction:
 
 ## Fill in for your project
 
+> When the owner onboarded conversationally, these values live in
+> `plugin-data/community-support/project-config.md` — read them there; the
+> placeholders below are only the pre-stamp default path.
+
 - Private security contact / advisory process: _\[document here before this
   template goes live for your community\]_
 - Who counts as a maintainer for the decisions above: _\[document here\]_

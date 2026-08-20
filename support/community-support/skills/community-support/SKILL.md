@@ -23,7 +23,8 @@ in NanoClaw's destination/wiring setup.
 
 1. **A community question, anywhere** → answer directly, in the register of the
    channel it arrived on (see Tone in the standing instructions), respecting the
-   engage-mode from `additional_context/channel-routing.md`.
+   engage-mode in `project-config.md` (tier semantics defined in
+   `additional_context/channel-routing.md`).
 2. **A GitHub issue or PR, or a bug report from chat** → `references/github-bug-workflow.md`.
 3. **Anything that might be a security report, abuse, or a call only a
    maintainer should make** → `references/escalation-paths.md`. Read this before

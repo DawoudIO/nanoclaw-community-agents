@@ -44,6 +44,7 @@ community-support/
 │       ├── daily-github-triage.md                     # weekday digest, drafts only
 │       └── weekly-identity-integrity-check.md         # asks before it ever locks anything
 ├── skills/
+│   ├── welcome/                               # first-contact onboarding interview (see below)
 │   └── community-support/
 │       ├── SKILL.md
 │       └── references/
@@ -69,6 +70,23 @@ tiers and fixes the engage behavior per tier, so it isn't a per-message judgment
 
 Fill in your real channel names before going live. `example-mapping.md` shows a
 filled-in version from a real deployment.
+
+## Configuration is conversational — the `welcome` skill
+
+On the owner's first DM, the `welcome` skill runs setup end to end: verifies
+the DM round trip, asks for the project's GitHub repo, scopes the goals,
+infers and confirms the rest, persists everything to
+`plugin-data/community-support/` (`project-config.md` + `config.env` — the
+latter carries `COMMUNITY_REPOS` for the standalone triage gate), relays
+sub-agent config, walks credential setup with real verification calls, and
+gates task activation on your explicit go. **Every FILL-THIS-IN marker in this
+template is an optional pre-stamp default** — the conversational config in
+plugin-data always wins at runtime.
+
+This agent is also the **durable home of the follower-count series**: when the
+marketing agent hands over its weekly snapshot line, the lead appends it to
+`plugin-data/community-support/social-metrics-history.jsonl`, which the
+workspace backup captures.
 
 ## Full setup, from zero
 
@@ -176,7 +194,7 @@ DM an approver for a yes/no.
 Worth gating this way: anything that publishes, sends mail, or closes/merges on
 GitHub.
 
-## Fill in before going live
+## Optional pre-stamp defaults (the welcome interview covers all of these)
 
 - `additional_context/channel-routing.md` — your real channel names per tier.
 - `references/escalation-paths.md` — your private security-disclosure process and

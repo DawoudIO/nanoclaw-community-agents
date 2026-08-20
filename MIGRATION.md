@@ -127,16 +127,31 @@ during setup, CLI-driving is the intended path, not an exception.
 
 ## Phase 3 — configure and go live (~30 min)
 
-10. After-stamping config: the two `config.env` files and (optional) backup
-    `git init/remote` — **point backup at a NEW repo**; the old backup repo
-    becomes the frozen evidence archive, not a live target.
+10. After-stamping config: the two `config.env` files and the backup —
+    **reusing `ChurchCRM/hazel-agent-backup` with a version split**: v1
+    history is preserved on a `v1` branch, `main` restarts as the v2 backup
+    target. From any machine with push access:
+    ```bash
+    git clone https://github.com/ChurchCRM/hazel-agent-backup.git /tmp/hab
+    cd /tmp/hab
+    git branch v1 && git push origin v1        # v1 history preserved (plus the quarantine branch from Phase 0)
+    git checkout --orphan v2-root && git rm -rfq .
+    printf '# Community agent workspace backup (v2)\n\nv1 history: branch `v1`. Quarantine snapshot: `quarantine/*`.\n' > README.md
+    git add README.md && git commit -m "v2 root - workspace backup for the rebuilt agent system"
+    git push -f origin HEAD:main               # main = clean v2 root; nothing lost, v1 branch keeps it all
+    ```
+    Then in the lead's group folder inside the sandbox: `git init`,
+    `git remote add origin https://github.com/ChurchCRM/hazel-agent-backup.git`,
+    identity + `.gitignore`, and let the backup task's first run push onto the
+    new main.
 11. Test every scripted gate before resuming anything:
     ```bash
     ./bin/ncl tasks list --status paused    # expect all 13
     ./bin/ncl tasks run <task-id> && ./bin/ncl tasks get <task-id>
     ```
-    First run of `health-check` also confirms `jq`/`ncl` exist in the image —
-    log an upstream issue if not (see UPSTREAM-ISSUES.md #7).
+    The `health-check` gate self-reports a missing `jq`/`ncl` (once, on its
+    first run) and the integrity check falls back to a manual-pass wake —
+    log an upstream issue if either fires (see UPSTREAM-ISSUES.md #7).
 12. Resume in the README's safety order. Smoke tests: support-channel
     question → unprompted reply; dev-channel mention → tagged-only reply;
     DM the lead to ping both sub-agents and relay answers.
@@ -197,12 +212,14 @@ agent stuck in a verification deadlock, task/wiring surgery, log forensics.
 | `channel-routing.md` developer tier | #dev-chat, #security (never auto-reply), GitHub-bugs notification channel |
 | `channel-routing.md` team-lead tier | #marketers, #announcements (post-only) |
 | `escalation-paths.md` | Security → #security channel + owner DM, never public issues; maintainer = George |
-| Coding persona / `config.env` | `COMMUNITY_REPOS="ChurchCRM/CRM ChurchCRM/docs.churchcrm.io ChurchCRM/ChurchCRM.io"` — all functions triaged, cross-repo currency rule applies; default branch master |
+| Coding persona / `config.env` | `COMMUNITY_REPOS="ChurchCRM/CRM ChurchCRM/docs.churchcrm.io ChurchCRM/ChurchCRM.io ChurchCRM/marketing"` — all four functions triaged, cross-repo currency rule applies; default branch master; label scheme: existing CRM labels only, milestones stay human |
 | Marketing persona / `config.env` | `CONTENT_REPO="ChurchCRM/marketing"`; brand source = ChurchCRM/marketing repo (voice, pillars, personas); site repo ChurchCRM/ChurchCRM.io; GA4 property 253632751 (later, optional) |
 | Backup target | New repo, e.g. `DawoudIO/community-agent-backup`; `ChurchCRM/hazel-agent-backup` frozen as evidence archive |
+| Social platforms (snapshot + posting) | Track: x.com/getChurchCRM, facebook.com/getChurchCRM, instagram.com/getchurchcrm, linkedin.com/company/getchurchcrm, both YouTube channels. Post to: X + LinkedIn via intent-URL, Facebook manual. Add these hosts to the sandbox allowlist for the snapshot task |
+| PostHog (when enabled) | Project id from the old install's config; host us.posthog.com; allowlist entry required |
 | Goals (welcome step 3) | All four: support yes; growth yes — users (church admins/pastors) first, contributors second; proactive detection yes (PostHog); security yes |
 | Models ($20 plan) | Lead + marketing: Sonnet-class; coding: Haiku-class; no Opus on scheduled tasks. The old 4-agent setup (Sara era) hit plan limits — this config + script gates is the fix; tune by pausing tasks per the README's priority order, not by deleting agents |
-| **The one export from the old system** | `churchcrm/metrics-history.json` (social follower counts over time — the only data that can't be rebuilt from the web). Copy it from the old workspace/backup repo into the new marketing group as `plugin-data/community-marketing/social-metrics-history.jsonl` (one JSON object per line). Everything else — memory, transcripts, notes — is deliberately NOT migrated: agents rebuild context from GitHub on cold start |
+| **The one export from the old system** | `churchcrm/metrics-history.json` (social follower counts over time — the only data that can't be rebuilt from the web). Convert to one-JSON-object-per-line and place the **durable copy in the lead's** `plugin-data/community-support/social-metrics-history.jsonl` (captured by the workspace backup); optionally seed marketing's working cache too. Everything else — memory, transcripts, notes — is deliberately NOT migrated: agents rebuild context from GitHub on cold start |
 | Deferred (reconnect later if wanted) | Gmail inbox-check, GA4 report — creds stay in old OneCLI vault until then |
 | X/Twitter posting | The old OAuth 1.0a free-tier path is dead (X discontinued the free API tier Feb 2026; new access is pay-per-use, ~$0.20 per link post). Default for the rebuild: **intent-URL flow** (free, zero keys — same as the LinkedIn flow, approver clicks Post). Opt into pay-per-use (~$6/mo at daily cadence) only if one-click posting matters |
 | `posthog-weekly-review` | **Keep — proactive issue detection** ("find issues before users report them"). Enable when ready: PostHog key into the new vault + `us.posthog.com` added to the sandbox allowlist + `POSTHOG_PROJECT_ID` in config.env. The standalone CRM skill (per 2026-08-19, `.claude/commands/` in ChurchCRM/CRM) is complementary for on-demand deep dives — it still needs its own PostHog key |

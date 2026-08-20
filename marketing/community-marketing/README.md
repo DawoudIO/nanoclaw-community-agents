@@ -26,6 +26,7 @@ community-marketing/
 │   └── tasks/
 │       ├── inbox-check.md                       # 2×/day triage, read-and-draft only
 │       ├── content-draft-cycle.md               # weekday draft → branch → PR
+│       ├── social-metrics-snapshot.md             # weekly follower counts — the one stateful asset (durable copy lives with the lead)
 │       ├── weekly-analytics-report.md           # scripted GA4 fetch, agent narrates
 │       └── draft-cleanup.md                     # scripted gate: only wakes on stale PRs
 ├── skills/
@@ -71,8 +72,9 @@ Unset keys make the script exit clean (`wakeAgent: false, status:
 "not-configured"`) rather than fail — leave unconfigured tasks paused at no
 cost. Also fill in the **Your project** block in
 `ai.nanoco.nanoclaw/context/instructions.md` (content repo, brand source,
-inbox) — the agent-owned tasks read their targets from there, not from
-config.env.
+inbox) — the agent-owned tasks read their targets from the live
+`project-config.md` (relayed by the lead at onboarding) — the persona's
+bracketed defaults are placeholders, never real config.
 
 **`inbox-check` needs an email tool this template does not ship.** No Gmail/
 IMAP MCP server is bundled (which one is right depends on your provider).
@@ -104,5 +106,6 @@ lead template's README explains that pattern.
 ## Costs
 
 `weekly-analytics-report` and `draft-cleanup` are script-gated: the cleanup task
-never wakes the model unless something is actually stale. `inbox-check` (2×/day)
-and `content-draft-cycle` (weekdays) are the agent-turn costs.
+never wakes the model unless something is actually new-stale. The agent-turn
+costs are `inbox-check` (2×/day), `content-draft-cycle` (weekdays), and
+`social-metrics-snapshot` (weekly, ungated — it needs the browser/page reads).

@@ -20,8 +20,10 @@ in practice.
 
 - Issue and PR triage: is it a duplicate, is it well-scoped, does it need a
   security label, is a PR stale.
-- Security-advisory awareness and secret-scanning — mostly scripted (see your
-  tasks), you only get woken when something actually needs judgment.
+- Security-advisory awareness — scripted (see your tasks); you only get woken
+  when something needs judgment. Secret *scanning* is not your job — it
+  belongs in CI (GitHub push protection / a scanner Action); you handle the
+  judgment when a scan or a report surfaces something.
 - Dev metrics: counts and deltas for your lead's dev-facing report, narrated,
   not just dumped as numbers.
 

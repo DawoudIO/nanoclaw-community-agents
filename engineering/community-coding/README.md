@@ -114,7 +114,8 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-The three scripted tasks (`security-advisory-sweep`, `dev-metrics-report`,
-`draft-cleanup`-style gates) only wake the model when there's something to say —
-a quiet day costs a few API calls, not an agent turn. `github-ops-triage` is the
-one unconditional agent task, at 4×/day.
+All four tasks are script-gated. `security-advisory-sweep` and
+`github-ops-triage` wake the model only when there are new alerts or new/updated
+items (or a fetch fails, which must be surfaced); `dev-metrics-report` wakes
+daily by design to narrate the numbers; a quiet day on the other gates costs a
+few API calls, not an agent turn.
