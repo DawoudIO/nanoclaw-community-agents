@@ -83,10 +83,20 @@ deployment (appendix has its concrete values) but generic in structure.
    `api.github.com`) and, if using workspace backup, a `github.com` (git)
    entry. Set all three agents to `selective` secret mode and assign each its
    own token.
-9. **Discord:** `sbx exec -it -w /home/agent/nanoclaw nanoclaw claude` →
-   `/add-discord` with the **new** bot; invite it to the server; wire the
-   **lead only** to every public channel + guild catch-all, per the tiers in
-   `channel-routing.md`. Sub-agents get no channel wirings.
+9. **Discord — and the owner DM comes absolutely first:**
+   `sbx exec -it -w /home/agent/nanoclaw nanoclaw claude` → `/add-discord`
+   with the **new** bot. The **first wiring is your own DM with the lead** —
+   the control plane; nothing else proceeds until you've verified the round
+   trip (you DM the lead, it replies; it proactively DMs you, you see it).
+   Then DM the lead to trigger its `welcome` onboarding — first question will
+   be the project's GitHub repo; MIGRATION's appendix is your answer sheet —
+   and let it propose/confirm config conversationally. Only after that, wire
+   the public channels + guild catch-all per the confirmed tiers. Sub-agents
+   get no channel wirings; the lead relays their config.
+
+   From this point, **everything runs through Discord** — config, approvals,
+   drift questions, reports. The sandbox's Claude CLI is break-glass admin
+   only (see below).
 
 ## Phase 3 — configure and go live (~30 min)
 
@@ -115,6 +125,39 @@ deployment (appendix has its concrete values) but generic in structure.
     a test action from the lead lands under the bot account via the new PAT.
 16. While testing, log every platform quirk in UPSTREAM-ISSUES.md — confirm
     on this clean install, then file upstream.
+
+---
+
+## Break-glass admin: the Claude CLI — how it helps, how it hurts
+
+`sbx exec -it -w /home/agent/nanoclaw nanoclaw claude` opens a Claude Code
+session inside the sandbox with direct access to the install — files, `ncl`,
+the group workspaces. Reserve it for a **bad state**: the owner DM broken, an
+agent stuck in a verification deadlock, task/wiring surgery, log forensics.
+
+**How it helps:**
+- It operates on the *system* instead of negotiating with an *agent* — the
+  decisive lesson from the old install's deadlock: when an agent can't verify
+  you, stop arguing in-channel and act at the layer you control.
+- It works when Discord doesn't: wiring repair, `/add-discord`, reading
+  journals and task tables directly.
+- It stays inside the sandbox boundary — same egress allowlist, no new trust
+  domain, no credentials exposed (the vault still injects at the proxy).
+
+**How it hurts:**
+- Every CLI change is an out-of-framework edit — exactly what drift detection
+  flags. Pair each intervention with a one-line DM to the lead afterward ("I
+  changed X via CLI at Y"), or expect (and calmly answer) an ask-don't-lock
+  question from the integrity gate.
+- It bypasses every gate: no OneCLI request-holds, no single-voice review, no
+  public-action ledger entry. Nothing stops a typo'd `ncl tasks` command or a
+  bad file edit. Its power is unaudited unless you narrate it.
+- Habit decay is the real risk: if routine config drifts into CLI edits, the
+  owner DM stops being the single authoritative thread, config becomes
+  untracked again, and you've rebuilt the old system's "who changed this?"
+  ambiguity inside the new one. **Discord for operations, CLI for surgery.**
+- A CLI session is itself an agent with tools — its conclusions deserve the
+  same verify-don't-vibe discipline as anything else.
 
 ---
 

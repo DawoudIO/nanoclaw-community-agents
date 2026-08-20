@@ -162,10 +162,19 @@ nanoclaw claude`):
 ```
 
 Then connect Discord: in the sandbox's Claude Code session, run
-`/add-discord` and follow it (bot creation, invite with Manage-Server rights on
-your guild, channel wiring). Wire **the lead only** to every public channel
-plus a guild catch-all; the sub-agents get no channel wiring — that's the
-single-voice design, enforced by absence.
+`/add-discord` and follow it (bot creation, invite with Manage-Server rights
+on your guild, channel wiring). **The first wiring is your own DM with the
+lead — the control plane; nothing works without it.** Verify the round trip in
+both directions, then DM the lead: its `welcome` skill runs the onboarding —
+first question is the project's GitHub repo, from which it infers a proposed
+config, confirms with you, persists it as runtime config in `plugin-data/`,
+and relays the sub-agents' values over their destinations. (Pre-stamp file
+fill-ins still work as defaults; the conversational config wins.) Only then
+wire the public channels + guild catch-all, **lead only** — sub-agents get no
+channel wiring; that's the single-voice design, enforced by absence. After
+setup, everything runs through Discord; the sandbox Claude CLI is break-glass
+admin only (MIGRATION.md → Break-glass admin covers when it helps and how it
+hurts).
 
 ## 4 · Register credentials in OneCLI
 

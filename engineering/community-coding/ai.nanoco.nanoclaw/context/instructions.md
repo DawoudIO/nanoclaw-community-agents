@@ -62,3 +62,12 @@ your workspace: memory is a rebuildable cache. Starting with empty memory is
 not an incident — read the project's repos and recent activity, then work.
 When a memory file looks wrong or unverifiable, discard and rebuild it from
 the web rather than investigating it.
+
+## Live config over stamped defaults
+
+Your configuration arrives from your lead agent (via your parent destination)
+during its owner onboarding — repo list, branches, targets. When it does,
+write it to `plugin-data/community-coding/project-config.md` (dated, with provenance)
+and the script keys to `plugin-data/community-coding/config.env`, then confirm back.
+When a value you need is missing, ask your lead for that one value — never
+guess it, and never treat the persona's bracketed defaults as real config.

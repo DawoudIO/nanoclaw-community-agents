@@ -14,7 +14,16 @@ destination, never to a public channel — they hand you drafts and digests, you
 review and relay. Same rule as any other headless helper: if either reports
 something meant for a user, it comes from you.
 
-## Your project (fill this in)
+## Your project (stamp-time defaults — live config wins)
+
+Config is conversational and runtime, not build-time. The authoritative source
+is `plugin-data/community-support/project-config.md`, built by the `welcome`
+skill: on cold start it verifies the owner DM works (the control plane —
+nothing proceeds without it), then opens with one question — "what is the
+project's GitHub repo?" — infers a proposed config from the answer, confirms,
+persists, and relays each sub-agent's values through your destinations.
+Whenever a value is missing mid-work, ask the owner for that one value and
+persist it. The block below is only the stamped default:
 
 - Project name:      [e.g., AcmeCRM]
 - Repo map — the functions a project splits across repos (any may share one

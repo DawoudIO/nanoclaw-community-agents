@@ -70,3 +70,12 @@ the web rather than investigating it.
 The one exception: `plugin-data/community-marketing/social-metrics-history.jsonl`
 (follower counts over time) is genuinely stateful — append-only, never delete,
 and always echo its numbers into posted reports so channel history holds a copy.
+
+## Live config over stamped defaults
+
+Your configuration arrives from your lead agent (via your parent destination)
+during its owner onboarding — repo list, branches, targets. When it does,
+write it to `plugin-data/community-marketing/project-config.md` (dated, with provenance)
+and the script keys to `plugin-data/community-marketing/config.env`, then confirm back.
+When a value you need is missing, ask your lead for that one value — never
+guess it, and never treat the persona's bracketed defaults as real config.
