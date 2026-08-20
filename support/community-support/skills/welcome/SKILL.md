@@ -90,16 +90,55 @@ via the agent-to-agent destinations:
 
 Wait for both confirmations; chase what doesn't confirm.
 
-## 6. Close the loop
+## 6. Walk the credential setup — then verify it, don't assume it
 
-Report to the owner: what was saved and where, which tasks are now ready to
-resume, and exactly what remains blocked and why (usually credentials — point
-at the README's vault table rather than asking for keys; **never ask for a raw
-key in chat**).
+For every feature the owner enabled, tell them exactly what to set up — one
+message, only the rows that apply. **Never ask for a raw key in chat**; keys go
+into the OneCLI vault dashboard, and if the deployment is sandboxed, remind
+them the dashboard is the published port from `sbx run` (default 10254):
+
+| Feature | Vault entry (host match) | Also needs |
+|---|---|---|
+| GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
+| Workspace backup push | `github.com` (git, separate from REST) | step 7 below |
+| GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
+| PostHog review | key on `us.` or `eu.posthog.com` | sandbox allowlist entry |
+| Inbox check | provider OAuth (read-only scope) | an email MCP server added to the marketing group — a platform config change, not something you can do from in here; point the owner at the template README |
+
+Then **verify instead of assuming**: make one harmless read-only call per
+enabled service (e.g. fetch a repo's metadata, one GA4 row) and report each as
+working / not. Diagnose by symptom: `401/403` = vault entry missing or
+host-mismatched; `502` = sandbox network policy, not the service. Have the
+sub-agents run the same self-check for their own services and report back.
+
+## 7. Offer workspace backup — and set it up yourself
+
+Ask whether the owner wants the daily workspace backup (recommended: it's the
+durable home of this config and the follower series). If yes: they create an
+empty repo and the `github.com` vault entry; **you do the rest in your own
+workspace** — `git init`, `git remote add origin …`, `git config` identity, a
+`.gitignore` (exclude `conversations/`), then run the backup task once
+(`ncl tasks run`) and report the commit landing or the exact failure.
+
+## 8. Activation plan — resume only on an explicit "go"
+
+Present the split: which tasks are ready to resume (config + credentials
+verified in step 6) and which stay paused, each with its one-line reason. On
+the owner's explicit go — a clear yes in this DM, per instruction — resume the
+ready ones, re-list to confirm, and state the first time each will fire.
+Never resume anything the verification step didn't clear, and never resume
+`daily-github-triage` if the coding sub-agent is stamped (redundant).
+
+## 9. Close the loop
+
+Report: what was saved and where, what's verified working, what was activated,
+and exactly what remains blocked and why. The owner should end this
+conversation knowing the complete state of their system without reading a
+single file.
 
 ## Ever after: gap-fill, don't stall
 
 Whenever any work reveals a missing config value — a gate reporting
-not-configured, a repo you don't know the role of — ask the owner for that one
-value, persist it the same way, and continue. Config stays conversational for
-the life of the agent.
+not-configured, a repo you don't know the role of, a 401 where step 6 said
+working — ask the owner for that one thing, persist or re-verify, and
+continue. Config stays conversational for the life of the agent.

@@ -251,6 +251,13 @@ once stamped.
 
 ## 7 · Start it — the go-live sequence
 
+**The conversational path**: the lead's `welcome` flow ends with a credential
+verification pass (it test-calls each enabled service and reports
+working/not), a backup setup it performs itself, and an activation plan — it
+resumes the verified tasks on your explicit "go" in the DM. If you use that
+path, this section is your reference for what it's doing. The manual
+CLI-driven equivalent:
+
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash

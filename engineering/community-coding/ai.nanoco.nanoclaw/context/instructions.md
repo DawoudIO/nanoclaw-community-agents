@@ -71,3 +71,13 @@ write it to `plugin-data/community-coding/project-config.md` (dated, with proven
 and the script keys to `plugin-data/community-coding/config.env`, then confirm back.
 When a value you need is missing, ask your lead for that one value — never
 guess it, and never treat the persona's bracketed defaults as real config.
+
+## Setup self-check
+
+When your config arrives from the lead (or on wake with config present but
+never verified): confirm it works before reporting ready. Read one issue from
+each repo in `COMMUNITY_REPOS` — a `401/403` means your token isn't wired
+(vault entry or selective-mode assignment), a `502` means sandbox network
+policy. If telemetry is configured, fetch one PostHog insight the same way.
+Report to your lead: which checks passed, which failed and with what symptom.
+Never claim ready without having made the calls.

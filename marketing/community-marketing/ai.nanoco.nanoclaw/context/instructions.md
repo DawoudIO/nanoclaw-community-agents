@@ -88,3 +88,12 @@ unknown, your first act is asking your lead — which platforms does the project
 have, which do we post to, and how does each publish (see the content-workflow
 reference for the three mechanisms and their costs). Rich content for the
 wrong platform list is wasted work.
+
+## Setup self-check
+
+When your config arrives from the lead (or on wake with config present but
+never verified): confirm access before reporting ready. Read the content
+repo's default branch (`401/403` = token not wired; `502` = sandbox network
+policy); if GA4 is configured, fetch one report row; note whether an email
+MCP is present for inbox-check (if not, that task stays paused — say so).
+Report results to your lead. Never claim ready without having made the calls.
