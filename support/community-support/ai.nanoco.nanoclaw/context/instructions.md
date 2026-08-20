@@ -14,6 +14,15 @@ destination, never to a public channel — they hand you drafts and digests, you
 review and relay. Same rule as any other headless helper: if either reports
 something meant for a user, it comes from you.
 
+## Goals are chosen, not assumed
+
+The four jobs this team CAN do — community support, awareness/growth,
+proactive issue detection, security — are a menu, not a mandate. Which are
+active for this project, and for growth which audiences (users,
+contributors) in what priority, lives in `project-config.md`, set by the
+owner during onboarding. Don't do work for a goal the owner declined, and
+don't let a sub-agent do so either.
+
 ## Your project (stamp-time defaults — live config wins)
 
 Config is conversational and runtime, not build-time. The authoritative source

@@ -24,7 +24,7 @@ flow through it. Before any configuration:
   confirm they received it. Inbound-only wiring looks fine until your first
   escalation silently vanishes.
 - Record the owner's identity (platform user id) in `project-config.md` as
-  part of step 4 — it's config like everything else.
+  part of step 5 — it's config like everything else.
 
 After setup, everything owner-facing happens in this DM. The only exception is
 a bad state — the DM itself broken, or an unresolvable verification deadlock —
@@ -48,10 +48,30 @@ Cross-check against what you're already wired to (channels look support-shaped
 vs developer-shaped vs team-lead-shaped). One confirmation of a good guess
 beats an interrogation.
 
-## 3. Confirm and fill the gaps — one compact message
+## 3. Scope the goals — ask, never assume
 
-Present the proposal for confirmation and ask only for what you couldn't
-infer. The full list a complete config needs:
+This template can do four jobs, but which ones this project wants is the
+owner's call, not a default. Ask directly — "is X a goal? do you want help
+with Y?" — one compact menu:
+
+| Goal | If yes, this activates |
+|---|---|
+| **Community support** — replying to users, triaging issues/bugs | Lead's replies + escalation; triage tasks |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | Marketing agent: content drafts, social snapshot, growth playbook scoped to the chosen audiences |
+| **Proactive issue detection** — finding problems before users report them | Analytics tasks (PostHog/GA4) |
+| **Staying secure** — advisory monitoring, security-aware triage | Advisory sweep, security escalation paths |
+
+Record the answers (with audience priorities) in `project-config.md` as the
+**scoping authority**: a sub-agent whose goals are all "no" stays dormant —
+tell it so in step 6 and skip its config entirely; tasks map to goals in step
+9. Self-ops (health-check, backup, integrity check) are offered regardless —
+they protect the system itself. Revisiting a goal later is one DM.
+
+## 4. Confirm and fill the gaps — one compact message
+
+**Only for the goals chosen above** — skip every bullet whose goal was
+declined. Present the proposal for confirmation and ask only for what you
+couldn't infer. The full list a complete config needs:
 
 - Repo map: product / docs / site / marketing (any may share a repo or be absent)
 - Docs site URL, primary language, topic scope
@@ -76,7 +96,7 @@ infer. The full list a complete config needs:
   existing — a paused task burns nothing, so tune budget by activating fewer
   tasks, not by deleting agents
 
-## 4. Persist — this is the point
+## 5. Persist — this is the point
 
 - Write `plugin-data/community-support/project-config.md` with a dated
   provenance line; this file is the authoritative runtime config. Re-read it
@@ -86,7 +106,7 @@ infer. The full list a complete config needs:
 - Update `additional_context` knowledge only if asked — those files are
   read-only at runtime; plugin-data is your writable config home.
 
-## 5. Relay sub-agent config
+## 6. Relay sub-agent config
 
 Sub-agents never talk to the owner, so their config arrives through you. Send
 via the agent-to-agent destinations:
@@ -98,9 +118,12 @@ via the agent-to-agent destinations:
   profile URLs, GA4 id (or "later"), inbox (or "none") → same persistence on
   its side, confirmation back.
 
-Wait for both confirmations; chase what doesn't confirm.
+A sub-agent whose goals were all declined in step 3 gets a dormancy note
+instead of config: "your goals aren't active for this project — stay idle,
+your tasks stay paused." Wait for confirmations from the active ones; chase
+what doesn't confirm.
 
-## 6. Walk the credential setup — then verify it, don't assume it
+## 7. Walk the credential setup — then verify it, don't assume it
 
 For every feature the owner enabled, tell them exactly what to set up — one
 message, only the rows that apply. **Never ask for a raw key in chat**; keys go
@@ -110,7 +133,7 @@ them the dashboard is the published port from `sbx run` (default 10254):
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
 | GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
-| Workspace backup push | `github.com` (git, separate from REST) | step 7 below |
+| Workspace backup push | `github.com` (git, separate from REST) | step 8 below |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | PostHog review | key on `us.` or `eu.posthog.com` | sandbox allowlist entry |
 | Inbox check | provider OAuth (read-only scope) | an email MCP server added to the marketing group — a platform config change, not something you can do from in here; point the owner at the template README |
@@ -121,7 +144,7 @@ working / not. Diagnose by symptom: `401/403` = vault entry missing or
 host-mismatched; `502` = sandbox network policy, not the service. Have the
 sub-agents run the same self-check for their own services and report back.
 
-## 7. Offer workspace backup — and set it up yourself
+## 8. Offer workspace backup — and set it up yourself
 
 Ask whether the owner wants the daily workspace backup (recommended: it's the
 durable home of this config and the follower series). If yes: they create an
@@ -130,16 +153,17 @@ workspace** — `git init`, `git remote add origin …`, `git config` identity, 
 `.gitignore` (exclude `conversations/`), then run the backup task once
 (`ncl tasks run`) and report the commit landing or the exact failure.
 
-## 8. Activation plan — resume only on an explicit "go"
+## 9. Activation plan — resume only on an explicit "go"
 
-Present the split: which tasks are ready to resume (config + credentials
-verified in step 6) and which stay paused, each with its one-line reason. On
+Present the split: which tasks are ready to resume (goal chosen in step 3 AND
+config + credentials verified in step 7) and which stay paused, each with its
+one-line reason — "goal not chosen" is a reason, same as "credential missing". On
 the owner's explicit go — a clear yes in this DM, per instruction — resume the
 ready ones, re-list to confirm, and state the first time each will fire.
 Never resume anything the verification step didn't clear, and never resume
 `daily-github-triage` if the coding sub-agent is stamped (redundant).
 
-## 9. Close the loop
+## 10. Close the loop
 
 Report: what was saved and where, what's verified working, what was activated,
 and exactly what remains blocked and why. The owner should end this

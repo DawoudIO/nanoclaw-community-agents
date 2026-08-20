@@ -47,11 +47,14 @@ which also happens to be the strongest version of the approval discipline.
 Never work around a missing API with browser automation against the platform's
 own web app; that violates platform terms and gets accounts suspended.
 
-## Say which pillar or campaign it serves
+## Say which goal, audience, and pillar it serves
 
-Every draft names the content pillar, campaign, or calendar slot it belongs to.
-A reviewer's first question is "why this, now" — answer it in the PR body so
-they don't have to ask.
+Every draft names, in the PR body: the growth goal it serves (from the owner's
+chosen goals in project-config — see `growth-playbook.md`), the audience
+(users vs contributors), the platform it's shaped for, and the content pillar
+or calendar slot. A reviewer's first question is "why this, now, for whom" —
+answer it so they don't have to ask. If the owner declined a growth goal at
+onboarding, don't draft for it.
 
 ## Format drafts to be copy-pasteable
 
