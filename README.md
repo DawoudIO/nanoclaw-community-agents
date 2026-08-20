@@ -290,6 +290,43 @@ Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
 
 ---
 
+## Models and token budget — right-sizing on a small plan
+
+**Three agents is the right number — and it's cheaper than it looks.** Burn
+comes from model *wakes*, not from agents existing: a stamped agent whose
+tasks are paused costs nothing. 10 of 13 tasks are script-gated, so quiet
+periods cost near zero regardless of agent count. That makes the team elastic:
+stamp all three, then tune budget by which tasks you activate — never by
+deleting agents.
+
+Two sizing mistakes this design specifically avoids (both were learned the
+expensive way on a real deployment that hit its plan limits with 4 agents):
+
+- **Don't add a "quick tasks" agent.** The lead stays responsive by design —
+  scheduled work runs in isolated task sessions and long background work
+  belongs to the sub-agents, so the owner DM is never stuck behind a slow
+  thread. A fourth agent for responsiveness just duplicates context loads.
+- **Don't merge everything into one agent to save tokens.** The savings are
+  small (gated tasks already cost ~nothing when idle) and you lose the
+  per-agent credential scoping and the single-voice structure.
+
+**Model defaults per agent** (confirmed at cold start by the welcome flow —
+the owner can change them there or later via group config):
+
+| Agent | Default | Why |
+|---|---|---|
+| Lead | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
+| Marketing | Sonnet-class | Content quality is its whole job; drafts are the deliverable |
+| Coding | Haiku-class | Triage/digest work with skills to guide it — and everything it produces is reviewed by the lead before publishing. Upgrade only if draft quality disappoints |
+| Any scheduled task | never Opus-class | Wakes are frequent; premium models belong in interactive sessions, not cron |
+
+**If you still hit plan limits**, pause in this order (lowest value first):
+`draft-cleanup` → `dev-metrics-report` → `social-metrics-snapshot` →
+`inbox-check` → reduce `github-ops-triage` to 2×/day → `content-draft-cycle`
+to 3×/week. The safety net (`health-check`, `workspace-backup`,
+`weekly-identity-integrity-check`) and community replies are the last things
+to give up — they're also nearly free, since all three are gated.
+
 ## Reference: every task, required vs optional
 
 "Silent skip" = safe to resume unconfigured (gate exits `not-configured` at

@@ -65,6 +65,16 @@ infer. The full list a complete config needs:
   opt-in only)
 - Optional analytics: GA4 property id, PostHog project id/host — "not now" is
   a fine answer; the tasks silent-skip until configured
+- **Models per agent — confirm, don't assume.** State each group's current
+  provider/model and the recommended defaults for the owner's plan tier, and
+  apply any change they ask for (via group config if you can; otherwise give
+  them the exact command). Defaults for a small subscription plan ($20-tier):
+  lead and marketing on a Sonnet-class model (public-facing judgment, content
+  quality), coding on a Haiku-class model (its drafts are reviewed by the lead
+  anyway — the cheapest model that triages well); never an Opus-class model on
+  a scheduled task. Remind the owner: cost comes from wakes, not from agents
+  existing — a paused task burns nothing, so tune budget by activating fewer
+  tasks, not by deleting agents
 
 ## 4. Persist — this is the point
 
