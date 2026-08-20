@@ -224,6 +224,12 @@ target service.
 
 ## 6 · Files you edit — the complete list
 
+**Or skip most of this and answer conversationally**: the lead's `welcome`
+skill collects everything in the BEFORE-stamping table below (except cron
+lines) over Discord at first contact and persists it as runtime config in
+`plugin-data/` — file fill-ins act as defaults, the conversation wins. Edit
+files when you prefer version-controlled config; talk when you prefer speed.
+
 **BEFORE stamping** (personas mount read-only into agents — edit in the
 template, in your staging repo/local copy, then load + stamp):
 
@@ -234,7 +240,7 @@ template, in your staging repo/local copy, then load + stamp):
 | `support/…/skills/community-support/references/escalation-paths.md` | Private security-disclosure contact + who counts as a maintainer |
 | `engineering/…/context/instructions.md` | **Your project** block: repos to triage, default branch, telemetry, label policy |
 | `marketing/…/context/instructions.md` | **Your project** block: content repo, brand/strategy source, site repo, inbox, GA4 id |
-| Task cron lines (all 12 task files) | Optional — **the kit pins `TZ=UTC`**, so shipped times fire in UTC unless you set each group's timezone; either adjust the crons or set the group tz |
+| Task cron lines (all 13 task files) | Optional — **the kit pins `TZ=UTC`**, so shipped times fire in UTC unless you set each group's timezone; either adjust the crons or set the group tz |
 
 **AFTER stamping** (writable at runtime — edit in the group folder inside the
 sandbox, or ask the agent to write them):
@@ -250,7 +256,7 @@ sandbox, or ask the agent to write them):
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 12
+./bin/ncl tasks list --status paused          # expect all 13
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
@@ -303,8 +309,9 @@ turns.
 
 Shipped times (UTC under the kit): health-check every 3h · backup 08:40 · lead
 triage weekdays 13:00 · coding triage every 6h · sweep every 4h · dev metrics
-12:00 · PostHog Mon 15:00 · inbox 06:00 + 16:00 · content weekdays 13:30 · GA4
-Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00. Rules of thumb: put the
+12:00 · PostHog Mon 15:00 · inbox 06:00 + 16:00 · content weekdays 13:30 ·
+social snapshot Sun 13:00 · GA4 Sun 14:00 · cleanup 17:30 · integrity check
+Mon 15:00. Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep

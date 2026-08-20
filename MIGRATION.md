@@ -105,7 +105,7 @@ deployment (appendix has its concrete values) but generic in structure.
     becomes the frozen evidence archive, not a live target.
 11. Test every scripted gate before resuming anything:
     ```bash
-    ./bin/ncl tasks list --status paused    # expect all 12
+    ./bin/ncl tasks list --status paused    # expect all 13
     ./bin/ncl tasks run <task-id> && ./bin/ncl tasks get <task-id>
     ```
     First run of `health-check` also confirms `jq`/`ncl` exist in the image —
