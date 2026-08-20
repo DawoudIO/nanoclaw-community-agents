@@ -23,6 +23,31 @@ deployment (appendix has its concrete values) but generic in structure.
 
 ---
 
+## Driving this with Claude Code (recommended) vs. by hand
+
+This runbook is written to be executed by a Claude Code session: open one **on
+the machine that will host the sandbox** (it also needs access to the old
+install for Phase 0), point it at this file, and let it run the mechanical
+steps while you handle the human-only ones. Two Claude surfaces are involved:
+
+- **Host-side Claude Code** — runs Phases 0, 1, 3, 4: snapshots, evidence tar,
+  `docker pull`, template tar-stream, `sbx exec` stamping/wiring, gate test
+  runs, resume sequence, old-host shutdown.
+- **In-sandbox Claude** (`sbx exec -it -w /home/agent/nanoclaw nanoclaw
+  claude`) — the kit's own customization path: `/add-discord`, wiring, and any
+  in-VM debugging.
+
+**Human-only steps — never delegate these** (they involve credentials or
+browser auth, which agents must not handle): creating the 3 GitHub PATs;
+creating + inviting the Discord bot; pasting keys into the OneCLI dashboard
+(browser, via the published 10254 port); approving the kit's first-boot image
+pulls; answering the lead's welcome interview; revoking the old tokens at
+cutover. Also keep the `sbx run` terminal yours — it's interactive on first
+boot and the session *is* the system.
+
+Note the break-glass doctrine below applies to **operations after go-live** —
+during setup, CLI-driving is the intended path, not an exception.
+
 ## Phase 0 — while the old system still runs (~30 min)
 
 1. **Create the new credentials** (old ones stay valid until cutover):
