@@ -68,7 +68,9 @@ deployment (appendix has its concrete values) but generic in structure.
    ```bash
    git clone https://github.com/DawoudIO/nanoclaw-community-agents.git /tmp/nca
    ```
-   Do the **before-stamping fill-ins now** in `/tmp/nca` (see appendix), then:
+   Optional: pre-stamp file fill-ins in `/tmp/nca` (the welcome interview
+   covers them conversationally — the appendix is your answer sheet either
+   way). **Cron/timezone edits are the only thing that must happen now.** Then:
    ```bash
    tar -C /tmp/nca -cf - support engineering marketing \
      | sbx exec -i nanoclaw tar -C /home/agent/nanoclaw/templates -xf -

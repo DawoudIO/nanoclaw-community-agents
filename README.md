@@ -122,9 +122,9 @@ open; NanoClaw stops when it closes.
 The install's templates directory is `/home/agent/nanoclaw/templates/` inside
 the VM.
 
-**Do your "edit BEFORE stamping" changes first — see step 6.** Personas are
-mounted read-only into stamped agents; editing them after stamping means
-restamping.
+**Only cron-line/timezone changes must happen before stamping** (see step 6) —
+project config is collected conversationally after wiring. Pre-stamp file
+fill-ins are optional defaults; personas mount read-only once stamped.
 
 **A — from a git staging repo** (github.com is already allowlisted):
 
@@ -222,34 +222,32 @@ This friction is the point: every egress hole is opened deliberately, per host,
 in a file agents can't write. When any request 502s, suspect policy before the
 target service.
 
-## 6 · Files you edit — the complete list
+## 6 · Configuration — one conversation, three files
 
-**Or skip most of this and answer conversationally**: the lead's `welcome`
-skill collects everything in the BEFORE-stamping table below (except cron
-lines) over Discord at first contact and persists it as runtime config in
-`plugin-data/` — file fill-ins act as defaults, the conversation wins. Edit
-files when you prefer version-controlled config; talk when you prefer speed.
+**The default path is the conversation, not file edits.** After the owner DM
+is wired (step 3), the lead's `welcome` skill interviews you — first question:
+the project's GitHub repo — infers and confirms the rest, persists everything
+as runtime config (`plugin-data/*/project-config.md` + the `config.env` script
+keys), and relays each sub-agent's values so they write their own. That covers
+the project identity, repo map, docs site, language, channel tiers, security
+contact, social platforms, and optional analytics ids. **You edit zero files
+for any of that.**
 
-**BEFORE stamping** (personas mount read-only into agents — edit in the
-template, in your staging repo/local copy, then load + stamp):
+**Only three things live outside the conversation:**
 
-| File | Fill in |
-|---|---|
-| `support/…/context/instructions.md` | **Your project** block: name, repos, docs site, language, topic scope |
-| `support/…/context/additional_context/channel-routing.md` | Your Discord channels per tier (support = auto-reply; developer & team-lead = mention-only). Worked example in `example-mapping.md` — delete it after |
-| `support/…/skills/community-support/references/escalation-paths.md` | Private security-disclosure contact + who counts as a maintainer |
-| `engineering/…/context/instructions.md` | **Your project** block: repos to triage, default branch, telemetry, label policy |
-| `marketing/…/context/instructions.md` | **Your project** block: content repo, brand/strategy source, site repo, inbox, GA4 id |
-| Task cron lines (all 13 task files) | Optional — **the kit pins `TZ=UTC`**, so shipped times fire in UTC unless you set each group's timezone; either adjust the crons or set the group tz |
+| What | Where | When |
+|---|---|---|
+| Task schedules (cron lines, all 13 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
+| Workspace backup: `git init` + `remote` + identity + `.gitignore` | Lead's group folder in the sandbox | After stamping, host-side (or ask the lead to run it) |
+| Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
-**AFTER stamping** (writable at runtime — edit in the group folder inside the
-sandbox, or ask the agent to write them):
-
-| File | Fill in |
-|---|---|
-| `<coding group>/plugin-data/community-coding/config.env` | `COMMUNITY_REPOS="owner/repo1 owner/repo2"`, `POSTHOG_PROJECT_ID`, `POSTHOG_HOST` |
-| `<marketing group>/plugin-data/community-marketing/config.env` | `GA4_PROPERTY_ID`, `CONTENT_REPO="owner/marketing"` |
-| Lead group folder (optional backup) | `git init`, `git remote add origin …`, `git config user.name/email`, `.gitignore` |
+**Pre-stamp file fill-ins remain available as version-controlled defaults** —
+the persona "Your project" blocks, `channel-routing.md` (worked example in
+`example-mapping.md`), and `escalation-paths.md`. Useful when stamping many
+identical deployments, or when you want config reviewable in git before it
+exists anywhere else. At runtime the conversational config in `plugin-data/`
+always wins; the `additional_context` and skill files are read-only reference
+once stamped.
 
 ## 7 · Start it — the go-live sequence
 
@@ -316,6 +314,45 @@ integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
 (6×) exceed it.
+
+## Staying up to date
+
+The system is built to make its own upgrade path cheap: **cattle, not pets**.
+Because almost nothing is stateful (context rebuilds from the web, config is a
+conversation, the one durable file lives in the git backup), updating the
+platform = recreating the sandbox — the same runbook you used to build it.
+
+**Noticing updates is automated, not an agent job.** The
+[`platform-watch`](.github/workflows/platform-watch.yml) Action in this repo
+runs weekly: it compares the sbx VM image digest (`sbx-claude-alpha`), the
+latest NanoClaw release, and the kit spec against `platform-baseline.json`,
+and opens an issue here with a refresh checklist when any of them move.
+Security advisories for NanoClaw deserve an immediate refresh; otherwise batch
+refreshes when the issue appears.
+
+**The refresh procedure** (~1 hour, mostly waiting on pulls):
+
+1. Confirm the last workspace backup ran — it carries `project-config.md` and
+   the follower-count series, the only things worth restoring.
+2. `sbx rm nanoclaw` → `docker pull nanoco/nanoclaw:sbx-claude-alpha` (belt
+   and braces against tag caching) → `sbx run …` (the git kit ref is always
+   fetched fresh).
+3. Restamp the latest templates from this repo; re-run `/add-discord` with the
+   **same** Discord bot (its token comes from the Discord developer portal —
+   the VM's stored copy died with the VM); re-verify the owner-DM round trip.
+4. Re-enter the 3 GitHub PATs in the fresh vault, selective mode (~5 min).
+   No rotation needed — refresh isn't compromise.
+5. Restore `social-metrics-history.jsonl` from the backup repo; either restore
+   `project-config.md` too or just answer the welcome interview again.
+6. Smoke tests per §7, and re-test anything in UPSTREAM-ISSUES.md against the
+   new build before closing the watch issue.
+
+**Template updates** flow the other way: edit this repo, restamp. Personas and
+skills are read-only inside stamped agents by design, so a restamp *is* the
+deployment mechanism — and the watch issue is a natural moment to fold in any
+accumulated template improvements. Whether NanoClaw supports an in-place
+upgrade instead of recreate is undocumented — tracked as an upstream docs ask
+in UPSTREAM-ISSUES.md.
 
 ## Companion documents (staging repo only)
 

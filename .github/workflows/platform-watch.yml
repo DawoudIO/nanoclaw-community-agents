@@ -1,0 +1,39 @@
+name: platform-watch
+# Weekly check for upstream NanoClaw platform updates: the sbx VM image tag,
+# the latest NanoClaw release, and the sbx kit spec. Opens an issue when any
+# of them move, so a sandbox refresh can be planned. Zero agents involved.
+on:
+  schedule:
+    - cron: "0 14 * * 1"
+  workflow_dispatch: {}
+permissions:
+  contents: write
+  issues: write
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Compare upstream versions to baseline
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          DIGEST=$(curl -s "https://hub.docker.com/v2/repositories/nanoco/nanoclaw/tags/sbx-claude-alpha" | jq -r '.images[0].digest // "unknown"')
+          RELEASE=$(curl -s "https://api.github.com/repos/nanocoai/nanoclaw/releases/latest" | jq -r '.tag_name // "unknown"')
+          KIT=$(curl -s "https://api.github.com/repos/docker/sbx-kits-contrib/commits?path=nanoclaw&per_page=1" | jq -r '.[0].sha // "unknown"')
+          jq -n --arg d "$DIGEST" --arg r "$RELEASE" --arg k "$KIT" \
+            '{image_digest: $d, release: $r, kit_commit: $k}' > current.json
+          if [ -f platform-baseline.json ] && diff -q platform-baseline.json current.json >/dev/null 2>&1; then
+            echo "No upstream change."; exit 0
+          fi
+          OLD=$(cat platform-baseline.json 2>/dev/null || echo '{}')
+          mv current.json platform-baseline.json
+          git config user.name "platform-watch"
+          git config user.email "actions@users.noreply.github.com"
+          git add platform-baseline.json
+          git commit -m "platform-watch: record new upstream baseline"
+          git push
+          gh issue create \
+            --title "Upstream update detected: plan a sandbox refresh ($(date -u +%F))" \
+            --body "$(printf 'platform-watch found upstream changes.\n\n**Previous:**\n```json\n%s\n```\n**Current:**\n```json\n%s\n```\n\nChecklist (see README → Staying up to date):\n- [ ] Read the NanoClaw release notes: https://github.com/nanocoai/nanoclaw/releases\n- [ ] Confirm last workspace-backup ran (follower series + project-config safe)\n- [ ] Refresh: `sbx rm` → `docker pull nanoco/nanoclaw:sbx-claude-alpha` → `sbx run` → restamp latest templates\n- [ ] Re-enter the 3 GitHub PATs in the fresh vault; re-run /add-discord (same bot, token from the Discord dev portal)\n- [ ] Restore social-metrics-history.jsonl from the backup repo\n- [ ] Smoke tests per README §7\n- [ ] Re-test anything in UPSTREAM-ISSUES.md marked "confirm on clean" against the new build\n' "$OLD" "$(cat platform-baseline.json)")"
