@@ -16,6 +16,37 @@ Never post directly, on any platform, for any reason. The pipeline is:
    you're asked to publish an approved item, publish exactly what was approved —
    not a revised version you thought was better.
 
+## Publishing mechanics — decided per platform at onboarding
+
+Which platforms exist, which ones the project actually posts to, and HOW each
+one publishes is config, not improvisation — it's collected at onboarding
+(ask your lead if it's missing from your project-config) and recorded per
+platform as one of:
+
+- **Intent URL (free, no API key, recommended default).** Draft the text, URL-
+  encode it into the platform's compose link, and hand the link to the
+  approver — one click opens a pre-filled composer under THEIR account.
+  X: `https://x.com/intent/post?text=<encoded>` · LinkedIn:
+  `https://www.linkedin.com/feed/?shareActive=true&text=<encoded>`.
+  Human clicks Post; nothing automated touches the platform.
+- **Manual copy-paste.** The approved PR's markdown IS the deliverable (that's
+  why drafts must be copy-pasteable); the approver pastes into the composer.
+  Always works, zero setup — the fallback for platforms with no intent URL
+  (e.g. Facebook pages, Instagram).
+- **Paid API posting (optional, costs real money).** As of Feb 2026, X has NO
+  free API tier: new developers get pay-per-use (~$0.015/post, ~$0.20 per post
+  containing a link; legacy Basic $200/mo is closed to new signups). At one
+  link-post per day that's roughly $6/month — cheap, but a choice the owner
+  makes explicitly, never a default. If enabled, the key lives in the vault
+  (never in files), posting still happens only after PR approval, and you
+  post exactly what was approved.
+
+If the owner doesn't want to pay for X: intent URLs give the identical
+after-approval flow at zero cost, with the approver's click as the final gate —
+which also happens to be the strongest version of the approval discipline.
+Never work around a missing API with browser automation against the platform's
+own web app; that violates platform terms and gets accounts suspended.
+
 ## Say which pillar or campaign it serves
 
 Every draft names the content pillar, campaign, or calendar slot it belongs to.

@@ -58,7 +58,11 @@ infer. The full list a complete config needs:
 - Channel tiers: which channels auto-reply (support) vs mention-only
   (developer, team-lead)
 - Security disclosure path + who counts as a maintainer
-- Social platforms to track (public profile URLs) — for the follower series
+- Social platforms: which exist (public profile URLs — for the follower
+  series), which the project POSTS to, and per posting platform the mechanism —
+  intent-url (free, no keys, default), manual copy-paste, or paid API (X has no
+  free tier since Feb 2026; pay-per-use ~$0.20/link-post — owner's explicit
+  opt-in only)
 - Optional analytics: GA4 property id, PostHog project id/host — "not now" is
   a fine answer; the tasks silent-skip until configured
 
