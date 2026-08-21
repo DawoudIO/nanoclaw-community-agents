@@ -153,11 +153,20 @@ them the dashboard is the published port from `sbx run` (default 10254):
 **Ask this first, once**: "What URL should I use when I need to point you at
 the OneCLI dashboard — the same machine you're talking to me from right now,
 or somewhere else (a phone, another laptop) when you check in later?" If
-"somewhere else," ask for that reachable address (recommend
-[Tailscale](https://tailscale.com) if they don't have a stable one — free,
-avoids exposing the port publicly) and persist it in `project-config.md` as
-`onecli_dashboard_url`. Use exactly that address in every link you ever give
-them to the dashboard; never assume `127.0.0.1` or `localhost`.
+"somewhere else" and they don't already have a stable address, recommend
+[Tailscale](https://tailscale.com) (free, tailnet-private, never the public
+internet) and give them the exact command to route the dashboard port onto
+it — raw TCP, not HTTPS termination, so the URL keeps the same plain-`http://`
+shape:
+
+```
+tailscale serve --tcp=10254 tcp://localhost:10254 --bg
+```
+
+Then their address is `http://<their-tailscale-ip>:10254`. Persist whatever
+address they land on in `project-config.md` as `onecli_dashboard_url`, and
+use exactly that in every link you ever give them to the dashboard — never
+assume `127.0.0.1` or `localhost`.
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|

@@ -215,10 +215,25 @@ is fine — skip this.** If you check in from elsewhere, give the sandbox host a
 stable address reachable from anywhere without opening the port to the public
 internet: **[Tailscale](https://tailscale.com)** (free for personal use) is
 the recommended way — install it on the host and on whatever device you check
-in from, then use the host's Tailscale IP (e.g. `http://100.x.x.x:10254`)
-instead of `127.0.0.1`. The welcome interview asks for this address — whatever
-you give it, the lead uses that one when it needs to point you at the
-dashboard, instead of assuming localhost.
+in from (`tailscale up` on each), then route the port onto your tailnet as
+**raw TCP** (not HTTPS termination — this keeps the exact plain-`http://`,
+same-port URL shape the dashboard already uses):
+
+```bash
+tailscale serve --tcp=10254 tcp://localhost:10254 --bg
+```
+
+Verify with `tailscale serve status`, then open
+`http://<host's-tailscale-ip>:10254` from any device on the tailnet — that's
+the URL the welcome interview should be given (never `funnel`, which exposes
+to the public internet; this dashboard holds credentials). To undo:
+`tailscale serve --tcp=10254 off`. The welcome interview asks for this address
+once and persists it — whatever you give it, the lead uses that exact one for
+every future dashboard link, instead of assuming localhost.
+
+The model provider key itself (what NanoClaw uses to run Claude) lives in the
+same dashboard's **LLMs** tab, separate from the **Apps**/**Custom** tabs
+above — one more reason a working remote address is worth setting up once.
 
 **Version note**: OneCLI has its own release line independent of NanoClaw
 (`versions.json` pins a specific gateway version; there's deliberately no

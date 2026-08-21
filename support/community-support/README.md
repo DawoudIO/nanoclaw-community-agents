@@ -162,9 +162,13 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 MCP server won't boot without the variable present; the real token is injected at
 request time. Never replace it with a real value.
 
-**Discord is not a credential this template manages** — community messaging goes
-through NanoClaw's own channel connector and wiring layer, configured in your
-install, not through an MCP server here.
+**Discord's bot token isn't something you add to the vault by hand** — `/add-discord`
+registers it as part of wiring the bot, not through this template's `mcp.json`.
+That said, don't be surprised to see it show up in the OneCLI dashboard anyway:
+on a real deployment it lands in the **Custom** tab as a generic secret (host
+`discord.com`, `Authorization` header), the same vault every other credential
+here uses — that's NanoClaw's own internal plumbing for its Discord adapter,
+not a step you perform yourself.
 
 **Give each agent its own least-privilege token.** The coding sub-agent should
 get a read-only GitHub token; the marketing sub-agent a token scoped to the
