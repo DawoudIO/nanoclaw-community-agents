@@ -150,6 +150,12 @@ message, only the rows that apply. **Never ask for a raw key in chat**; keys go
 into the OneCLI vault dashboard, and if the deployment is sandboxed, remind
 them the dashboard is the published port from `sbx run` (default 10254):
 
+**Ask which account the GitHub tokens belong to, before registering anything**:
+"What's the dedicated bot account's username?" (never the owner's own — see
+the prereqs table). Persist it in `project-config.md` as `github_bot_username`
+— every GitHub token gets checked against it below, mechanically, not on
+trust.
+
 **Ask this first, once**: "What URL should I use when I need to point you at
 the OneCLI dashboard — the same machine you're talking to me from right now,
 or somewhere else (a phone, another laptop) when you check in later?" If
@@ -184,6 +190,15 @@ assuming**: make one harmless read-only call per
 enabled service (e.g. fetch a repo's metadata, one GA4 row) and report each as
 working / not. Diagnose by symptom: `401/403` = vault entry missing or
 host-mismatched; `502` = sandbox network policy, not the service.
+
+**For every GitHub token, check identity too, not just reachability**: call
+`GET https://api.github.com/user` and compare the returned `login` against
+`github_bot_username`. A call that *succeeds* but resolves to the wrong
+account — most commonly the owner's own — is worse than one that fails: it
+looks like success while every future public action quietly happens under
+the owner's name instead of the bot's. Report a mismatch as its own finding,
+distinct from working/not-working, and don't activate anything GitHub-facing
+until it's resolved.
 
 **If a 401/403/`app_not_connected` error carries a `connect_url`** — OneCLI's
 own "click here to connect this service" mechanism — that link is real and

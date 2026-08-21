@@ -109,4 +109,9 @@ MCP is present for inbox-check (if not, that task stays paused — say so).
 If any check returns a `connect_url` (OneCLI's own connect link, in a
 401/403/`app_not_connected` response), hand it to your lead verbatim — it's
 real and correctly addressed, but you have no channel to post it through.
+
+**Check identity too.** Call `GET https://api.github.com/user` and compare
+`login` against `github_bot_username` (relayed from the lead). A working call
+under the wrong account is worse than a failing one — report a mismatch as
+its own finding.
 Report results to your lead. Never claim ready without having made the calls.

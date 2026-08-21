@@ -56,14 +56,18 @@ script gate exits `not-configured` even if resumed.
 Collect these before setup; you'll register them in OneCLI in step 4. **Never
 paste any of them into the sandbox, a template file, or a chat with an agent** —
 they go into the OneCLI vault through its dashboard, and the proxy injects them
-into outbound requests.
+into outbound requests. **[PREREQS.md](PREREQS.md)** has the exact URL for
+each one, the CLI alternative to the dashboard, and — just as important — how
+to audit and rotate them later without guessing whether a change "took".
 
 **GitHub — three tokens from the bot account** (github.com → Settings →
 Developer settings → Personal access tokens):
 
-1. **Lead token** (classic): scopes `repo` (or `public_repo` for public-only
-   projects) + `read:org`. This one comments on issues — it needs write. Never
-   `admin:*`.
+1. **Lead token** (classic): scope `repo` (or `public_repo` for public-only
+   projects) — this one comments on issues, so it needs write on issues/PRs.
+   **Not `read:org`**: nothing here reads org membership or teams (listing an
+   org's repos, which the welcome interview does, needs no such scope) —
+   dropped as an unjustified grant. Never `admin:*`, never `delete_repo`.
 2. **Coding token** (fine-grained): all triaged repos, **read-only**
    (Contents/Issues/PRs read; add Dependabot alerts read for the advisory
    sweep). A classic `repo`-scope PAT is inherently read/write — don't use one
@@ -269,6 +273,59 @@ Optionally add **request-hold approval rules** in the dashboard for anything
 you can never allow unattended (publishing, sending mail, closing/merging) —
 gating the outbound request at the proxy is enforcement no prompt can bypass.
 
+### Least privilege — exactly what each bot does, and nothing more
+
+One canonical list, so "does it need that?" always has a checkable answer
+instead of a guess. Anything not listed under **Needs** is deliberately
+**never granted**, not an oversight.
+
+**Discord bot** (one, the lead's — sub-agents get no Discord identity at all):
+
+| | |
+|---|---|
+| Needs | Send Messages, Embed Links, Attach Files, Read Message History, and the **Message Content privileged intent** (justified: auto-reply in support channels means reading messages the bot wasn't @mentioned in — this is the one privileged grant this system needs, and it's why 100+ guild deployments trigger Discord's own bot verification, see `discord-mechanics.md`) |
+| Never | Administrator, Manage Server, Manage Roles, Manage Channels, Manage Messages (deleting others' messages), Kick/Ban/Timeout Members, View Audit Log — none of this is moderation, and it never will be from this bot |
+
+**GitHub tokens** (three, least-privilege split — never one shared token):
+
+| Token | Needs | Never |
+|---|---|---|
+| Lead | `repo` (or `public_repo`) — comments, labels, opens issues | `read:org`, `admin:*`, `delete_repo`, org/team scopes |
+| Coding | Fine-grained, **read-only**: Contents + Issues + PRs read; + Dependabot alerts read if the security sweep is enabled | Any write scope at all — this agent never posts, so its token literally cannot |
+| Marketing | Fine-grained, **content repo only**: Contents + PRs read/write | Write on any repo but the content one; org-wide scopes |
+| Backup (optional) | Push to one backup repo (`github.com` host match) | Nothing beyond that repo |
+
+**The instinct to check, always**: if a future feature seems to need broader
+access, the fix is almost never "widen this token" — it's "does this actually
+need a new, narrower, single-purpose credential instead." Ask before granting;
+see "Default to free tools"' sibling rule in each persona for the same
+discipline applied to scope, not just cost.
+
+### Confirm identity, don't assume it (and audit what's already connected)
+
+**[PREREQS.md](PREREQS.md)** has the full audit and rotation runbook using
+`onecli`'s real CLI — `secrets list`, `apps connections agent-access` (the
+direct, verifiable answer to "does this agent have more access than it
+needs"), and `secrets update` for safe in-place rotation with no downtime.
+Run it once after any setup, and again after any credential change.
+
+A scoped token is not the same guarantee as the *right account* holding it —
+it's easy to paste a personal access token by mistake and have every public
+GitHub action quietly appear to come from the owner, not the bot. The welcome
+interview asks for the expected bot username up front and **verifies it
+mechanically**: after registering each GitHub token, a `GET /user` call
+confirms the authenticated login actually matches the declared bot account —
+not a check-the-box, an actual API call whose answer can only be wrong if
+something is misconfigured. If it resolves to the owner's own account instead,
+that's surfaced immediately, not discovered later from a confused community
+member asking why the owner personally labeled their issue.
+
+Discord doesn't need the equivalent check: a bot token structurally cannot
+ever resolve to a personal user identity (that's what makes self-botting a
+Terms violation rather than just a bad idea — see `discord-mechanics.md`'s
+platform-rules section) — the account-confusion failure mode this section
+guards against is GitHub-specific.
+
 ## 5 · Extend the network allowlist (only if you use the optional services)
 
 The kit's default allowlist does **not** include GA4, PostHog, Gmail — or the
@@ -337,6 +394,7 @@ then just talk to the agent.
 | 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
 | 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
 | 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
+| 13 | The dedicated bot account's GitHub username (never the owner's own) | username | **No** — every GitHub token is checked against it |
 
 After this, the agent walks you through exactly which credentials to add
 (step 4 below) and verifies each with a real call, offers to set up the
@@ -501,6 +559,12 @@ upgrade instead of recreate is undocumented — tracked as an upstream docs ask
 in UPSTREAM-ISSUES.md.
 
 ## Companion documents (staging repo only)
+
+- **[PREREQS.md](PREREQS.md)** — create every credential (exact URLs),
+  audit what's actually connected (real `onecli` commands, not guesses),
+  confirm identity, and rotate safely with no downtime. Read this before
+  step 0 if you'd rather script the whole credential story than click
+  through the dashboard.
 
 - **[MIGRATION.md](MIGRATION.md)** — step-by-step for replacing an existing
   NanoClaw install with this set in a sandbox: evidence preservation, the

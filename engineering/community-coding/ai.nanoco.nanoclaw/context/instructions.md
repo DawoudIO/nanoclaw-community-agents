@@ -92,5 +92,12 @@ If any check returns a `connect_url` (a 401/403/`app_not_connected` response
 carrying OneCLI's own connect link), hand it to your lead verbatim — it's
 real and already correctly addressed, but you have no channel to post it
 through; your lead turns it into a clickable card.
+
+**Check identity too.** Call `GET https://api.github.com/user` and compare
+`login` against `github_bot_username` (in your config, relayed from the
+lead). A working call under the wrong account — most likely the owner's own —
+is worse than a failing one: it means every action you draft would appear to
+come from the wrong identity once posted. Report a mismatch as its own
+finding.
 Report to your lead: which checks passed, which failed and with what symptom.
 Never claim ready without having made the calls.
