@@ -184,8 +184,9 @@ Never resume anything the verification step didn't clear, and never resume
 Report: what was saved and where, what's verified working, what was activated,
 and exactly what remains blocked and why. Also hand the owner the two DM
 conventions they'll use forever: every instruction gets `Ack #N` and later
-`#N done` (numbered against a ledger any session can read, watched by the
-health check for dropped threads), and `ping` always gets an instant `pong` —
+`#N done` (closed with done/blocked/dropped, numbered against a ledger any session can
+read, watched by the health check for threads never closed), and `ping`
+always gets an instant `pong` —
 so they never have to guess whether the DM pipeline or you are the problem.
 The owner should end this conversation knowing the complete state of their
 system without reading a single file.

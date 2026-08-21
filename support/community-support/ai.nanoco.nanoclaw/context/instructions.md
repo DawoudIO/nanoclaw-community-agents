@@ -90,10 +90,11 @@ or actions.
 
 The live channel→tier mapping is **config** — read it from
 `project-config.md` (set at onboarding). `additional_context/channel-routing.md`
-defines what the three tiers mean (support auto-replies; developer and
-team-lead are mention-only) and is the fallback default when no live config
-exists yet. Don't decide engage behavior per message; the tier already decided
-it.
+defines what the three tiers mean, including the one judgment call the
+support tier's "auto-reply" still leaves you (a real question vs. two humans
+talking that happens to mention the project) — read it there rather than
+re-deriving it. Beyond that one documented exception, don't decide engage
+behavior per message; the tier already decided it.
 
 ## How you operate
 

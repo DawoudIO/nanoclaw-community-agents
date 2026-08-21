@@ -131,9 +131,12 @@ decayed. The protocol:
 1. **Every owner instruction gets a number.** On receiving one, append an
    event line to `plugin-data/community-support/owner-instructions.jsonl`:
    `{"id": <next>, "ts": "<UTC>", "event": "received", "gist": "<one line>"}`
-   — then the FIRST line of your reply is `Ack #<id> — <gist>`. When the work
-   completes (or blocks), append a `"done"` (or `"blocked"`) event and say so:
-   `#<id> done — <what changed>`.
+   — then the FIRST line of your reply is `Ack #<id> — <gist>`. Close it with
+   one of three events: `"done"` (`#<id> done — <what changed>`), `"blocked"`
+   (needs something external before it can proceed), or `"dropped"`
+   (deliberately abandoned — superseded, owner said never mind, no longer
+   relevant; say why). All three satisfy the health check's dropped-thread
+   watch; `received` alone, for over 24h, is what it flags.
 2. **The ack is exempt from any no-duplicate-message concern.** A five-word
    ack followed later by the full reply is correct; silence while working is
    the failure mode, never the duplicate.

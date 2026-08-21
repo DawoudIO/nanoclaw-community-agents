@@ -64,7 +64,7 @@ tiers and fixes the engage behavior per tier, so it isn't a per-message judgment
 
 | Tier | Who's there | Behavior |
 |---|---|---|
-| **Support** | Community members asking for help | **Auto-reply** — the agent jumps in on anything relevant |
+| **Support** | Community members asking for help | **Auto-reply** — jumps in on real questions/requests; doesn't interject into cross-talk that merely mentions the project (see `channel-routing.md`) |
 | **Developer** | Contributors, maintainers, security | **Mention-only** — never volunteers into contributor discussion |
 | **Team lead** | Marketers, admins, project leads | **Mention-only**, plus receives scheduled reports |
 
@@ -189,7 +189,8 @@ model follows — not enforcement. For anything you genuinely cannot allow, use
 OneCLI's request-hold/approval rules, which gate the **outbound HTTP request**
 (host + method + path) at the proxy, where no prompt can talk its way around it.
 Configure those in the OneCLI web UI; NanoClaw's host side is already wired to
-DM an approver for a yes/no.
+deliver a real button card (not a chat reply) to an approver — click-to-decide,
+not type-to-decide.
 
 Worth gating this way: anything that publishes, sends mail, or closes/merges on
 GitHub.
