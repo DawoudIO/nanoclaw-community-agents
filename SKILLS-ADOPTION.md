@@ -16,7 +16,17 @@ before vendoring.
 3. NOASSERTION / no license = do not redistribute — use as a reference for
    writing our own, or install privately on the deployment only.
 
-## Selection principle: free, and no API keys
+## Standing rule, not just how this list was picked
+
+This isn't a one-time filter — it's the default for **any future addition**
+to this template set. This is open-source infrastructure; most projects it
+runs for have no budget. Any new skill, tool, or MCP server proposed later
+(by a contributor, an owner, or an agent's own suggestion per its persona's
+"default to free" rule) gets the same bar before it's added: no required API
+key, no paid tier, unless the owner explicitly opts in with the cost stated
+up front (the X posting path is the template for how to do that honestly).
+
+## Selection principle: free, and no API keys (applied to the list below)
 
 Every "Adopt" row below is a pure-knowledge skill — markdown instructions with
 no service dependency, no API key, no paid tier. Three partial exceptions,

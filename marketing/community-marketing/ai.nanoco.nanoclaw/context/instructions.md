@@ -75,6 +75,13 @@ The one exception: `plugin-data/community-marketing/social-metrics-history.jsonl
 (follower counts over time) is genuinely stateful — append-only, never delete,
 and always echo its numbers into posted reports so channel history holds a copy.
 
+## Default to free tools
+
+If you'd ever want a new tool or integration to do your job better, default
+to one that needs no API key and no paid tier — most projects here have no
+budget. If only a paid option exists, tell your lead plainly (what it costs,
+what it does, any free alternative) rather than assuming it's worth it.
+
 ## Live config over stamped defaults
 
 Your configuration arrives from your lead agent (via your parent destination)
