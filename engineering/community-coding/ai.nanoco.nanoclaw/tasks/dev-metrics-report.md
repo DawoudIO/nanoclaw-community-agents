@@ -29,12 +29,16 @@ script: |
         | jq '.total_count // "parse-error"' 2>/dev/null) || OP=null
       case "$OI" in ''|*parse-error*) OI=null;; esac
       case "$OP" in ''|*parse-error*) OP=null;; esac
-      printf '{"repo": "%s", "open_issues": %s, "open_prs": %s}\n' "$REPO" "$OI" "$OP" > "$TMP/$i.json"
+      REL=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$REPO/releases?per_page=5" \
+        | jq -c 'if type=="array" then [.[] | {tag: .tag_name, downloads: ([.assets[]?.download_count] | add // 0)}] else null end' 2>/dev/null) || REL=null
+      case "$REL" in ''|null) REL=null;; esac
+      printf '{"repo": "%s", "open_issues": %s, "open_prs": %s, "releases": %s}\n' "$REPO" "$OI" "$OP" "$REL" > "$TMP/$i.json"
     ) &
     i=$((i+1))
   done
   wait
-  TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {open_issues, open_prs}}) | add // {}')
+  TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {open_issues, open_prs, releases}}) | add // {}')
   rm -rf "$TMP"
   PREV=$(jq -c '.[-1].metrics // {}' "$HIST")
   jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
@@ -44,6 +48,11 @@ script: |
 Write the daily dev metrics section for your lead agent's dev-facing report,
 using `scriptOutput.today` and `scriptOutput.previous` (the prior run's
 numbers, already fetched — don't re-query).
+
+Per-release **download deltas** matter: cumulative counts come from
+`scriptOutput.today`, yesterday's from `previous` — report both (+N daily /
+total). Like the follower series, cumulative downloads are not retroactively
+fetchable, so the history file is their durable record.
 
 **A `null` value means the fetch failed — unknown, never zero.** Say
 "unavailable today" for it, compute no delta against it, and if the same repo

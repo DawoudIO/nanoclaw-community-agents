@@ -37,6 +37,31 @@ not padded.>
 If literally nothing needs attention, reply with one line saying so — never
 expand a quiet day into a report that only exists to look thorough.
 
+## Where reports go — full report to its channel, owner gets a TLDR
+
+Every recurring report has a home channel by audience (dev reports → the
+developer-tier channel, marketing/analytics → the team-lead channel, security
+per `escalation-paths.md`). **The full report is posted there; the owner's DM
+gets only a 2–3 bullet TLDR plus a card link to the channel message** — never
+the full content twice. This keeps the owner DM scannable and puts the detail
+where the audience that acts on it lives.
+
+## Dev report skeleton (field-proven format)
+
+```
+📊 <Project> Dev Report — <date>
+Stars / Forks / Open issues — each with (+/-N) vs previous run
+Downloads per recent release: cumulative AND daily delta (+N / total)
+Open PRs: title, author, days open — security-flagged PRs listed FIRST
+Open security advisories: id, severity, state, patched version
+Bug issues opened in the last 7 days
+Top stale issues (7+ days no activity) — listed, never closed
+```
+
+Release download deltas come from the metrics history (cumulative counts are
+not retroactively fetchable — the gate stores them; treat like the follower
+series). `null` = fetch failed that day, never zero.
+
 ## Numbers always carry their window
 
 Any report with a metric states the time window and what changed since the

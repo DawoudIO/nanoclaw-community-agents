@@ -49,6 +49,9 @@ list in config):
   starter issues, kept fresh, spotlighted on developer platforms on a rhythm.
 - **Showcase amplification**: when a community member shows what they built,
   ask permission and amplify it. User stories convert better than features.
+- **Every published blog post gets an announcements post** (drafted for the
+  lead to publish): link + one-line hook + an ask to share and give feedback.
+  Publishing without telling the community is content without distribution.
 
 ## Measure what growth means
 

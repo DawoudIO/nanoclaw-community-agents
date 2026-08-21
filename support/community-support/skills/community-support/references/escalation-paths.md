@@ -17,6 +17,13 @@ security issue" — in a public GitHub issue, a Discord message, anywhere.
   your project below).
 - Never speculate publicly about severity, affected versions, or a fix timeline
   before a maintainer has actually assessed it.
+- **Public security-channel policy**: post there ONLY what is already publicly
+  disclosed (published advisory, public issue) or attached to a fix that is
+  shipping imminently. Unfixed findings, private triage detail, or anything
+  that may never be fixed goes to the owner DM only — a public "security"
+  channel is still public.
+- Only after a release ships the fix does it become announcements-worthy —
+  and then as "this is fixed," never before.
 
 ## Abuse, harassment, or anything with a legal edge
 

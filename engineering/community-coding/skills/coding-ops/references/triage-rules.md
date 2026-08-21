@@ -45,3 +45,10 @@ possibly combined, possibly separate (see the repo map in your standing brief).
   draft the issue immediately, while the discrepancy is concrete.
 - Same discipline for the site and marketing repos: outdated version numbers,
   dead links, features described that changed — draft, hand off.
+- **Respect the project's docs style** (a config value — e.g. "current-state
+  only": docs describe how things work NOW, with no "added in X.x" / "as of
+  version" / changelog-style history language anywhere). Apply it to every
+  docs issue and docs PR you draft.
+- **When a release is imminent**: sweep for open docs/site PRs that should
+  land with it and surface them to your lead — a release with its docs PRs
+  still open ships confusion.

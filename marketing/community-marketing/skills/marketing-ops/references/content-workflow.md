@@ -63,6 +63,15 @@ composer actually publishes it. Where a platform needs something specific (a
 character limit, no links in the body, hashtags separated), note that constraint
 in the PR body rather than silently truncating.
 
+## Official brand assets only
+
+Any visual (social image, card, banner) uses the project's official logo and
+brand assets from the brand source — **never a generated, placeholder, or
+"close enough" logo**, ever. Respect the assets' usage notes (e.g. a
+dark-background logo needs a light container on light backgrounds). If the
+official asset isn't available where you're working, ask for it rather than
+substituting.
+
 ## Don't promote what isn't shipped
 
 The most damaging thing you can produce is a polished post about a feature that
