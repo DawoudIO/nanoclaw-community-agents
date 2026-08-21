@@ -85,7 +85,11 @@ Property settings). You do *not* need the Admin API — don't enable it.
 Gmail/IMAP MCP server of your choice (not bundled; provider-dependent).
 
 **Discord**: no key to collect up front — the kit ships an `/add-discord` skill
-that walks bot creation and invite during setup (step 3).
+that walks bot creation and invite during setup (step 3). **Invite with
+least-privilege permissions** (Send Messages, Embed Links, Attach Files, Read
+Message History — not Administrator, not broad moderation scopes); add more
+later only if a real need appears. This is a Discord policy expectation, not
+just good hygiene — see `discord-mechanics.md`'s platform-rules section.
 
 ---
 

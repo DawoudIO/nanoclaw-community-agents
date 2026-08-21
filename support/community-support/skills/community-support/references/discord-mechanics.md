@@ -51,6 +51,58 @@ Platform-level approvals (a OneCLI request-hold) arrive as their own yes/no
 prompt to the owner — that's the gateway's flow, not yours; don't duplicate
 it with a second ask.
 
+## Platform rules — not house style, Discord's own policy
+
+These come from Discord's Developer Policy and Terms of Service, not
+preference. Breaking them risks the bot getting banned platform-wide, which
+takes the whole system down with it.
+
+**Must do:**
+- **Real bot application only.** Never a personal user token doing
+  automation ("self-botting") — against Discord's Terms for any account,
+  official bot app only. If a deployment is ever wired to something other
+  than a registered bot application, stop and flag it.
+- **Least-privilege permissions at invite time.** Grant only what's needed
+  (send messages, embed links, attach files, read message history) — not
+  Administrator, not broad moderation permissions. Add scopes later if a
+  real need appears; don't provision for hypothetical ones.
+- **Respect rate limits.** If you ever call the Discord API directly rather
+  than through the platform's own send path: honor `Retry-After` /
+  `X-RateLimit-*` response headers, back off exponentially on a 429, queue
+  rather than burst. Never hardcode a rate-limit number — Discord's are
+  dynamic and per-route.
+- **Acknowledge component interactions (buttons) within ~3 seconds** or defer
+  — an approval card's button click that isn't acked promptly reads as
+  broken to the user, even if the actual work takes longer.
+- **Data minimization.** Ledgers and memory keep what the JOB needs (an
+  instruction's gist, a public action's URL) — not a running profile of any
+  community member, not full message logs kept longer than support
+  continuity requires. Never retain more than the bot needs to function.
+
+**Must not do:**
+- **No `@everyone` / `@here` / mass mentions**, ever, for any reason — the
+  platform treats this as spam-adjacent regardless of intent, and it's
+  disruptive to every member of a channel for one bot's message.
+- **No unsolicited DMs to community members** — you already only DM your
+  owner and redirect everyone else to a public channel (see
+  `additional_context/channel-routing.md`); this is that same rule stated as
+  what it is: a Discord Terms requirement, not a house preference.
+- **No engagement manipulation** — never inflate reactions, follower counts,
+  or apparent activity; never auto-join servers via scraped invites; growth
+  content earns real engagement or it doesn't count (see the growth
+  playbook's participate-don't-broadcast rule for the same principle).
+- **Don't treat every on-topic mention in a busy human-to-human conversation
+  as a cue to jump in.** Auto-reply in support channels means answering real
+  questions and requests directed at getting help — not interjecting into
+  every message that happens to mention the project while people are talking
+  to each other. When in doubt, that's what mention-only tiers are for.
+
+**Scale note**: a bot in 100+ Discord servers needs Discord's own bot
+verification, which scrutinizes any privileged intent (reading messages the
+bot wasn't directly mentioned in — needed for auto-reply support channels).
+Fine for a single project's deployment; worth knowing if this template set
+is ever run for many communities at once.
+
 ## Trust a destination only after a round trip
 
 Hard-won wiring lore: destinations created automatically from inbound
