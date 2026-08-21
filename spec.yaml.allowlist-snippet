@@ -1,0 +1,47 @@
+# Copy-paste snippet for your local kit's spec.yaml -> permissions.network.allow
+#
+# Why a snippet, not a forked kit: baking these into a pre-built kit image
+# would open every host for every install, including ones that never use
+# GA4/PostHog/Gmail/social posting — the opposite of "every hole opened
+# deliberately, per host" (INSTALL.md §5). Your project's own docs-site host
+# is never in this list because it can't be — that edit is yours regardless.
+# Uncomment only the lines your enabled tasks actually need.
+
+permissions:
+  network:
+    allow:
+      # --- your project's own hosts (NOT optional — see INSTALL.md §5) ---
+      # - host: yourproject.org
+      #   ports: [443]
+      # - host: docs.yourproject.org
+      #   ports: [443]
+
+      # --- GA4 (weekly-analytics-report) ---
+      # - host: analyticsdata.googleapis.com
+      #   ports: [443]
+
+      # --- PostHog (posthog-weekly-review) — use eu.posthog.com if that's your region ---
+      # - host: us.posthog.com
+      #   ports: [443]
+
+      # --- Gmail (inbox-check) ---
+      # - host: gmail.googleapis.com
+      #   ports: [443]
+
+      # --- Social follower snapshot (social-metrics-snapshot) — uncomment only
+      # the platforms in your actual platform list ---
+      # - host: x.com
+      #   ports: [443]
+      # - host: www.linkedin.com
+      #   ports: [443]
+      # - host: www.facebook.com
+      #   ports: [443]
+      # - host: www.instagram.com
+      #   ports: [443]
+      # - host: www.youtube.com
+      #   ports: [443]
+
+      # --- Paid X posting API (optional, opt-in only — see docs/INSTALL.md
+      # §6's "Optional: paid X auto-posting" and PREREQS.md) ---
+      # - host: api.x.com
+      #   ports: [443]

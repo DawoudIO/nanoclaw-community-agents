@@ -81,25 +81,33 @@ and the script keys to `plugin-data/community-coding/config.env`, then confirm b
 When a value you need is missing, ask your lead for that one value — never
 guess it, and never treat the persona's bracketed defaults as real config.
 
-## Setup self-check
+## Setup status — scripted, not remembered, runnable anytime
 
-When your config arrives from the lead (or on wake with config present but
-never verified): confirm it works before reporting ready. Read one issue from
-each repo in `COMMUNITY_REPOS` — a `401/403` means your token isn't wired
-(vault entry or selective-mode assignment), a `502` means sandbox network
-policy. If telemetry is configured, fetch one PostHog insight the same way.
+`setup-check.sh` in your template root is the mechanical version of your
+setup self-check — run it (via Bash) when config first arrives, and again
+any time the lead (or the owner, through the lead) asks "what's not set up"
+or "resume onboarding." It re-verifies live every time; never answer that
+question from memory. It checks every repo in `COMMUNITY_REPOS`, GitHub
+identity, and PostHog if configured.
+
+**Any onboarding step can be skipped or left incomplete without breaking
+anything** — every task gate already checks its own config and stays
+quietly paused when something's missing. `setup-check.sh` turns "is
+anything unconfigured?" from a guess into an answer: for each `missing`,
+`unreachable`, or `mismatch` result, tell the owner (via your lead) exactly
+what's wrong and the concrete fix, and offer to re-run just that piece of
+onboarding — never the whole interview again for one missing value.
+
 If any check returns a `connect_url` (a 401/403/`app_not_connected` response
 carrying OneCLI's own connect link), hand it to your lead verbatim — it's
 real and already correctly addressed, but you have no channel to post it
 through; your lead turns it into a clickable card.
 
-**Check identity too.** Call `GET https://api.github.com/user` and compare
-`login` against `github_bot_username` (in your config, relayed from the
-lead). A working call under the wrong account — most likely the owner's own —
-is worse than a failing one: it means every action you draft would appear to
-come from the wrong identity once posted. Report a mismatch as its own
-finding, distinct from working/not-working, and **hold all GitHub-facing
-work — no more reads, no triage, nothing drafted — until your lead confirms
-it's resolved.**
+A working call under the wrong account — most likely the owner's own — is
+worse than a failing one: it means every action you draft would appear to
+come from the wrong identity once posted. `identity_check`
+mismatches get reported as their own finding, distinct from working/not-
+working, and **hold all GitHub-facing work — no more reads, no triage,
+nothing drafted — until your lead confirms it's resolved.**
 Report to your lead: which checks passed, which failed and with what symptom.
-Never claim ready without having made the calls.
+Never claim ready without having actually run the script.

@@ -76,8 +76,15 @@ Developer settings → Personal access tokens):
    sweep). A classic `repo`-scope PAT is inherently read/write — don't use one
    here; this agent never posts, so give it a token that *can't*.
 3. **Marketing token** (fine-grained): Fine-grained tokens → limit to the
-   **content repo only** → Contents + Pull requests read/write. It opens draft
-   PRs and nothing else.
+   **content repo** → Contents + Pull requests read/write. It opens draft
+   PRs and nothing else. **If the brand/strategy source or the release-watch
+   repo (content-draft-cycle's `RELEASE_WATCH_REPO`) is a *different* repo
+   from the content repo, add that repo too** — a fine-grained PAT's repo
+   scope is an allowlist covering everything that token does, including
+   reads of otherwise-public data. Leaving a second repo off the list is the
+   #1 cause of "why did this silently never trigger" — `setup-check.sh`
+   (§3's monitoring step, or run anytime) catches it as
+   `brand_source_access`/`release_watch_repo_access: unreachable`.
 4. If you enable workspace backup, the lead's push goes to `github.com` (git),
    a **separate vault host match** from `api.github.com` (REST) — one more
    vault entry, same or a fourth token.
@@ -200,6 +207,14 @@ tar -C /path/to/nanoclaw-templates -cf - support engineering marketing \
 Run inside the sandbox (`sbx exec -it -w /home/agent/nanoclaw nanoclaw bash`,
 or drive it conversationally via `sbx exec -it -w /home/agent/nanoclaw
 nanoclaw claude`):
+
+**`--name` is never asked in the welcome interview — it's yours to set here,
+and only here matters where.** It's purely an internal `ncl`/dashboard label
+(what you see in `ncl groups list`), unrelated to the Discord bot's display
+name (set when you create the bot application) and unrelated to the
+project name the welcome interview infers from the GitHub repo. Rename these
+three to whatever's useful to you (e.g. `"AcmeCRM Support"`) — nothing reads
+this string except a human looking at the group list.
 
 ```bash
 # Stamp — check each create response's templateReport for skipped parts,
@@ -464,6 +479,24 @@ guards against is GitHub-specific.
 
 ## 5 · Extend the network allowlist (only if you use the optional services)
 
+**Recommended: keep a thin local overlay on top of the upstream kit, not a
+copy-paste-per-install edit and not a pre-built forked image.** Clone the
+kit once (`git clone https://github.com/docker/sbx-kits-contrib.git kit &&
+cd kit && git sparse-checkout set nanoclaw`), apply the relevant blocks from
+[`spec.yaml.allowlist-snippet`](../spec.yaml.allowlist-snippet) in this repo
+to `kit/nanoclaw/spec.yaml` (uncomment only what your enabled tasks need),
+and commit that `kit/` directory alongside this staging repo. Every `sbx
+run`/recreate then uses `--kit ./kit/nanoclaw` — your allowlist edit is made
+exactly once, survives every recreate, and is diffable/reviewable like any
+other config, without ever becoming a second built image to version-pin.
+
+Deliberately **not** a pre-built kit image with these hosts baked in: that
+would widen every install's attack surface by default regardless of which
+services it actually uses, and it's a second artifact competing with
+`platform-baseline.json`'s digest for "what did we actually verify." A
+plain local git checkout has neither problem — it's just files, reviewed
+the same way as everything else here.
+
 The kit's default allowlist does **not** include GA4, PostHog, Gmail — or the
 **social platform hosts the follower snapshot reads** (`x.com:443`,
 `www.linkedin.com:443`, `www.facebook.com:443`, `www.instagram.com:443`,
@@ -477,6 +510,15 @@ docs site and project website hosts (e.g. `docs.yourproject.org:443`,
 `yourproject.org:443`) or that whole class of work silently degrades to
 "couldn't check."
 
+**Also required for the follower snapshot: a page-reading tool.** An open
+allowlist host alone isn't enough — something inside the agent needs to
+actually fetch and read the page. Confirm the container has either Claude's
+own built-in web fetch or NanoClaw's [`agent-browser`](https://nanoclaw.dev/skills/agent-browser)
+skill installed for the marketing group before resuming `social-metrics-snapshot`;
+this isn't curl-testable (that's why `setup-check.sh` marks it `unknown`,
+not `ok`/`missing`) — verify it once with a real fetch of one configured
+profile URL.
+
 Clone the kit, edit `nanoclaw/spec.yaml` → `permissions.network.allow`
 (e.g. add your project hosts, `analyticsdata.googleapis.com:443`,
 `us.posthog.com:443`, `gmail.googleapis.com:443`, plus the social hosts),
@@ -489,6 +531,24 @@ sbx policy ls nanoclaw --type network
 This friction is the point: every egress hole is opened deliberately, per host,
 in a file agents can't write. When any request 502s, suspect policy before the
 target service.
+
+### Optional: paid X auto-posting
+
+Off by default. The welcome interview's social-platforms question offers it
+explicitly — a plain yes/no with the real cost stated ("X has no free tier
+since Feb 2026; pay-per-use, roughly $0.20 per link post"), never assumed.
+Say no (or don't mention it) and nothing changes: the free intent-URL flow
+stays the mechanism — the agent drafts, hands a pre-filled compose link to a
+human, who clicks Post. That's the default because it needs zero credentials
+and zero publishing risk on this agent.
+
+If you opt in: create an X API credential, vault it in OneCLI scoped to
+`api.x.com`, add that host to the allowlist (§5's snippet has the line), and
+— this is the part that matters — put an **OneCLI request-hold** on that
+host so every actual post still needs your button-press approval, at least
+until the volume has earned trust. Never wire auto-posting as a silent
+capability; the request-hold is what keeps "the agent can draft a tweet"
+from quietly becoming "the agent can publish one."
 
 ## 6 · Configuration — one conversation, three files
 

@@ -21,7 +21,7 @@ fail() { echo "FAIL: $1"; FAIL=$((FAIL+1)); }
 pass() { PASS=$((PASS+1)); }
 
 # --- 1. syntax check on everything -----------------------------------------
-for sh in "$ROOT"/scripts/tasks/*/*.sh; do
+for sh in "$ROOT"/scripts/tasks/*/*.sh "$ROOT"/*/*/setup-check.sh; do
   if bash -n "$sh" 2>/dev/null; then pass; else fail "syntax: $sh"; fi
 done
 
@@ -31,7 +31,7 @@ done
 # so the scripts (and the ps table, env, and shell history inside the agent
 # container) never hold a secret. Comments are allowed to mention tokens;
 # code is not allowed to send them.
-for sh in "$ROOT"/scripts/tasks/*/*.sh; do
+for sh in "$ROOT"/scripts/tasks/*/*.sh "$ROOT"/*/*/setup-check.sh; do
   if grep -v '^\s*#' "$sh" | grep -qE '\-H *"?(Authorization|X-Api-Key)|Bearer \$|GITHUB_TOKEN|ANTHROPIC_API_KEY|access_token='; then
     fail "credential material in $sh — auth belongs to the proxy, never the script"
   else

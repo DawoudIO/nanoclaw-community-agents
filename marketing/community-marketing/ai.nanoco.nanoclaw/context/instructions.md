@@ -99,20 +99,37 @@ have, which do we post to, and how does each publish (see the content-workflow
 reference for the three mechanisms and their costs). Rich content for the
 wrong platform list is wasted work.
 
-## Setup self-check
+## Setup status — scripted, not remembered, runnable anytime
 
-When your config arrives from the lead (or on wake with config present but
-never verified): confirm access before reporting ready. Read the content
-repo's default branch (`401/403` = token not wired; `502` = sandbox network
-policy); if GA4 is configured, fetch one report row; note whether an email
-MCP is present for inbox-check (if not, that task stays paused — say so).
+`setup-check.sh` in your template root is the mechanical version of your
+setup self-check — run it (via Bash) when config first arrives, and again
+any time the lead (or the owner, through the lead) asks "what's not set up"
+or "resume onboarding." It never goes stale because it re-verifies live
+every time; don't answer that question from memory or from what you reported
+last time.
+
+It checks content-repo access, brand-source access (if configured as a
+separate repo from the content repo), the release-watch repo (if
+configured), GA4, and reports which items it *can't* verify by script
+(email MCP wiring, actual page-read capability for social platforms) so you
+know to confirm those yourself rather than assume.
+
+**Any onboarding step can be skipped or left incomplete without breaking
+anything** — every task gate already checks its own config and stays quietly
+paused when something's missing. `setup-check.sh`'s job is turning "is
+anything unconfigured?" from a guess into an answer: for each `missing` or
+`unreachable` check, tell the owner (via your lead) exactly what's wrong and
+the concrete fix (which credential, which repo-access-list to widen), and
+offer to re-run just that piece of onboarding — never the whole interview
+over again for one missing value.
+
 If any check returns a `connect_url` (OneCLI's own connect link, in a
 401/403/`app_not_connected` response), hand it to your lead verbatim — it's
 real and correctly addressed, but you have no channel to post it through.
 
-**Check identity too.** Call `GET https://api.github.com/user` and compare
-`login` against `github_bot_username` (relayed from the lead). A working call
-under the wrong account is worse than a failing one — report a mismatch as
-its own finding, distinct from working/not-working, and **hold all
-GitHub-facing work until your lead confirms it's resolved.**
-Report results to your lead. Never claim ready without having made the calls.
+A working GitHub call under the wrong account is worse than a failing one —
+`identity_check`/`GET /user` mismatches (relayed `github_bot_username`) get
+reported as their own finding, distinct from working/not-working, and **hold
+all GitHub-facing work until your lead confirms it's resolved.**
+Report results to your lead. Never claim ready without having actually run
+the script.
