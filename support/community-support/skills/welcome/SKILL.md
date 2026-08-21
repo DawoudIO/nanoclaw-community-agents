@@ -267,6 +267,14 @@ so they never have to guess whether the DM pipeline or you are the problem.
 The owner should end this conversation knowing the complete state of their
 system without reading a single file.
 
+Two more FYIs, since they cost nothing and are easy to forget exist:
+**`clidash`** (if set up during install — INSTALL.md's monitoring step) is
+where to check session/token/log state without asking you or reading files
+directly; and **`/debug`**, run from the break-glass Claude CLI session
+(never from you — you have no shell), is the first move for any container-
+level problem before manual log digging. Neither needs anything from this
+conversation — just worth the owner knowing they exist.
+
 ## Ever after: gap-fill, don't stall
 
 Whenever any work reveals a missing config value — a gate reporting

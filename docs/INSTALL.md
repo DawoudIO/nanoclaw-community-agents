@@ -281,6 +281,36 @@ agent stuck in a verification deadlock, task/wiring surgery, log forensics.
 Note this doctrine applies to **operations after go-live**. During initial
 setup (steps 1–7 above), CLI-driving is the intended path, not an exception.
 
+**FYI — `/debug` is your first move in this session, not a separate
+install.** It's a built-in NanoClaw skill (nothing to add, nothing to
+configure): run `/debug` inside this same break-glass Claude Code session
+and it walks logs, env vars, mounts, and MCP connectivity for you instead of
+you doing it by hand. Reach for it before manual log archaeology.
+
+## Monitoring: clidash (do this once, here)
+
+While you're in this same sandbox Claude Code session, also set up
+[`clidash`](https://nanoclaw.dev/skills/clidash) — a read-only web dashboard
+(groups/sessions/channels/users, message-activity charts, log tails) built
+from `ncl`'s own JSON output. Zero dependencies, no build step, doesn't touch
+NanoClaw's source, and needs no vault entry (its own local secret, if any,
+never leaves this machine):
+
+```bash
+/add-clidash
+cd tools/clidash && cp clidash.config.example.json clidash.config.json
+node server.js   # binds 127.0.0.1:4690 by default
+```
+
+Reach it the same way as the OneCLI dashboard — locally, or over Tailscale
+for remote checks (§4 below has the exact `serve` command; point it at
+clidash's port instead of 10254). It's the default monitoring surface for
+this deployment. The heavier `dashboard` skill (live push, token-usage and
+context-window numbers) is a deliberate non-default — see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) for why, and add it later only
+if you hit a real "which task is burning budget" question clidash can't
+answer.
+
 ## 4 · Register credentials in OneCLI
 
 ### Reaching the dashboard from wherever you actually are
