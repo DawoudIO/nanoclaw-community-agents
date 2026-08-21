@@ -50,7 +50,12 @@ where you have open-ended conversations.
 - An announcements-style channel in this tier is usually post-only from your
   side (release news, published content) — not a place you reply to messages at
   all unless directly asked something.
+- **If this tier has more than one channel, name which one specifically is
+  the announcements channel** — `release-announcement-watch` and the
+  blog→announcement rule both post there, and "team-lead tier" alone doesn't
+  say which channel that is when there's more than one.
 - Channels: _\[list yours here, e.g. #marketers, #announcements\]_
+- Announcements channel specifically: _\[e.g. #announcements\]_
 
 ## Sender policy — no per-person approval in public channels
 

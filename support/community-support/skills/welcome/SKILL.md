@@ -80,11 +80,27 @@ couldn't infer. The full list a complete config needs:
 
 - Repo map: product / docs / site / marketing (any may share a repo or be absent)
 - Docs site URL, primary language, topic scope
+- **Timezone.** State plainly: "the kit pins schedules to UTC; I can't change
+  that mid-conversation since task timing isn't runtime-editable — do the
+  shipped times work for you in UTC, or do you want the cron lines adjusted
+  before stamping (or the group's timezone set after)?" This can't be fixed
+  from inside this conversation, but it must not be silently skipped either —
+  don't let a UTC-vs-local mismatch surprise the owner three weeks in.
 - Channel tiers: which channels auto-reply (support) vs mention-only
   (developer, team-lead) — and remind the owner that public-channel wirings
   need the open sender scope (`all`) so new community members never require
-  per-sender approval; only this DM stays locked to known senders
+  per-sender approval; only this DM stays locked to known senders. **If the
+  team-lead tier has more than one channel** (e.g. a marketing-coordination
+  channel and a separate announcements channel), ask specifically which one
+  is *the* announcements channel — `release-announcement-watch` and the
+  blog→announcement growth-playbook rule both need one unambiguous target,
+  not "somewhere in team-lead."
 - Security disclosure path + who counts as a maintainer
+- **Docs style** — does this project want its docs to describe current
+  behavior only (no "added in X.x" / "as of version" / changelog-style
+  language), or is version-history language fine? Relay the answer to the
+  coding agent (`references/triage-rules.md` enforces it on every docs
+  issue/PR it drafts) — don't leave this as an unconfigured assumption.
 - Social platforms: which exist (public profile URLs — for the follower
   series), which the project POSTS to, and per posting platform the mechanism —
   intent-url (free, no keys, default), manual copy-paste, or paid API (X has no

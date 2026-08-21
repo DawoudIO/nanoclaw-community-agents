@@ -51,6 +51,26 @@ start, jump to [§6's prep sheet](#new-project-heres-every-question-before-youre
 Skipping an optional service costs nothing: its task ships paused and its
 script gate exits `not-configured` even if resumed.
 
+### Disk and memory — a rough budget, not a measured one
+
+Nobody has published exact numbers for this stack, so treat this as a
+planning budget, then verify for real once it's running — don't take either
+number as promised: **10–15 GB free disk** (the sandbox VM image, the nested
+NanoClaw/OneCLI/Postgres images, three agent containers, plus your own repo
+clones) and **a few GB of RAM headroom** beyond your normal usage while the
+sandbox is up (Postgres, the gateway, and up to three agent containers can
+run concurrently, though idle/gated agents use very little). After first
+boot, get real numbers instead of guessing further:
+
+```bash
+docker system df      # actual image/volume disk usage
+docker stats           # live memory/CPU per running container
+```
+
+If disk is tight, the biggest lever is the agent containers themselves — you
+only need one running per stamped template, and paused tasks don't spin
+anything up.
+
 ### Tokens / keys — how to get each one
 
 Collect these before setup; you'll register them in OneCLI in step 4. **Never
@@ -104,13 +124,36 @@ just good hygiene — see `discord-mechanics.md`'s platform-rules section.
 ## 1 · Start the sandbox
 
 ```bash
-sbx run --name nanoclaw --kit "git+https://github.com/docker/sbx-kits-contrib.git#dir=nanoclaw" nanoclaw
+sbx run --name nanoclaw --kit "docker.io/sbx/nanoclaw-kit:latest" nanoclaw
 ```
 
-(The trailing `nanoclaw` is the kit's app argument — keep it as-is.
-Alternatives: prebuilt `--kit docker.io/sbx/nanoclaw-kit:latest`, or a local
-clone `--kit ./nanoclaw` — the local route is also how you edit the network
-allowlist, see step 5.)
+(The trailing `nanoclaw` is the kit's app argument — keep it as-is. This is
+the **prebuilt image**, pulled directly — not the git-kit-source form.)
+
+**Why this tag, not the git-kit-source path** (`--kit
+"git+https://github.com/docker/sbx-kits-contrib.git#dir=nanoclaw"`, which is
+the OTHER alternative — also still available, see below): that git-sourced
+kit's own `spec.yaml` pins `nanoco/nanoclaw:sbx-claude-alpha`, and checking
+the registry directly, **every tag `nanoco/nanoclaw` has ever published is
+`alpha.N`** (through `alpha.10` as of this check) — there is no non-alpha
+release of that image at all yet. `sbx/nanoclaw-kit:latest` — a Docker Hub
+namespace distinct from `nanoco`, date-tagged (`20260820-<sha>`, pushed the
+same day as this check) rather than alpha-labeled — is the one path that
+avoids the "alpha" tag string, so that's now the default here.
+
+**The honest limit of this check**: a tag name without "alpha" in it is not
+the same claim as "the underlying NanoClaw software has graduated past
+pre-1.0." I could not confirm from the registry alone what `sbx/nanoclaw-kit`
+builds from internally, and since `nanoco/nanoclaw` — the actual upstream
+project — has no non-alpha release at all, treat this whole stack as pre-1.0
+regardless of which kit path you use. If that maturity level matters for your
+deployment, that's worth confirming directly with the maintainers rather than
+inferring further from tag names.
+
+**Alternatives, both still valid**: the git-kit-source form above (same
+underlying alpha image, resolved via the kit's own spec instead of a direct
+pull), or a local clone `--kit ./nanoclaw` — the local route is also how you
+edit the network allowlist, see step 5.
 
 What this buys you, security-wise — and why it's the recommended host:
 
@@ -550,8 +593,9 @@ platform = recreating the sandbox — the same runbook you used to build it.
 
 **Noticing updates is automated, not an agent job.** The
 [`platform-watch`](.github/workflows/platform-watch.yml) Action in this repo
-runs weekly: it compares the sbx VM image digest (`sbx-claude-alpha`), the
-latest NanoClaw release, and the kit spec against `platform-baseline.json`,
+runs weekly: it compares the sbx VM image digest (`sbx/nanoclaw-kit:latest`,
+the prebuilt image this repo actually pulls), the latest NanoClaw release,
+and the kit spec against `platform-baseline.json`,
 and opens an issue here with a refresh checklist when any of them move.
 Security advisories for NanoClaw deserve an immediate refresh; otherwise batch
 refreshes when the issue appears.
@@ -563,9 +607,8 @@ refreshes when the issue appears.
    (`plugin-data/community-support/social-metrics-history.jsonl`, appended by
    the lead each time marketing hands over a snapshot), the only things worth
    restoring.
-2. `sbx rm nanoclaw` → `docker pull nanoco/nanoclaw:sbx-claude-alpha` (belt
-   and braces against tag caching) → `sbx run …` (the git kit ref is always
-   fetched fresh).
+2. `sbx rm nanoclaw` → `docker pull docker.io/sbx/nanoclaw-kit:latest` (belt
+   and braces against tag caching) → `sbx run …`.
 3. Restamp the latest templates from this repo; re-run `/add-discord` with the
    **same** Discord bot (its token comes from the Discord developer portal —
    the VM's stored copy died with the VM); re-verify the owner-DM round trip.

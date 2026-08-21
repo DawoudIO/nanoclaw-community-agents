@@ -78,7 +78,10 @@ during setup, CLI-driving is the intended path, not an exception.
 ## Phase 1 — bring up the sandbox (~20 min + image pulls)
 
 4. ```bash
-   sbx run --name nanoclaw --kit "git+https://github.com/docker/sbx-kits-contrib.git#dir=nanoclaw" nanoclaw
+   sbx run --name nanoclaw --kit "docker.io/sbx/nanoclaw-kit:latest" nanoclaw
+   # (prebuilt image, no "alpha" tag string - see README step 1 for why,
+   # and its honest limit: the underlying software has no non-alpha release
+   # yet either way)
    ```
    Approve the image pulls, follow the setup wizard (Claude provider), and
    **record the printed port mappings** (OneCLI dashboard 10254, gateway
