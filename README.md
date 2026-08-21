@@ -61,7 +61,7 @@ detail.
    the complete question prep-sheet, the least-privilege scope tables, and
    the break-glass admin doctrine.
 3. **[docs/CHECKPOINTS.md](docs/CHECKPOINTS.md)** — the acceptance side:
-   the 13-point ready gate to pass before calling it live, then the day-2,
+   the 14-point ready gate to pass before calling it live, then the day-2,
    week-1, and month-1 verification checkpoints.
 4. **[docs/OPERATIONS.md](docs/OPERATIONS.md)** — day 2 and beyond: models
    and token budget, the full task reference, the **update policy** (SHA-

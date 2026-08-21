@@ -5,6 +5,14 @@ side** — what a human tests before calling the system live, and what to
 check at day 2, week 1, and month 1. Every item here is verifiable by
 looking at something specific; none is "seems fine."
 
+**Before you start the clock:** finish PREREQS (every token created, vault
+loaded, identity verified) and decide whether you're filling in
+`onboarding-answers.json` — that collapses the interview from 8–15 turns to
+about 2. See [OPERATIONS.md → Two separate budgets](OPERATIONS.md) for what
+the install actually costs and which meter pays for it; the short version is
+that volume won't threaten a 5-hour window but a credential debugging loop
+will.
+
 ## The ready gate — do not call it live until every box is checked
 
 Work through these in order after INSTALL.md §7's resume sequence. Each has
@@ -24,7 +32,8 @@ an expected result; a miss means stop and fix, not proceed.
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §4's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | You know the death signal | No action — confirm you understand it | The lead DMs a one-line heartbeat at least weekly; **more than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
+| 13 | **Which meter the agents bill to** | Check what the kit's first-boot wizard configured: an API key from console.anthropic.com, or subscription auth | You can state which one, because it decides whether the agents share your session's window or bill separately (OPERATIONS.md → Two separate budgets) |
+| 14 | You know the death signal | No action — confirm you understand it | The lead DMs a one-line heartbeat at least weekly; **more than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
 
 ## Day 2 — did the first unattended cycle actually run?
 
