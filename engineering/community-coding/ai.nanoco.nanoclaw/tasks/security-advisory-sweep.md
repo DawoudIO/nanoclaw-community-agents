@@ -6,10 +6,11 @@ script: |
   # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy — no token
   # in this file, no `gh` CLI (it refuses to run without local auth config,
   # which containers deliberately don't have).
-  # Failure design: an HTTP error (incl. 403 = token lacks security_events
-  # read) WAKES the agent as fetch-failed — it must never read as "no new
-  # advisories". And the script never marks alerts seen: the AGENT acks them
-  # after handing off, so a lost wake re-surfaces the alert next run.
+  # Failure design: an HTTP error (incl. 403 = fine-grained token missing the
+  # Dependabot alerts read permission) WAKES the agent as fetch-failed — it
+  # must never read as "no new advisories". And the script never marks
+  # alerts seen: the AGENT acks them after handing off, so a lost wake
+  # re-surfaces the alert next run.
   DATA="/workspace/agent/plugin-data/community-coding"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
@@ -32,7 +33,7 @@ script: |
     done
   done
   if [ -n "$FAILED" ]; then
-    printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": "%s", "hint": "403 usually means the token lacks security_events read", "new": %s}}\n' "${FAILED# }" "$NEW"
+    printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": "%s", "hint": "403 usually means the fine-grained token is missing the Dependabot alerts (read) permission", "new": %s}}\n' "${FAILED# }" "$NEW"
     exit 0
   fi
   if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
@@ -42,8 +43,9 @@ script: |
   fi
 ---
 **If `status` is `fetch-failed`**: report to your lead — a `403` here almost
-always means the token lacks `security_events` read. This is a security task;
-a broken fetch must be surfaced, never mistaken for a quiet day.
+always means the fine-grained token is missing the **Dependabot alerts
+(read)** repository permission. This is a security task; a broken fetch must
+be surfaced, never mistaken for a quiet day.
 
 **If `status` is `new`**: for each advisory in `scriptOutput.new`/`advisories`:
 read the actual alert, assess whether the project is genuinely affected (a

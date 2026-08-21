@@ -52,8 +52,9 @@ during setup, CLI-driving is the intended path, not an exception.
 
 1. **Create the new credentials** (old ones stay valid until cutover):
    - Three new GitHub PATs on the bot account, per the scope table in the
-     root README (lead: issues write; coding: read + `security_events`;
-     marketing: fine-grained, content repo only).
+     root README (lead: `repo`/`public_repo`, issues write; coding:
+     fine-grained read-only + Dependabot alerts read if the sweep is
+     enabled; marketing: fine-grained, content repo only).
    - A fresh Discord bot application (Developer Portal → New Application →
      Bot). Don't reuse the old bot.
 2. **Preserve evidence from the host:**

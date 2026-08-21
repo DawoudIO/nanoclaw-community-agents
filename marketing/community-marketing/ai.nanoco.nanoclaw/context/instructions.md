@@ -113,5 +113,6 @@ real and correctly addressed, but you have no channel to post it through.
 **Check identity too.** Call `GET https://api.github.com/user` and compare
 `login` against `github_bot_username` (relayed from the lead). A working call
 under the wrong account is worse than a failing one — report a mismatch as
-its own finding.
+its own finding, distinct from working/not-working, and **hold all
+GitHub-facing work until your lead confirms it's resolved.**
 Report results to your lead. Never claim ready without having made the calls.

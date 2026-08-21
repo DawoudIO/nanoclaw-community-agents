@@ -101,7 +101,7 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Read-only is enough** for triage and metrics: `repo` (or `public_repo` for public-only) + `read:org`. Add `security_events` **read** only if you want the Dependabot-alert sweep. Do **not** grant write/admin — this agent never posts. | github.com → Settings → Developer settings → Personal access tokens |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained, read-only** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
 | PostHog | `us.posthog.com` or `eu.posthog.com` | `Authorization: Bearer` | Personal API key, **read** scopes on insights/query only | PostHog → Settings → Personal API keys |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The

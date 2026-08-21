@@ -161,20 +161,12 @@ what doesn't confirm.
 
 ## 7. Walk the credential setup — then verify it, don't assume it
 
-For every feature the owner enabled, tell them exactly what to set up — one
-message, only the rows that apply. **Never ask for a raw key in chat**; keys go
-into the OneCLI vault dashboard, and if the deployment is sandboxed, remind
-them the dashboard is the published port from `sbx run` (default 10254):
+Two questions come first, in this order, before anything about vault entries
+— everything else in this step depends on both answers.
 
-**Ask which account the GitHub tokens belong to, before registering anything**:
-"What's the dedicated bot account's username?" (never the owner's own — see
-the prereqs table). Persist it in `project-config.md` as `github_bot_username`
-— every GitHub token gets checked against it below, mechanically, not on
-trust.
-
-**Ask this first, once**: "What URL should I use when I need to point you at
-the OneCLI dashboard — the same machine you're talking to me from right now,
-or somewhere else (a phone, another laptop) when you check in later?" If
+**First: "What URL should I use when I need to point you at the OneCLI
+dashboard — the same machine you're talking to me from right now, or
+somewhere else (a phone, another laptop) when you check in later?"** If
 "somewhere else" and they don't already have a stable address, recommend
 [Tailscale](https://tailscale.com) (free, tailnet-private, never the public
 internet) and give them the exact command to route the dashboard port onto
@@ -186,9 +178,18 @@ tailscale serve --tcp=10254 tcp://localhost:10254 --bg
 ```
 
 Then their address is `http://<their-tailscale-ip>:10254`. Persist whatever
-address they land on in `project-config.md` as `onecli_dashboard_url`, and
-use exactly that in every link you ever give them to the dashboard — never
-assume `127.0.0.1` or `localhost`.
+address they land on in `project-config.md` as `onecli_dashboard_url` — never
+assume `127.0.0.1`, `localhost`, or "the published port from `sbx run`" from
+here on; use exactly this value in every dashboard link you ever give them.
+
+**Second: "What's the dedicated bot account's username?"** (never the owner's
+own — see the prereqs table). Persist it as `github_bot_username` — every
+GitHub token gets checked against it below, mechanically, not on trust.
+
+Now walk the setup itself. For every feature the owner enabled, tell them
+exactly what to set up — one message, only the rows that apply, pointing at
+`onecli_dashboard_url` for where to go. **Never ask for a raw key in chat** —
+keys go into the OneCLI vault dashboard only:
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|

@@ -156,7 +156,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | `repo` (or `public_repo`) + `read:org`. This agent **does** post issue comments, so it needs write on issues — but never grant `admin:*` or `delete_repo`. | Settings → Developer settings → Personal access tokens |
+| GitHub | `api.github.com` | `Authorization: Bearer` | `repo` (or `public_repo`). This agent **does** post issue comments, so it needs write on issues — but never grant `read:org` (nothing here reads org membership/teams), `admin:*`, or `delete_repo`. | Settings → Developer settings → Personal access tokens |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at

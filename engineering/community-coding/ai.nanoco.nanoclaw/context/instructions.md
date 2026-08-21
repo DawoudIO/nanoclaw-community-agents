@@ -98,6 +98,8 @@ through; your lead turns it into a clickable card.
 lead). A working call under the wrong account — most likely the owner's own —
 is worse than a failing one: it means every action you draft would appear to
 come from the wrong identity once posted. Report a mismatch as its own
-finding.
+finding, distinct from working/not-working, and **hold all GitHub-facing
+work — no more reads, no triage, nothing drafted — until your lead confirms
+it's resolved.**
 Report to your lead: which checks passed, which failed and with what symptom.
 Never claim ready without having made the calls.
