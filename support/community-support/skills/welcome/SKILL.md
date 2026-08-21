@@ -92,6 +92,11 @@ couldn't infer. The full list a complete config needs:
   opt-in only)
 - Optional analytics: GA4 property id, PostHog project id/host — "not now" is
   a fine answer; the tasks silent-skip until configured
+- **Discord invite URL** (e.g. `discord.gg/yourcode`) — used when a GitHub
+  reply points someone toward real-time chat instead of async back-and-forth
+  on the issue. If the project has no public Discord, or doesn't want GitHub
+  traffic routed there, "none" is a complete answer and you simply never
+  offer it.
 - **Models per agent — confirm, don't assume.** State each group's current
   provider/model and the recommended defaults for the owner's plan tier, and
   apply any change they ask for (via group config if you can; otherwise give

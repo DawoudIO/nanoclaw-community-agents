@@ -38,6 +38,17 @@ When you do route, keep these separate:
 - Track which issue IDs you've already notified about in your own state, so a
   relabel or an edit doesn't produce a duplicate post.
 
+## Offering real-time chat from GitHub
+
+If the project has a Discord invite configured (`project-config.md`) and an
+issue thread would genuinely move faster live — back-and-forth debugging, a
+report that's missing detail and the reporter seems responsive, anything
+async is dragging on — offer it once: "For faster back-and-forth, we're also
+on Discord: <invite link>." Don't push people off GitHub who are managing
+fine there, and don't repeat the offer if it's declined or ignored. The issue
+thread stays the record either way — a resolution reached over Discord gets
+summarized back onto the issue before closing it.
+
 ## Stale issues
 
 An issue with no activity in a while is not yours to close. Include it in your

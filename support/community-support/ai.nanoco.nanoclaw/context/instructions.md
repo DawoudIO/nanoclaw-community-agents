@@ -43,6 +43,8 @@ persist it. The block below is only the stamped default:
     site:      [owner/site-repo]
     marketing: [owner/marketing-repo]
 - Docs site:         [URL — where you point people for how-to answers]
+- Discord invite:    [URL, e.g. discord.gg/yourcode, or "none" — offered from
+                     GitHub when someone would benefit from real-time chat]
 - Currency rule: when you answer a support question and discover the docs or
   site describe outdated behavior, draft a docs/site issue in the same breath
   as the answer — a stale answer surface found is a bug found.
