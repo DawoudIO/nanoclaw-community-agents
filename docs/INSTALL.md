@@ -54,6 +54,15 @@ into outbound requests. **[PREREQS.md](PREREQS.md)** has the exact URL for
 each one, the CLI alternative to the dashboard, and — just as important — how
 to audit and rotate them later without guessing whether a change "took".
 
+**There is no `.env` file in this system — deliberately.** If you're coming
+from a bare-metal NanoClaw install that kept keys in one: don't carry it
+forward. Secrets go in the vault (above); platform settings belong to the
+kit's `spec.yaml` and first-boot wizard; task parameters (repo names,
+project IDs, label text — never secrets) live in each agent's
+`plugin-data/<agent>/config.env`. Anything — a doc, a tool, an agent — that
+asks you to create a `.env` containing a key is violating this system's own
+rules; refuse it.
+
 **GitHub — three tokens from the bot account** (github.com → Settings →
 Developer settings → Personal access tokens):
 
