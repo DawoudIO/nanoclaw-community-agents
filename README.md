@@ -29,6 +29,10 @@ file is the runbook: prerequisites → keys → edits → start.** The deploymen
 path documented here is a Docker Sandbox (`sbx`) micro-VM — run it that way
 unless you have a strong reason not to; the isolation is the security model.
 
+New here? Setup is a conversation, not a form — you'll DM the stamped agent
+and it interviews you. If you'd rather see the whole question set before you
+start, jump to [§6's prep sheet](#new-project-heres-every-question-before-youre-asked).
+
 ---
 
 ## 0 · Prerequisites — what you need before starting
@@ -269,6 +273,32 @@ identical deployments, or when you want config reviewable in git before it
 exists anywhere else. At runtime the conversational config in `plugin-data/`
 always wins; the `additional_context` and skill files are read-only reference
 once stamped.
+
+### New project? Here's every question, before you're asked
+
+Nothing below blocks you from starting — the interview infers what it can and
+"not now" / "none" are complete answers to anything marked optional. This
+table exists so nothing catches you off guard mid-conversation; skim it once,
+then just talk to the agent.
+
+| # | Asked | Format | Optional? |
+|---|---|---|---|
+| 1 | Your project's GitHub repo or org | `owner/repo` | **No** — everything else derives from this |
+| 2 | Which of the four jobs are goals: support, growth (and if so, users/contributors priority), proactive detection, security | yes/no per job | **No** — scopes everything asked after |
+| 3 | Repo map: product / docs / site / marketing | repo per function, any may share one or be absent — inferred from #1, you confirm | Inferred + confirmed |
+| 4 | Docs site URL, primary language, topic scope | free text | Inferred where possible |
+| 5 | Discord channels: which are support (auto-reply) vs developer/team-lead (mention-only) | channel names per tier | Required if using Discord |
+| 6 | Security disclosure contact + who counts as a maintainer | free text | Required if security is a goal |
+| 7 | Social platforms: which exist, which you post to, and per platform the mechanism (intent-URL/manual/paid) | list + choice per platform | Optional — "none" is fine |
+| 8 | Discord invite URL to offer from GitHub replies | URL or "none" | Optional |
+| 9 | GA4 property id / PostHog project id + host | id/host or "not now" | Optional — tasks silent-skip unconfigured |
+| 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
+
+After this, the agent walks you through exactly which credentials to add
+(step 4 below) and verifies each with a real call, offers to set up the
+workspace backup itself, and asks for one explicit "go" before activating
+anything. See `MIGRATION.md`'s appendix for what a filled-in answer set looks
+like from a real deployment (ChurchCRM) if a worked example helps.
 
 ## 7 · Start it — the go-live sequence
 
