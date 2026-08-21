@@ -367,6 +367,30 @@ context-window numbers) is a deliberate non-default — see
 if you hit a real "which task is burning budget" question clidash can't
 answer.
 
+## Platform skills — the one authoritative list
+
+**The template format can't declare these.** Agent Plugins 1.0.0 has no
+dependency field, so a template ships its own *agent* skills
+(`skills/<name>/SKILL.md` — those install with the template, nothing to do)
+but cannot declare **platform** skills. Those are operator actions, and this
+is the single list. It's also the replay checklist for a recreate: anything
+marked *modifies install* has to be re-applied after
+[OPERATIONS.md](OPERATIONS.md)'s refresh, or you lose it silently.
+
+| Skill | Status | When | Modifies install? |
+|---|---|---|---|
+| `/add-discord` | **Required** | Step 3, in the sandbox Claude session. Owner DM wiring first, then public channels after the interview | No — config only |
+| `/debug` | Built-in, nothing to install | Any time, from a break-glass session. First move for a container-level problem | No |
+| `/add-clidash` | **Recommended** | Right after step 3 (see the monitoring section above) | Copies `tools/clidash`; no source edit |
+| `/add-ollama-provider` | **Proposed, undecided** — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) | Only after a decision, and only for the coding group. *Alternative to `/add-ollama`, not a companion* | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
+| `/add-ollama` (the tool) | **Proposed, undecided** | Only if bilingual translation volume proves expensive. Gives an agent a local model to *call* while it stays on Claude — the lead's case, never the coding agent's | **Yes** — copies an MCP server into the source tree and rebuilds the image. Replay on recreate |
+| `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real "which task is burning budget" question | **Yes** — wires a pusher into `src/index.ts`, runs a persistent process, adds `DASHBOARD_SECRET`. Replay on recreate |
+| `/update-skills` | **Break-glass only** | Never in steady state — it's in-place mutation, which the update policy forbids. Acceptable for an urgent upstream channel fix that can't wait for a kit image | **Yes**, and it desyncs you from `platform-baseline.json` — note it and do a digest-pinned recreate as soon as one exists |
+
+Everything else in NanoClaw's 52-skill catalog was reviewed and is either
+not applicable to a sandbox-kit deployment or rejected with reasons — see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) rather than re-litigating.
+
 ## 4 · Register credentials in OneCLI
 
 ### Reaching the dashboard from wherever you actually are

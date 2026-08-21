@@ -51,10 +51,12 @@ Four defenses, in order of effectiveness:
 1. **Separate the meters where it counts.** If you can, put the agents on
    their own subscription (or an API key) and keep your personal Claude Code
    on yours. Full stop — this removes the failure mode instead of managing it.
-2. **Put the coding agent on local Ollama** (see the model-defaults section
-   below). It's the highest-volume, most formulaic agent and its output is
-   lead-reviewed anyway, so moving it off the shared window costs the least
-   quality and buys the most headroom.
+2. **Consider moving the coding agent to local Ollama** — *not yet approved
+   for this deployment* (see SKILLS-ADOPTION.md → Proposed). `/add-ollama-provider`
+   does the wiring itself; what you supply is a running Ollama with a pulled
+   model, and what's still unverified is whether the sandbox VM can reach it
+   on the host. It takes the most formulaic agent off the shared window,
+   though the lead still pays review cost on every draft.
 3. **Keep the pause-order list to hand** (below). It's not a nice-to-have on
    a shared window — it's your throttle.
 4. **Watch `clidash`** for session/usage state rather than discovering the
@@ -148,7 +150,9 @@ the owner can change them there or later via group config):
 | Marketing | Sonnet-class | Content quality is its whole job; drafts are the deliverable |
 | Coding | Haiku-class | Triage/digest work with skills to guide it — and everything it produces is reviewed by the lead before publishing. Upgrade only if draft quality disappoints |
 
-**Zero-token option for the coding agent: local Ollama.** NanoClaw's
+**Candidate (undecided): local Ollama for the coding agent.** Not adopted —
+recorded in SKILLS-ADOPTION.md as proposed, pending an owner decision and the
+three verifications below. NanoClaw's
 [`ollama-provider` skill](https://nanoclaw.dev/skills/ollama-provider) routes
 individual agent *groups* to a local Ollama model via env overrides in the
 group's `container.json` (`ANTHROPIC_BASE_URL` → `host.docker.internal:11434`,
@@ -158,13 +162,18 @@ agent is the right and only candidate: its work is the most formulaic, and
 the lead reviews everything it produces before a human sees it, so a local
 model's weaker output is caught by design. Keep the lead and marketing on
 Claude — public-voice judgment and draft quality are the two places model
-quality is the product. Before enabling, verify three things: (1) the pinned
-image supports the skill's `ContainerConfig` env/blockedHosts fields (if not,
-it waits for the next digest refresh); (2) `host.docker.internal:11434`
-actually reaches the host's Ollama from inside the sandbox VM's inner Docker
-daemon — test, don't assume; (3) the host can comfortably run a capable model
-(and add the skill's recommended identity clarification, since local models
-sometimes claim to be Claude). Watch the first week's digests for quality
+quality is the product.
+
+`/add-ollama-provider` does the wiring itself, so the setup isn't the
+obstacle. What you supply: **Ollama already running on `:11434` with a model
+pulled**, on a host that can run it. What's genuinely unverified: whether
+`host.docker.internal:11434` reaches the host from inside the sandbox VM's
+*inner* Docker daemon — that's two network boundaries where the skill assumes
+one, so test it rather than trusting it. Also note it modifies the Dockerfile
+(chmod 777 for non-root host UIDs) and NanoClaw's source, making it a
+replay-on-recreate customization like the clidash pusher — fine, but record
+it deliberately. And add the skill's recommended identity clarification,
+since local models sometimes claim to be Claude. Watch the first week's digests for quality
 regression — the lead's review catches errors, but consistently bad drafts
 cost more lead-attention than the tokens saved.
 **And a hard rule regardless of tier: never Opus-class on a scheduled task.**
@@ -313,6 +322,10 @@ refreshes when the issue appears.
 4. Restamp the latest templates from this repo; re-run `/add-discord` with the
    **same** Discord bot (its token comes from the Discord developer portal —
    the VM's stored copy died with the VM); re-verify the owner-DM round trip.
+   Then **re-apply every platform skill marked "modifies install"** in
+   [INSTALL.md → Platform skills](INSTALL.md) — clidash, and anything you
+   adopted since (ollama-provider, dashboard). A fresh VM has none of them,
+   and nothing detects their absence for you.
 5. Re-enter the 3 GitHub PATs in the fresh vault, selective mode (~5 min).
    No rotation needed — refresh isn't compromise.
 6. Restore `plugin-data/` from the backup repo into each agent's

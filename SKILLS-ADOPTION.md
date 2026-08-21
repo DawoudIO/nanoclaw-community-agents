@@ -52,7 +52,6 @@ Nothing here requires a paid subscription.
 | Cross-cutting | `verification-before-completion`, `systematic-debugging`, `receiving-code-review` | obra/superpowers | MIT | Evidence-before-assertions; root-cause-first; verify-external-feedback |
 | Triage engine | `evaluate-pitches`, `monitor-beat` (references) | nanocoai/nanoclaw-templates (journalist) | MIT | Ledger + incremental batches + learn-from-overrules → issue triage; beat-monitoring → advisory digests |
 | Analytics | `pipeline-check`, `report-spec` | nanocoai/nanoclaw-templates (analyst) | MIT | "Exit-code-zero isn't healthy" telemetry checks; metric definitions |
-| Cost | `ollama-provider` | nanoclaw.dev/skills/ollama-provider | — (official NanoClaw skill) | Per-group routing to a local Ollama model — zero Anthropic tokens for that group. Coding agent only (lead-reviewed output tolerates a weaker model; lead/marketing quality IS the product). See OPERATIONS.md → models for the three preconditions to verify (pinned-image support, VM-to-host networking, host hardware) |
 
 ## Install on deployment only (license blocks redistribution)
 
@@ -109,6 +108,29 @@ install runbook already drives), `agent-browser`/`onecli`/`onecli-gateway`
 (built-ins we already depend on — the follower snapshot's page reads ride on
 agent-browser; verify it's enabled in the ready gate if snapshot fetches 502
 with the hosts correctly allowlisted).
+
+## Proposed, NOT yet decided — needs an owner call
+
+**`ollama-provider` and `ollama` are alternatives, not a pair — you never
+need both for the same agent.** `ollama-provider` *replaces* the model that
+runs an agent group (that group leaves the shared window entirely).
+`ollama` adds Ollama as a *tool the agent calls* (the agent stays on Claude
+and still consumes window, but can hand discrete subtasks — summarization,
+translation — to a local model). Which one applies depends on the agent:
+
+| Agent | Right choice | Why |
+|---|---|---|
+| Coding | `ollama-provider` | Most formulaic output, lead-reviewed anyway — the whole group can move off-window. The tool version would be pointless here: it'd already *be* a local model |
+| Lead | `ollama` tool **only** — never the provider | Public-voice judgment is exactly what you don't downgrade. But offloading bulk translation for the bilingual reply rule is a legitimate scalpel |
+| Marketing | Neither, by default | Draft quality is the deliverable |
+
+Both rebuild the container image, so **both are replay-on-recreate**
+customizations (see [INSTALL.md → Platform skills](docs/INSTALL.md)).
+
+| Skill | What it would buy | Why it's not adopted yet |
+|---|---|---|
+| `ollama-provider` (nanoclaw.dev/skills/ollama-provider) | Routes ONE agent group to a local Ollama model — zero shared-window consumption for that group. The coding agent is the only sensible candidate: most formulaic output, and the lead reviews everything it produces anyway | **Never approved — it was analysed, not decided.** The skill does its own setup (`/add-ollama-provider` extends `ContainerConfig` with `env`/`blockedHosts`, writes the per-group `container.json`, and sets `blockedHosts: api.anthropic.com` on that group as a spend guard), so the install work is not the obstacle. What's actually open: (a) **you must supply Ollama yourself** — running on `:11434` with a model already pulled, on a host that can run it; (b) **unverified whether `host.docker.internal:11434` reaches the host from inside the sandbox VM's *inner* Docker daemon** — that's two network boundaries and the skill assumes one, so it needs a real test; (c) it **modifies the Dockerfile (chmod 777 for non-root host UIDs) and NanoClaw's source**, making it a replay-on-recreate customization like the clidash pusher, which our digest-pinning policy tolerates but should record deliberately. Counter-argument worth weighing: on a shared subscription the lead still reviews every coding draft, and that review costs window capacity — so the net saving is real but smaller than "zero tokens for one agent" implies. Decide after the first install, with usage numbers in hand |
+| `ollama` (the TOOL, not the provider) | Lets an agent that stays on Claude delegate discrete subtasks to a local model — the realistic use here is bulk translation for the bilingual support-reply rule | **Also never approved.** Same host prerequisites as above (Ollama running, model pulled) plus the same unverified VM→host reachability, and it **rebuilds the container image** (stdio MCP server copied into the source tree, registered in the agent-runner's `mcpServers`), so it's replay-on-recreate too. Only worth it if bilingual reply volume turns out to be a real cost — which no one has measured yet. Revisit with usage data, not in advance |
 
 ## Evaluated and rejected — with reasons, so this isn't relitigated
 
