@@ -30,8 +30,9 @@ community-coding/
 │   └── tasks/
 │       ├── github-ops-triage.md                  # 4×/day, issue + PR triage digest
 │       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
-│       ├── dev-metrics-report.md                 # scripted fetch, agent narrates deltas
-│       └── posthog-weekly-review.md              # scripted fetch, agent narrates telemetry
+│       ├── dev-metrics-report.md                 # scripted fetch, wakes only on notable change
+│       ├── good-first-issue-health.md            # weekly, GFI-labeled onboarding funnel check
+│       └── posthog-weekly-review.md              # scripted fetch, wakes only on insight change
 ├── skills/
 │   └── coding-ops/
 │       ├── SKILL.md
@@ -73,6 +74,9 @@ stamped agent to write it:
 COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep + dev metrics
 POSTHOG_PROJECT_ID="12345"                       # posthog weekly review
 POSTHOG_HOST="https://us.posthog.com"            # or https://eu.posthog.com
+GFI_LABEL="good first issue"                     # optional — good-first-issue-health;
+                                                  # only needed if your repo uses a
+                                                  # different beginner-friendly label
 ```
 
 Every script exits cleanly with `wakeAgent: false, status: "not-configured"`
@@ -114,8 +118,10 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-All four tasks are script-gated. `security-advisory-sweep` and
-`github-ops-triage` wake the model only when there are new alerts or new/updated
-items (or a fetch fails, which must be surfaced); `dev-metrics-report` wakes
-daily by design to narrate the numbers; a quiet day on the other gates costs a
-few API calls, not an agent turn.
+All five tasks are script-gated. `security-advisory-sweep`,
+`github-ops-triage`, and `good-first-issue-health` wake the model only when
+there's something new (or a fetch fails, which must be surfaced);
+`dev-metrics-report` and `posthog-weekly-review` wake only when a number
+actually moved, with a 7-day heartbeat so the channel doesn't go silent long
+enough to look dead — a quiet stretch costs a few API calls per run, not an
+agent turn.

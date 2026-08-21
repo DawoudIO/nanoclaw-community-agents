@@ -19,18 +19,56 @@ script: |
     echo '{"wakeAgent": true, "data": {"status": "fetch-failed"}}'
     exit 0
   fi
-  printf '{"wakeAgent": true, "data": {"status": "ok", "insights": %s}}\n' \
-    "$(printf '%s' "$RESP" | jq -c '[.results[]? | {name, id, last_refresh}]')"
+  # Fetch each insight's actual computed result inline (PostHog's list
+  # endpoint returns it directly) so the agent has real week-over-week
+  # values without a single extra API call — and keep a rolling history so
+  # "previous" is a real fetched number, never a guess or last week's memory.
+  HIST="$DATA/posthog-insights-history.json"
+  if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
+  TODAY_MAP=$(printf '%s' "$RESP" | jq -c '[.results[]? | {id: (.id|tostring), name, last_refresh, result}] | map({(.id): .}) | add // {}')
+  PREV_MAP=$(jq -c '.[-1].insights // {}' "$HIST")
+  jq -c --argjson m "$TODAY_MAP" --arg d "$(date -u +%Y-%m-%d)" \
+    '. + [{date: $d, insights: $m}] | .[-12:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+  COMBINED=$(jq -nc --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" \
+    '$t | to_entries | map(.value + {previous_result: ($p[.key].result // null)})')
+
+  # Wake gate: only spend agent tokens when an insight's result actually
+  # changed since last week. A 7-day heartbeat forces a wake on a fully
+  # static week so the channel doesn't go quiet long enough to look dead.
+  CHANGED=$(jq -n --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" '$t != $p')
+  LASTWAKE_F="$DATA/posthog-review-last-wake"
+  DAYS_SINCE_WAKE=999
+  if [ -f "$LASTWAKE_F" ]; then
+    NOW_EPOCH=$(date +%s)
+    LW_EPOCH=$(date -u -d "$(cat "$LASTWAKE_F")" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$(cat "$LASTWAKE_F")" +%s 2>/dev/null || echo 0)
+    DAYS_SINCE_WAKE=$(( (NOW_EPOCH - LW_EPOCH) / 86400 ))
+  fi
+  WAKE=false
+  if [ "$CHANGED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
+    WAKE=true
+    date -u +%Y-%m-%d > "$LASTWAKE_F"
+  fi
+  printf '{"wakeAgent": %s, "data": {"status": "ok", "insights": %s, "quiet_heartbeat": %s}}\n' \
+    "$WAKE" "$COMBINED" "$([ "$CHANGED" = "false" ] && echo true || echo false)"
 ---
 Weekly telemetry review. **The goal is finding issues before users report
 them** — error spikes, silently failing flows, anomalies that correlate with a
-recent release. `scriptOutput` carries the fetched insight list (or `status:
-"fetch-failed"` — if so, report that plainly to your lead and stop; don't
-guess at numbers).
+recent release. `scriptOutput` carries the fetched insight list, each with
+its `result` and `previous_result` already fetched — don't re-query PostHog
+yourself, and don't guess at a comparison your own memory of last week isn't
+reliable for (a different session likely ran that report). `status:
+"fetch-failed"` means report that plainly to your lead and stop.
+
+**You're only woken when an insight's result actually changed, or a week's
+gone by with no wake at all** — history is still recorded every week either
+way. If `quiet_heartbeat` is `true`, nothing moved; say one line ("no change
+in tracked insights this week") instead of writing the full review below.
 
 For anything that looks like a real defect users haven't reported yet: draft a
 GitHub issue (title, evidence, suspected release/commit window) and hand it to
 your lead for review and filing — you don't post it yourself. For the rest,
-a short narrative: what moved week-over-week, what's anomalous, what a human
-should look at. Numbers always carry their window; anything unverified stays
-marked unverified.
+a short narrative: what moved week-over-week (using `result` vs.
+`previous_result`), what's anomalous, what a human should look at. `null` for
+`previous_result` means this insight has no prior data point yet (first run,
+or a new insight) — don't compute a delta from it. Numbers always carry their
+window; anything unverified stays marked unverified.

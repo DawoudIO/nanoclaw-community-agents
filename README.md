@@ -8,7 +8,7 @@ lead talks to users on Discord and GitHub; two headless sub-agents (coding
 ops, marketing ops) draft and hand off but never post.
 
 The mechanism bias throughout: **scripts and skills over prompt-stuffed
-agents**. 11 of 14 recurring tasks are script-gated — deterministic fetching,
+agents**. 12 of 15 recurring tasks are script-gated — deterministic fetching,
 diffing, and thresholds run as bash with no model involved, and the agent
 wakes only to read the result and exercise judgment. Anything with zero
 judgment (label→channel notifications, secret scanning) belongs even further
@@ -241,8 +241,42 @@ fill-ins still work as defaults; the conversational config wins.) Only then
 wire the public channels + guild catch-all, **lead only** — sub-agents get no
 channel wiring; that's the single-voice design, enforced by absence. After
 setup, everything runs through Discord; the sandbox Claude CLI is break-glass
-admin only (MIGRATION.md → Break-glass admin covers when it helps and how it
-hurts).
+admin only (see below).
+
+## Break-glass admin: the Claude CLI — how it helps, how it hurts
+
+`sbx exec -it -w /home/agent/nanoclaw nanoclaw claude` opens a Claude Code
+session inside the sandbox with direct access to the install — files, `ncl`,
+the group workspaces. Reserve it for a **bad state**: the owner DM broken, an
+agent stuck in a verification deadlock, task/wiring surgery, log forensics.
+
+**How it helps:**
+- It operates on the *system* instead of negotiating with an *agent* — when
+  an agent can't verify you, stop arguing in-channel and act at the layer you
+  control.
+- It works when Discord doesn't: wiring repair, `/add-discord`, reading
+  journals and task tables directly.
+- It stays inside the sandbox boundary — same egress allowlist, no new trust
+  domain, no credentials exposed (the vault still injects at the proxy).
+
+**How it hurts:**
+- Every CLI change is an out-of-framework edit — exactly what drift detection
+  flags. Pair each intervention with a one-line DM to the lead afterward ("I
+  changed X via CLI at Y"), or expect (and calmly answer) an ask-don't-lock
+  question from the integrity gate.
+- It bypasses every gate: no OneCLI request-holds, no single-voice review, no
+  public-action ledger entry. Nothing stops a typo'd `ncl tasks` command or a
+  bad file edit. Its power is unaudited unless you narrate it.
+- Habit decay is the real risk: if routine config drifts into CLI edits, the
+  owner DM stops being the single authoritative thread, config becomes
+  untracked again, and you've rebuilt the exact "who changed this?" ambiguity
+  the single-voice design exists to prevent. **Discord for operations, CLI
+  for surgery.**
+- A CLI session is itself an agent with tools — its conclusions deserve the
+  same verify-don't-vibe discipline as anything else.
+
+Note this doctrine applies to **operations after go-live**. During initial
+setup (steps 1–7 above), CLI-driving is the intended path, not an exception.
 
 ## 4 · Register credentials in OneCLI
 
@@ -357,7 +391,7 @@ formality.
 |---|---|---|---|---|
 | Lead | `selective` | Lead GitHub PAT | `api.github.com` | `daily-github-triage`, `release-announcement-watch`, issue/PR replies |
 | Lead | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
-| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dev-metrics-report` |
+| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dev-metrics-report`, `good-first-issue-health` |
 | Coding | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
 | Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle`, `draft-cleanup` |
 | Marketing | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
@@ -430,7 +464,7 @@ for any of that.**
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 14 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
+| Task schedules (cron lines, all 15 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | Lead's group folder in the sandbox | After stamping, host-side (or ask the lead to run it) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
@@ -468,8 +502,11 @@ then just talk to the agent.
 After this, the agent walks you through exactly which credentials to add
 (step 4 below) and verifies each with a real call, offers to set up the
 workspace backup itself, and asks for one explicit "go" before activating
-anything. See `MIGRATION.md`'s appendix for what a filled-in answer set looks
-like from a real deployment (ChurchCRM) if a worked example helps.
+anything. This is the only onboarding path — there's no separate migration
+runbook to fill in beforehand; every answer above is meant to be given live,
+in the conversation. See `example-mapping.md` (in the lead template's
+`additional_context/`) for what a filled-in channel-routing answer looks like
+from a real deployment, if a worked example helps.
 
 ## 7 · Start it — the go-live sequence
 
@@ -496,7 +533,8 @@ Resume order (safe → side-effect-adjacent):
 3. **Lead announcements** (`release-announcement-watch`) — safe as soon as
    `COMMUNITY_REPOS` is set; it only ever posts already-public release info.
 4. **Coding**: `github-ops-triage`, then the gates you configured
-   (`security-advisory-sweep`, `dev-metrics-report`, `posthog-weekly-review`).
+   (`security-advisory-sweep`, `dev-metrics-report`, `posthog-weekly-review`,
+   `good-first-issue-health`).
 5. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.
 6. **Last, once fill-ins are done and reviewed**: `content-draft-cycle`, and
    `inbox-check` only after an email MCP is actually connected.
@@ -518,8 +556,12 @@ Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
 
 **Three agents is the right number — and it's cheaper than it looks.** Burn
 comes from model *wakes*, not from agents existing: a stamped agent whose
-tasks are paused costs nothing. 11 of 14 tasks are script-gated, so quiet
-periods cost near zero regardless of agent count. That makes the team elastic:
+tasks are paused costs nothing. 12 of 15 tasks are script-gated, so quiet
+periods cost near zero regardless of agent count — and the two highest-
+frequency gates (`dev-metrics-report` daily, `posthog-weekly-review` weekly)
+don't just skip when unconfigured, they skip on any run where nothing
+actually changed, with only a 7-day heartbeat forcing a wake so the channel
+never goes silent long enough to look dead. That makes the team elastic:
 stamp all three, then tune budget by which tasks you activate — never by
 deleting agents.
 
@@ -545,11 +587,12 @@ the owner can change them there or later via group config):
 | Any scheduled task | never Opus-class | Wakes are frequent; premium models belong in interactive sessions, not cron |
 
 **If you still hit plan limits**, pause in this order (lowest value first):
-`draft-cleanup` → `dev-metrics-report` → `social-metrics-snapshot` →
-`inbox-check` → reduce `github-ops-triage` to 2×/day → `content-draft-cycle`
-to 3×/week. The safety net (`health-check`, `workspace-backup`,
-`weekly-identity-integrity-check`) and community replies are the last things
-to give up — they're also nearly free, since all three are gated.
+`good-first-issue-health` → `draft-cleanup` → `dev-metrics-report` →
+`social-metrics-snapshot` → `inbox-check` → reduce `github-ops-triage` to
+2×/day → `content-draft-cycle` to 3×/week. The safety net (`health-check`,
+`workspace-backup`, `weekly-identity-integrity-check`) and community replies
+are the last things to give up — they're also nearly free, since all three
+are gated.
 
 ## Reference: every task, required vs optional
 
@@ -566,8 +609,9 @@ turns.
 | `weekly-identity-integrity-check` | lead | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 | `github-ops-triage` (4×/day) | coding | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | coding | on new alerts | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` | silent skip |
-| `dev-metrics-report` (daily) | coding | daily | PAT + `COMMUNITY_REPOS` | silent skip |
-| `posthog-weekly-review` (Mon) | coding | weekly | PostHog key + `POSTHOG_PROJECT_ID` + allowlist | silent skip |
+| `dev-metrics-report` (daily) | coding | only on notable change, else weekly heartbeat | PAT + `COMMUNITY_REPOS` | silent skip |
+| `posthog-weekly-review` (Mon) | coding | only on insight change, else weekly heartbeat | PostHog key + `POSTHOG_PROJECT_ID` + allowlist | silent skip |
+| `good-first-issue-health` (Mon) | coding | weekly | coding PAT + `COMMUNITY_REPOS` (+ optional `GFI_LABEL`) | silent skip |
 | `inbox-check` (2×/day) | marketing | every run | email MCP + read-only mailbox + allowlist | leave paused |
 | `content-draft-cycle` (weekdays) | marketing | every run | marketing PAT + brand source filled in | leave paused |
 | `weekly-analytics-report` (Sun) | marketing | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
@@ -576,9 +620,9 @@ turns.
 
 Shipped times (UTC under the kit): health-check every 3h · backup 08:40 ·
 release watch every 3h · lead triage weekdays 13:00 · coding triage every 6h ·
-sweep every 4h · dev metrics 12:00 · PostHog Mon 15:00 · inbox 06:00 + 16:00 ·
-content weekdays 13:30 · social snapshot Sun 13:00 · GA4 Sun 14:00 · cleanup
-17:30 · integrity check Mon 15:00. Rules of thumb: put the
+sweep every 4h · dev metrics 12:00 · PostHog Mon 15:00 · GFI health Mon 16:00 ·
+inbox 06:00 + 16:00 · content weekdays 13:30 · social snapshot Sun 13:00 ·
+GA4 Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00. Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
@@ -635,15 +679,17 @@ in UPSTREAM-ISSUES.md.
   step 0 if you'd rather script the whole credential story than click
   through the dashboard.
 
-- **[MIGRATION.md](MIGRATION.md)** — step-by-step for replacing an existing
-  NanoClaw install with this set in a sandbox: evidence preservation, the
-  keep-OneCLI/minimal-rotation credential stance, cutover order, and the
-  ChurchCRM deployment's concrete fill-in values.
 - **[UPSTREAM-ISSUES.md](UPSTREAM-ISSUES.md)** — platform issues observed on
   the previous install, each with repro-on-clean-install steps; confirm during
   testing, then file against `nanocoai/nanoclaw` so the template works for
   every user, not just this deployment.
 
-> This root README, MIGRATION.md, and UPSTREAM-ISSUES.md are for the staging
-> repo. A PR to `nanocoai/nanoclaw-templates` submits only the three template
-> directories; the catalog has its own root README.
+There's deliberately no migration runbook: this is a fresh install every
+time, driven entirely by the welcome wizard's conversational interview (step
+6 above). An existing deployment's old credentials simply get revoked once
+the new one is verified live — see "Least privilege" above for the exact
+scopes to create fresh.
+
+> This root README and UPSTREAM-ISSUES.md are for the staging repo. A PR to
+> `nanocoai/nanoclaw-templates` submits only the three template directories;
+> the catalog has its own root README.

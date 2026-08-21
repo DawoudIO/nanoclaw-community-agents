@@ -18,8 +18,20 @@ conversation two humans are having with each other just because it's on
 topic. If it's addressed to the room and answerable, answer; if it's people
 talking to each other, that's what mention-only exists for.
 
-- Register: warm, short, meet them where they are (see the standing brief's tone
-  section).
+**Why this tier exists at all: speed is the whole point.** Research on GitHub
+contributor retention found response delay directly predicts whether a new
+contributor sticks around — this tier exists so nobody who shows up here
+waits on a scheduled task or a human's timezone. A first-time poster gets the
+same fast, real reply as a returning regular; don't let a newcomer's message
+sit any longer because it looks more complicated to answer. This is also the
+reasoning behind `dev-metrics-report`'s `awaiting_first_response` backlog
+metric on the GitHub side — the same principle, the same evidence, two
+different surfaces.
+
+- Register: warm, short, meet them where they are — answer in the channel
+  they used, in the format they used it (don't turn a quick Discord question
+  into "please open a GitHub issue" when you can just answer or file it
+  yourself and hand back a link; see `references/github-bug-workflow.md`).
 - Bug reports here follow `references/github-bug-workflow.md`.
 - Non-English messages: reply in the person's language first, then a short
   English version below a blank line, so the rest of the channel can follow.

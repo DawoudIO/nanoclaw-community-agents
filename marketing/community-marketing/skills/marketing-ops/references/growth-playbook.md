@@ -60,3 +60,12 @@ series; developers → **new contributors per month and first-time-contributor
 PRs** (countable from the GitHub API — ask the coding agent to include it in
 dev metrics). A campaign that moved neither number gets said plainly in the
 report, not spun.
+
+Two more developer-growth signals already come from the coding agent's own
+tasks, not from anything marketing needs to build: `dev-metrics-report`'s
+return-nudge (a first-time contributor 20-30 days in with no second
+contribution yet — research shows this is the highest-leverage window for a
+personal follow-up) and `good-first-issue-health`'s weekly funnel check
+(open, unassigned, stale beginner-friendly issues — a starved GFI pipeline is
+a quiet growth leak). If growth content ever needs a "help wanted" push,
+check that report first rather than guessing which issues need visibility.

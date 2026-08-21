@@ -6,10 +6,22 @@
    project version, and OS/browser (whatever's relevant to the project). If the
    reporter didn't give these, ask — don't create a thin issue and hope for
    detail later.
-2. Create the issue with a structured body (repro steps, version/environment,
-   expected vs. actual), label it appropriately, and reply to the reporter with
-   the issue URL as a card (see `discord-mechanics.md`).
-3. Read the full issue body — including any markdown tables — before your first
+2. **Search before you file.** A quick GitHub search on the repo for the
+   report's key terms (error message, feature name) catches most duplicates
+   before they're created. Found a clear match? Link the existing issue back
+   to the reporter instead of filing a new one — same speed, no duplicate to
+   triage later. Only file fresh when nothing close already exists.
+3. **File it yourself, immediately — this doesn't wait for approval.** You
+   already hold the scope for this (`repo`/`public_repo`, opens issues — see
+   this template's README credentials table); a real bug report sitting
+   unfiled while you wait on anything is exactly the "did the work, got
+   ignored" failure this whole workflow exists to prevent. Create the issue
+   with a structured body (repro steps, version/environment, expected vs.
+   actual), label it appropriately, and reply to the reporter **in the same
+   channel they reported in** with the issue URL as a card (see
+   `discord-mechanics.md`) — meet them where they are, don't make them go
+   open a GitHub account or switch platforms just to get a link back.
+4. Read the full issue body — including any markdown tables — before your first
    comment on any issue, whether you filed it or someone else did. Never ask for
    information that's already in the issue; reference what was given to show you
    read it.

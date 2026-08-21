@@ -50,22 +50,67 @@ where the audience that acts on it lives.
 
 ```
 📊 <Project> Dev Report — <date>
-Stars / Forks / Open issues — each with (+/-N) vs previous run
+
+🟢 Ready to merge (approved, just waiting)
+<PR #, title, author> — <link> — waiting Nd
+(or: "none — nothing approved is sitting idle" if empty)
+
+Stars / Forks / Open issues / Open PRs — each with (+/-N) vs previous run
 Downloads per recent release: cumulative AND daily delta (+N / total)
-Open PRs: title, author, days open — security-flagged PRs listed FIRST
-Open security advisories: id, severity, state, patched version
-Bug issues opened in the last 7 days
-Top stale issues (7+ days no activity) — listed, never closed
+Awaiting first response: N issues / N PRs never commented on (oldest: <date>)
+Closed PRs (30d): merged vs. unmerged — ratio only if 5+ total
+New contributors this week — named, not just counted
+Return-nudge: <contributor> — first contribution <N>d ago, no second one yet
 ```
 
-Release download deltas come from the metrics history (cumulative counts are
-not retroactively fetchable — the gate stores them; treat like the follower
-series). `null` = fetch failed that day, never zero.
+**"Ready to merge" leads the report, above the trend numbers** — see
+`dev-metrics-report`'s own framing for why: a reviewed, approved PR sitting
+unmerged means a contributor cleared every bar and nothing happened next,
+which is worse than a slow first response. This is the one place per-PR
+detail belongs directly in this report (unlike the items below), because
+`dev-metrics-report` computes it itself, by number/title/author/link — it
+isn't reconstructed from memory or duplicated from another task's output.
+
+Every other line here comes from `dev-metrics-report`'s own script output —
+nothing in this skeleton should ever be a number the agent had to guess or
+reconstruct from memory. Release download deltas come from the metrics
+history (cumulative counts are not retroactively fetchable — the gate stores
+them; treat like the follower series). `null` = fetch failed that day, never
+zero.
+
+**Everything else per-PR/issue, security advisories, and stale-issue
+call-outs are separate reports, not extra lines bolted onto this one:**
+- Individual PR/issue narrative (title, author, days open, duplicates, stale
+  nudges, security-flagged reports listed first) comes from the triage digest
+  (`daily-github-triage`/`github-ops-triage`) — that's where per-item judgment
+  already lives; repeating it here would either duplicate it or go stale
+  between runs.
+- Currently open security advisories are `security-advisory-sweep`'s job —
+  it wakes the agent specifically when one needs judgment, which is a better
+  signal than a static count sitting unread in a daily metrics message.
+- The good-first-issue funnel is `good-first-issue-health`'s own weekly
+  report, not a line here.
+
+Keep the dev report to what it's good at: the numbers (and the one
+already-approved-PR list) that only make sense as a trend line.
 
 If the full report exceeds Discord's ~2,000-character message limit, post it
 as a downloadable `.md` attachment with the headline numbers in the message
 body — never a multi-message wall, never silent truncation (see
 `discord-mechanics.md`).
+
+## Social follower report (from social-metrics-snapshot)
+
+```
+📈 Follower snapshot — <date>
+<platform>: <count>  (WoW <+/-N>, MoM <+/-N or "not enough history yet">)
+...
+```
+
+Same null-handling as any metric: a platform that failed to fetch this week
+shows `null`, never last week's number repeated. MoM needs roughly a month of
+prior snapshots (~5 weekly lines) before it means anything — until then, WoW
+only, stated plainly rather than comparing against too short a baseline.
 
 ## Numbers always carry their window
 
