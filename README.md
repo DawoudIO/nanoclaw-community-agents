@@ -19,7 +19,7 @@ detail.
 
 ## Design principles
 
-- **Scripts do the work; agents do the judgment.** 15 of 17 recurring tasks
+- **Scripts do the work; agents do the judgment.** 16 of 18 recurring tasks
   are script-gated: deterministic fetching, diffing, and thresholds run as
   bash with no model involved, and the agent wakes only when there's
   something to judge. The gates live as testable code in

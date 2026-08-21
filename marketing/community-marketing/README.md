@@ -85,8 +85,9 @@ Connect one — or your install's email channel — before resuming that task;
 until then, leave it paused.
 
 **Script dependencies:** `bash`, `curl`, `jq` in the container image — verify
-with `ncl tasks run <task-id>` before resuming. Schedules fire in the group's
-configured timezone.
+with `ncl tasks run <task-id>` before resuming. **Schedules run in UTC** (the kit pins `TZ=UTC`); tune the `schedule:` cron
+lines before stamping — see the lead template's README for why afterwards is
+expensive.
 
 ## Credentials: via OneCLI, not env vars
 

@@ -20,9 +20,12 @@ Never post directly, on any platform, for any reason. The pipeline is:
 3. **Open a pull request.** The PR is the review surface — it's what a human
    reads and approves.
 4. **Hand the PR link to your lead**, which relays it to whoever approves.
-5. **Publishing happens after approval**, by whoever holds that permission. If
-   you're asked to publish an approved item, publish exactly what was approved —
-   not a revised version you thought was better.
+5. **Publishing happens after approval, and never by you.** A human with the
+   platform credential does it — you have none, by design. If you're asked to
+   publish, that's a request you decline and route: say you can't post
+   anywhere, and hand back whatever makes the human's click trivial (the
+   intent URL, or the copy-pasteable text). Publishing exactly-what-was-
+   approved is the *human's* rule, not a task you carry out.
 
 ## Publishing mechanics — decided per platform at onboarding
 
@@ -45,9 +48,12 @@ platform as one of:
   free API tier: new developers get pay-per-use (~$0.015/post, ~$0.20 per post
   containing a link; legacy Basic $200/mo is closed to new signups). At one
   link-post per day that's roughly $6/month — cheap, but a choice the owner
-  makes explicitly, never a default. If enabled, the key lives in the vault
-  (never in files), posting still happens only after PR approval, and you
-  post exactly what was approved.
+  makes explicitly, never a default. **Even when enabled, the API call is not
+  yours to make**: you hold no posting credential in any configuration, and
+  the install runbook puts an OneCLI request-hold on that host so the post
+  still waits on a human button-press. Your output is the approved text,
+  identically to the other two mechanisms — what changes is only who clicks
+  and where, never that you gain a publish path.
 
 If the owner doesn't want to pay for X: intent URLs give the identical
 after-approval flow at zero cost, with the approver's click as the final gate —

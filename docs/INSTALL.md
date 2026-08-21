@@ -50,7 +50,7 @@ anything up.
 Collect these before setup; you'll register them in OneCLI in step 4. **Never
 paste any of them into the sandbox, a template file, or a chat with an agent** —
 they go into the OneCLI vault through its dashboard, and the proxy injects them
-into outbound requests. **[PREREQS.md](PREREQS.md)** has the exact URL for
+into outbound requests. **[PREREQS.md](../PREREQS.md)** has the exact URL for
 each one, the CLI alternative to the dashboard, and — just as important — how
 to audit and rotate them later without guessing whether a change "took".
 
@@ -185,9 +185,20 @@ open; NanoClaw stops when it closes.
 The install's templates directory is `/home/agent/nanoclaw/templates/` inside
 the VM.
 
-**Only cron-line/timezone changes must happen before stamping** (see step 6) —
-project config is collected conversationally after wiring. Pre-stamp file
-fill-ins are optional defaults; personas mount read-only once stamped.
+**Decide your schedule timezone NOW — this is the one thing that is
+genuinely expensive to change later.** Task schedules are cron lines in each
+task file's frontmatter, the kit pins `TZ=UTC`, and frontmatter is not
+runtime-editable — so after stamping, changing a time means cancel-and-recreate
+per task. The shipped times (see OPERATIONS.md → "Shipped times") are UTC. If
+UTC doesn't suit the owner's working day, edit the `schedule:` lines in your
+local copy of the 18 task files **before** the stamp step below — it's a
+one-minute edit now versus 18 recreates later. Everything else is collected
+conversationally after wiring; pre-stamp file fill-ins are optional defaults,
+and personas mount read-only once stamped.
+
+(The welcome interview asks about timezone too, but only to record and confirm
+it — by then this cheap window has closed, which is exactly why the decision
+belongs here.)
 
 **A — from a git staging repo** (github.com is already allowlisted):
 
@@ -464,7 +475,8 @@ formality.
 |---|---|---|---|---|
 | Lead | `selective` | Lead GitHub PAT | `api.github.com` | `daily-github-triage`, `release-announcement-watch`, issue/PR replies |
 | Lead | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
-| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dev-metrics-report`, `good-first-issue-health` |
+| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit` |
+| Coding | `selective` | same PAT, git protocol *(only for private repos)* | `github.com` | `repo-mirror-sync` — public repos need no credential |
 | Coding | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
 | Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle`, `draft-cleanup` |
 | Marketing | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
@@ -479,7 +491,7 @@ back into shared access.
 
 ### Confirm identity, don't assume it (and audit what's already connected)
 
-**[PREREQS.md](PREREQS.md)** has the full audit and rotation runbook using
+**[PREREQS.md](../PREREQS.md)** has the full audit and rotation runbook using
 `onecli`'s real CLI — `secrets list`, `apps connections agent-access` (the
 direct, verifiable answer to "does this agent have more access than it
 needs"), and `secrets update` for safe in-place rotation with no downtime.
@@ -590,7 +602,7 @@ for any of that.**
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 17 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
+| Task schedules (cron lines, all 18 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | Lead's group folder in the sandbox | After stamping, host-side (or ask the lead to run it) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
@@ -609,6 +621,31 @@ Nothing below blocks you from starting — the interview infers what it can and
 table exists so nothing catches you off guard mid-conversation; skim it once,
 then just talk to the agent.
 
+**Prefer filling in a file over answering live?** Copy
+[`onboarding-answers.example.json`](../onboarding-answers.example.json) to
+`onboarding-answers.json`, fill what you know, and tell the lead where it is —
+it reads that instead of interviewing you, asks only about what's still
+missing, and persists the rest. That's also the repeatable path: keep the
+filled file and you can tear the whole system down and rebuild it identically.
+Validate a filled copy any time with
+`bash scripts/check-onboarding.sh onboarding-answers.json` — it checks the
+JSON, refuses anything credential-shaped, and verifies every key the scripts
+read is actually present. **Never put a secret in it**; secrets live only in
+the OneCLI vault.
+
+### Answer these two before you stamp anything
+
+Everything else in this section is safe to answer live, mid-conversation.
+These two are not — they decide how tasks are created, so they have to be
+settled before the stamp step:
+
+| Asked | Format | Why it can't wait |
+|---|---|---|
+| **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. 18 recreates later — see step 2 |
+| **Which agents do you want at all?** — lead only, or lead + coding and/or marketing | pick | Determines what you stamp. Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
+
+### Then the interview asks these
+
 | # | Asked | Format | Optional? |
 |---|---|---|---|
 | 1 | Your project's GitHub repo or org | `owner/repo` | **No** — everything else derives from this |
@@ -623,8 +660,11 @@ then just talk to the agent.
 | 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
 | 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
 | 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
-| 13 | The dedicated bot account's GitHub username (never the owner's own) | username | **No** — every GitHub token is checked against it |
-| 14 | A named human backstop: who takes abuse reports and urgent escalations when you're unreachable | name + contact | **Asked always** — going live without one is recorded as an open risk, not silently accepted |
+| 13 | Docs style — current-state only, or is version-history language ("added in 2.1") fine? | either | Relayed to the coding agent, enforced on every docs PR it drafts |
+| 14 | Who your content is actually for, in your own words, and the tone that follows | free text | **No** — marketing writes for this; without it, drafts default to generic copy |
+| 15 | Workspace backup — a private repo the lead pushes its config/ledgers to | `owner/repo` or "skip" | Optional, but it's the only thing that survives a sandbox recreate |
+| 16 | The dedicated bot account's GitHub username (never the owner's own) | username | **No** — every GitHub token is checked against it |
+| 17 | A named human backstop: who takes abuse reports and urgent escalations when you're unreachable | name + contact | **Asked always** — going live without one is recorded as an open risk, not silently accepted |
 
 After this, the agent walks you through exactly which credentials to add
 (step 4 below) and verifies each with a real call, offers to set up the
@@ -647,7 +687,7 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 17 (6 lead, 6 coding, 5 marketing)
+./bin/ncl tasks list --status paused          # expect all 18 (6 lead, 7 coding, 5 marketing)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
@@ -661,7 +701,7 @@ Resume order (safe → side-effect-adjacent):
    `COMMUNITY_REPOS` is set; it only ever posts already-public release info.
 4. **Coding**: `github-ops-triage`, then the gates you configured
    (`security-advisory-sweep`, `dev-metrics-report`, `posthog-weekly-review`,
-   `good-first-issue-health`, `repo-hygiene-audit`).
+   `good-first-issue-health`, `repo-hygiene-audit`, `repo-mirror-sync`).
    The lead's `docs-gap-review` is safe from day one — it stays quiet until
    normal support work has filled its question ledger.
 5. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.

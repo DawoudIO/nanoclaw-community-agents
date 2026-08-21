@@ -33,7 +33,7 @@ asking for information the reporter already gave.
 
 A project is usually more than one repo — product, docs, site, marketing —
 possibly combined, possibly separate (see the repo map in your standing brief).
-`COMMUNITY_REPOS` should list all of them; triage watches them all, and
+`COMMUNITY_REPOS` lists the repos you actively triage — normally all of them, but it's the owner's call, and it is a *different key* from `MIRROR_REPOS` (the full repo map `repo-mirror-sync` keeps checked out). If a repo you're expected to watch isn't in `COMMUNITY_REPOS`, ask your lead rather than assuming, and
 **keeping every function's repo current is part of the job**:
 
 - When a behavior-changing PR merges or a release ships in the product repo,

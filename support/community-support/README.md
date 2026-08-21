@@ -145,9 +145,12 @@ don't want in the backup (e.g. a `conversations/` directory).
 
 **Script dependencies:** `bash`, `jq`, `git` (backup), and optionally `ncl`
 (health-check's paused-count check degrades gracefully without it). Verify with
-`ncl tasks run <task-id>` before resuming. Schedules fire in the group's
-configured timezone — tune the cron lines to your day before stamping, or
-cancel-and-recreate after.
+`ncl tasks run <task-id>` before resuming. **Schedules run in UTC** (the kit pins `TZ=UTC`) from the `schedule:` cron in
+each task's frontmatter. Tune those lines to your day **before stamping** —
+frontmatter isn't runtime-editable, so afterwards it's cancel-and-recreate per
+task. A per-group timezone override may exist in your NanoClaw version; treat
+it as unverified until you've confirmed a task actually fired at the local
+time you expected (see UPSTREAM-ISSUES.md).
 
 ## Credentials: via OneCLI, not env vars
 

@@ -33,8 +33,11 @@ COMBINED=$(jq -nc --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" \
 # changed since last week — compare result values only, never last_refresh
 # (PostHog bumps that on every cache refresh regardless of the numbers,
 # which would flip this gate to "changed" every single week and defeat it).
-# A 7-day heartbeat forces a wake on a fully static week so the channel
-# doesn't go quiet long enough to look dead.
+#
+# The heartbeat MUST be longer than this task's own cron interval or it can
+# never suppress anything: on a weekly cron, a 7-day heartbeat is satisfied
+# at every single run. 28 days = a fully static month still produces one
+# proof-of-life wake, while an ordinary quiet week stays silent.
 CHANGED=$(jq -n --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" \
   '($t | with_entries(.value |= .result)) != ($p | with_entries(.value |= .result))')
 LASTWAKE_F="$DATA/posthog-review-last-wake"
@@ -45,7 +48,7 @@ if [ -f "$LASTWAKE_F" ]; then
   DAYS_SINCE_WAKE=$(( (NOW_EPOCH - LW_EPOCH) / 86400 ))
 fi
 WAKE=false
-if [ "$CHANGED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
+if [ "$CHANGED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 28 ]; then
   WAKE=true
   date -u +%Y-%m-%d > "$LASTWAKE_F"
 fi

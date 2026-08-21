@@ -25,12 +25,13 @@ symptom is pure silence. Two defenses:
 
 **Three agents is the right number — and it's cheaper than it looks.** Burn
 comes from model *wakes*, not from agents existing: a stamped agent whose
-tasks are paused costs nothing. 15 of 17 tasks are script-gated, so quiet
-periods cost near zero regardless of agent count — and the two highest-
-frequency gates (`dev-metrics-report` daily, `posthog-weekly-review` weekly)
-don't just skip when unconfigured, they skip on any run where nothing
-actually changed, with only a 7-day heartbeat forcing a wake so the channel
-never goes silent long enough to look dead. That makes the team elastic:
+tasks are paused costs nothing. 16 of 18 tasks are script-gated, so quiet
+periods cost near zero regardless of agent count. The highest-frequency gate
+by far — `repo-mirror-sync`, every 15 minutes — is also among the cheapest: a
+sync with no upstream change never wakes the model at all. And the daily
+`dev-metrics-report` doesn't just skip when unconfigured, it skips on any run
+where nothing actually changed, with a 7-day heartbeat forcing a wake so the
+channel never goes silent long enough to look dead. That makes the team elastic:
 stamp all three, then tune budget by which tasks you activate — never by
 deleting agents.
 
@@ -73,10 +74,11 @@ daemon — test, don't assume; (3) the host can comfortably run a capable model
 sometimes claim to be Claude). Watch the first week's digests for quality
 regression — the lead's review catches errors, but consistently bad drafts
 cost more lead-attention than the tokens saved.
-| Any scheduled task | never Opus-class | Wakes are frequent; premium models belong in interactive sessions, not cron |
+**And a hard rule regardless of tier: never Opus-class on a scheduled task.**
+Wakes are frequent; premium models belong in interactive sessions, not cron.
 
 **If you still hit plan limits**, pause in this order (lowest value first):
-`repo-hygiene-audit` → `good-first-issue-health` → `draft-cleanup` → `dev-metrics-report` →
+`repo-mirror-sync` → `repo-hygiene-audit` → `good-first-issue-health` → `draft-cleanup` → `dev-metrics-report` →
 `social-metrics-snapshot` → `inbox-check` → reduce `github-ops-triage` to
 2×/day → `content-draft-cycle` to 3×/week. The safety net (`health-check`,
 `workspace-backup`, `weekly-identity-integrity-check`) and community replies
@@ -99,7 +101,8 @@ turns.
 | `github-ops-triage` (4×/day) | coding | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | coding | on new alerts | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` | silent skip |
 | `dev-metrics-report` (daily) | coding | only on notable change, else weekly heartbeat | PAT + `COMMUNITY_REPOS` | silent skip |
-| `posthog-weekly-review` (Mon) | coding | only on insight change, else weekly heartbeat | PostHog key + `POSTHOG_PROJECT_ID` + allowlist | silent skip |
+| `posthog-weekly-review` (Mon) | coding | only on an insight-value change, else a 28-day heartbeat | PostHog key + `POSTHOG_PROJECT_ID` + allowlist | silent skip |
+| `repo-mirror-sync` (every 15m) | coding | only on a real content change or a sync failure | coding PAT + `MIRROR_REPOS` (falls back to `COMMUNITY_REPOS`) + `github.com` allowlisted for git | silent skip |
 | `good-first-issue-health` (Mon) | coding | weekly | coding PAT + `COMMUNITY_REPOS` (+ optional `GFI_LABEL`) | silent skip |
 | `docs-gap-review` (Tue) | lead | only when a support topic repeats 3+ times | question ledger (built up by normal support work) | safe — quiet until the ledger has data |
 | `repo-hygiene-audit` (quarterly) | coding | only on missing community files | coding PAT + `COMMUNITY_REPOS` | silent skip |
@@ -113,7 +116,7 @@ Shipped times (UTC under the kit): health-check every 3h · backup 08:40 ·
 release watch every 3h · lead triage weekdays 13:00 · coding triage every 6h ·
 sweep every 4h · dev metrics 12:00 · PostHog Mon 15:00 · GFI health Mon 16:00 ·
 inbox 06:00 + 16:00 · content weekdays 13:30 · social snapshot Sun 13:00 ·
-GA4 Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00 · docs-gap review Tue 15:00 · repo hygiene quarterly (1st, 10:00). Rules of thumb: put the
+GA4 Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00 · docs-gap review Tue 15:00 · repo hygiene quarterly (1st, 10:00) · repo mirror sync every 15m (the highest-frequency task, and the cheapest — a no-change sync never wakes the model). Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
@@ -175,7 +178,7 @@ conversation, the one durable file lives in the git backup), updating the
 platform = recreating the sandbox — the same runbook you used to build it.
 
 **Noticing updates is automated, not an agent job.** The
-[`platform-watch`](.github/workflows/platform-watch.yml) Action in this repo
+[`platform-watch`](../.github/workflows/platform-watch.yml) Action in this repo
 runs weekly: it compares the sbx VM image digest (`sbx/nanoclaw-kit:latest`,
 the prebuilt image this repo actually pulls), the latest NanoClaw release,
 and the kit spec against `platform-baseline.json`,

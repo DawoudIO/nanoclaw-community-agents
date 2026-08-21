@@ -52,8 +52,9 @@ For each topic in `scriptOutput.topics`:
    built from the answers you've actually been giving — you've written this
    content 3+ times already; this is consolidation, not invention.
 3. **Route it**: hand the draft to your owner as a docs issue proposal (or,
-   if the coding agent handles the docs repo, relay it there for a proper
-   PR draft). Follow the project's docs style rules from your config.
+   the coding agent can draft the page's content for you, but it cannot open
+   a PR — its token is read-only, so anything that lands is yours or a
+   human's to create). Follow the project's docs style rules from your config.
 4. **Then ack**: append the topic slug (one per line, exactly as it appears
    in `scriptOutput.topics[].topic`) to
    `plugin-data/community-support/docs-proposals-sent.txt` — your write after

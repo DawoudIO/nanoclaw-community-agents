@@ -3,16 +3,30 @@
 #
 #   bash scripts/test/run.sh
 #
-# What it does, per scripts/tasks/*/*.sh:
-#   1. bash -n           — syntax check (all scripts)
-#   2. behavioral tests  — scripts with a mock-curl fixture get executed
-#      against canned API responses; the harness asserts the gate emits
-#      exactly ONE line of valid JSON with the expected wakeAgent value.
+# What it asserts:
+#   1a. bash -n syntax, every gate + every setup-check
+#   1b. credential invariant — no script may construct an auth header
+#   1c. task frontmatter is structurally valid (independent of sync-tasks)
+#   1d. onboarding-answers.example.json matches the code, both directions
+#   2.  behavioral — each gate emits exactly ONE line of valid JSON, with the
+#       expected wakeAgent, for: unconfigured (must not wake) and total fetch
+#       failure (must wake — a broken fetch must never read as a quiet day).
+#
+# HONEST LIMITS, so nobody mistakes green for complete:
+#   - scripts/test/fixtures/ does NOT exist yet. The mock `curl` below looks
+#     for per-script fixture routes and, finding none, exits 22 for every
+#     URL. That is exactly what makes the fetch-failure assertions real, but
+#     it also means NO success-path response shape is covered: fields the
+#     task prompts depend on (ready_to_merge, contribution_concentration,
+#     unassigned_stale, insights[].previous_result, trigger) are never
+#     validated here, nor is any gate's suppression branch. Adding fixtures
+#     is the highest-value next step for this harness.
+#   - The repo-mirror-sync assertion needs live network to github.com; it is
+#     the one test that flips on an offline run.
 #
 # Mock model: a fake `curl` is placed first on PATH (a real executable, not
 # an exported function — exported functions don't survive into `bash x.sh`
-# children on bash 3.2/macOS). The fake matches URL substrings against the
-# fixtures in scripts/test/fixtures/<script-name>/.
+# children on bash 3.2/macOS).
 set -uo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 PASS=0; FAIL=0
@@ -58,6 +72,16 @@ for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
     fail "corrupt frontmatter (unindented non-key line inside ---): $md"
   fi
 done
+
+# --- 1d. onboarding answer template must match the code ---------------------
+# Bidirectional key coverage plus a secret-leak guard; see
+# scripts/check-onboarding.sh. Counted as one assertion here — it prints its
+# own detail on failure.
+if bash "$ROOT/scripts/check-onboarding.sh" >/dev/null 2>&1; then
+  pass
+else
+  fail "onboarding-answers.example.json is out of sync with the code (run: bash scripts/check-onboarding.sh)"
+fi
 
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.

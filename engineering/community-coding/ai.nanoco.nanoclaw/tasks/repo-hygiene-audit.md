@@ -67,8 +67,11 @@ possible values include `code_of_conduct`, `contributing`, `issue_template`,
   a code of conduct needs a *human* responder named in it, which no agent can
   be).
 - For the mechanical ones (issue/PR templates, a CONTRIBUTING skeleton),
-  offer to draft the file as a PR through your normal draft pipeline — these
-  are the cheapest high-leverage files in the repo.
+  write the file's full proposed content into your report and hand it to your
+  lead — do NOT try to open a PR. Your token is read-only by design and you
+  have no publish path; the lead (or a human) creates anything that lands.
+  These are the cheapest high-leverage files in the repo, so a complete
+  ready-to-commit draft in the hand-off is the whole contribution.
 - For CODE_OF_CONDUCT.md, recommend the Contributor Covenant and note it
   requires a real reporting contact (a human, not the bot) before it means
   anything — that's the owner's call, not a file you can complete for them.

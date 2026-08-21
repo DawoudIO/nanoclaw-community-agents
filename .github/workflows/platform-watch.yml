@@ -24,7 +24,7 @@ jobs:
           set -euo pipefail
           # Tag digest: prefer the top-level digest; else the sorted-first
           # per-arch digest (stable across response ordering). sbx/nanoclaw-kit
-          # is the prebuilt image this repo actually pulls (see README step 1) -
+          # is the prebuilt image this repo actually pulls (see docs/INSTALL.md §1) -
           # not nanoco/nanoclaw directly.
           DIGEST=$(curl -s "https://hub.docker.com/v2/repositories/sbx/nanoclaw-kit/tags/latest" \
             | jq -r '.digest // ((.images // []) | map(.digest) | sort | .[0]) // "unknown"')
@@ -45,7 +45,7 @@ jobs:
           fi
           gh issue create \
             --title "Upstream update detected: plan a sandbox refresh ($(date -u +%F))" \
-            --body "$(printf 'platform-watch found upstream changes.\n\n**Previous:**\n```json\n%s\n```\n**Current:**\n```json\n%s\n```\n\nChecklist (see README → Staying up to date):\n- [ ] Read the NanoClaw release notes: https://github.com/nanocoai/nanoclaw/releases\n- [ ] Confirm last workspace-backup ran (follower series + project-config safe)\n- [ ] Refresh: `sbx rm` → `docker pull docker.io/sbx/nanoclaw-kit:latest` → `sbx run` → restamp latest templates\n- [ ] Re-enter the 3 GitHub PATs in the fresh vault; re-run /add-discord (same bot, token from the Discord dev portal)\n- [ ] Restore the follower-series ledger from the backup repo\n- [ ] Smoke tests per README §7\n- [ ] Re-test anything in UPSTREAM-ISSUES.md marked "confirm on clean" against the new build\n' "$OLD" "$(cat current.json)")"
+            --body "$(printf 'platform-watch found upstream changes.\n\n**Previous:**\n```json\n%s\n```\n**Current:**\n```json\n%s\n```\n\nChecklist (see docs/OPERATIONS.md → Staying up to date):\n- [ ] Read the NanoClaw release notes: https://github.com/nanocoai/nanoclaw/releases\n- [ ] Confirm last workspace-backup ran (follower series + project-config safe)\n- [ ] Refresh: set platform-baseline.json to the verified digest, then `sbx rm` → `docker pull docker.io/sbx/nanoclaw-kit@sha256:<that digest>` → `sbx run` against the same digest → restamp. NEVER pull the bare :latest tag for the upgrade itself — it can move between your decision and your pull\n- [ ] Re-enter the 3 GitHub PATs in the fresh vault; re-run /add-discord (same bot, token from the Discord dev portal)\n- [ ] Restore the follower-series ledger from the backup repo\n- [ ] Smoke tests per docs/INSTALL.md §7\n- [ ] Re-test anything in UPSTREAM-ISSUES.md marked "confirm on clean" against the new build\n' "$OLD" "$(cat current.json)")"
           mv current.json platform-baseline.json
           git config user.name "platform-watch"
           git config user.email "actions@users.noreply.github.com"

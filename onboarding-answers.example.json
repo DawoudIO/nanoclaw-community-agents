@@ -1,0 +1,191 @@
+{
+  "_README": [
+    "Every question the welcome interview asks, in one machine-readable file.",
+    "",
+    "WHY THIS EXISTS: onboarding is a conversation, but a conversation isn't",
+    "repeatable. Fill this in once and you can rebuild the whole system from",
+    "scratch — stamp, hand the lead this file, done — then tear it down and do",
+    "it again identically. That makes onboarding testable instead of a",
+    "one-shot interview you hope went right.",
+    "",
+    "HOW TO USE IT (three ways, all valid):",
+    "  1. Ignore it. DM the lead and answer conversationally. This file is",
+    "     never required.",
+    "  2. Fill it in first, then tell the lead: 'my answers are in",
+    "     <path>/onboarding-answers.json'. It reads, confirms the summary with",
+    "     you, and persists — no interview.",
+    "  3. Fill in part of it. The lead uses what's here and asks only about",
+    "     what's missing or null.",
+    "",
+    "NEVER PUT A SECRET IN THIS FILE. No API keys, tokens, passwords, or",
+    "webhook URLs — ever. Secrets live only in the OneCLI vault; this file is",
+    "config (repo names, channel names, ids, preferences). It is safe to commit",
+    "to a private repo, and scripts/check-onboarding-keys.sh fails if anything",
+    "in it looks like a credential.",
+    "",
+    "'persists_to' tells you where each answer ends up. config.env keys are",
+    "read by bash gate scripts; project_config keys are prose the agent reads,",
+    "four of which setup-check.sh greps literally. Getting these two namespaces",
+    "backwards is the #1 cause of 'I answered that but nothing happened'."
+  ],
+
+  "decide_before_stamping": {
+    "_note": "These two shape how tasks get created. Answering them late is expensive — see docs/INSTALL.md step 2.",
+    "timezone": {
+      "value": "UTC",
+      "_ask": "What timezone should scheduled work land in? Schedules are cron lines in task frontmatter and the kit pins TZ=UTC; changing a time after stamping means cancel-and-recreate per task.",
+      "_action_if_not_utc": "Edit the schedule: lines in your local copy of the 18 task files BEFORE stamping."
+    },
+    "agents_to_stamp": {
+      "value": ["support", "engineering", "marketing"],
+      "_ask": "Which agents do you want? 'support' (the lead) is required; engineering and marketing are optional and can be added or paused later.",
+      "_options": ["support", "engineering", "marketing"]
+    }
+  },
+
+  "project": {
+    "name": { "value": null, "_ask": "Project name, e.g. AcmeCRM", "persists_to": "project_config" },
+    "primary_github_repo": {
+      "value": null,
+      "_ask": "The project's main GitHub repo — everything else is inferred from this. Format owner/repo.",
+      "persists_to": "project_config",
+      "_required": true
+    },
+    "repo_map": {
+      "_ask": "Per function: which repo, and a subpath if it isn't the repo root. Functions often SHARE one repo — docs and site are frequently subdirectories of product. Don't assume separate repos.",
+      "_derives": [
+        "config.env:COMMUNITY_REPOS — space-separated list of repos to TRIAGE (issues/PRs/advisories/metrics). Normally every repo here, but it's the owner's call. Set on the lead AND coding.",
+        "config.env:MIRROR_REPOS — space-separated list of ALL repos above (including wiki, including ones sharing a repo) for repo-mirror-sync to keep checked out. Superset of COMMUNITY_REPOS; falls back to it if unset. Coding only.",
+        "config.env:CONTENT_REPO — the marketing function's repo, where content drafts get committed and PR'd. Marketing only; content-draft-cycle and draft-cleanup both hard-require it."
+      ],
+      "product":   { "repo": null, "subpath": null },
+      "docs":      { "repo": null, "subpath": null },
+      "site":      { "repo": null, "subpath": null },
+      "marketing": { "repo": null, "subpath": null },
+      "wiki":      { "repo": null, "subpath": null, "_note": "A GitHub wiki is a real repo named owner/repo.wiki. Use null if the project has none." }
+    },
+    "triage_repos_override": {
+      "value": null,
+      "_ask": "Optional: if you DON'T want every repo above triaged, list just the ones you do. Leave null to triage all of them.",
+      "_note": "Only changes COMMUNITY_REPOS. MIRROR_REPOS always covers the full map — mirroring is cheap and read-only."
+    },
+    "docs_site_url": { "value": null, "_ask": "Where you point people for how-to answers", "persists_to": "project_config" },
+    "primary_language": { "value": "English", "_ask": "Primary language for replies", "persists_to": "project_config" },
+    "topic_scope": { "value": null, "_ask": "What's on-topic; anything else gets a friendly redirect", "persists_to": "project_config" }
+  },
+
+  "goals": {
+    "_ask": "Which of the four jobs are goals for this project? Each yes makes a set of tasks eligible; each no keeps them paused. See welcome/SKILL.md step 3 for the task mapping.",
+    "community_support": { "value": null, "_tasks": ["daily-github-triage", "github-ops-triage", "docs-gap-review", "release-announcement-watch"] },
+    "awareness_growth": {
+      "value": null,
+      "_tasks": ["content-draft-cycle", "draft-cleanup", "social-metrics-snapshot", "weekly-analytics-report", "good-first-issue-health", "repo-hygiene-audit"],
+      "audience_priority": { "value": [], "_ask": "If growth is a goal: which audiences, in priority order?", "_options": ["users", "contributors"] }
+    },
+    "proactive_detection": { "value": null, "_tasks": ["posthog-weekly-review", "dev-metrics-report", "repo-mirror-sync"] },
+    "security": { "value": null, "_tasks": ["security-advisory-sweep"] }
+  },
+
+  "identity": {
+    "github_bot_username": {
+      "value": null,
+      "_ask": "The dedicated bot account's GitHub username — NEVER the owner's own. Every token is checked against this mechanically.",
+      "persists_to": ["config.env:GITHUB_BOT_USERNAME (all three agents)", "project_config:github_bot_username"],
+      "_required": true,
+      "_note": "Needs to land in BOTH namespaces: the scripts read the uppercase env key, setup-check.sh greps the lowercase prose key."
+    },
+    "discord_display_name": {
+      "value": null,
+      "_ask": "The Discord application's display name. Make it visibly match the GitHub bot username — this is the only agent with a public voice on both platforms, and a mismatched pair reads as two different bots.",
+      "persists_to": "project_config"
+    }
+  },
+
+  "channels": {
+    "_ask": "Which Discord channels belong to which tier. Tier decides engage-mode, not per-message judgment.",
+    "support_auto_reply": { "value": [], "_note": "Replies without being @mentioned. Needs --sender-scope all at wiring time." },
+    "developer_mention_only": { "value": [] },
+    "team_lead_mention_only": { "value": [] },
+    "announcements_channel": { "value": null, "_ask": "If the team-lead tier has more than one channel, which is THE announcements channel? release-announcement-watch needs one unambiguous target." },
+    "discord_invite_url": { "value": null, "_ask": "Invite URL to offer from GitHub replies when real-time chat would help, or null" }
+  },
+
+  "escalation": {
+    "security_contact": { "value": null, "_ask": "Private security disclosure path", "persists_to": "project_config:security_contact", "_required_if": "goals.security" },
+    "maintainers": { "value": [], "_ask": "Who counts as a maintainer for decisions the agent must not make" },
+    "escalation_backstop": {
+      "value": null,
+      "_ask": "The second human — name and contact — who takes abuse reports and urgent escalations when you're unreachable.",
+      "persists_to": "project_config:escalation_backstop",
+      "_note": "Going live without one is recorded as an open risk, not silently accepted. Code-of-conduct response is a human role everywhere it's done seriously — never an agent's."
+    }
+  },
+
+  "content": {
+    "target_audience": {
+      "value": null,
+      "_ask": "Who is your content actually for, in your own words? e.g. 'church administrative staff and volunteer teams' — not 'developers' unless that's genuinely true.",
+      "persists_to": "project_config (relayed to marketing)",
+      "_note": "Marketing writes for this. Without it, drafts default to generic SaaS copy and the no-jargon rule has nothing to anchor to."
+    },
+    "tone": { "value": null, "_ask": "The register that follows from that audience, e.g. 'warm, practical, no engineering jargon'", "persists_to": "project_config (relayed to marketing)" },
+    "docs_style": {
+      "value": null,
+      "_ask": "Current-state only, or is version-history language ('added in 2.1') fine?",
+      "_options": ["current-state-only", "version-history-ok"],
+      "persists_to": ["project_config:docs_style", "relayed to coding"]
+    },
+    "brand_source_repo": { "value": null, "_ask": "Repo holding brand voice / content pillars / calendar, if different from the content repo", "persists_to": "config.env:BRAND_SOURCE_REPO" },
+    "release_watch_repo": {
+      "value": null,
+      "_ask": "Which repo's releases should trigger content drafting? Usually the product repo.",
+      "persists_to": "config.env:RELEASE_WATCH_REPO",
+      "_note": "Unset means content-draft-cycle loses its release trigger and only fires on its weekly floor. If this differs from the content repo, the marketing token's repo-access list must include BOTH."
+    }
+  },
+
+  "social": {
+    "_ask": "Platforms this project has (for the follower series), which ones it posts to, and how each publishes.",
+    "profiles": { "value": [], "_format": "list of public profile URLs — read-only, no credential" },
+    "posts_to": {
+      "value": [],
+      "_format": "list of {platform, mechanism}",
+      "_mechanisms": {
+        "intent-url": "free, no key, DEFAULT — agent drafts, human clicks Post in a pre-filled composer",
+        "manual": "agent drafts, human copy-pastes",
+        "paid-api": "costs real money and is opt-in only; X has no free tier since Feb 2026 (~$0.20/link-post). Even enabled, the agent holds no posting credential — an OneCLI request-hold keeps a human button-press in the loop."
+      }
+    }
+  },
+
+  "analytics": {
+    "ga4_property_id": { "value": null, "_ask": "GA4 numeric property id, or null for 'not now'", "persists_to": "config.env:GA4_PROPERTY_ID" },
+    "posthog_project_id": { "value": null, "_ask": "PostHog project id, or null", "persists_to": "config.env:POSTHOG_PROJECT_ID" },
+    "posthog_host": {
+      "value": "https://us.posthog.com",
+      "_ask": "PostHog region host",
+      "_options": ["https://us.posthog.com", "https://eu.posthog.com"],
+      "persists_to": "config.env:POSTHOG_HOST",
+      "_note": "The script defaults to US. An EU project MUST set this or every call hits the wrong region."
+    }
+  },
+
+  "operations": {
+    "onecli_dashboard_url": {
+      "value": null,
+      "_ask": "What URL should the agent give you for the OneCLI vault dashboard — this machine, or a reachable remote address (e.g. a Tailscale IP) for checking in from elsewhere?",
+      "persists_to": "project_config",
+      "_note": "127.0.0.1 only resolves on the sandbox host. If you'll ever check from a phone or another laptop, give the reachable address instead."
+    },
+    "workspace_backup_repo": { "value": null, "_ask": "Private repo the lead pushes its workspace to, or null to skip", "_note": "This is the only thing that survives a sandbox recreate." },
+    "github_actions_notifications": { "value": null, "_ask": "Set up deterministic label→Discord notifications in CI? See examples/github-discord-notify.yml", "_options": [true, false] },
+    "gfi_label": { "value": null, "_ask": "Your beginner-friendly issue label, if it isn't 'good first issue'", "persists_to": "config.env:GFI_LABEL" },
+    "shared_inbox": { "value": null, "_ask": "Shared project inbox address, or null. inbox-check stays paused until an email MCP is actually connected." },
+    "models": {
+      "_ask": "Confirm or override the per-agent model tier. Never Opus-class on a scheduled task.",
+      "support": { "value": "sonnet-class" },
+      "engineering": { "value": "haiku-class" },
+      "marketing": { "value": "sonnet-class" }
+    }
+  }
+}

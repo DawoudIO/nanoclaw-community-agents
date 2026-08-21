@@ -99,10 +99,11 @@ ncl tasks get <task-id>       # inspect the run result
 ncl tasks resume <task-id>
 ```
 
-**Schedules** fire in the group's configured timezone — set it at stamp time or
-via group config. To change a schedule after stamping, cancel and recreate the
-task (`ncl tasks create --prompt … --recurrence …`), or edit the template file
-and restamp.
+**Schedules run in UTC** (the kit pins `TZ=UTC`) from each task's `schedule:`
+cron. Tune them before stamping; afterwards, changing one means cancel and
+recreate that task (`ncl tasks create --prompt … --recurrence …`) or edit the
+template file and restamp. A per-group timezone override may exist in your
+NanoClaw version — unverified, see UPSTREAM-ISSUES.md.
 
 ## Credentials: via OneCLI, not env vars
 
@@ -124,11 +125,13 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-All six tasks are script-gated. `security-advisory-sweep`,
-`github-ops-triage`, `good-first-issue-health`, and `repo-hygiene-audit` wake
-the model only when there's something new (or a fetch fails, which must be
-surfaced);
+All seven tasks are script-gated. `security-advisory-sweep`,
+`github-ops-triage`, `repo-hygiene-audit`, and `repo-mirror-sync` wake the
+model only when there's something new (or a fetch fails, which must be
+surfaced); `good-first-issue-health` wakes weekly by design (its whole output
+is the funnel state, whether or not it changed);
 `dev-metrics-report` and `posthog-weekly-review` wake only when a number
-actually moved, with a 7-day heartbeat so the channel doesn't go silent long
-enough to look dead — a quiet stretch costs a few API calls per run, not an
-agent turn.
+actually moved, each with a heartbeat longer than its own cron so a fully
+static stretch still proves life (7 days for the daily report, 28 for the
+weekly review) — a quiet stretch costs a few API calls per run, not an agent
+turn.

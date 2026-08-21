@@ -13,7 +13,7 @@ an expected result; a miss means stop and fix, not proceed.
 | # | Test | How | Pass looks like |
 |---|---|---|---|
 | 1 | Owner DM round trip | DM the lead; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
-| 2 | Bot identity on GitHub | Ask the lead for its setup self-check report (welcome runs it) | All three tokens report `GET /user` login == the dedicated bot username — never yours |
+| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has each sub-agent relay theirs | All three tokens report `GET /user` login == the dedicated bot username — never yours |
 | 3 | Support-tier auto-reply | Post a question in a support channel from a **non-owner** account, no @mention | Unprompted reply within a couple of minutes. Silence here = the Message Content intent is off in the Discord dev portal |
 | 4 | Mention-only discipline | Post in a dev-tier channel *without* tagging the bot, then again *with* a tag | No reply to the first, a reply to the second |
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
