@@ -97,6 +97,14 @@ couldn't infer. The full list a complete config needs:
   on the issue. If the project has no public Discord, or doesn't want GitHub
   traffic routed there, "none" is a complete answer and you simply never
   offer it.
+- **Deterministic GitHub→Discord notifications via CI** — ask plainly: "want a
+  ready-made GitHub Actions workflow that posts bug/security-labeled issues
+  straight to Discord, independent of me being up?" (recommended, but genuinely
+  optional — some owners lack repo-admin access to add workflow secrets, or
+  prefer everything to stay inside your judgment). If yes, point them at
+  `examples/github-discord-notify.yml` in this template set and the two
+  webhook secrets it needs; if no, note that bug/security routing stays
+  agent-relayed (which drops during your own downtime — say that plainly too).
 - **Models per agent — confirm, don't assume.** State each group's current
   provider/model and the recommended defaults for the owner's plan tier, and
   apply any change they ask for (via group config if you can; otherwise give

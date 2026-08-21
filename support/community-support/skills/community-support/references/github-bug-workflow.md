@@ -24,7 +24,17 @@ of budget. You handle what needs judgment: the reply to the reporter, the
 duplicate call, the escalation. Only do notification relay yourself when CI
 webhooks aren't available. (A real deployment moved these notifications from
 Actions into the agent and lost them silently whenever the agent hit its
-token limit.)
+token limit.) A ready-made workflow for this exact split is in
+`examples/github-discord-notify.yml` in this template set — it's **ask the
+owner first**, not a silent default: some projects would rather keep GitHub
+notifications inside the agent's own judgment, or have no repo-admin access
+to add workflow secrets. Offer it during onboarding; only propose adding it
+if the owner says yes.
+
+**New releases** get their own script-gated task (`release-announcement-watch`)
+that announces stable releases to the team-lead tier's announcements channel —
+that one you don't set up in CI; it's agent-owned because a good announcement
+needs framing (highlights, contributor credit), not just a raw event relay.
 
 When you do route, keep these separate:
 

@@ -150,7 +150,7 @@ during setup, CLI-driving is the intended path, not an exception.
     new main.
 11. Test every scripted gate before resuming anything:
     ```bash
-    ./bin/ncl tasks list --status paused    # expect all 13
+    ./bin/ncl tasks list --status paused    # expect all 14
     ./bin/ncl tasks run <task-id> && ./bin/ncl tasks get <task-id>
     ```
     The `health-check` gate self-reports a missing `jq`/`ncl` (once, on its
@@ -231,4 +231,5 @@ agent stuck in a verification deadlock, task/wiring surgery, log forensics.
 | Deferred (reconnect later if wanted) | Gmail inbox-check, GA4 report — creds stay in old OneCLI vault until then |
 | X/Twitter posting | The old OAuth 1.0a free-tier path is dead (X discontinued the free API tier Feb 2026; new access is pay-per-use, ~$0.20 per link post). Default for the rebuild: **intent-URL flow** (free, zero keys — same as the LinkedIn flow, approver clicks Post). Opt into pay-per-use (~$6/mo at daily cadence) only if one-click posting matters |
 | `posthog-weekly-review` | **Keep — proactive issue detection** ("find issues before users report them"). Enable when ready: PostHog key into the new vault + `us.posthog.com` added to the sandbox allowlist + `POSTHOG_PROJECT_ID` in config.env. The standalone CRM skill (per 2026-08-19, `.claude/commands/` in ChurchCRM/CRM) is complementary for on-demand deep dives — it still needs its own PostHog key |
-| Deterministic GitHub→Discord notifications | Restore as GitHub Actions webhooks (they were deleted in CRM PR #9042 and moved into the agent — inverted; agent notifications silently die when token limits hit). Agent keeps judgment replies only |
+| Deterministic GitHub→Discord notifications | Restore as GitHub Actions webhooks (they were deleted in CRM PR #9042 and moved into the agent — inverted; agent notifications silently die when token limits hit). The generic version of that same workflow now ships as `examples/github-discord-notify.yml` in this template set — same secrets (`DISCORD_BUGS_WEBHOOK`/`DISCORD_SECURITY_WEBHOOK`), reusable as-is. Since George already knows this history, no separate ask needed here — but the welcome interview still asks explicitly on any fresh (non-migration) install. Agent keeps judgment replies only |
+| New: release announcements | `release-announcement-watch` (new lead task) posts stable ChurchCRM/CRM releases to `churchcrm-announcements` automatically — no CI needed for this one, framing/contributor-credit needs agent judgment even though the trigger is mechanical |

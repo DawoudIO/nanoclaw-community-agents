@@ -1,0 +1,53 @@
+# Deterministic, zero-judgment GitHub -> Discord notifications.
+#
+# Copy this into YOUR PROJECT's own repo at .github/workflows/discord-notify.yml
+# (not into a NanoClaw agent group — this is plain CI, runs whether or not any
+# agent is up, out of budget, or rate-limited). It covers exactly the two
+# label-based routings the agent skills expect to already exist:
+#   - an issue/PR labeled "bug" -> your developer-tier notifications channel
+#   - an issue labeled "security", or a security advisory published -> your
+#     security channel ONLY, never announcements (see escalation-paths.md)
+#
+# Requires two repo secrets (Settings -> Secrets and variables -> Actions):
+#   DISCORD_BUGS_WEBHOOK      - a Discord channel webhook URL (dev-tier channel)
+#   DISCORD_SECURITY_WEBHOOK  - a Discord channel webhook URL (security channel)
+# Create a webhook: channel Settings -> Integrations -> Webhooks -> New Webhook.
+#
+# The agent handles everything this workflow does NOT: the reply to the
+# reporter, duplicate detection, triage judgment, escalation. This workflow
+# only relays a label event to a channel — see
+# support/community-support/skills/community-support/references/github-bug-workflow.md
+name: discord-notify
+on:
+  issues:
+    types: [labeled]
+  repository_advisory:
+    types: [published]
+permissions:
+  contents: read
+jobs:
+  bug:
+    if: github.event_name == 'issues' && github.event.label.name == 'bug'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify bugs channel
+        run: |
+          curl -sf -H "Content-Type: application/json" -d "$(jq -n \
+            --arg title "${{ github.event.issue.title }}" \
+            --arg url "${{ github.event.issue.html_url }}" \
+            '{content: ("🐛 New bug: **" + $title + "**\n" + $url)}')" \
+            "${{ secrets.DISCORD_BUGS_WEBHOOK }}"
+  security:
+    if: |
+      (github.event_name == 'issues' && github.event.label.name == 'security') ||
+      github.event_name == 'repository_advisory'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Notify security channel only
+        run: |
+          TITLE="${{ github.event.issue.title || github.event.repository_advisory.summary }}"
+          URL="${{ github.event.issue.html_url || github.event.repository_advisory.html_url }}"
+          curl -sf -H "Content-Type: application/json" -d "$(jq -n \
+            --arg title "$TITLE" --arg url "$URL" \
+            '{content: ("🔒 Security: **" + $title + "**\n" + $url)}')" \
+            "${{ secrets.DISCORD_SECURITY_WEBHOOK }}"

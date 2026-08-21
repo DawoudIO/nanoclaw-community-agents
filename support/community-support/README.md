@@ -42,6 +42,7 @@ community-support/
 │       ├── health-check.md                            # script-gated, wakes only on a problem
 │       ├── workspace-backup.md                        # script-gated, wakes only on failure
 │       ├── daily-github-triage.md                     # weekday digest, drafts only
+│       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
 │       └── weekly-identity-integrity-check.md         # asks before it ever locks anything
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)

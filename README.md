@@ -8,7 +8,7 @@ lead talks to users on Discord and GitHub; two headless sub-agents (coding
 ops, marketing ops) draft and hand off but never post.
 
 The mechanism bias throughout: **scripts and skills over prompt-stuffed
-agents**. 10 of 13 recurring tasks are script-gated — deterministic fetching,
+agents**. 11 of 14 recurring tasks are script-gated — deterministic fetching,
 diffing, and thresholds run as bash with no model involved, and the agent
 wakes only to read the result and exercise judgment. Anything with zero
 judgment (label→channel notifications, secret scanning) belongs even further
@@ -262,7 +262,7 @@ for any of that.**
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 13 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
+| Task schedules (cron lines, all 14 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | Lead's group folder in the sandbox | After stamping, host-side (or ask the lead to run it) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
@@ -293,6 +293,7 @@ then just talk to the agent.
 | 8 | Discord invite URL to offer from GitHub replies | URL or "none" | Optional |
 | 9 | GA4 property id / PostHog project id + host | id/host or "not now" | Optional — tasks silent-skip unconfigured |
 | 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
+| 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
 
 After this, the agent walks you through exactly which credentials to add
 (step 4 below) and verifies each with a real call, offers to set up the
@@ -312,7 +313,7 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 13
+./bin/ncl tasks list --status paused          # expect all 14
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
@@ -322,12 +323,14 @@ Resume order (safe → side-effect-adjacent):
 1. **Lead safety net**: `health-check`, `weekly-identity-integrity-check` —
    need nothing, wake only on problems.
 2. **Lead backup** (`workspace-backup`) — only after the git setup in step 6.
-3. **Coding**: `github-ops-triage`, then the gates you configured
+3. **Lead announcements** (`release-announcement-watch`) — safe as soon as
+   `COMMUNITY_REPOS` is set; it only ever posts already-public release info.
+4. **Coding**: `github-ops-triage`, then the gates you configured
    (`security-advisory-sweep`, `dev-metrics-report`, `posthog-weekly-review`).
-4. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.
-5. **Last, once fill-ins are done and reviewed**: `content-draft-cycle`, and
+5. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.
+6. **Last, once fill-ins are done and reviewed**: `content-draft-cycle`, and
    `inbox-check` only after an email MCP is actually connected.
-6. **Never resume** the lead's `daily-github-triage` if the coding agent is
+7. **Never resume** the lead's `daily-github-triage` if the coding agent is
    stamped — it's the standalone-mode fallback and would double-report.
 
 Smoke-test before walking away: post a question in a support-tier channel
@@ -345,7 +348,7 @@ Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
 
 **Three agents is the right number — and it's cheaper than it looks.** Burn
 comes from model *wakes*, not from agents existing: a stamped agent whose
-tasks are paused costs nothing. 10 of 13 tasks are script-gated, so quiet
+tasks are paused costs nothing. 11 of 14 tasks are script-gated, so quiet
 periods cost near zero regardless of agent count. That makes the team elastic:
 stamp all three, then tune budget by which tasks you activate — never by
 deleting agents.
@@ -389,6 +392,7 @@ turns.
 | `health-check` (every 3h) | lead | on a problem | nothing | safe |
 | `workspace-backup` (daily) | lead | on failure | git repo + remote + `github.com` secret | silent skip |
 | `daily-github-triage` (weekdays) | lead | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip — leave paused permanently if coding agent stamped |
+| `release-announcement-watch` (every 3h) | lead | only on a new stable release | lead PAT + `COMMUNITY_REPOS` | silent skip |
 | `weekly-identity-integrity-check` | lead | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 | `github-ops-triage` (4×/day) | coding | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | coding | on new alerts | PAT + `security_events` + `COMMUNITY_REPOS` | silent skip |
@@ -400,11 +404,11 @@ turns.
 | `draft-cleanup` (daily) | marketing | on stale PRs | PAT + `CONTENT_REPO` | silent skip |
 | `social-metrics-snapshot` (Sun) | marketing | every run | public profile pages (no credentials) + **sandbox allowlist entries for the platform hosts** | leave paused until platforms are configured and allowlisted — it guards the one stateful asset (follower series; durable copy = the lead's ledger) |
 
-Shipped times (UTC under the kit): health-check every 3h · backup 08:40 · lead
-triage weekdays 13:00 · coding triage every 6h · sweep every 4h · dev metrics
-12:00 · PostHog Mon 15:00 · inbox 06:00 + 16:00 · content weekdays 13:30 ·
-social snapshot Sun 13:00 · GA4 Sun 14:00 · cleanup 17:30 · integrity check
-Mon 15:00. Rules of thumb: put the
+Shipped times (UTC under the kit): health-check every 3h · backup 08:40 ·
+release watch every 3h · lead triage weekdays 13:00 · coding triage every 6h ·
+sweep every 4h · dev metrics 12:00 · PostHog Mon 15:00 · inbox 06:00 + 16:00 ·
+content weekdays 13:30 · social snapshot Sun 13:00 · GA4 Sun 14:00 · cleanup
+17:30 · integrity check Mon 15:00. Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
