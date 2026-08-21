@@ -99,8 +99,10 @@ with Y?" — one compact menu:
 
 **Always offered regardless of goals** — these protect the system itself, not
 a goal: `health-check`, `workspace-backup`, `weekly-identity-integrity-check`.
-**Not goal-scoped**: `inbox-check` — it's correspondence triage, offered only
-if the project has a shared inbox and an email tool is connected.
+**Not goal-scoped**: `inbox-check` — the lead's own task. An inbox is a
+support channel on a different transport, so the same escalation rules apply;
+offered only if the project has a shared inbox and an email tool is
+connected.
 
 Two things to get right here:
 
@@ -284,7 +286,7 @@ drafts, so an unrelayed answer means an unconfigured assumption.
 | `GITHUB_BOT_USERNAME` | the bot account | same dead-check problem |
 
 Plus in prose: site repo, social profile URLs and per-platform posting
-mechanism, inbox (or "none"), and — **required, not optional** —
+mechanism, and — **required, not optional** —
 `target_audience` and `tone` verbatim from step 4. Marketing's persona
 forbids it from treating its own bracketed defaults as real config, so
 without the relay it has no audience to write for and its no-jargon rule has

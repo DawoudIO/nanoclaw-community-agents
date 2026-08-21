@@ -20,7 +20,7 @@ jump to §6's prep sheet below.
 | **A GitHub account for the bot** — make a dedicated service account (e.g. `yourproject-bot`), not your personal one | All GitHub work appears as this identity; you'll cut 3 scoped tokens from it | Required |
 | **PostHog account** | `posthog-weekly-review` task | Optional |
 | **Google Cloud project + GA4 property access** | `weekly-analytics-report` task | Optional |
-| **A shared project inbox** (e.g. Gmail) | `inbox-check` task | Optional |
+| **A shared project inbox** (e.g. Gmail) | the lead's `inbox-check` task | Optional |
 
 Skipping an optional service costs nothing: its task ships paused and its
 script gate exits `not-configured` even if resumed.
@@ -230,7 +230,7 @@ tar -C /path/to/nanoclaw-templates -cf - support engineering marketing \
 |---|---|---|---|
 | **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, relays the other two agents' work | **Yes — the only one that ever posts** | Always — nothing works without it |
 | **Coding** (`engineering/community-coding`) | Issue/PR triage, security-advisory review, dev metrics, telemetry — drafts and hands everything to the lead | No — headless, no channel access | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
-| **Marketing** (`marketing/community-marketing`) | Content drafts, inbox triage, traffic/follower analytics — drafts and hands everything to the lead | No — headless, no channel access | Optional. Skip it if you don't need content/analytics support yet |
+| **Marketing** (`marketing/community-marketing`) | Content drafts, traffic/follower analytics — drafts and hands everything to the lead | No — headless, no channel access | Optional. Skip it if you don't need content/analytics support yet |
 
 **You don't have to stamp all three now, and this isn't a one-way door.**
 Stamp just the lead today and add coding/marketing months later — the lead
@@ -510,7 +510,7 @@ formality.
 | Coding | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
 | Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle`, `draft-cleanup` |
 | Marketing | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
-| Marketing | `selective` | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
+| Lead | `selective` | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` — an inbox is a support channel, so it belongs to the agent that owns support escalation |
 | Marketing | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
 
 **Coding never appears against Discord, PostHog access on Marketing, or any
@@ -754,7 +754,7 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 18 (6 lead, 7 coding, 5 marketing)
+./bin/ncl tasks list --status paused          # expect all 18 (7 lead, 7 coding, 4 marketing)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
@@ -773,7 +773,8 @@ Resume order (safe → side-effect-adjacent):
    normal support work has filled its question ledger.
 5. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.
 6. **Last, once fill-ins are done and reviewed**: `content-draft-cycle`, and
-   `inbox-check` only after an email MCP is actually connected.
+   the lead's `inbox-check` only after an email MCP is actually connected
+   (it's ungated — resuming it without a mailbox burns turns).
 7. **Never resume** the lead's `daily-github-triage` if the coding agent is
    stamped — it's the standalone-mode fallback and would double-report.
 

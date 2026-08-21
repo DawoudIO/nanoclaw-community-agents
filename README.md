@@ -11,7 +11,7 @@ ops, marketing ops) draft and hand off but never post.
 |---|---|---|
 | [`support/community-support`](support/community-support/) | Lead — replies, triage, escalation, relays the sub-agents | **Yes — the only one** |
 | [`engineering/community-coding`](engineering/community-coding/) | Issue/PR triage, security sweeps, dev metrics, telemetry | No |
-| [`marketing/community-marketing`](marketing/community-marketing/) | Content drafts via PR, inbox triage, traffic analytics | No |
+| [`marketing/community-marketing`](marketing/community-marketing/) | Content drafts via PR, traffic and follower analytics | No |
 
 The lead works standalone; add sub-agents when you want that work done
 without granting a second identity. Each template's README has per-agent

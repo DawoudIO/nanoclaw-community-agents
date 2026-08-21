@@ -1,6 +1,6 @@
 ---
 name: marketing-ops
-description: Headless marketing operations for an open-source or community project — drafting social and blog content through a review-and-pull-request workflow, triaging a shared inbox, and narrating traffic and audience analytics — always producing a draft for a lead support agent and a human to approve rather than publishing directly. Use this skill WHENEVER drafting a post or announcement, triaging inbox mail, preparing or narrating traffic/audience metrics, reviewing stale content drafts, or deciding whether something is ready to promote. Trigger it even when the request is phrased as "write a post about X", "what's in the inbox", "how did traffic do", or "anything to announce".
+description: Headless marketing operations for an open-source or community project — drafting social and blog content through a review-and-pull-request workflow and narrating traffic and audience analytics — always producing a draft for a lead support agent and a human to approve rather than publishing directly. Use this skill WHENEVER drafting a post or announcement, triaging inbox mail, preparing or narrating traffic/audience metrics, reviewing stale content drafts, or deciding whether something is ready to promote. Trigger it even when the request is phrased as "write a post about X", "how did traffic do", or "anything to announce".
 ---
 
 # Marketing Ops
@@ -13,7 +13,6 @@ and through it to a human who approves. Read
 
 1. **Drafting a post, announcement, or blog entry** →
    `references/content-workflow.md`
-2. **Inbox triage** → `references/inbox-triage.md`
 3. **Traffic, audience, or campaign numbers** → `references/analytics.md`
 4. **Anything you're about to send upward** → `references/reporting-to-lead.md`
 

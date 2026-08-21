@@ -11,7 +11,7 @@ while being the only thing in the system with a public voice.
 |---|---|---|
 | `support/community-support` (this one) | Lead: community replies, GitHub triage, escalation, relays sub-agents | **Yes — the only one** |
 | `engineering/community-coding` | Issue/PR triage, security sweeps, dev metrics, telemetry | No |
-| `marketing/community-marketing` | Content drafting, inbox triage, traffic analytics | No |
+| `marketing/community-marketing` | Content drafting, traffic and follower analytics | No |
 
 The lead works standalone. Add either sub-agent when you want that work done
 without giving it a second identity.
@@ -44,6 +44,7 @@ community-support/
 │       ├── daily-github-triage.md                     # weekday digest, drafts only
 │       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
+│       ├── inbox-check.md                             # 2×/day shared-inbox triage, read-and-draft only
 │       └── weekly-identity-integrity-check.md         # asks before it ever locks anything
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)
@@ -160,7 +161,8 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | `repo` (or `public_repo`). This agent **does** post issue comments, so it needs write on issues — but never grant `read:org` (nothing here reads org membership/teams), `admin:*`, or `delete_repo`. | Settings → Developer settings → Personal access tokens |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` + the backup repo: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| Shared inbox (e.g. Gmail) *(optional)* | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** (`gmail.readonly`) for `inbox-check`. This agent never sends mail — the send is always a human's, so do not grant send or modify scopes. An inbox is a support channel, which is why it belongs to the agent that owns support escalation. | Google Cloud console → OAuth consent + credentials |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at

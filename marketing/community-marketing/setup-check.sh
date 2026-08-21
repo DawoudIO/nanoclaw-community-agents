@@ -56,9 +56,6 @@ else
   add "ga4_configured" "skipped" "optional — GA4_PROPERTY_ID unset, weekly-analytics-report stays paused"
 fi
 
-if command -v claude >/dev/null 2>&1 || [ -d "/workspace/agent/.mcp" ]; then :; fi
-add "email_mcp_present" "unknown" "this check cannot see MCP server wiring — confirm with the owner whether an email/IMAP MCP is connected before resuming inbox-check"
-
 # agent-browser: social-metrics-snapshot needs a page-reading capability
 # (Claude's built-in web fetch, or NanoClaw's agent-browser skill). No API
 # call proves this from inside a bash gate — the agent itself must confirm
