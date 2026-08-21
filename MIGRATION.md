@@ -118,8 +118,12 @@ during setup, CLI-driving is the intended path, not an exception.
    Then DM the lead to trigger its `welcome` onboarding — first question will
    be the project's GitHub repo; MIGRATION's appendix is your answer sheet —
    and let it propose/confirm config conversationally. Only after that, wire
-   the public channels + guild catch-all per the confirmed tiers. Sub-agents
-   get no channel wirings; the lead relays their config.
+   the public channels + guild catch-all per the confirmed tiers — **with
+   `--sender-scope all` on every public wiring** (the owner DM stays
+   known-senders-only), so new community members never hit a per-sender
+   approval prompt: the v1 install generated a steady stream of "new sender —
+   allow?" asks for exactly this reason. Sub-agents get no channel wirings;
+   the lead relays their config.
 
    From this point, **everything runs through Discord** — config, approvals,
    drift questions, reports. The sandbox's Claude CLI is break-glass admin

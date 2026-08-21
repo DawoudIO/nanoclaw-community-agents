@@ -81,7 +81,9 @@ couldn't infer. The full list a complete config needs:
 - Repo map: product / docs / site / marketing (any may share a repo or be absent)
 - Docs site URL, primary language, topic scope
 - Channel tiers: which channels auto-reply (support) vs mention-only
-  (developer, team-lead)
+  (developer, team-lead) — and remind the owner that public-channel wirings
+  need the open sender scope (`all`) so new community members never require
+  per-sender approval; only this DM stays locked to known senders
 - Security disclosure path + who counts as a maintainer
 - Social platforms: which exist (public profile URLs — for the follower
   series), which the project POSTS to, and per posting platform the mechanism —

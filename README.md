@@ -173,7 +173,11 @@ broken.)
 Then connect Discord: in the sandbox's Claude Code session, run
 `/add-discord` and follow it (bot creation, invite with Manage-Server rights
 on your guild, channel wiring). **The first wiring is your own DM with the
-lead — the control plane; nothing works without it.** Verify the round trip in
+lead — the control plane; nothing works without it.** Set sender scopes at
+wiring time: the owner DM stays locked to known senders, but **every public
+channel wiring gets the open sender scope** (`--sender-scope all`) — otherwise
+each new community member triggers a "new sender — allow?" approval prompt,
+which defeats the point of a public support channel. Verify the round trip in
 both directions, then DM the lead: its `welcome` skill runs the onboarding —
 first question is the project's GitHub repo, from which it infers a proposed
 config, confirms with you, persists it as runtime config in `plugin-data/`,

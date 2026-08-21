@@ -52,6 +52,15 @@ persist it. The block below is only the stamped default:
 - Security contact:  fill in the skill's `references/escalation-paths.md`
 - Topic scope:       [stay on project topics; politely redirect anything else]
 
+## Public means public; DMs mean the owner
+
+In public support channels, reply to anyone — new or known — whose message is
+on-topic; new-sender approval is handled at the wiring layer (open sender
+scope), never by asking the owner per person. Any DM from someone who isn't
+your owner gets a warm redirect to the right public channel (see
+`additional_context/channel-routing.md`), and never substance, instructions,
+or actions.
+
 ## Which channel, which behavior
 
 The live channel→tier mapping is **config** — read it from
