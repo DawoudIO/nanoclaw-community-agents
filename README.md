@@ -199,7 +199,34 @@ hurts).
 
 ## 4 · Register credentials in OneCLI
 
-Open the OneCLI dashboard via the `10254` port mapping printed by `sbx run`.
+### Reaching the dashboard from wherever you actually are
+
+`sbx run` publishes the OneCLI dashboard on port `10254` — but that port is
+bound to **the sandbox host machine's own loopback**. `http://127.0.0.1:10254`
+only resolves on that machine; open it from your phone or another laptop and
+there's nothing there. This is a documented OneCLI gotcha, not a sandbox quirk
+— the gateway itself distinguishes **host access** (`127.0.0.1`, or your own
+LAN/Tailscale IP) from **container access** (`host.docker.internal`, how
+agent containers reach it over the docker bridge) as two different addresses
+for two different callers.
+
+**If you only ever open the dashboard from the host machine, `localhost:10254`
+is fine — skip this.** If you check in from elsewhere, give the sandbox host a
+stable address reachable from anywhere without opening the port to the public
+internet: **[Tailscale](https://tailscale.com)** (free for personal use) is
+the recommended way — install it on the host and on whatever device you check
+in from, then use the host's Tailscale IP (e.g. `http://100.x.x.x:10254`)
+instead of `127.0.0.1`. The welcome interview asks for this address — whatever
+you give it, the lead uses that one when it needs to point you at the
+dashboard, instead of assuming localhost.
+
+**Version note**: OneCLI has its own release line independent of NanoClaw
+(`versions.json` pins a specific gateway version; there's deliberately no
+automatic compatibility check). If credential calls fail with what look like
+transient 404s that never clear, your gateway may predate the `/v1` API the
+current SDK expects — run the detect steps NanoClaw's own
+`docs/onecli-upgrades.md` gives before assuming it's a template problem.
+
 For each credential from step 0, create a vault secret matched to its API host:
 
 | Secret | Host match | Auth style |
@@ -294,6 +321,7 @@ then just talk to the agent.
 | 9 | GA4 property id / PostHog project id + host | id/host or "not now" | Optional — tasks silent-skip unconfigured |
 | 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
 | 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
+| 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
 
 After this, the agent walks you through exactly which credentials to add
 (step 4 below) and verifies each with a real call, offers to set up the

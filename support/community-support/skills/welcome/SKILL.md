@@ -150,6 +150,15 @@ message, only the rows that apply. **Never ask for a raw key in chat**; keys go
 into the OneCLI vault dashboard, and if the deployment is sandboxed, remind
 them the dashboard is the published port from `sbx run` (default 10254):
 
+**Ask this first, once**: "What URL should I use when I need to point you at
+the OneCLI dashboard — the same machine you're talking to me from right now,
+or somewhere else (a phone, another laptop) when you check in later?" If
+"somewhere else," ask for that reachable address (recommend
+[Tailscale](https://tailscale.com) if they don't have a stable one — free,
+avoids exposing the port publicly) and persist it in `project-config.md` as
+`onecli_dashboard_url`. Use exactly that address in every link you ever give
+them to the dashboard; never assume `127.0.0.1` or `localhost`.
+
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
 | GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
@@ -165,8 +174,15 @@ walk them through the vault entries, then re-verify. Then **verify instead of
 assuming**: make one harmless read-only call per
 enabled service (e.g. fetch a repo's metadata, one GA4 row) and report each as
 working / not. Diagnose by symptom: `401/403` = vault entry missing or
-host-mismatched; `502` = sandbox network policy, not the service. Have the
-sub-agents run the same self-check for their own services and report back.
+host-mismatched; `502` = sandbox network policy, not the service.
+
+**If a 401/403/`app_not_connected` error carries a `connect_url`** — OneCLI's
+own "click here to connect this service" mechanism — that link is real and
+already correctly addressed by the gateway. Turn it into a Discord card button
+(never paste it bare; a bare URL is dead text in Discord, see
+`discord-mechanics.md`) and send it to the owner. Have the sub-agents run the
+same self-check for their own services and hand you any `connect_url` they
+receive — they have no channel to post a card through themselves.
 
 ## 8. Offer workspace backup — and set it up yourself
 

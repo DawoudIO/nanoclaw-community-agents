@@ -106,4 +106,7 @@ never verified): confirm access before reporting ready. Read the content
 repo's default branch (`401/403` = token not wired; `502` = sandbox network
 policy); if GA4 is configured, fetch one report row; note whether an email
 MCP is present for inbox-check (if not, that task stays paused — say so).
+If any check returns a `connect_url` (OneCLI's own connect link, in a
+401/403/`app_not_connected` response), hand it to your lead verbatim — it's
+real and correctly addressed, but you have no channel to post it through.
 Report results to your lead. Never claim ready without having made the calls.

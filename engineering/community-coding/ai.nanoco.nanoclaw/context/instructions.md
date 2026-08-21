@@ -88,5 +88,9 @@ never verified): confirm it works before reporting ready. Read one issue from
 each repo in `COMMUNITY_REPOS` — a `401/403` means your token isn't wired
 (vault entry or selective-mode assignment), a `502` means sandbox network
 policy. If telemetry is configured, fetch one PostHog insight the same way.
+If any check returns a `connect_url` (a 401/403/`app_not_connected` response
+carrying OneCLI's own connect link), hand it to your lead verbatim — it's
+real and already correctly addressed, but you have no channel to post it
+through; your lead turns it into a clickable card.
 Report to your lead: which checks passed, which failed and with what symptom.
 Never claim ready without having made the calls.
