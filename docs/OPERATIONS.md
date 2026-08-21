@@ -188,11 +188,25 @@ refreshes when the issue appears.
 
 **The refresh procedure** (~1 hour, mostly waiting on pulls):
 
-1. Confirm the last workspace backup ran — the lead's workspace carries
-   `project-config.md` and the durable follower-series ledger
-   (`plugin-data/community-support/social-metrics-history.jsonl`, appended by
-   the lead each time marketing hands over a snapshot), the only things worth
-   restoring.
+1. Confirm the last workspace backup ran. The backup is a full
+   `git add -A` of the lead's workspace, so it carries **everything in
+   `plugin-data/` — restore that directory wholesale, not a hand-picked
+   file or two.** Memory is a rebuildable cache, but these are append-only
+   and cannot be reconstructed from the web:
+   - `project-config.md` — the entire runtime config
+   - `social-metrics-history.jsonl` — follower counts over time
+   - `question-ledger.jsonl` — every resolved support topic;
+     `docs-gap-review`'s only input, and it needs weeks of accumulation
+     before it fires at all
+   - `owner-instructions.jsonl` — the numbered ack ledger `health-check`
+     watches for dropped threads
+   - `public-actions.log` — what a session actually did publicly; the record
+     that turns "unrecognized public action" into a lookup instead of an
+     incident
+   - `docs-proposals-sent.txt`, `seen-advisories.txt`, `nudge-sent-*.txt`,
+     `known-contributors-*.txt` — dedup ledgers. Losing these isn't data
+     loss so much as noise: the system re-proposes docs pages it already
+     proposed and re-reports advisories it already handled.
 2. Read the watch issue: it names the new digest. Verify it's what you
    intend (release notes, no open security advisories), then update
    `platform-baseline.json` to the new digest — that file is the record of
@@ -206,9 +220,11 @@ refreshes when the issue appears.
    the VM's stored copy died with the VM); re-verify the owner-DM round trip.
 5. Re-enter the 3 GitHub PATs in the fresh vault, selective mode (~5 min).
    No rotation needed — refresh isn't compromise.
-6. Restore the follower-series ledger from the backup repo into the lead's
-   `plugin-data/community-support/`; either restore `project-config.md` too or
-   just answer the welcome interview again.
+6. Restore `plugin-data/` from the backup repo into each agent's
+   workspace (the lead's is the one the backup captures; sub-agent ledgers
+   live in their own workspaces and are rebuildable). Restoring
+   `project-config.md` skips re-interviewing — or hand the lead your filled
+   `onboarding-answers.json` instead.
 7. Smoke tests per INSTALL.md §7, and re-test anything in UPSTREAM-ISSUES.md
    against the new build before closing the watch issue.
 

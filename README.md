@@ -32,9 +32,12 @@ detail.
 - **Single public voice, enforced structurally.** Sub-agents have no channel
   wiring at all — they can't post publicly even if instructed to.
 - **Statelessness by design.** Agents rebuild context from the project's
-  repos on cold start; memory is a disposable cache of the web. The single
-  durable asset is the social follower-count time series — and even that is
-  documented as nice-to-have.
+  repos on cold start; memory is a disposable cache of the web. The
+  exceptions are a handful of append-only ledgers that can't be
+  reconstructed (follower counts over time, the support-question ledger, the
+  owner-instruction acks, the public-action log) — all captured by the
+  workspace backup, all restored wholesale on a refresh. Nothing else is
+  worth protecting, which is what makes recreate-don't-repair viable.
 - **Agents never hold keys — everything goes through OneCLI.** Every
   credential lives only in the OneCLI vault and is injected into outbound
   requests at the egress proxy, *outside* the agent containers. No token
