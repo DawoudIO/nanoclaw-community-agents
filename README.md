@@ -35,6 +35,13 @@ detail.
   repos on cold start; memory is a disposable cache of the web. The single
   durable asset is the social follower-count time series — and even that is
   documented as nice-to-have.
+- **Agents never hold keys — everything goes through OneCLI.** Every
+  credential lives only in the OneCLI vault and is injected into outbound
+  requests at the egress proxy, *outside* the agent containers. No token
+  ever appears in a template file, an env var, a chat message, or a script
+  (the test harness enforces that last one). Never paste a key to an agent;
+  an agent that asks for one is broken or compromised — refuse and
+  investigate.
 - **Least privilege, verified mechanically.** Each agent gets its own
   narrowly-scoped credential, and bot identity is checked with a real
   `GET /user` call against configured expectations — never assumed.

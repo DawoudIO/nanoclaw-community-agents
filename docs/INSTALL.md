@@ -429,11 +429,19 @@ The kit's default allowlist does **not** include GA4, PostHog, Gmail — or the
 **social platform hosts the follower snapshot reads** (`x.com:443`,
 `www.linkedin.com:443`, `www.facebook.com:443`, `www.instagram.com:443`,
 `www.youtube.com:443` — whichever your platform list uses). Those tasks hit
-`502 Bad Gateway` until you add them. Clone the kit, edit
-`nanoclaw/spec.yaml` → `permissions.network.allow` (e.g. add
-`analyticsdata.googleapis.com:443`, `us.posthog.com:443`,
-`gmail.googleapis.com:443`, plus the social hosts), and start with
-`--kit ./nanoclaw`. Verify with:
+`502 Bad Gateway` until you add them.
+
+**One addition is NOT optional: your project's own web hosts.** The lead
+reads the project's docs site to answer support questions, verify docs
+currency, and check whether a repeat question already has a page — add the
+docs site and project website hosts (e.g. `docs.yourproject.org:443`,
+`yourproject.org:443`) or that whole class of work silently degrades to
+"couldn't check."
+
+Clone the kit, edit `nanoclaw/spec.yaml` → `permissions.network.allow`
+(e.g. add your project hosts, `analyticsdata.googleapis.com:443`,
+`us.posthog.com:443`, `gmail.googleapis.com:443`, plus the social hosts),
+and start with `--kit ./nanoclaw`. Verify with:
 
 ```bash
 sbx policy ls nanoclaw --type network

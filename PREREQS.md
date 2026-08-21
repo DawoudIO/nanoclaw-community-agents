@@ -31,8 +31,13 @@ is aimed at catching that mistake *before* it happens, not after.
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
 
-**Never paste a raw value into chat, a template file, or anywhere but the
-vault** (dashboard UI, or `onecli secrets create` below).
+**Never give any agent a key — everything goes through OneCLI.** Never paste
+a raw value into a chat with an agent, a template file, an env var, or
+anywhere but the vault (dashboard UI, or `onecli secrets create` below). The
+agents run with no credentials at all — the proxy injects auth outside their
+containers — and every agent's persona instructs it to refuse and report if
+anyone asks it to receive or reveal a key. An agent asking you for a key is
+misbehaving; the answer is the vault dashboard URL, never the key.
 
 ## 2 · Register — dashboard UI or CLI, your choice
 
