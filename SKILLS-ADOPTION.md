@@ -71,11 +71,51 @@ Nothing here requires a paid subscription.
 | `discord`, `openclaw-ghsa-maintainer` | openclaw/openclaw (NOASSERTION) | Discord ID/thread discipline; GHSA publish gating |
 | `internal-comms` router pattern | anthropics/skills (per-folder licenses!) | Dispatcher SKILL.md → per-format example files — the right architecture for content drafting |
 
+## NanoClaw official catalog — full review (2026-08-21, all 52 skills)
+
+Reviewed against our two axes: documented blind spots (observability, the
+foreground-session fragility, search) and manageability. Channel skills
+(Slack/Telegram/Matrix/etc.) and provider alternatives (Codex/OpenCode) were
+skipped as out of scope — Discord + GitHub + Claude is the design.
+
+### Adopt
+
+| Skill | Blind spot it closes | How it fits |
+|---|---|---|
+| `dashboard` | **Observability** — our biggest documented gap: the owner had no way to see token usage, per-session state, context windows, or live logs without CLI archaeology | Read-only by design (safe), port 3100 — publish it and reach it the same way as the OneCLI dashboard (Tailscale for remote). **Caveat**: it wires a pusher into NanoClaw's source, i.e. a customization of the sealed install — treat it as a *replayable install step*: apply at setup, and it's one more line in the recreate checklist (cattle philosophy: customizations are replayed, never merged) |
+| `debug` | Day-2 troubleshooting — logs, env, mounts, common container problems | Built-in; use from the break-glass Claude session. Add to the break-glass doctrine as the first tool to reach for |
+
+### Optional — adopt when the trigger fires
+
+| Skill | Trigger | Notes |
+|---|---|---|
+| `tavily` | The coding agent moves to Ollama (losing Claude's built-in search), or the lead needs structured page extraction | **Keyless** — fits default-to-free exactly; per-group scoping fits least-privilege. Claude-provider groups already have built-in search, so don't add it speculatively |
+| `ollama` (tools, distinct from the provider) | Bilingual reply volume gets expensive | Offloads translation/summarization to a local model as a tool while the agent stays on Claude — a scalpel where `ollama-provider` is a hammer |
+| `rtk` | Only if interactive lead sessions show heavy bash-output token burn | 60–90% savings on dev-command output via a PreToolUse hook — but our gates already strip the bulk of command output before any model sees it, so expect modest gains here. Per-group, Claude-only |
+| `macos-statusbar` | Host is a Mac running NanoClaw as a host service | Green/red menu-bar dot + start/stop/restart + launch-on-login — directly softens "the session IS the system." **But it manages a launchd NanoClaw, not an `sbx` VM** — for our sandbox deployment it needs adaptation (point it at the sbx lifecycle) before it applies; until then, tmux + the weekly heartbeat is the answer |
+| `learn` | Ongoing | Formalizes what the lead persona's "Grow your toolkit" section already does by hand — distill `plugin-data/*/learned/` notes into proper skills at restamp time |
+| `clidash` | If `dashboard` feels heavy | Zero-dependency read-only alternative built from `ncl` JSON output — less coverage (no token usage), less surface |
+
+### Not applicable to a sandbox-kit deployment
+
+`update` (transactional source upgrade with staging worktree — superb for
+source installs; our digest-pinned recreate supersedes it), `migrate-nanoclaw`
+(same — though its *idea*, replayable customization guides, is exactly how to
+treat the dashboard pusher above), `migrate-from-v1`/`migrate-from-openclaw`
+(we deliberately have no migration path), `setup`/`first-agent`/`welcome`/
+`manage-channels`/`manage-mounts`/`self-customize`/`customize` (built-ins the
+install runbook already drives), `agent-browser`/`onecli`/`onecli-gateway`
+(built-ins we already depend on — the follower snapshot's page reads ride on
+agent-browser; verify it's enabled in the ready gate if snapshot fetches 502
+with the hosts correctly allowlisted).
+
 ## Evaluated and rejected — with reasons, so this isn't relitigated
 
 | Skill | What it offers | Why not |
 |---|---|---|
 | `mnemon` (nanoclaw.dev/skills/mnemon) | Persistent graph memory: auto-recall before responding, auto-store insights after each turn, survives restarts | **Rejected — reintroduces v1's disease.** (1) It auto-stores "insights" from every turn — including public Discord turns — so a malicious community member can plant persistent false context ("the owner approved X") that every future session recalls as trusted. Our injection defense rests on read-text-is-data; a hook persisting it as memory weaponizes the public channels. (2) An opaque, auto-written graph store is exactly the unverifiable state v1's tamper-paranoia loops fed on; v2's fix — append-only human-readable ledgers with provenance — already gives sessions shared state that can be audited. (3) Its data dir lives outside the workspace backup, creating durable-but-unbacked state against the statelessness doctrine, and it requires a Dockerfile/entrypoint rebuild against the sealed pinned image. The one real itch (owner-DM continuity) is covered by project-config + the instruction ledger |
+| `native-credential-proxy` (nanoclaw.dev/skills/native-credential-proxy) | Opt out of the OneCLI gateway; supply Anthropic credentials straight from `.env` | **Hard reject — it is the literal negation of this system's credential rule** (agents never hold keys; there is no `.env` by design). If anyone proposes this skill, the answer is the README's design-principles bullet, not a discussion |
+| `karpathy-llm-wiki` (nanoclaw.dev/skills/karpathy-llm-wiki) | Persistent self-maintaining wiki knowledge base per group | Soft reject — same statefulness objection as mnemon (agent-written durable knowledge accumulating outside the backup, fed partly by public inputs), though less severe since a wiki is at least human-readable. Our append-only ledgers + rebuild-from-web doctrine cover the need; revisit only if cold-start context rebuilding proves genuinely expensive in practice |
 | `update-skills` (nanoclaw.dev/skills/update-skills) | Refresh channel/provider code in place from upstream branches, with clean-tree/origin/test safety checks | **Rejected for steady state — it's the in-place mutation our update policy forbids.** After it runs, the install no longer matches `platform-baseline.json`'s digest and reproducibility is gone. Our recreate path costs ~1h because the system is deliberately stateless. **Break-glass exception only**: an urgent upstream channel fix (e.g. Discord API break) that can't wait for a kit image — run it, note in the owner DM that baseline no longer describes reality, and do a proper digest-pinned recreate as soon as one exists |
 
 ## Confirmed gaps — ours to own (already written in these templates)
