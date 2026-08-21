@@ -301,6 +301,32 @@ need a new, narrower, single-purpose credential instead." Ask before granting;
 see "Default to free tools"' sibling rule in each persona for the same
 discipline applied to scope, not just cost.
 
+### Per agent: the complete OneCLI footprint, in one place
+
+The tables above are organized by credential; this one is organized by
+**agent**, across every service, not just GitHub — it's the exact list
+`onecli apps connections agent-access` (PREREQS.md §3) should show for each
+one, and nothing more. Every row exists because a specific task reads it;
+anything else the live command shows for an agent is a finding, not a
+formality.
+
+| Agent | Secret mode | Granted | Host | Used by |
+|---|---|---|---|---|
+| Lead | `selective` | Lead GitHub PAT | `api.github.com` | `daily-github-triage`, `release-announcement-watch`, issue/PR replies |
+| Lead | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
+| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dev-metrics-report` |
+| Coding | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
+| Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle`, `draft-cleanup` |
+| Marketing | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Marketing | `selective` | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
+| Marketing | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
+
+**Coding never appears against Discord, PostHog access on Marketing, or any
+agent against a host it has no row for above.** `selective` mode (not the
+default `all`) is what makes this enforceable at all — in `all` mode every
+agent gets every secret whose host matches, which collapses this entire table
+back into shared access.
+
 ### Confirm identity, don't assume it (and audit what's already connected)
 
 **[PREREQS.md](PREREQS.md)** has the full audit and rotation runbook using

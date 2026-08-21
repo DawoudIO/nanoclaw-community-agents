@@ -75,10 +75,12 @@ security so that agents don't have too much access for things outside what
 they need." If it shows an agent reaching a connection nothing in that
 agent's config or tasks explains, that's a finding, not a formality.
 
-**Cross-check against the least-privilege table in README §4** — every
-secret/connection should map to exactly one row there. Anything that doesn't
-is either stale (candidate to remove) or undocumented (find out why before
-trusting it).
+**Diff its output against README §4's "Per agent: the complete OneCLI
+footprint" table** — that table *is* the expected state, one row per grant,
+each tied to the task that uses it. Every connection `agent-access` reports
+for an agent should match a row there exactly; a connection with no matching
+row is either stale (remove it) or undocumented (find out why before trusting
+it).
 
 ### Worked example: auditing a real vault (11 connections)
 
