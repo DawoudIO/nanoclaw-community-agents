@@ -20,36 +20,39 @@ posts, all of it.
   card, in that order. Some platforms only let you attach a rich card in a
   follow-up turn once the channel context is established from the first post.
 
-## Approval requests — preview cards, one decision each
+## Approval requests — real buttons over chat replies, wherever one exists
 
-Approvals are where sloppiness costs the most, and the field-tested shape is:
+The owner's preference is explicit: a genuine clickable decision beats typing
+a word, every time it's available. NanoClaw's confirmed click-to-decide
+mechanism is the **OneCLI request-hold** — the gateway holds an outbound,
+credentialed HTTP call and delivers a real approval card (actual buttons,
+platform-rendered) to the owner's DM; nothing you construct, nothing you
+parse a reply against. **Route through it whenever the action IS an outbound
+credentialed call**:
 
-1. **Show exactly what will happen** — the approval message is a preview card
-   carrying the verbatim content or action (the post text, the recipients,
-   the thing being deleted), never a description of it. The owner approves
-   what they can see, not what you summarized.
-2. **One decision per card.** Never bundle two asks into one approval ("strip
-   the bad line AND resume the schedule") — a real standoff started exactly
-   that way. Two decisions = two cards.
-3. **State the approve word** so there's no ambiguity about what counts:
-   "reply 'post it' to publish."
-4. **Per-mechanism variants** (matching the publishing mechanics in the
-   marketing workflow):
-   - *Execute-on-approval*: preview card → owner replies the approve word →
-     you act → **confirm with the resulting URL**, always.
-   - *Intent-URL*: the card's button IS the approval — one click opens the
-     pre-filled composer under the owner's account; nothing for you to
-     execute.
-   - *Copy-paste*: a "post this:" card with the exact text block; the owner
-     pastes it themselves.
-5. **Approvals are instructions** — they get ledger ids like everything else
-   (Ack #N when requested, #N done with the result URL when executed).
-6. **Post-publish hygiene**: once published, close the loop — delete the
-   consumed draft, close its PR, log the outcome.
+- **Opted-in paid API posting** (e.g. X, if the owner enabled it over the
+  free intent-URL default) — set a OneCLI rule matched on the outbound
+  request (host + method + path, e.g. `api.x.com` POST to the tweet
+  endpoint) in the OneCLI dashboard. The click the owner gets is real.
+- Most of what looks like it needs a chat approval actually doesn't need one
+  at all, once you notice the human action already **is** the approval:
+  a PR merge is the review; an intent-URL click is the publish decision; a
+  copy-paste card needs no reply because nothing fires until the owner
+  pastes it. Don't add a redundant "reply to confirm" on top of any of these.
 
-Platform-level approvals (a OneCLI request-hold) arrive as their own yes/no
-prompt to the owner — that's the gateway's flow, not yours; don't duplicate
-it with a second ask.
+**Where no single outbound call exists to gate** (a judgment call that isn't
+one HTTP request — "should this become a security advisory," "does this
+warrant a docs issue") — there's no confirmed tool for an agent to construct
+its own clickable decision buttons; verify this on the real install before
+assuming otherwise (flagged in UPSTREAM-ISSUES). Until confirmed: keep it to
+the absolute minimum text — a preview of exactly what would happen, one
+decision per message, one stated word to act on ("reply 'yes' to file it") —
+never prose back-and-forth standing in for a decision.
+
+Whichever path applies: **one decision per message**, always show the actual
+content/action rather than a description of it, log it in the instruction
+ledger (Ack #N / #N done with the result), and close the loop after
+(delete the consumed draft, close its PR) so nothing gets re-offered.
 
 ## Platform rules — not house style, Discord's own policy
 

@@ -45,12 +45,14 @@ If the owner doesn't want to pay for X: intent URLs give the identical
 after-approval flow at zero cost, with the approver's click as the final gate —
 which also happens to be the strongest version of the approval discipline.
 
-**Approval mechanics and post-publish hygiene**: each platform's item goes to
-the approver as its own preview card (exact text, one decision per card, the
-approve word stated — see the lead skill's `discord-mechanics.md`). After
-everything is published: delete the consumed draft, push the deletion, close
-the PR, and confirm with the published URLs. A drafts folder full of already-
-published content is how duplicates get posted.
+**Approval mechanics and post-publish hygiene**: intent-URL and copy-paste
+need no separate approval step — the owner's click or paste already is the
+decision. For the paid-API path, the approval is a real OneCLI request-hold
+button (set up once as a host+method+path rule), not a chat reply — see the
+lead skill's `discord-mechanics.md`. After everything is published: delete
+the consumed draft, push the deletion, close the PR, and confirm with the
+published URLs. A drafts folder full of already-published content is how
+duplicates get posted.
 Never work around a missing API with browser automation against the platform's
 own web app; that violates platform terms and gets accounts suspended.
 
