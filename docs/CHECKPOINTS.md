@@ -32,7 +32,7 @@ an expected result; a miss means stop and fix, not proceed.
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §4's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | **Which meter the agents bill to** | Check what the kit's first-boot wizard configured: an API key from console.anthropic.com, or subscription auth | You can state which one, because it decides whether the agents share your session's window or bill separately (OPERATIONS.md → Two separate budgets) |
+| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured — subscription, OAuth token, or API key | You can state which. **If subscription: you also know the agents share one window with your own Claude Code, including the break-glass recovery session** — see OPERATIONS.md → Model budget for the four defenses |
 | 14 | You know the death signal | No action — confirm you understand it | The lead DMs a one-line heartbeat at least weekly; **more than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
 
 ## Day 2 — did the first unattended cycle actually run?

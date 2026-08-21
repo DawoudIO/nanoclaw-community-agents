@@ -20,7 +20,7 @@ is aimed at catching that mistake *before* it happens, not after.
 
 | Credential | Create it here | Notes |
 |---|---|---|
-| **Anthropic API key (the model itself)** | `console.anthropic.com` → API Keys | **Nothing works without this** — it's what the agents think with. Entered in the OneCLI dashboard's **LLMs** tab (not Apps/Custom) during the kit's first-boot wizard. Symptom when missing/expired/out of credit: the lead simply never replies to your DM — no error surfaces anywhere you'd see it |
+| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Two separate budgets](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
 | Lead GitHub PAT | `github.com/settings/tokens` (classic) | Scope `repo` (public-only: `public_repo`). Not `read:org` |
 | Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Contents+Issues+PRs; + Dependabot alerts if enabling the sweep |

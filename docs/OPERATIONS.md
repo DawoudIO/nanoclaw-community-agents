@@ -21,34 +21,65 @@ symptom is pure silence. Two defenses:
   everything is fine. If more than ~8 days pass without it, the system is
   down — restart the sandbox on the host. Silence is the alarm.
 
-## Two separate budgets — know which one you're spending
+## Model budget — one shared window, and the trap in it
 
-This trips people up, so state it plainly before any numbers:
+The kit's first-boot wizard accepts **a subscription, an OAuth token, or an
+Anthropic API key** for Claude. That choice is the single most consequential
+operational decision in this install, because it decides whether the agents
+bill to their own meter or eat yours.
 
-| Budget | What spends it | How it's billed |
+| Choice | Who pays | Consequence |
 |---|---|---|
-| **Your Claude Code session** | You, driving the install: `/add-discord`, stamping, wiring, `clidash`, gate test runs, debugging | Your Claude **subscription** (Pro/Max) — this is the "5-hour window" |
-| **The agents themselves** | The lead's replies, the welcome interview, every task wake | The **Anthropic API key** in OneCLI's LLMs tab (PREREQS §1) — pay-per-token, a different meter entirely |
+| **Subscription** (recommended: no per-token cost) | One usage window shared by the agents **and your own Claude Code sessions** | Cheapest, but see the trap below |
+| API key | Pay-per-token, separate meter | Decoupled from your window; costs real money per wake |
 
-So the 5-hour subscription window governs *your install session*, not the
-agents' ongoing work. The agents bill separately and keep billing after you
-close the terminal.
+### The trap: agents can lock you out of your own recovery tool
 
-> **Unverified, and worth settling at install:** NanoClaw is built on the
-> Claude Agent SDK, which can authenticate either by API key or by
-> subscription. Our runbook specifies an API key, but the v1 deployment
-> notes below reference "hit its plan limits," which is subscription
-> language. If your install ends up subscription-backed, the agents and your
-> install session share one window and the arithmetic below changes
-> completely. Check which one the first-boot wizard actually configured
-> before trusting either estimate.
+On a subscription, an agent that burns through the shared window takes your
+Claude Code access down with it — **including the break-glass session
+(`sbx exec … claude`) that is the documented way to fix a broken deployment.**
+The recovery tool becomes unavailable at exactly the moment you need it, and
+the failure looks like silence rather than an error.
+
+The precedent is real and it's this project's own: the v1 deployment
+**exhausted its plan limits running 4 agents.** This template set is 3 agents
+with aggressive gating specifically because of that. Treat the shared window
+as a resource with a hostile-neighbour problem, not an abstraction.
+
+Four defenses, in order of effectiveness:
+
+1. **Separate the meters where it counts.** If you can, put the agents on
+   their own subscription (or an API key) and keep your personal Claude Code
+   on yours. Full stop — this removes the failure mode instead of managing it.
+2. **Put the coding agent on local Ollama** (see the model-defaults section
+   below). It's the highest-volume, most formulaic agent and its output is
+   lead-reviewed anyway, so moving it off the shared window costs the least
+   quality and buys the most headroom.
+3. **Keep the pause-order list to hand** (below). It's not a nice-to-have on
+   a shared window — it's your throttle.
+4. **Watch `clidash`** for session/usage state rather than discovering the
+   ceiling by hitting it.
+
+### What the install itself costs
+
+**On a subscription, your install session and the agents draw from the same
+window**, so budget them together:
+
+- **Your Claude Code session**: ~16 documented commands plus `/add-discord`'s
+  guided flow and reading each `templateReport`. Modest.
+- **Welcome interview**: the biggest single line item — ~15K context per turn
+  over 8–15 turns, heavily cache-discounted after the first.
+- **Sub-agent relay + each `setup-check.sh`**: ~2–3 turns each, small.
+- **Gate testing**: **13 of 16 gates exit `not-configured` with no model wake
+  at all** — those are free. Only the ones you configured wake.
+- **Smoke tests**: 3–4 real lead interactions.
 
 ### Measured context floors (per model wake, this template set)
 
-Every wake pays the agent's persona plus whatever skill it loads. These are
-real measurements of the shipped files, not guesses:
+Real measurements of the shipped files, not estimates. Every wake pays the
+persona plus whatever skill loads:
 
-| Agent | Persona + context | With its main skill loaded |
+| Agent | Persona + context | With its main skill |
 |---|---|---|
 | Lead | ~8.6K tokens | ~18.8K (community-support) · ~15K (welcome) |
 | Coding | ~3.2K | ~6.2K |
@@ -56,50 +87,33 @@ real measurements of the shipped files, not guesses:
 
 Task prompt bodies add ~400 tokens on average. The lead is the expensive one
 and always will be — it carries the public-facing judgment. Prompt caching
-makes repeated wakes far cheaper than these numbers suggest, since the
-persona prefix is identical every time.
+makes repeat wakes much cheaper than these numbers suggest, since the persona
+prefix is byte-identical every time.
 
-### What the install itself costs
+### Will a single 5-hour window carry the install?
 
-**Your Claude Code session**: ~16 documented commands plus `/add-discord`'s
-guided flow and reading each `templateReport`. On volume alone this is a
-modest session — comfortably inside a 5-hour window.
+On volume, comfortably — nothing above is close to a ceiling. What actually
+threatens it is **debugging loops**: a missed Message Content intent that
+makes auto-reply silently fail, Discord wiring that won't round-trip, a token
+scoped to the wrong repo list. Four things that protect the window:
 
-**The agents during install**, roughly:
-- Welcome interview: the single biggest line item. ~15K context per turn over
-  8–15 turns, heavily cache-discounted after the first.
-- Sub-agent config relay + each `setup-check.sh`: small, ~2–3 turns each.
-- Gate testing: **13 of 16 gates exit `not-configured` with no model wake at
-  all** — testing those is free. Only the ones you actually configured wake.
-- Smoke tests: 3–4 real lead interactions.
-
-Order of magnitude: a few hundred thousand cache-discounted input tokens and
-tens of thousands of output. On API billing that's low single-digit dollars —
-not a constraint.
-
-### The real risk is iterations, not volume
-
-Nothing above threatens a 5-hour window. What threatens it is **debugging
-loops**: a missed Message Content intent that makes auto-reply silently fail,
-Discord wiring that doesn't round-trip, a token scoped to the wrong repo list.
-Four things that protect the window, in order of payoff:
-
-1. **Finish PREREQS before you start the clock.** Every token created, every
-   vault entry loaded, identity verified. Credential problems are the most
-   common install stall and they're entirely front-loadable.
+1. **Finish PREREQS before you start the clock.** Every token created, vault
+   loaded, identity verified. Credential problems are the most common stall
+   and they're entirely front-loadable.
 2. **Use the answers file.** `onboarding-answers.json` collapses an 8–15 turn
-   interview into ~2 turns — the largest single saving available, on both
-   budgets, and it makes a retry cost almost nothing.
+   interview into ~2 — on a shared window this is the single largest saving
+   available, and it makes a retry nearly free.
 3. **Don't interactively test all 18 gates.** Run the ones you configured;
-   the rest are provably free and the harness already covers their logic.
-4. **Read the docs yourself rather than asking the session to.** `docs/` +
+   the other 13 are provably free and the harness covers their logic.
+4. **Read the docs yourself rather than through the session** — `docs/` +
    PREREQS + README is ~22K tokens of context you don't need to spend.
 
-If you do run out of window mid-install, nothing is lost: the sandbox state
-volume persists, and "what's not set up?" plus each `setup-check.sh` will tell
-you exactly where you stopped. Resuming is cheap by design.
+Running out mid-install loses nothing: the sandbox state volume persists, and
+"what's not set up?" plus each `setup-check.sh` resumes exactly where you
+stopped. **But on a shared window, do the install when you don't need Claude
+Code for anything else that day.**
 
-## Models and token budget — right-sizing the agents
+## Right-sizing the agents
 
 **Three agents is the right number — and it's cheaper than it looks.** Burn
 comes from model *wakes*, not from agents existing: a stamped agent whose
@@ -114,8 +128,8 @@ stamp all three, then tune budget by which tasks you activate — never by
 deleting agents.
 
 Two sizing mistakes this design specifically avoids (both were learned the
-expensive way on a real deployment that exhausted its model budget with 4
-agents — see the caveat above about which meter that was):
+expensive way on a real deployment that exhausted its **subscription** limits
+with 4 agents):
 
 - **Don't add a "quick tasks" agent.** The lead stays responsive by design —
   scheduled work runs in isolated task sessions and long background work
@@ -156,7 +170,9 @@ cost more lead-attention than the tokens saved.
 **And a hard rule regardless of tier: never Opus-class on a scheduled task.**
 Wakes are frequent; premium models belong in interactive sessions, not cron.
 
-**If you still hit plan limits**, pause in this order (lowest value first):
+**If you hit the window ceiling** (on a shared subscription this also
+restores your own Claude Code access), pause in this order — lowest value
+first:
 `repo-mirror-sync` → `repo-hygiene-audit` → `good-first-issue-health` → `draft-cleanup` → `dev-metrics-report` →
 `social-metrics-snapshot` → `inbox-check` → reduce `github-ops-triage` to
 2×/day → `content-draft-cycle` to 3×/week. The safety net (`health-check`,

@@ -175,7 +175,12 @@ What this buys you, security-wise — and why it's the recommended host:
   keys.
 
 First boot asks before pulling nested images (a few minutes), then runs
-NanoClaw setup — the kit defaults to Claude as provider. **Note the port
+NanoClaw setup. **At the provider prompt, Claude accepts a subscription, an
+OAuth token, or an Anthropic API key.** A subscription avoids per-token cost
+but shares ONE usage window with your own Claude Code sessions — including the
+break-glass session you would need to repair a broken deployment. This is the
+most consequential choice in the install; read
+[OPERATIONS.md → Model budget](OPERATIONS.md) first. **Note the port
 mappings `sbx run` prints**: OneCLI dashboard (`10254`) is where you'll
 register credentials; gateway is `10255`; webhook is `3000`. Keep this session
 open; NanoClaw stops when it closes.
@@ -396,9 +401,10 @@ to the public internet; this dashboard holds credentials). To undo:
 once and persists it — whatever you give it, the lead uses that exact one for
 every future dashboard link, instead of assuming localhost.
 
-The model provider key itself (what NanoClaw uses to run Claude) lives in the
-same dashboard's **LLMs** tab, separate from the **Apps**/**Custom** tabs
-above — one more reason a working remote address is worth setting up once.
+The model credential (what NanoClaw uses to run Claude — subscription, OAuth
+token, or API key) lives in the same dashboard's **LLMs** tab, separate from
+the **Apps**/**Custom** tabs above — one more reason a working remote address
+is worth setting up once.
 
 **Version note**: OneCLI has its own release line independent of NanoClaw
 (`versions.json` pins a specific gateway version; there's deliberately no
