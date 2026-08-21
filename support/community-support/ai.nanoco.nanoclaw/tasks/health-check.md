@@ -47,6 +47,16 @@ script: |
     fi
   fi
 
+  # Owner-instruction ledger: anything acked >24h ago and never closed is a
+  # dropped thread the owner should not have to discover by wondering.
+  LEDGER="$DATA/owner-instructions.jsonl"
+  if [ -f "$LEDGER" ] && command -v jq >/dev/null 2>&1; then
+    STUCK=$(jq -s --argjson now "$(date +%s)" '[group_by(.id)[] | select([.[] | .event] | (index("done") == null and index("blocked") == null and index("dropped") == null)) | select((.[0].ts | fromdateiso8601? // $now) < ($now - 86400))] | length' "$LEDGER" 2>/dev/null || echo 0)
+    if [ "${STUCK:-0}" -gt 0 ] 2>/dev/null; then
+      note "$STUCK owner instruction(s) acked over 24h ago but never closed - check the owner-instructions ledger"
+    fi
+  fi
+
   if [ -z "$ISSUES" ]; then
     echo '{"wakeAgent": false, "data": {"status": "ok"}}'
   else

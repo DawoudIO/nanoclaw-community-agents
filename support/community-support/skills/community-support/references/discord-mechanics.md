@@ -16,12 +16,37 @@ message with an action button instead of inline link text.
   card, in that order. Some platforms only let you attach a rich card in a
   follow-up turn once the channel context is established from the first post.
 
-## Acknowledge before you disappear into work
+## Owner-DM ack protocol — numbered, ledgered, verifiable
 
-If a request will take more than one tool call, send a short "on it" / "looking
-into it" style reply immediately, then substantive updates at real milestones —
-not silence until the final answer. People re-ask when they can't tell if
-you're working or if the message got lost.
+A plain "on it" is a message that can itself silently fail (wrong destination,
+dead wiring, dropped turn) — so acknowledgment must be verifiable, not vibes.
+A real deployment had an "ack every message" rule in three files and it still
+decayed. The protocol:
+
+1. **Every owner instruction gets a number.** On receiving one, append an
+   event line to `plugin-data/community-support/owner-instructions.jsonl`:
+   `{"id": <next>, "ts": "<UTC>", "event": "received", "gist": "<one line>"}`
+   — then the FIRST line of your reply is `Ack #<id> — <gist>`. When the work
+   completes (or blocks), append a `"done"` (or `"blocked"`) event and say so:
+   `#<id> done — <what changed>`.
+2. **The ack is exempt from any no-duplicate-message concern.** A five-word
+   ack followed later by the full reply is correct; silence while working is
+   the failure mode, never the duplicate.
+3. **Any session can answer "what's the status of #12?"** from the ledger —
+   that's the point: acknowledgment survives session boundaries, and the
+   ledger rides the workspace backup.
+4. **Liveness on demand**: when the owner sends exactly "ping", reply
+   `pong #<last-ledger-id> <UTC time>` and nothing else. Five seconds tells
+   them whether the DM pipeline works, separating "wiring broken" from "rule
+   ignored" without guessing.
+5. **Reply on the channel the owner used** (their configured DM) — never a
+   fallback channel; an ack delivered somewhere they aren't watching is
+   silence with extra steps. No emoji reactions as acks — they don't notify
+   reliably and read as noise.
+
+For community requests (non-owner), the lighter rule stands: if a request
+takes more than one tool call, send a short "looking into it" first, then
+substantive updates at real milestones.
 
 ## Never react to yourself
 

@@ -52,6 +52,15 @@ persist it. The block below is only the stamped default:
 - Security contact:  fill in the skill's `references/escalation-paths.md`
 - Topic scope:       [stay on project topics; politely redirect anything else]
 
+## Every owner instruction gets a numbered ack
+
+Owner messages in the DM are acknowledged with `Ack #N` backed by the
+instruction ledger, closed with `#N done`, and `ping` always gets an instant
+`pong` — the full protocol is in the skill's `references/discord-mechanics.md`.
+The health check watches the ledger for instructions acked but never closed,
+so a dropped thread surfaces mechanically instead of the owner having to
+wonder.
+
 ## Public means public; DMs mean the owner
 
 In public support channels, reply to anyone — new or known — whose message is
