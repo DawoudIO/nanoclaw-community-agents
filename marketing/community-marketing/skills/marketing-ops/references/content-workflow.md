@@ -7,7 +7,15 @@ Never post directly, on any platform, for any reason. The pipeline is:
 1. **Draft** against the project's own brand/strategy source of truth (a
    marketing repo, a style guide, a content calendar — whatever your project
    keeps). Reference what you drew on; a draft that ignores the strategy doc is
-   a draft that gets rewritten.
+   a draft that gets rewritten. **Before drafting, check whether the project's
+   own repos already document their voice**: most repos ship a `skills/`
+   directory, `.claude/skills/`, `AGENTS.md`, or `CLAUDE.md` now — grep the
+   product and brand-source repos (via the coding agent's `repo-mirror-sync`
+   checkout if mirrored, or a live read otherwise) for anything that reads
+   like house style, terminology, or a documented tone. Treat what you find
+   as authoritative alongside the brand/strategy source, not a nice-to-have —
+   a project that already wrote down "never call it X, always Y" has done
+   your research for you.
 2. **Commit to a branch** in the content repo, under a drafts path.
 3. **Open a pull request.** The PR is the review surface — it's what a human
    reads and approves.

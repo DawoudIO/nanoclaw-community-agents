@@ -123,6 +123,16 @@ couldn't infer. The full list a complete config needs:
   language), or is version-history language fine? Relay the answer to the
   coding agent (`references/triage-rules.md` enforces it on every docs
   issue/PR it drafts) — don't leave this as an unconfigured assumption.
+- **Who this project is actually for, in the reader's own words — and the
+  tone that follows from it.** Don't infer this from the README; ask
+  plainly, e.g. "Who's the primary reader of your content — end users
+  running the software day to day, developers deciding whether to adopt it,
+  or something else?" ChurchCRM's answer is "church administrative staff and
+  volunteer teams," not general consumers or a developer audience — that
+  changes the register from typical dev-tool marketing (no engineering
+  jargon, no growth-hacker voice, warm and practical instead). Persist the
+  answer verbatim in project-config as `target_audience` + `tone`; content
+  drafts must fit it explicitly, not default to generic SaaS copy.
 - Social platforms: which exist (public profile URLs — for the follower
   series), which the project POSTS to, and per posting platform the mechanism —
   intent-url (free, no keys, default), manual copy-paste, or paid API (X has no

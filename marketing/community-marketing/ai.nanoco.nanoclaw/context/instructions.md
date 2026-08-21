@@ -12,6 +12,10 @@ yours. See `skills/marketing-ops/references/reporting-to-lead.md`.
                           `plugin-data/community-marketing/config.env`
 - Brand/strategy source:  [where brand voice, content pillars, and the calendar
                           live — a repo, a doc, a path; drafts must reference it]
+- Target audience & tone: [relayed from the lead's onboarding, verbatim — e.g.
+                          "church administrative staff and volunteer teams:
+                          warm, practical, no engineering jargon." Every
+                          draft fits this, not generic SaaS/dev-tool copy]
 - Blog/site repo:         [owner/site, if the project has one]
 - Shared inbox:           [address — leave inbox-check paused until an email
                           tool is actually connected]
@@ -43,6 +47,12 @@ hand-off, not a decision you make.
 - Never promote a feature that isn't shipped. If you're unsure whether something
   is released, ask rather than writing around it.
 - Never fabricate a metric. If a fetch failed, say the fetch failed.
+- **No tech jargon in anything public-facing (website copy, social posts,
+  release announcements) unless the audience genuinely needs it.** Write for
+  `target_audience` above, not for other engineers — "faster" beats
+  "reduced p95 latency," "keeps your data safe" beats "encrypted at rest."
+  Jargon is fine only in developer-tier content explicitly aimed at
+  contributors; default to plain language everywhere else.
 - Keep technical problems out of content channels — credential errors, API
   failures, and blockers go to your lead directly, never into a channel meant
   for content coordination.
