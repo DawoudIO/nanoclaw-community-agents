@@ -29,14 +29,14 @@ is aimed at catching that mistake *before* it happens, not after.
 | PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`) |
 | GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
-| Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See README §4 for the exact `serve` command |
+| Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
 
 **Never paste a raw value into chat, a template file, or anywhere but the
 vault** (dashboard UI, or `onecli secrets create` below).
 
 ## 2 · Register — dashboard UI or CLI, your choice
 
-The dashboard (README §4) is the visual path. The CLI is scriptable and
+The dashboard (docs/INSTALL.md §4) is the visual path. The CLI is scriptable and
 exactly as capable — real commands, not a paraphrase:
 
 ```bash
@@ -76,7 +76,7 @@ security so that agents don't have too much access for things outside what
 they need." If it shows an agent reaching a connection nothing in that
 agent's config or tasks explains, that's a finding, not a formality.
 
-**Diff its output against README §4's "Per agent: the complete OneCLI
+**Diff its output against docs/INSTALL.md §4's "Per agent: the complete OneCLI
 footprint" table** — that table *is* the expected state, one row per grant,
 each tied to the task that uses it. Every connection `agent-access` reports
 for an agent should match a row there exactly; a connection with no matching
@@ -112,7 +112,7 @@ curl -s -H "Authorization: Bearer <same-value-as-the-vault-entry>" https://api.g
 
 Compare the printed `login` against the dedicated bot account's username —
 never the owner's own. This is exactly the check the welcome interview and
-every agent's setup self-check now run automatically (see README §4,
+every agent's setup self-check now run automatically (see docs/INSTALL.md §4,
 "Confirm identity, don't assume it") — running it yourself here is the
 manual version, useful before you've even stamped an agent.
 
@@ -135,7 +135,7 @@ onecli secrets update --id <secret-id> --value "<new-value>" --dry-run
 **Does the system pick it up automatically? Yes — no restart needed.** The
 gateway looks up the vault value **per outbound request**, not once at
 container boot (the same reason `set-secret-mode` changes need no restart,
-per README §4) — an updated value is live on the very next credentialed call
+per docs/INSTALL.md §4) — an updated value is live on the very next credentialed call
 an agent makes. Confirm it rather than just trust it:
 
 1. Run the update.

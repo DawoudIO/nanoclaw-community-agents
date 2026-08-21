@@ -16,7 +16,7 @@ not to treat it as an incident.
 2. **If every platform is unreachable** (all fetches blocked/502): do NOT
    append an all-null row. In a sandboxed deployment that symptom means the
    network allowlist lacks the social hosts (x.com, linkedin.com, etc. — see
-   the root README's allowlist step). Report that to your lead instead; a
+   docs/INSTALL.md §5, the allowlist step). Report that to your lead instead; a
    week of nulls caused by policy is a config bug, not data.
 3. Append one JSON line to your working copy,
    `plugin-data/community-marketing/social-metrics-history.jsonl`:

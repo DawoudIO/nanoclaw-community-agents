@@ -2,7 +2,7 @@
 set -euo pipefail
 # Deps: bash, git. Push auth is injected by the OneCLI proxy — the vault
 # needs a GitHub secret matched to host `github.com` (git), not only
-# `api.github.com` (REST). See README → Credentials.
+# `api.github.com` (REST). See this template's README, Credentials.
 cd /workspace/agent
 if [ ! -d .git ] || ! git remote get-url origin >/dev/null 2>&1; then
   echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "git init + remote required - see README, Workspace backup setup"}}'
