@@ -99,6 +99,39 @@ channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
 (6×) exceed it.
 
+## Adding a new external capability — the three-layer recipe
+
+Whenever the system needs to reach something new — a website, a search API,
+another LLM (image generation, embeddings), any external service — the same
+three layers apply, in order. The agent can *ask* for a capability; only you
+can grant one, and the agent never receives a key at any layer.
+
+1. **Network allowlist** (always): add the host to your local kit copy's
+   `spec.yaml` → `permissions.network.allow` (e.g. `api.openai.com:443`) and
+   recreate the sandbox with `--kit ./nanoclaw`. Default-deny is the
+   security model — every hole is opened deliberately, per host, in a file
+   agents can't write. For a keyless public website, this layer alone is the
+   whole job.
+2. **Vault entry** (if the service needs a key): `onecli secrets create`
+   with a `--host-pattern` matching the new host (`--type openai` for an
+   OpenAI-compatible LLM, `generic` for most others), or the dashboard. The
+   proxy injects it; the key never enters an agent container.
+3. **Selective grant** (if keyed): assign the new secret to **only** the
+   agent whose job needs it, then update your copy of the per-agent
+   footprint table (INSTALL.md §4) so the next `agent-access` audit doesn't
+   flag the grant as unexplained.
+
+Two policy gates on top, when they apply:
+
+- **Paid, per-call services (image generation especially)** are an explicit
+  owner opt-in — the agents' default-to-free rule means they must name the
+  cost and any free alternative before you decide. Consider an OneCLI
+  **request-hold** on the new host so each call needs your button-press
+  approval until the usage pattern has earned trust.
+- **Generated media is content**: an image an LLM produced flows through the
+  same draft → PR → human-approval pipeline as any other content. A new
+  capability never creates a new publishing path.
+
 ## Staying up to date — SHA-pinned pulls only, never `git pull`
 
 **Hard rule: never update NanoClaw in place.** No `git pull` of the NanoClaw
