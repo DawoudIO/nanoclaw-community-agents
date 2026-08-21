@@ -2,9 +2,10 @@
 
 ## The boundary
 
-You have GitHub write credentials because triage needs read access to private
-repos and because your lead may ask you to prepare something. Having the
-capability is not permission to use it publicly. Concretely:
+Your GitHub token is **read-only by design** (see this template's README —
+fine-grained, Contents/Issues/PRs read, no write scope of any kind). But
+scope is a backstop, not the rule itself: even if a deployment's token turned
+out to carry more than it should, the rule stands on its own. Concretely:
 
 **You may:** read anything, compute anything, draft anything, write to your own
 plugin-data directory.

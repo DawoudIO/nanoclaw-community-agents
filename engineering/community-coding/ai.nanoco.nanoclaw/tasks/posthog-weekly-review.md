@@ -32,10 +32,14 @@ script: |
   COMBINED=$(jq -nc --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" \
     '$t | to_entries | map(.value + {previous_result: ($p[.key].result // null)})')
 
-  # Wake gate: only spend agent tokens when an insight's result actually
-  # changed since last week. A 7-day heartbeat forces a wake on a fully
-  # static week so the channel doesn't go quiet long enough to look dead.
-  CHANGED=$(jq -n --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" '$t != $p')
+  # Wake gate: only spend agent tokens when an insight's RESULT actually
+  # changed since last week — compare result values only, never last_refresh
+  # (PostHog bumps that on every cache refresh regardless of the numbers,
+  # which would flip this gate to "changed" every single week and defeat it).
+  # A 7-day heartbeat forces a wake on a fully static week so the channel
+  # doesn't go quiet long enough to look dead.
+  CHANGED=$(jq -n --argjson t "$TODAY_MAP" --argjson p "$PREV_MAP" \
+    '($t | with_entries(.value |= .result)) != ($p | with_entries(.value |= .result))')
   LASTWAKE_F="$DATA/posthog-review-last-wake"
   DAYS_SINCE_WAKE=999
   if [ -f "$LASTWAKE_F" ]; then
@@ -49,6 +53,8 @@ script: |
     date -u +%Y-%m-%d > "$LASTWAKE_F"
   fi
   printf '{"wakeAgent": %s, "data": {"status": "ok", "insights": %s, "quiet_heartbeat": %s}}\n' \
+    "$WAKE" "$COMBINED" "$([ "$CHANGED" = "false" ] && echo true || echo false)"
+' \
     "$WAKE" "$COMBINED" "$([ "$CHANGED" = "false" ] && echo true || echo false)"
 ---
 Weekly telemetry review. **The goal is finding issues before users report

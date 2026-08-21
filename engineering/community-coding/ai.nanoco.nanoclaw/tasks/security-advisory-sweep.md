@@ -41,6 +41,15 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"status": "new", "advisories": %s}}\n' "$NEW"
   fi
+' "${FAILED# }" "$NEW"
+    exit 0
+  fi
+  if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
+    echo '{"wakeAgent": false, "data": {"status": "no-new-advisories"}}'
+  else
+    printf '{"wakeAgent": true, "data": {"status": "new", "advisories": %s}}
+' "$NEW"
+  fi
 ---
 **If `status` is `fetch-failed`**: report to your lead — a `403` here almost
 always means the fine-grained token is missing the **Dependabot alerts

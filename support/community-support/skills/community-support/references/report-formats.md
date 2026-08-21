@@ -78,18 +78,24 @@ history (cumulative counts are not retroactively fetchable — the gate stores
 them; treat like the follower series). `null` = fetch failed that day, never
 zero.
 
-**Everything else per-PR/issue, security advisories, and stale-issue
-call-outs are separate reports, not extra lines bolted onto this one:**
-- Individual PR/issue narrative (title, author, days open, duplicates, stale
-  nudges, security-flagged reports listed first) comes from the triage digest
-  (`daily-github-triage`/`github-ops-triage`) — that's where per-item judgment
-  already lives; repeating it here would either duplicate it or go stale
-  between runs.
+**Everything else per-PR/issue and security advisories are separate reports,
+not extra lines bolted onto this one:**
+- Narrative on *recently active* issues and PRs (duplicates, maintainer
+  questions, security-shaped reports listed first) comes from the triage
+  digest (`daily-github-triage`/`github-ops-triage`) — that's where per-item
+  judgment already lives. Note the triage digest only sees items updated
+  since its last run; it cannot see items that went quiet.
 - Currently open security advisories are `security-advisory-sweep`'s job —
   it wakes the agent specifically when one needs judgment, which is a better
   signal than a static count sitting unread in a daily metrics message.
-- The good-first-issue funnel is `good-first-issue-health`'s own weekly
-  report, not a line here.
+- The good-first-issue funnel — including *stale* beginner-friendly issues —
+  is `good-first-issue-health`'s own weekly report, not a line here.
+- There is deliberately **no general stale-issue sweep and no "bug issues
+  opened this week" count**: no task computes them, so no report may claim
+  them. The closest real signals are the awaiting-first-response backlog
+  (this report) and the GFI staleness check (weekly). If the owner wants a
+  broader stale-issue review, that's a task to propose, not a number to
+  improvise.
 
 Keep the dev report to what it's good at: the numbers (and the one
 already-approved-PR list) that only make sense as a trend line.

@@ -2,8 +2,9 @@
 
 Platform behaviors observed on the previous install (v?, pre-sandbox) that
 likely affect every NanoClaw user. Rule: **confirm on the clean sandbox
-install first** (`nanoco/nanoclaw:sbx-claude-alpha`), then file — one issue
-each, include the image tag, reference existing issue #411 where relevant.
+install first** (`docker.io/sbx/nanoclaw-kit:latest` — pin the digest from
+`platform-baseline.json`), then file — one issue each, include the image
+digest, reference existing issue #411 where relevant.
 Update the Status column as tonight's testing progresses.
 
 | # | Candidate issue | Type | Status |

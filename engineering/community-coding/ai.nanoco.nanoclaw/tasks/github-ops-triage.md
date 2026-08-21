@@ -39,6 +39,16 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"since": "%s", "truncated_repos": "%s", "items": %s}}\n' "${SINCE:-first-run}" "${TRUNC# }" "$ITEMS"
   fi
+' "${FAILED# }" "$ITEMS"
+    exit 0
+  fi
+  echo "$NOW" > "$SINCE_F"
+  if [ "$(printf '%s' "$ITEMS" | jq 'length')" -eq 0 ]; then
+    echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
+  else
+    printf '{"wakeAgent": true, "data": {"since": "%s", "truncated_repos": "%s", "items": %s}}
+' "${SINCE:-first-run}" "${TRUNC# }" "$ITEMS"
+  fi
 ---
 **If `status` is `fetch-failed`**: don't triage — report to your lead. A
 `401/403` symptom means your token isn't wired (vault entry or selective-mode

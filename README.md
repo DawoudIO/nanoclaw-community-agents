@@ -195,6 +195,7 @@ sbx exec nanoclaw bash -lc '
 **B — stream your local copy over exec stdin** (no repo needed):
 
 ```bash
+sbx exec nanoclaw mkdir -p /home/agent/nanoclaw/templates
 tar -C /path/to/nanoclaw-templates -cf - support engineering marketing \
   | sbx exec -i nanoclaw tar -C /home/agent/nanoclaw/templates -xf -
 ```
@@ -226,8 +227,15 @@ it walks you through the vault entries and re-verifies. That's expected, not
 broken.)
 
 Then connect Discord: in the sandbox's Claude Code session, run
-`/add-discord` and follow it (bot creation, invite with Manage-Server rights
-on your guild, channel wiring). **The first wiring is your own DM with the
+`/add-discord` and follow it (bot creation, invite, channel wiring). Invite
+the bot with the **least-privilege permission set from §4's table** (Send
+Messages, Embed Links, Attach Files, Read Message History) — *you* need
+Manage Server rights on the guild to do the inviting; the *bot* never gets
+them. And before the first support-channel test: enable the **Message
+Content privileged intent** in the Discord developer portal (Bot → Privileged
+Gateway Intents) — it isn't part of the invite screen, and without it the bot
+joins fine, answers @mentions, and silently never auto-replies in support
+channels. **The first wiring is your own DM with the
 lead — the control plane; nothing works without it.** Set sender scopes at
 wiring time: the owner DM stays locked to known senders, but **every public
 channel wiring gets the open sender scope** (`--sender-scope all`) — otherwise
@@ -520,7 +528,7 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 14
+./bin/ncl tasks list --status paused          # expect all 15 (5 per template)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```

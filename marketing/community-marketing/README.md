@@ -64,7 +64,7 @@ Edit it directly or message the stamped agent to write it:
 
 ```bash
 # groups/<folder>/plugin-data/community-marketing/config.env
-GA4_PROPERTY_ID="253632751"          # weekly analytics report
+GA4_PROPERTY_ID="123456789"          # weekly analytics report — your GA4 numeric property id
 CONTENT_REPO="owner/marketing"       # stale-draft cleanup
 ```
 
@@ -89,7 +89,7 @@ configured timezone.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | `repo` **write** on the content repo only (it opens PRs). Never grant admin, and don't reuse the coding agent's read-only token — scope this one to the content repo. | Settings → Developer settings → Personal access tokens (fine-grained, single repo) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained PAT scoped to the content repo only**: Contents (read/write) + Pull requests (read/write) — it commits drafts to branches and opens PRs, nothing else. Never a classic `repo` scope (that's account-wide), never admin, and don't reuse the coding agent's read-only token. | Settings → Developer settings → Personal access tokens (fine-grained, single repo) |
 | Google Analytics 4 | `analyticsdata.googleapis.com` | OAuth 2.0 Bearer | **Viewer** on the GA4 property. Enable the *Google Analytics Data API* in the Cloud project. `analyticsadmin.googleapis.com` is **not** needed for reporting — don't enable it. | Google Cloud console → APIs & Services; property access in GA4 Admin |
 | Shared inbox (e.g. Gmail) | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** scope (`gmail.readonly`). This agent never sends — do not grant send or modify scopes. | Google Cloud console → OAuth consent + credentials |
 

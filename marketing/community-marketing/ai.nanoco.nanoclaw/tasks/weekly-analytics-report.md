@@ -29,6 +29,7 @@ script: |
   jq -c --argjson m "$WEEK" --arg d "$(date -u +%Y-%m-%d)" \
     '. + [{date: $d, metrics: $m}] | .[-26:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
   printf '{"wakeAgent": true, "data": {"status": "ok", "week": %s, "previous": %s}}\n' "$WEEK" "$PREV"
+' "$WEEK" "$PREV"
 ---
 Write the weekly traffic report from `scriptOutput.week` and
 `scriptOutput.previous` (the prior week — already fetched, don't re-query). If

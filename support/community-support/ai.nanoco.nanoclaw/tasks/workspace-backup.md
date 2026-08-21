@@ -33,6 +33,8 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"status": "push-failed", "unpushed_commits": "%s"}}\n' "$AHEAD"
   fi
+' "$AHEAD"
+  fi
 ---
 Only invoked when the push failed — a clean, up-to-date, or not-yet-configured
 backup never wakes you. The commits are safe locally and this gate retries

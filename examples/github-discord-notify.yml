@@ -31,10 +31,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify bugs channel
+        # Event text goes through env vars, never ${{ }} inside `run:` —
+        # a crafted issue title would otherwise execute as shell in a job
+        # that holds the webhook secret.
+        env:
+          TITLE: ${{ github.event.issue.title }}
+          URL: ${{ github.event.issue.html_url }}
         run: |
           curl -sf -H "Content-Type: application/json" -d "$(jq -n \
-            --arg title "${{ github.event.issue.title }}" \
-            --arg url "${{ github.event.issue.html_url }}" \
+            --arg title "$TITLE" --arg url "$URL" \
             '{content: ("🐛 New bug: **" + $title + "**\n" + $url)}')" \
             "${{ secrets.DISCORD_BUGS_WEBHOOK }}"
   security:
@@ -44,9 +49,12 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Notify security channel only
+        # Same env-var indirection as above — untrusted event text must
+        # never be interpolated into the shell via ${{ }}.
+        env:
+          TITLE: ${{ github.event.issue.title || github.event.repository_advisory.summary }}
+          URL: ${{ github.event.issue.html_url || github.event.repository_advisory.html_url }}
         run: |
-          TITLE="${{ github.event.issue.title || github.event.repository_advisory.summary }}"
-          URL="${{ github.event.issue.html_url || github.event.repository_advisory.html_url }}"
           curl -sf -H "Content-Type: application/json" -d "$(jq -n \
             --arg title "$TITLE" --arg url "$URL" \
             '{content: ("🔒 Security: **" + $title + "**\n" + $url)}')" \

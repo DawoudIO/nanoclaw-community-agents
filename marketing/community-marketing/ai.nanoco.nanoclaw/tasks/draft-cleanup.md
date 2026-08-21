@@ -45,6 +45,11 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"status": "stale", "new": %s, "total_stale_open": %s}}\n' "$NEWSTALE" "$TOTAL"
   fi
+' "$TOTAL"
+  else
+    printf '{"wakeAgent": true, "data": {"status": "stale", "new": %s, "total_stale_open": %s}}
+' "$NEWSTALE" "$TOTAL"
+  fi
 ---
 Only invoked when content PRs have NEWLY crossed the one-week-untouched line
 (`scriptOutput.new`) — PRs already reported stay in the ledger and don't

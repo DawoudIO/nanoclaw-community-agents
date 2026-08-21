@@ -20,7 +20,8 @@ is aimed at catching that mistake *before* it happens, not after.
 
 | Credential | Create it here | Notes |
 |---|---|---|
-| GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** — every token below is cut from this account, not the owner's |
+| **Anthropic API key (the model itself)** | `console.anthropic.com` → API Keys | **Nothing works without this** — it's what the agents think with. Entered in the OneCLI dashboard's **LLMs** tab (not Apps/Custom) during the kit's first-boot wizard. Symptom when missing/expired/out of credit: the lead simply never replies to your DM — no error surfaces anywhere you'd see it |
+| GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
 | Lead GitHub PAT | `github.com/settings/tokens` (classic) | Scope `repo` (public-only: `public_repo`). Not `read:org` |
 | Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Contents+Issues+PRs; + Dependabot alerts if enabling the sweep |
 | Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Content repo only, Contents+PRs read/write |

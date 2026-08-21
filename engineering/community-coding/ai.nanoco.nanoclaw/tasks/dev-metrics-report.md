@@ -125,10 +125,12 @@ script: |
       # today's date, so the return-nudge check below can find them later —
       # so they aren't flagged again. A failed/skipped bootstrap or fetch
       # degrades to null, same as every other metric here. The ledger format
-      # is `username,first-contribution-date`; a bare username with no comma
-      # (from before this date column existed) is still readable — cut just
-      # returns the whole line as the username, and the nudge check below
-      # skips anything with no parseable date rather than guessing one.
+      # is `username,first-contribution-date`. Bootstrap-seeded names get the
+      # literal word "seeded" instead of a date: their real first-contribution
+      # date is unknown (stamping install-day would dump the entire historical
+      # contributor list into the 20-30-day nudge window at once — up to 100
+      # sequential search-API calls, a rate-limit flood and a timeout). Only
+      # contributors first seen AFTER install ever enter the nudge window.
       NEWCONTRIB=null
       if [ -f "$KNOWN" ] && [ -f "$TMP/$i.prs" ]; then
         AUTHORS=$(jq -c 'if .items then ([.items[].user.login] | unique) else null end' < "$TMP/$i.prs" 2>/dev/null || echo null)
@@ -142,8 +144,7 @@ script: |
         fi
       elif [ ! -f "$KNOWN" ] && [ -f "$TMP/$i.contrib" ]; then
         if jq -e 'type=="array"' < "$TMP/$i.contrib" >/dev/null 2>&1; then
-          TODAY_D=$(date -u +%Y-%m-%d)
-          jq -r --arg d "$TODAY_D" '.[].login | "\(.),\($d)"' < "$TMP/$i.contrib" > "$KNOWN" 2>/dev/null || rm -f "$KNOWN"
+          jq -r '.[].login | "\(.),seeded"' < "$TMP/$i.contrib" > "$KNOWN" 2>/dev/null || rm -f "$KNOWN"
           NEWCONTRIB='[]'
         fi
       fi
@@ -163,6 +164,7 @@ script: |
         while IFS=, read -r UNAME UDATE; do
           [ -z "$UNAME" ] && continue
           [ -z "$UDATE" ] && continue
+          [ "$UDATE" = "seeded" ] && continue
           if grep -qxF "$UNAME" "$NUDGE_SEEN" 2>/dev/null; then continue; fi
           UEPOCH=$(date -u -d "$UDATE" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$UDATE" +%s 2>/dev/null || echo "")
           [ -z "$UEPOCH" ] && continue
@@ -195,17 +197,32 @@ script: |
   ALL_NUDGES=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, nudges: .return_nudges}] | map(select(.nudges | length > 0))')
   ALL_READY=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, ready_to_merge}] | map(select(.ready_to_merge != null and (.ready_to_merge.count > 0)))')
   rm -rf "$TMP"
-  PREV=$(jq -c '.[-1].metrics // {}' "$HIST")
   jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
     '. + [{date: $d, metrics: $m}] | .[-30:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+
+  # "previous" is the last snapshot the agent actually REPORTED, not just
+  # yesterday's — so when the wake gate below suppresses a few quiet days,
+  # the deltas in the next report span the whole gap instead of losing the
+  # suppressed days' movement forever. Updated only on a wake.
+  LASTREP_F="$DATA/last-reported-metrics.json"
+  PREV=$(cat "$LASTREP_F" 2>/dev/null || echo '{}')
+  printf '%s' "$PREV" | jq -e . >/dev/null 2>&1 || PREV='{}'
+
+  # A fetch outage must never read as a quiet day: if any repo's core count
+  # (open_issues) came back null this run, the token/policy problem gets
+  # surfaced immediately — this is the one condition that must not wait for
+  # the heartbeat, because "all quiet" and "all broken" would otherwise look
+  # identical for up to a week.
+  DEGRADED=$(jq -n --argjson t "$TODAY" '[$t | to_entries[] | select(.value.open_issues == null) | .key]' -c)
+  HAS_DEGRADED=$(printf '%s' "$DEGRADED" | jq 'length > 0')
 
   # Wake gate: history is written every day regardless (continuous trend
   # data), but the AGENT only needs to spend tokens writing a report when
   # there's something actionable — a new contributor, a return-nudge window,
-  # an approved PR sitting idle, or an issue/PR count that actually moved.
-  # Cosmetic stars/forks drift alone doesn't justify a daily wake. A 7-day
-  # heartbeat forces a wake even on a fully quiet stretch, so the channel
-  # never goes silent long enough to look like the task died.
+  # an approved PR sitting idle, a degraded fetch, or an issue/PR count that
+  # actually moved. Cosmetic stars/forks drift alone doesn't justify a daily
+  # wake. A 7-day heartbeat forces a wake even on a fully quiet stretch, so
+  # the channel never goes silent long enough to look like the task died.
   NOTABLE=$(jq -n --argjson t "$TODAY" --argjson p "$PREV" '
     ($t | to_entries | any(.value.new_contributors_7d != null and (.value.new_contributors_7d | length) > 0)) or
     ($t | to_entries | any(
@@ -222,34 +239,159 @@ script: |
     DAYS_SINCE_WAKE=$(( (NOW_EPOCH - LW_EPOCH) / 86400 ))
   fi
   WAKE=false
-  if [ "$NOTABLE" = "true" ] || [ "$HAS_NUDGES" = "true" ] || [ "$HAS_READY" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
+  if [ "$NOTABLE" = "true" ] || [ "$HAS_NUDGES" = "true" ] || [ "$HAS_READY" = "true" ] || [ "$HAS_DEGRADED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
     WAKE=true
     date -u +%Y-%m-%d > "$LASTWAKE_F"
+    printf '%s' "$TODAY" > "$LASTREP_F"
   fi
-  printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "return_nudges": %s, "ready_to_merge": %s, "quiet_heartbeat": %s}}\n' \
-    "$WAKE" "$TODAY" "$PREV" "$ALL_NUDGES" "$ALL_READY" "$([ "$NOTABLE" = "false" ] && [ "$HAS_NUDGES" = "false" ] && [ "$HAS_READY" = "false" ] && echo true || echo false)"
+  printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "return_nudges": %s, "ready_to_merge": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}\n' \
+    "$WAKE" "$TODAY" "$PREV" "$ALL_NUDGES" "$ALL_READY" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_NUDGES" = "false" ] && [ "$HAS_READY" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"
+") | map(select(length > 0))' || echo '[]')
+          NEWCONTRIB=$(jq -c -n --argjson a "$AUTHORS" --argjson k "$KNOWN_JSON" '$a - $k')
+          TODAY_D=$(date -u +%Y-%m-%d)
+          printf '%s
+' "$NEWCONTRIB" | jq -r --arg d "$TODAY_D" '.[] | "\(.),\($d)"' >> "$KNOWN" 2>/dev/null || true
+        else
+          NEWCONTRIB='[]'
+        fi
+      elif [ ! -f "$KNOWN" ] && [ -f "$TMP/$i.contrib" ]; then
+        if jq -e 'type=="array"' < "$TMP/$i.contrib" >/dev/null 2>&1; then
+          jq -r '.[].login | "\(.),seeded"' < "$TMP/$i.contrib" > "$KNOWN" 2>/dev/null || rm -f "$KNOWN"
+          NEWCONTRIB='[]'
+        fi
+      fi
+
+      # Return-nudge: research shows the steepest contributor drop-off is in
+      # the first 30 days, and re-engagement is rare after 90 — so a
+      # contributor whose first-ever contribution landed 20-30 days ago,
+      # with no second one yet, is in the single highest-leverage window for
+      # a maintainer to personally follow up. Checked once per contributor
+      # (nudge-sent ledger, so it fires exactly once, not daily), and only
+      # for names that just entered the window — a handful of extra calls on
+      # a normal day, not a scan of the whole contributor history.
+      NUDGES="[]"
+      NUDGE_SEEN="$DATA/nudge-sent-$SAFEREPO.txt"
+      touch "$NUDGE_SEEN"
+      if [ -f "$KNOWN" ]; then
+        while IFS=, read -r UNAME UDATE; do
+          [ -z "$UNAME" ] && continue
+          [ -z "$UDATE" ] && continue
+          [ "$UDATE" = "seeded" ] && continue
+          if grep -qxF "$UNAME" "$NUDGE_SEEN" 2>/dev/null; then continue; fi
+          UEPOCH=$(date -u -d "$UDATE" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$UDATE" +%s 2>/dev/null || echo "")
+          [ -z "$UEPOCH" ] && continue
+          AGE_D=$(( (NOW_EPOCH - UEPOCH) / 86400 ))
+          if [ "$AGE_D" -ge 20 ] && [ "$AGE_D" -le 30 ]; then
+            CNT=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
+              "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:merged+author:$UNAME&per_page=1" 2>/dev/null \
+              | jq '.total_count // "parse-error"' 2>/dev/null || echo parse-error)
+            case "$CNT" in ''|*parse-error*) continue;; esac
+            echo "$UNAME" >> "$NUDGE_SEEN"
+            if [ "$CNT" -le 1 ]; then
+              NUDGES=$(jq -c -n --argjson a "$NUDGES" --arg u "$UNAME" --arg d "$UDATE" --argjson ad "$AGE_D" \
+                '$a + [{username: $u, first_contribution: $d, days_ago: $ad}]')
+            fi
+          fi
+        done < "$KNOWN"
+      fi
+
+      printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}, "closed_prs_30d": {"merged": %s, "unmerged": %s, "unmerged_ratio": %s}, "return_nudges": %s, "ready_to_merge": %s}
+' \
+        "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" "$MERGED30" "$UNMERGED30" "$UNMERGED_RATIO" "$NUDGES" "$READYTOMERGE" > "$TMP/$i.json"
+    ) &
+    i=$((i+1))
+  done
+  wait
+  # ready_to_merge and return_nudges are live-right-now lists, not trend
+  # fields — they're reported fresh every run and never persisted into the
+  # 30-day metrics history (a stale PR link in history would be actively
+  # misleading once it's merged or closed).
+  TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {stars, forks, open_issues, open_prs, releases, new_contributors_7d, awaiting_first_response, closed_prs_30d}}) | add // {}')
+  ALL_NUDGES=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, nudges: .return_nudges}] | map(select(.nudges | length > 0))')
+  ALL_READY=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, ready_to_merge}] | map(select(.ready_to_merge != null and (.ready_to_merge.count > 0)))')
+  rm -rf "$TMP"
+  jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
+    '. + [{date: $d, metrics: $m}] | .[-30:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+
+  # "previous" is the last snapshot the agent actually REPORTED, not just
+  # yesterday's — so when the wake gate below suppresses a few quiet days,
+  # the deltas in the next report span the whole gap instead of losing the
+  # suppressed days' movement forever. Updated only on a wake.
+  LASTREP_F="$DATA/last-reported-metrics.json"
+  PREV=$(cat "$LASTREP_F" 2>/dev/null || echo '{}')
+  printf '%s' "$PREV" | jq -e . >/dev/null 2>&1 || PREV='{}'
+
+  # A fetch outage must never read as a quiet day: if any repo's core count
+  # (open_issues) came back null this run, the token/policy problem gets
+  # surfaced immediately — this is the one condition that must not wait for
+  # the heartbeat, because "all quiet" and "all broken" would otherwise look
+  # identical for up to a week.
+  DEGRADED=$(jq -n --argjson t "$TODAY" '[$t | to_entries[] | select(.value.open_issues == null) | .key]' -c)
+  HAS_DEGRADED=$(printf '%s' "$DEGRADED" | jq 'length > 0')
+
+  # Wake gate: history is written every day regardless (continuous trend
+  # data), but the AGENT only needs to spend tokens writing a report when
+  # there's something actionable — a new contributor, a return-nudge window,
+  # an approved PR sitting idle, a degraded fetch, or an issue/PR count that
+  # actually moved. Cosmetic stars/forks drift alone doesn't justify a daily
+  # wake. A 7-day heartbeat forces a wake even on a fully quiet stretch, so
+  # the channel never goes silent long enough to look like the task died.
+  NOTABLE=$(jq -n --argjson t "$TODAY" --argjson p "$PREV" '
+    ($t | to_entries | any(.value.new_contributors_7d != null and (.value.new_contributors_7d | length) > 0)) or
+    ($t | to_entries | any(
+      ($p[.key].open_issues // null) as $prevoi |
+      ($p[.key].open_prs // null) as $prevop |
+      (.value.open_issues != $prevoi) or (.value.open_prs != $prevop)
+    ))')
+  HAS_NUDGES=$(printf '%s' "$ALL_NUDGES" | jq 'length > 0')
+  HAS_READY=$(printf '%s' "$ALL_READY" | jq 'length > 0')
+  LASTWAKE_F="$DATA/dev-metrics-last-wake"
+  DAYS_SINCE_WAKE=999
+  if [ -f "$LASTWAKE_F" ]; then
+    LW_EPOCH=$(date -u -d "$(cat "$LASTWAKE_F")" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$(cat "$LASTWAKE_F")" +%s 2>/dev/null || echo 0)
+    DAYS_SINCE_WAKE=$(( (NOW_EPOCH - LW_EPOCH) / 86400 ))
+  fi
+  WAKE=false
+  if [ "$NOTABLE" = "true" ] || [ "$HAS_NUDGES" = "true" ] || [ "$HAS_READY" = "true" ] || [ "$HAS_DEGRADED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
+    WAKE=true
+    date -u +%Y-%m-%d > "$LASTWAKE_F"
+    printf '%s' "$TODAY" > "$LASTREP_F"
+  fi
+  printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "return_nudges": %s, "ready_to_merge": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}
+' \
+    "$WAKE" "$TODAY" "$PREV" "$ALL_NUDGES" "$ALL_READY" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_NUDGES" = "false" ] && [ "$HAS_READY" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"
 ---
 Write the daily dev metrics section for your lead agent's dev-facing report,
 using `scriptOutput.today` and `scriptOutput.previous` (the prior run's
 numbers, already fetched — don't re-query).
 
-**You're only woken when something moved or a week's gone by with no wake at
-all.** History still gets recorded every day whether or not you're woken —
-don't second-guess the gate or wonder if a day's data is missing; it isn't.
+**You're only woken when something moved, a fetch degraded, or a week's gone
+by with no wake at all.** History still gets recorded every day whether or
+not you're woken, and `previous` is the snapshot from your *last actual
+report* (not just yesterday), so your deltas span any suppressed quiet days —
+don't second-guess the gate or wonder if data is missing; it isn't.
 If `quiet_heartbeat` is `true`, nothing changed at all and you're only being
 woken so the channel doesn't go silent long enough to look broken — say one
 line ("no notable movement since <date>, still `<key numbers>`") instead of
 writing the full skeleton below.
 
-**`ready_to_merge` leads the report, not the trend numbers.** Each entry is a
-PR that's already been reviewed and approved and is just sitting open — a
-contributor did the work, a maintainer already said yes, and nothing happened
-next. That's a worse signal than a slow first response: the person cleared
-every bar you set and is still waiting. List each one by number/title/author
-with its link, oldest first, and say plainly if any have been sitting more
-than a few days. An empty list is good news — say so in one line, don't skip
-the section silently (a lead assembling the full report needs to know this
-was checked, not just that it's absent).
+**If `degraded_repos` is non-empty, that comes first, before any numbers**:
+those repos' core fetch failed this run (token wiring or network policy, most
+likely) — tell your lead which repos and that today's numbers for them are
+unknown, not zero. An outage must never be dressed up as a quiet day.
+
+**`ready_to_merge` leads the report, not the trend numbers.** Its shape:
+a list of `{repo, ready_to_merge: {count, prs: [...]}}` entries — the actual
+PRs are at `prs`, each with number/title/author/url/created_at, and `count`
+can exceed the list length (the fetch caps at 10 per repo; when `count` is
+larger, say "N approved PRs waiting, oldest 10 listed"). Each PR here has
+already been reviewed and approved and is just sitting open — a contributor
+did the work, a maintainer already said yes, and nothing happened next.
+That's a worse signal than a slow first response: the person cleared every
+bar you set and is still waiting. List them oldest first with links, and say
+plainly if any have been sitting more than a few days. An empty list is good
+news — say so in one line, don't skip the section silently (a lead assembling
+the full report needs to know this was checked, not just that it's absent).
 
 Per-release **download deltas** matter: cumulative counts come from
 `scriptOutput.today`, yesterday's from `previous` — report both (+N daily /
@@ -297,9 +439,14 @@ unverified.
 **`return_nudges`** flags contributors whose first-ever contribution landed
 20-30 days ago with no second one yet — the highest-leverage window for a
 maintainer to personally reach out (research: this is where most one-time
-contributors are lost, and re-engagement is rare after 90 days). Each name
-here appears exactly once, ever — surface it plainly to your lead as a
-suggested personal outreach, not a metric to trend.
+contributors are lost, and re-engagement is rare after 90 days). Its shape:
+`[{repo, nudges: [{username, first_contribution, days_ago}]}]` — the people
+are inside each entry's `nudges` list. Each name appears exactly once, ever —
+surface it plainly to your lead as a suggested personal outreach, not a
+metric to trend. Only contributors whose first contribution happened *after*
+this system was installed can appear here (the bootstrap ledger has no real
+dates for pre-existing contributors), so expect it empty for the first few
+weeks — that's by design, not a bug.
 
 This task's numbers are exactly what belongs in the report-formats.md dev
 skeleton — nothing more. Security-advisory detail comes from

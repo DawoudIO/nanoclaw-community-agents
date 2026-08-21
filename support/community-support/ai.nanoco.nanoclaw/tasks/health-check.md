@@ -57,17 +57,51 @@ script: |
     fi
   fi
 
+  # Alive heartbeat: a system that only speaks on problems is indistinguishable
+  # from a dead one — if the sandbox process dies, every gate stops firing and
+  # the silence looks exactly like a healthy quiet week. Once every 7 days,
+  # wake even when everything is fine, so the owner sees a proof-of-life line;
+  # its ABSENCE past ~8 days is the outage signal ("if I haven't said 'all
+  # healthy' in over a week, the system itself is down — restart the sandbox").
+  HB_F="$DATA/health-heartbeat-last"
+  HB_DUE=false
+  NOW_S=$(date +%s)
+  HB_LAST=$(cat "$HB_F" 2>/dev/null || echo 0)
+  case "$HB_LAST" in ''|*[!0-9]*) HB_LAST=0;; esac
+  if [ $(( NOW_S - HB_LAST )) -ge 604800 ]; then HB_DUE=true; fi
+
   if [ -z "$ISSUES" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "ok"}}'
+    if [ "$HB_DUE" = "true" ]; then
+      echo "$NOW_S" > "$HB_F"
+      echo '{"wakeAgent": true, "data": {"status": "heartbeat", "note": "weekly proof-of-life - all checks passed"}}'
+    else
+      echo '{"wakeAgent": false, "data": {"status": "ok"}}'
+    fi
   else
+    # Any real wake also counts as proof-of-life.
+    echo "$NOW_S" > "$HB_F"
     # JSON built without jq, so a degraded image can still report itself.
     JLIST=$(printf '%s' "$ISSUES" | tr '|' '\n' | sed 's/["\\]//g; s/.*/"&"/' | paste -sd, -)
     printf '{"wakeAgent": true, "data": {"status": "attention", "issues": [%s]}}\n' "$JLIST"
   fi
+' | sed 's/["\]//g; s/.*/"&"/' | paste -sd, -)
+    printf '{"wakeAgent": true, "data": {"status": "attention", "issues": [%s]}}
+' "$JLIST"
+  fi
 ---
-Only invoked when the health-check script found something. Summarize
-`scriptOutput.issues` for the owner in one short message — what's stale,
-newly paused, or missing from the environment, and since when. A missing
-`jq`/`ncl` warning is an image/platform defect worth an upstream issue, not
-something you can fix. Don't speculate about cause; report the fact and ask if
-it's expected. Never pause or resume a task on your own from this task.
+Only invoked when the health-check script found something — or for the weekly
+proof-of-life heartbeat.
+
+**If `status` is `heartbeat`**: all checks passed; send the owner exactly one
+line — "Weekly health heartbeat: all checks passed as of <date/time>." This
+line's *absence* is the outage signal: the owner knows that if more than ~8
+days pass without it, the sandbox process itself has died (nothing inside a
+dead system can report its own death) and needs restarting on the host.
+Don't pad it into a report.
+
+**If `status` is `attention`**: summarize `scriptOutput.issues` for the owner
+in one short message — what's stale, newly paused, or missing from the
+environment, and since when. A missing `jq`/`ncl` warning is an
+image/platform defect worth an upstream issue, not something you can fix.
+Don't speculate about cause; report the fact and ask if it's expected. Never
+pause or resume a task on your own from this task.

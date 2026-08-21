@@ -35,6 +35,18 @@ script: |
   fi
   printf '%s' "$SNAP" > "$SNAP_F.new"
   printf '{"wakeAgent": true, "data": {"status": "drift", "new_hash": "%s", "current": "plugin-data/community-support/task-prompt-snapshot.json.new", "last_acked": "plugin-data/community-support/task-prompt-snapshot.json"}}\n' "$HASH"
+' "$HASH" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$BASE_F"
+    printf '%s' "$SNAP" > "$SNAP_F"
+    echo '{"wakeAgent": false, "data": {"status": "baseline-initialized"}}'
+    exit 0
+  fi
+  if [ "$HASH" = "$OLD" ]; then
+    echo '{"wakeAgent": false, "data": {"status": "no-drift"}}'
+    exit 0
+  fi
+  printf '%s' "$SNAP" > "$SNAP_F.new"
+  printf '{"wakeAgent": true, "data": {"status": "drift", "new_hash": "%s", "current": "plugin-data/community-support/task-prompt-snapshot.json.new", "last_acked": "plugin-data/community-support/task-prompt-snapshot.json"}}
+' "$HASH"
 ---
 Only invoked on drift, or when the gate couldn't verify mechanically.
 

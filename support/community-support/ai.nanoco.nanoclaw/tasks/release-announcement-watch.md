@@ -8,6 +8,11 @@ script: |
   # releases reach here. Bootstrap seeds the baseline without announcing
   # (a fresh install shouldn't retroactively announce whatever's already
   # shipped); only a genuinely new release after that wakes the agent.
+  # The script does NOT advance the baseline on a new release — the AGENT
+  # writes the tag to the baseline file after actually posting, so a lost
+  # wake or failed post re-surfaces the release next run instead of it
+  # vanishing unannounced. Duplicates beat losses (same design as the
+  # security-advisory sweep's ack-after-handoff).
   DATA="/workspace/agent/plugin-data/community-support"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
@@ -44,9 +49,8 @@ script: |
         printf '{"repo": "%s", "status": "no-new-release"}\n' "$REPO" > "$TMP/$i.json"
         exit 0
       fi
-      printf '%s' "$TAG" > "$BASE_F"
       RELEASE=$(printf '%s' "$RESP" | jq -c '{tag: .tag_name, name: (.name // .tag_name), url: .html_url, published_at: .published_at, author: (.author.login // "unknown"), body: (.body // "")}' 2>/dev/null || echo null)
-      printf '{"repo": "%s", "status": "new-release", "release": %s}\n' "$REPO" "$RELEASE" > "$TMP/$i.json"
+      printf '{"repo": "%s", "status": "new-release", "baseline_file": "plugin-data/community-support/last-announced-release-%s.txt", "release": %s}\n' "$REPO" "$SAFEREPO" "$RELEASE" > "$TMP/$i.json"
     ) &
     i=$((i+1))
   done
@@ -61,6 +65,48 @@ script: |
     echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
   else
     printf '{"wakeAgent": true, "data": {"status": "new-release", "releases": %s, "failed_repos": %s}}\n' "$NEW" "$FAILED"
+  fi
+' "$REPO" > "$TMP/$i.json"
+        exit 0
+      fi
+      TAG=$(printf '%s' "$RESP" | jq -r '.tag_name // empty' 2>/dev/null)
+      if [ -z "$TAG" ]; then
+        # 404 (no releases yet) is not a failure - just nothing to announce.
+        printf '{"repo": "%s", "status": "no-releases"}
+' "$REPO" > "$TMP/$i.json"
+        exit 0
+      fi
+      OLD=$(cat "$BASE_F" 2>/dev/null || echo "")
+      if [ -z "$OLD" ]; then
+        printf '%s' "$TAG" > "$BASE_F"
+        printf '{"repo": "%s", "status": "baseline-initialized", "tag": "%s"}
+' "$REPO" "$TAG" > "$TMP/$i.json"
+        exit 0
+      fi
+      if [ "$TAG" = "$OLD" ]; then
+        printf '{"repo": "%s", "status": "no-new-release"}
+' "$REPO" > "$TMP/$i.json"
+        exit 0
+      fi
+      RELEASE=$(printf '%s' "$RESP" | jq -c '{tag: .tag_name, name: (.name // .tag_name), url: .html_url, published_at: .published_at, author: (.author.login // "unknown"), body: (.body // "")}' 2>/dev/null || echo null)
+      printf '{"repo": "%s", "status": "new-release", "baseline_file": "plugin-data/community-support/last-announced-release-%s.txt", "release": %s}
+' "$REPO" "$SAFEREPO" "$RELEASE" > "$TMP/$i.json"
+    ) &
+    i=$((i+1))
+  done
+  wait
+  ALL=$(cat "$TMP"/*.json | jq -c -s '.')
+  rm -rf "$TMP"
+  FAILED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="fetch-failed") | .repo]')
+  NEW=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="new-release")]')
+  if [ "$(printf '%s' "$FAILED" | jq 'length')" -gt 0 ] && [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
+    printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": %s}}
+' "$FAILED"
+  elif [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
+    echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
+  else
+    printf '{"wakeAgent": true, "data": {"status": "new-release", "releases": %s, "failed_repos": %s}}
+' "$NEW" "$FAILED"
   fi
 ---
 Only invoked when a genuinely new stable release was published (or a fetch
@@ -81,6 +127,15 @@ This is already-public information (the release is live on GitHub before you
 ever see it) — **post directly, no approval needed**, same as any other
 already-shipped, publicly-disclosed content. No owner DM required either; the
 owner already knows they shipped it.
+
+**Then ack**: after the announcement is actually posted, write the release's
+tag (just the tag string, nothing else) to the file named in that entry's
+`baseline_file`. The script deliberately does not advance this baseline
+itself — your write after posting is the acknowledgment, so a lost wake or a
+failed post re-surfaces the same release next run instead of it vanishing
+unannounced. If you see the same release twice, check the channel before
+posting again — a duplicate check is cheap, a silently skipped announcement
+isn't. Duplicates beat losses.
 
 Never announce a prerelease or draft — the script only ever sees stable
 releases, so if something looks unfinished, don't post it; flag it to your

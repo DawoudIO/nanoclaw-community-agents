@@ -36,6 +36,13 @@ jobs:
             echo "No upstream change."; exit 0
           fi
           OLD=$(cat platform-baseline.json 2>/dev/null || echo '{}')
+          # Dedupe: if a previous run already filed an update issue that's
+          # still open (e.g. the baseline push below failed on a protected
+          # branch), don't file another one every week forever.
+          EXISTING=$(gh issue list --state open --search "Upstream update detected in:title" --json number --jq 'length')
+          if [ "${EXISTING:-0}" -gt 0 ]; then
+            echo "An upstream-update issue is already open; not filing a duplicate."; exit 0
+          fi
           gh issue create \
             --title "Upstream update detected: plan a sandbox refresh ($(date -u +%F))" \
             --body "$(printf 'platform-watch found upstream changes.\n\n**Previous:**\n```json\n%s\n```\n**Current:**\n```json\n%s\n```\n\nChecklist (see README → Staying up to date):\n- [ ] Read the NanoClaw release notes: https://github.com/nanocoai/nanoclaw/releases\n- [ ] Confirm last workspace-backup ran (follower series + project-config safe)\n- [ ] Refresh: `sbx rm` → `docker pull docker.io/sbx/nanoclaw-kit:latest` → `sbx run` → restamp latest templates\n- [ ] Re-enter the 3 GitHub PATs in the fresh vault; re-run /add-discord (same bot, token from the Discord dev portal)\n- [ ] Restore the follower-series ledger from the backup repo\n- [ ] Smoke tests per README §7\n- [ ] Re-test anything in UPSTREAM-ISSUES.md marked "confirm on clean" against the new build\n' "$OLD" "$(cat current.json)")"
