@@ -39,6 +39,104 @@ containers — and every agent's persona instructs it to refuse and report if
 anyone asks it to receive or reveal a key. An agent asking you for a key is
 misbehaving; the answer is the vault dashboard URL, never the key.
 
+## 1b · GitHub scopes — derived from the endpoints, not guessed
+
+**Review this against the code, not against my word for it.** Every row below
+maps to a call that exists in `scripts/tasks/` or an action a persona is
+explicitly permitted to take. Regenerate the endpoint list any time with:
+
+```bash
+grep -rhoE 'https://api\.github\.com/[^"]*' scripts/tasks/*/*.sh */*/setup-check.sh | sort -u
+```
+
+**Use fine-grained PATs for all three agents.** A classic `repo` scope is
+account-wide (every repo the bot can see, read *and* write); a fine-grained
+token is an allowlist of named repos with per-category permissions. Nothing
+here needs classic. Note that a fine-grained token's repo list gates
+**everything** the token does — including reads of otherwise-public data — so
+a repo left off the list fails silently rather than falling back to public
+access. That's the single most common misconfiguration in this system.
+
+**Every script call is a read.** Writes happen exclusively in the agents'
+live actions, which is why only two of the three tokens need write at all.
+
+There is exactly one `POST` in the whole system and it is **not** a write:
+GA4's `analyticsdata.googleapis.com/v1beta/properties/{id}:runReport`. That
+API takes its query (date range, which metrics) as a JSON body, so Google
+made the query verb a POST — it returns rows and mutates nothing. The
+required GA4 role is **Viewer**, which is itself the proof: a read-only role
+can run it. The API that *can* change a property is
+`analyticsadmin.googleapis.com`, which this system never calls — **do not
+enable it in the Cloud project.** If you set up an OneCLI request-hold
+anywhere, match on host+path rather than HTTP method, or this harmless report
+gets gated.
+
+### Lead — `support/community-support`
+
+| Permission | Level | Justified by |
+|---|---|---|
+| Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
+| Issues | **Read + Write** | reads `GET /repos/{repo}/issues` (`daily-github-triage`); writes = filing bug reports from Discord, commenting, labelling (`github-bug-workflow.md`) |
+| Pull requests | Read + Write | commenting on PRs; the issues endpoint also returns PRs |
+| Contents | Read | `GET /repos/{repo}/releases/latest` (`release-announcement-watch`) |
+| Contents (**backup repo only**) | Write | `workspace-backup` pushes over `github.com` git — a *separate vault entry* from `api.github.com`, and ideally a separate token scoped to just that repo |
+
+Repo list: everything in `COMMUNITY_REPOS`, plus the backup repo if enabled.
+**Never** `admin:*`, `delete_repo`, `read:org`, or workflow scopes — nothing
+reads org membership (listing an org's repos during onboarding needs no such
+scope) and nothing touches Actions.
+
+### Coding — `engineering/community-coding`
+
+**Read-only. No write permission of any kind, in any category.** This agent
+is designed never to post, so its token should be incapable of it — that way
+a prompt injection that slips past the persona still cannot act.
+
+| Permission | Level | Justified by |
+|---|---|---|
+| Metadata | Read | `GET /repos/{repo}`, `/community/profile` (`repo-hygiene-audit`), `/contributors` (`dev-metrics-report`) |
+| Issues | Read | `GET /repos/{repo}/issues` (`github-ops-triage`), `GET /search/issues` (metrics, GFI health, ready-to-merge) |
+| Pull requests | Read | the same search + issues endpoints return PRs |
+| Contents | Read | `GET /repos/{repo}/releases` (download counts), and `git clone/fetch` over `github.com` for `repo-mirror-sync` |
+| Dependabot alerts | Read | `GET /repos/{repo}/dependabot/alerts` (`security-advisory-sweep`) — **omit this and the sweep 403s**; it's the one permission people forget |
+
+Repo list: the union of `COMMUNITY_REPOS` and `MIRROR_REPOS` (the mirror set
+is usually the larger one — it covers docs/site/wiki even when those aren't
+triaged). Public repos need no credential at all for the git clone.
+
+### Marketing — `marketing/community-marketing`
+
+| Permission | Level | Justified by |
+|---|---|---|
+| Metadata | Read | setup-check reachability probes |
+| Contents | **Read + Write** on `CONTENT_REPO` | commits drafts to a branch (`content-workflow.md` step 2) |
+| Pull requests | **Read + Write** on `CONTENT_REPO` | opens the draft PR (step 3); `GET /repos/{repo}/pulls` for `draft-cleanup` |
+| Contents | Read on `BRAND_SOURCE_REPO` | reads brand voice / pillars / calendar, if a different repo |
+| Contents | Read on `RELEASE_WATCH_REPO` | `GET /releases/latest` for the content trigger, if a different repo |
+
+Repo list: `CONTENT_REPO` (write) plus `BRAND_SOURCE_REPO` and
+`RELEASE_WATCH_REPO` (read) **when those differ** — the most common silent
+failure in this system is leaving one of the latter two off the list. No
+social-platform credential is wired to this agent in any configuration.
+
+### Why PATs and not a GitHub App
+
+A GitHub App would give better rate limits, installation-scoped access, and
+no dependency on a user account — genuinely better at org scale. It also
+needs JWT signing, installation-token exchange, and a webhook endpoint, none
+of which the OneCLI vault-plus-proxy model handles today (it injects a static
+header per host). For a single project with a dedicated bot account,
+fine-grained PATs on that account are the right tradeoff. Revisit if you
+outgrow the 5,000 req/hr primary limit — none of these tasks come close.
+
+### Verify, don't assume
+
+After creating each token, confirm what it actually resolves to *and* that it
+can reach what it needs (§4 below, and each agent's `setup-check.sh`). The
+identity check matters most: a token that works under the owner's own account
+is worse than one that fails, because every action it takes looks like the
+owner did it by hand.
+
 ## 2 · Register — dashboard UI or CLI, your choice
 
 The dashboard (docs/INSTALL.md §4) is the visual path. The CLI is scriptable and

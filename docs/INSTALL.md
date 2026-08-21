@@ -621,17 +621,54 @@ Nothing below blocks you from starting — the interview infers what it can and
 table exists so nothing catches you off guard mid-conversation; skim it once,
 then just talk to the agent.
 
-**Prefer filling in a file over answering live?** Copy
-[`onboarding-answers.example.json`](../onboarding-answers.example.json) to
-`onboarding-answers.json`, fill what you know, and tell the lead where it is —
-it reads that instead of interviewing you, asks only about what's still
-missing, and persists the rest. That's also the repeatable path: keep the
-filled file and you can tear the whole system down and rebuild it identically.
-Validate a filled copy any time with
-`bash scripts/check-onboarding.sh onboarding-answers.json` — it checks the
-JSON, refuses anything credential-shaped, and verifies every key the scripts
-read is actually present. **Never put a secret in it**; secrets live only in
-the OneCLI vault.
+### Prefer filling in a file over answering live? (the repeatable path)
+
+Copy [`onboarding-answers.example.json`](../onboarding-answers.example.json),
+fill in what you know, and the lead reads it instead of interviewing you —
+asking only about what's still `null`. Keep the filled file and you can tear
+the whole system down and rebuild it identically, which is what makes
+onboarding testable rather than a one-shot conversation.
+
+**1. Fill it in, on your own machine:**
+
+```bash
+cp onboarding-answers.example.json onboarding-answers.json
+$EDITOR onboarding-answers.json
+bash scripts/check-onboarding.sh onboarding-answers.json
+```
+
+That last command is worth running before you hand it over: it validates the
+JSON, verifies every key the scripts read is present, and **refuses anything
+credential-shaped**. Never put a secret in this file — no tokens, no webhook
+URLs. It's config, and it's safe to keep in a private repo.
+
+**2. Put it where the agent can actually read it.** This is the step people
+miss: the lead runs in a container and can only see its own workspace. The
+group folder on your host **is** that workspace:
+
+| On your host | What the agent sees |
+|---|---|
+| `groups/<lead-folder>/onboarding-answers.json` | `/workspace/agent/onboarding-answers.json` |
+
+```bash
+# after stamping (step 3), from the nanoclaw install directory:
+cp /path/to/onboarding-answers.json groups/<lead-folder>/
+```
+
+If you'd rather not touch the host filesystem, paste the JSON straight into
+the owner DM instead — it's a config file, so there's nothing sensitive in it
+by construction. The file is just more convenient for anything you'll rebuild.
+
+**3. Point the lead at it.** DM: *"my answers are in
+`/workspace/agent/onboarding-answers.json`"*. It reads the file, echoes back
+a summary of what it got, asks about anything still missing, and persists —
+same destination as the interview, so everything downstream is identical.
+**Check that echo-back**: it's how you confirm the file was actually read
+rather than silently missed.
+
+**Rebuilding later**: the answers file plus your `plugin-data/` backup is the
+complete recovery set. Stamp fresh, drop both in, and you're where you were —
+no interview, no reconstruction from memory.
 
 ### Answer these two before you stamp anything
 

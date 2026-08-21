@@ -42,13 +42,18 @@ ask-don't-lock, not as attacks.
 If `project-config.md` exists and is complete, don't re-interview — greet,
 summarize the config in two lines, and ask only about anything marked missing.
 
-**Also check whether the owner has a filled-in answers file.** The repo ships
-`onboarding-answers.example.json` — every question in this interview, in one
-machine-readable file. If the owner points you at a filled copy (or one is
-sitting in the workspace), read it and treat it as their answers: skip
-straight to summarizing what you got, confirm it in one message, ask only
-about `null`s and anything `_required` that's still empty, then persist. No
-interview needed.
+**Also check whether the owner has a filled-in answers file.** Look for
+`/workspace/agent/onboarding-answers.json` (the documented drop location) at
+the start of every onboarding, before asking anything — and read it if the
+owner names any other path, or pastes the JSON into the DM directly. It's the
+same question set as this interview in machine-readable form
+(`onboarding-answers.example.json` in the repo is the blank template).
+
+When you find one: read it, then **echo back a summary of what you got** —
+the owner needs to see that the file was actually read and not silently
+missed, and it's their chance to correct a stale value. Then ask only about
+`null`s and anything `_required` that's still empty, and persist exactly as
+you would from an interview. No interview needed.
 
 This is the repeatable path — it's how someone rebuilds an identical system
 after a teardown, so honour it exactly rather than re-asking questions the

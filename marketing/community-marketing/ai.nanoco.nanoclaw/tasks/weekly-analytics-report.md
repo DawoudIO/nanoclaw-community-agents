@@ -5,6 +5,21 @@ script: |
   set -euo pipefail
   # Deps: bash, curl, jq. The GA4 OAuth bearer is injected by the OneCLI proxy
   # for analyticsdata.googleapis.com — no credential belongs in this file.
+  #
+  # WHY THIS IS A POST, AND WHY IT IS STILL READ-ONLY.
+  # This is the only POST anywhere in the task scripts, so it deserves an
+  # explanation rather than a raised eyebrow during an egress or scope audit.
+  # GA4's Data API takes its query as a JSON request body (date range + which
+  # metrics), which is far too structured for a query string — so Google made
+  # `properties/{id}:runReport` a POST. It is a QUERY verb, not a write: it
+  # returns rows and changes nothing on the property.
+  #   - Host `analyticsdata.googleapis.com` = read/report only.
+  #   - Writes/management live on `analyticsadmin.googleapis.com`, which this
+  #     system never calls and which you should NOT enable in the Cloud project.
+  #   - The required GA4 role is therefore Viewer. If a Viewer-scoped token can
+  #     run this call, that alone proves it isn't mutating anything.
+  # Consequence for OneCLI: a request-hold rule that gates on HTTP method would
+  # flag this harmless report. Match on host+path if you gate anything here.
   DATA="/workspace/agent/plugin-data/community-marketing"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi

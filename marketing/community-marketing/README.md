@@ -94,7 +94,7 @@ expensive.
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained PAT scoped to the content repo only**: Contents (read/write) + Pull requests (read/write) — it commits drafts to branches and opens PRs, nothing else. Never a classic `repo` scope (that's account-wide), never admin, and don't reuse the coding agent's read-only token. | Settings → Developer settings → Personal access tokens (fine-grained, single repo) |
-| Google Analytics 4 | `analyticsdata.googleapis.com` | OAuth 2.0 Bearer | **Viewer** on the GA4 property. Enable the *Google Analytics Data API* in the Cloud project. `analyticsadmin.googleapis.com` is **not** needed for reporting — don't enable it. | Google Cloud console → APIs & Services; property access in GA4 Admin |
+| Google Analytics 4 | `analyticsdata.googleapis.com` | OAuth 2.0 Bearer | **Viewer** on the GA4 property. Enable the *Google Analytics Data API* in the Cloud project. `analyticsadmin.googleapis.com` (the one that can *change* a property) is **not** needed and should not be enabled. Note the report call is an HTTP `POST` — that's how GA4 accepts a query body, not a write; Viewer being sufficient is the proof. | Google Cloud console → APIs & Services; property access in GA4 Admin |
 | Shared inbox (e.g. Gmail) | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** scope (`gmail.readonly`). This agent never sends — do not grant send or modify scopes. | Google Cloud console → OAuth consent + credentials |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` as-is** — the MCP server
