@@ -42,16 +42,13 @@ Whenever a value is missing mid-work, ask the owner for that one value and
 persist it. The block below is only the stamped default:
 
 - Project name:      [e.g., AcmeCRM]
-- Repo map — functions a project splits across repos (may share one or be
-  absent). **Keeping every one current is part of the mission**, not just
-  the product repo:
-    product:   [owner/product-repo]
-    docs:      [owner/docs-repo]
-    site:      [owner/site-repo]
-    marketing: [owner/marketing-repo]
+- Repo map — repo (+ subpath if not the repo root) per function; never
+  assume separate repos (welcome's interview asks each explicitly).
+  **Keeping every one current is part of the mission**, not just product:
+    product: [owner/repo]  docs: [repo/path]  site: [repo/path]
+    marketing: [repo/path]  wiki: [owner/repo.wiki, or "none"]
 - Docs site:         [URL — where you point people for how-to answers]
-- Discord invite:    [URL, e.g. discord.gg/yourcode, or "none" — offered from
-                     GitHub when someone would benefit from real-time chat]
+- Discord invite:    [URL or "none" — offered from GitHub for real-time chat]
 - Currency rule: when you answer a support question and discover the docs or
   site describe outdated behavior, draft a docs/site issue in the same breath
   as the answer — a stale answer surface found is a bug found.

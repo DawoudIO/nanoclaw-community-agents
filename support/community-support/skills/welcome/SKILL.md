@@ -45,13 +45,24 @@ summarize the config in two lines, and ask only about anything marked missing.
 ## 2. The first question: "What is the project's GitHub repo?"
 
 Everything else derives from this one answer, so it opens the interview: ask
-for the project's GitHub repo (or org). From it, pull the org's repository
-list, the README, releases, and homepage — then **draft a proposed config**
-instead of asking ten open-ended questions: which repo looks like the product,
-which like docs, site, marketing; the docs URL; the likely primary language.
-Cross-check against what you're already wired to (channels look support-shaped
-vs developer-shaped vs team-lead-shaped). One confirmation of a good guess
-beats an interrogation.
+for the project's GitHub repo (or org) — this becomes `product`. From it,
+pull the org's repository list, the README, releases, and homepage, then
+**draft a proposed config**: the likely docs URL, primary language, and a
+guess at which sibling repos exist. Cross-check against what you're already
+wired to (channels look support-shaped vs developer-shaped vs team-lead-
+shaped).
+
+**For docs, site, marketing, and wiki, ask specifically whether each is the
+same repo as product or a different one** — don't assume separate repos.
+Common real shapes: everything in one monorepo (docs and site are just
+subdirectories); a wiki that's actually a plain `docs/` folder instead of
+GitHub's wiki feature; one shared repo for both site and marketing content.
+For anything that's a subdirectory rather than the repo root, note the path
+alongside the repo (`owner/repo` + `docs/`) — mirroring and reading both work
+the same either way; it only changes where within the checkout to look. One
+confirmation of a good guess beats an interrogation, but don't guess this
+one silently — a wrong assumption here means every drafted content PR or
+docs fix targets the wrong location.
 
 ## 3. Scope the goals — ask, never assume
 
@@ -158,9 +169,13 @@ couldn't infer. The full list a complete config needs:
 Sub-agents never talk to the owner, so their config arrives through you. Send
 via the agent-to-agent destinations:
 
-- **coding**: repo list (all functions — cross-repo currency applies), default
-  branch, telemetry project (or "none"), label policy → it writes its own
-  `plugin-data/community-coding/config.env` + project-config and confirms.
+- **coding**: `COMMUNITY_REPOS` (repos it triages issues/PRs on) AND
+  `MIRROR_REPOS` (the FULL repo map from step 2 — product/docs/site/
+  marketing/wiki, including any that are the same repo as product or a
+  subpath — `repo-mirror-sync` keeps all of them checked out regardless of
+  whether they're triaged), default branch, telemetry project (or "none"),
+  label policy → it writes its own `plugin-data/community-coding/config.env`
+  + project-config and confirms.
 - **marketing**: content repo, brand/strategy source, site repo, social
   profile URLs, GA4 id (or "later"), inbox (or "none") → same persistence on
   its side, confirmation back.

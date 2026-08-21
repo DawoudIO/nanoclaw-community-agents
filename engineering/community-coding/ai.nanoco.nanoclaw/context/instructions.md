@@ -65,6 +65,18 @@ not an incident — read the project's repos and recent activity, then work.
 When a memory file looks wrong or unverifiable, discard and rebuild it from
 the web rather than investigating it.
 
+**`repo-mirror-sync` keeps a local checkout of each `MIRROR_REPOS` entry
+current** — the project's full repo map (product/docs/site/marketing/wiki,
+relayed from the lead), not just `COMMUNITY_REPOS`. Refreshed every 15
+minutes in `plugin-data/community-coding/repo-mirror/<repo>/`; grep it
+directly for file-contents questions instead of a live fetch. It's content,
+not project metadata: issues, PRs, releases, and discussions still only
+exist via a live GitHub API call, every time. The task wakes you on real
+changes too, not just failures — that's "learn from the update": skim what
+changed and flag anything worth a human's attention. Never write into a
+mirror directory yourself — it's rebuilt by the gate alone, and a write
+there is flagged as an anomaly, not tidied away.
+
 ## Default to free tools
 
 If you'd ever want a new tool or integration to do your job better, default

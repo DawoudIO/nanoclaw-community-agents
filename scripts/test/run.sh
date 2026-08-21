@@ -114,6 +114,11 @@ assert_gate "$ROOT/scripts/tasks/support/daily-github-triage.sh" \
 # reason is the first-run weekly heartbeat.
 assert_gate "$ROOT/scripts/tasks/support/health-check.sh" "first-run-heartbeat" "true" ""
 
+# repo-mirror-sync: a nonexistent repo is a real clone failure (no mock
+# needed — git's own error against a real host is the test).
+assert_gate "$ROOT/scripts/tasks/engineering/repo-mirror-sync.sh" \
+  "nonexistent-repo-clone-must-wake" "true" 'MIRROR_REPOS="acme/this-repo-does-not-exist-xyz-12345"'
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]

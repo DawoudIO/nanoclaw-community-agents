@@ -33,7 +33,8 @@ community-coding/
 │       ├── dev-metrics-report.md                 # scripted fetch, wakes only on notable change
 │       ├── good-first-issue-health.md            # weekly, GFI-labeled onboarding funnel check
 │       ├── repo-hygiene-audit.md                 # quarterly, community-profile completeness check
-│       └── posthog-weekly-review.md              # scripted fetch, wakes only on insight change
+│       ├── posthog-weekly-review.md              # scripted fetch, wakes only on insight change
+│       └── repo-mirror-sync.md                   # keeps local checkouts current, flags real changes
 ├── skills/
 │   └── coding-ops/
 │       ├── SKILL.md
@@ -73,6 +74,10 @@ stamped agent to write it:
 ```bash
 # groups/<folder>/plugin-data/community-coding/config.env
 COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep + dev metrics
+MIRROR_REPOS="owner/repo1 owner/repo2 owner/repo1.wiki"  # repo-mirror-sync;
+                                                  # full repo map, not just
+                                                  # triaged repos — falls back
+                                                  # to COMMUNITY_REPOS if unset
 POSTHOG_PROJECT_ID="12345"                       # posthog weekly review
 POSTHOG_HOST="https://us.posthog.com"            # or https://eu.posthog.com
 GFI_LABEL="good first issue"                     # optional — good-first-issue-health;
