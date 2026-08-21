@@ -96,6 +96,17 @@ couldn't infer. The full list a complete config needs:
   blog→announcement growth-playbook rule both need one unambiguous target,
   not "somewhere in team-lead."
 - Security disclosure path + who counts as a maintainer
+- **A named human backstop — required before go-live, not optional.** Ask:
+  "Who is the second human — a moderator or co-maintainer with a name and a
+  contact — that abuse reports and urgent escalations should reach when you
+  aren't reachable?" This DM is the control plane, and a bus factor of one
+  on the *human* side is the exact bottleneck this system exists to relieve:
+  an abuse report arriving while the owner is on holiday must have somewhere
+  to go, and code-of-conduct response is a human role everywhere it's been
+  done seriously — never an agent's. If the owner has no second person yet,
+  record that plainly in project-config as an open risk and say what
+  degrades without one (abuse reports and escalations queue on a single
+  person's availability) — don't silently accept it as fine.
 - **Docs style** — does this project want its docs to describe current
   behavior only (no "added in X.x" / "as of version" / changelog-style
   language), or is version-history language fine? Relay the answer to the

@@ -24,7 +24,7 @@ symptom is pure silence. Two defenses:
 
 **Three agents is the right number — and it's cheaper than it looks.** Burn
 comes from model *wakes*, not from agents existing: a stamped agent whose
-tasks are paused costs nothing. 12 of 15 tasks are script-gated, so quiet
+tasks are paused costs nothing. 15 of 17 tasks are script-gated, so quiet
 periods cost near zero regardless of agent count — and the two highest-
 frequency gates (`dev-metrics-report` daily, `posthog-weekly-review` weekly)
 don't just skip when unconfigured, they skip on any run where nothing
@@ -55,7 +55,7 @@ the owner can change them there or later via group config):
 | Any scheduled task | never Opus-class | Wakes are frequent; premium models belong in interactive sessions, not cron |
 
 **If you still hit plan limits**, pause in this order (lowest value first):
-`good-first-issue-health` → `draft-cleanup` → `dev-metrics-report` →
+`repo-hygiene-audit` → `good-first-issue-health` → `draft-cleanup` → `dev-metrics-report` →
 `social-metrics-snapshot` → `inbox-check` → reduce `github-ops-triage` to
 2×/day → `content-draft-cycle` to 3×/week. The safety net (`health-check`,
 `workspace-backup`, `weekly-identity-integrity-check`) and community replies
@@ -80,8 +80,10 @@ turns.
 | `dev-metrics-report` (daily) | coding | only on notable change, else weekly heartbeat | PAT + `COMMUNITY_REPOS` | silent skip |
 | `posthog-weekly-review` (Mon) | coding | only on insight change, else weekly heartbeat | PostHog key + `POSTHOG_PROJECT_ID` + allowlist | silent skip |
 | `good-first-issue-health` (Mon) | coding | weekly | coding PAT + `COMMUNITY_REPOS` (+ optional `GFI_LABEL`) | silent skip |
+| `docs-gap-review` (Tue) | lead | only when a support topic repeats 3+ times | question ledger (built up by normal support work) | safe — quiet until the ledger has data |
+| `repo-hygiene-audit` (quarterly) | coding | only on missing community files | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `inbox-check` (2×/day) | marketing | every run | email MCP + read-only mailbox + allowlist | leave paused |
-| `content-draft-cycle` (weekdays) | marketing | every run | marketing PAT + brand source filled in | leave paused |
+| `content-draft-cycle` (weekdays) | marketing | only on a new release or the 7-day floor | marketing PAT + `CONTENT_REPO` (+ optional `RELEASE_WATCH_REPO`) + brand source | silent skip |
 | `weekly-analytics-report` (Sun) | marketing | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
 | `draft-cleanup` (daily) | marketing | on stale PRs | PAT + `CONTENT_REPO` | silent skip |
 | `social-metrics-snapshot` (Sun) | marketing | every run | public profile pages (no credentials) + **sandbox allowlist entries for the platform hosts** | leave paused until platforms are configured and allowlisted — it guards the one stateful asset (follower series; durable copy = the lead's ledger) |
@@ -90,7 +92,7 @@ Shipped times (UTC under the kit): health-check every 3h · backup 08:40 ·
 release watch every 3h · lead triage weekdays 13:00 · coding triage every 6h ·
 sweep every 4h · dev metrics 12:00 · PostHog Mon 15:00 · GFI health Mon 16:00 ·
 inbox 06:00 + 16:00 · content weekdays 13:30 · social snapshot Sun 13:00 ·
-GA4 Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00. Rules of thumb: put the
+GA4 Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00 · docs-gap review Tue 15:00 · repo hygiene quarterly (1st, 10:00). Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep

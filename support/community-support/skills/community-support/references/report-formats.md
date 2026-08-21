@@ -3,11 +3,28 @@
 Pre-packaged formats so every recurring report reads the same way regardless of
 who ran it or when. Don't improvise a new layout per run.
 
-## Support conversation summary (to owner DM)
+## Support conversation summary — batched daily, not per-conversation
 
-After a support conversation in any support-tier channel resolves, send a short
-summary to the owner DM — not the channel, and not every message, just a wrap-up
-once it's done:
+After a support conversation in any support-tier channel resolves, do two
+things:
+
+**1. Append a topic line to the question ledger** (always, immediately):
+one JSON line to `plugin-data/community-support/question-ledger.jsonl` —
+`{"date": "<full ISO8601 datetime, e.g. 2026-08-21T14:03:00Z>", "topic":
+"<kebab-case-slug>", "channel": "<channel>"}`. Reuse an existing slug when
+the topic matches one you've logged before — the `docs-gap-review` task
+clusters these lines to find questions worth a docs page, and three
+differently-worded slugs for the same question defeat it. Full timestamps,
+not bare dates — the gate's date parsing requires them.
+
+**2. Summarize to the owner — as a daily batch, not a DM per conversation.**
+A notification stream to the one person this system exists to unburden is a
+failure mode, not a feature. Hold resolved-conversation summaries and send
+one daily digest: a count line ("Handled N support conversations today:
+<topic slugs>") plus the full four-line summary below **only** for
+conversations that surfaced something — a docs gap, a probable bug, an
+unhappy user, anything needing the owner's judgment. A routinely-handled
+question appears as a slug in the count, nothing more.
 
 ```
 **Support: <one-line topic>**
@@ -18,8 +35,8 @@ Resolution: <what fixed it, or "referred to GitHub issue #123">
 GitHub: <issue URL, if one was created — omit the line if none>
 ```
 
-Keep it to the four lines above. This is a record for the owner, not a
-transcript — don't paste the whole conversation.
+Exception: anything security-shaped or urgent goes to the owner immediately
+per `escalation-paths.md` — the batching rule is for routine wrap-ups only.
 
 ## Daily/weekly digest (from a scripted triage task)
 

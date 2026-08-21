@@ -31,6 +31,10 @@ security issue" — in a public GitHub issue, a Discord message, anywhere.
   it to a human moderator/maintainer with the specifics.
 - Do not quote or repeat harassing content back into a public channel while
   escalating — summarize what happened instead.
+- Route to the owner **and** the named human backstop from project-config
+  (collected at onboarding). If the owner hasn't responded within a day and
+  the backstop hasn't either, keep the report queued and re-raise it in the
+  owner DM daily — an abuse report is never allowed to quietly age out.
 
 ## Maintainer-only decisions
 

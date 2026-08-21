@@ -19,6 +19,8 @@ CUTOFF_EPOCH=$(( NOW_EPOCH - 604800 ))
 SINCE_DATE=$(date -u -d "@$CUTOFF_EPOCH" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF_EPOCH" +%Y-%m-%d 2>/dev/null || echo "")
 CUTOFF30_EPOCH=$(( NOW_EPOCH - 2592000 ))
 SINCE30_DATE=$(date -u -d "@$CUTOFF30_EPOCH" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF30_EPOCH" +%Y-%m-%d 2>/dev/null || echo "")
+CUTOFF90_EPOCH=$(( NOW_EPOCH - 7776000 ))
+SINCE90_DATE=$(date -u -d "@$CUTOFF90_EPOCH" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF90_EPOCH" +%Y-%m-%d 2>/dev/null || echo "")
 TMP=$(mktemp -d)
 i=0
 for REPO in $REPOS; do
@@ -60,6 +62,15 @@ for REPO in $REPOS; do
     curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
       "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:closed+is:unmerged+closed:%3E%3D$SINCE30_DATE&per_page=1" \
       > "$TMP/$i.unmerged30" 2>/dev/null &
+    # Contribution concentration, last 90 days: how dependent is the repo
+    # on its single most-active author (CHAOSS "Contributor Absence Factor"
+    # territory), and who has enough sustained merged work to be a
+    # delegation/promotion candidate. The best-documented failure mode in
+    # open source is one person doing everything until they quit — this is
+    # the load signal that surfaces it before it happens.
+    curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
+      "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:merged+merged:%3E%3D$SINCE90_DATE&per_page=100" \
+      > "$TMP/$i.m90" 2>/dev/null &
     # Approved-and-open PRs: reviewed, ready, just not merged yet — the
     # single worst thing to leave sitting once a contributor has already
     # done the work and a maintainer has already said yes. Oldest-first, up
@@ -114,6 +125,18 @@ for REPO in $REPOS; do
     fi
     READYTOMERGE=$(jq -c 'if .items then {count: .total_count, prs: [.items[] | {number, title: (.title[0:120]), author: .user.login, url: .html_url, created_at}]} else null end' < "$TMP/$i.readytomerge" 2>/dev/null || echo null)
     case "$READYTOMERGE" in ''|null) READYTOMERGE=null;; esac
+    # sampled=true when >100 PRs merged in 90d — the histogram then covers
+    # the most recent 100, which still answers the concentration question.
+    CONC=$(jq -c 'if .items then
+      ([.items[].user.login] | group_by(.) | map({login: .[0], merged_90d: length}) | sort_by(-.merged_90d)) as $a
+      | {distinct_authors_90d: ($a | length),
+         total_merged_90d: .total_count,
+         sampled: (.total_count > (.items | length)),
+         top_author: ($a[0].login // null),
+         top_author_share_pct: (if ([$a[].merged_90d] | add // 0) > 0 then (($a[0].merged_90d / ([$a[].merged_90d] | add)) * 100 | round) else null end),
+         candidates: [$a[] | select(.merged_90d >= 5)]}
+      else null end' < "$TMP/$i.m90" 2>/dev/null || echo null)
+    case "$CONC" in ''|null) CONC=null;; esac
 
     # New-contributor tracking: bootstrap seeds known-contributors from the
     # existing contributor list (first run never reports a count — seeding
@@ -180,8 +203,8 @@ for REPO in $REPOS; do
       done < "$KNOWN"
     fi
 
-    printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}, "closed_prs_30d": {"merged": %s, "unmerged": %s, "unmerged_ratio": %s}, "return_nudges": %s, "ready_to_merge": %s}\n' \
-      "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" "$MERGED30" "$UNMERGED30" "$UNMERGED_RATIO" "$NUDGES" "$READYTOMERGE" > "$TMP/$i.json"
+    printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}, "closed_prs_30d": {"merged": %s, "unmerged": %s, "unmerged_ratio": %s}, "return_nudges": %s, "ready_to_merge": %s, "contribution_concentration": %s}\n' \
+      "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" "$MERGED30" "$UNMERGED30" "$UNMERGED_RATIO" "$NUDGES" "$READYTOMERGE" "$CONC" > "$TMP/$i.json"
   ) &
   i=$((i+1))
 done
@@ -193,6 +216,7 @@ wait
 TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {stars, forks, open_issues, open_prs, releases, new_contributors_7d, awaiting_first_response, closed_prs_30d}}) | add // {}')
 ALL_NUDGES=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, nudges: .return_nudges}] | map(select(.nudges | length > 0))')
 ALL_READY=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, ready_to_merge}] | map(select(.ready_to_merge != null and (.ready_to_merge.count > 0)))')
+ALL_CONC=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, concentration: .contribution_concentration}] | map(select(.concentration != null))')
 rm -rf "$TMP"
 jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
   '. + [{date: $d, metrics: $m}] | .[-30:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
@@ -241,5 +265,5 @@ if [ "$NOTABLE" = "true" ] || [ "$HAS_NUDGES" = "true" ] || [ "$HAS_READY" = "tr
   date -u +%Y-%m-%d > "$LASTWAKE_F"
   printf '%s' "$TODAY" > "$LASTREP_F"
 fi
-printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "return_nudges": %s, "ready_to_merge": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}\n' \
-  "$WAKE" "$TODAY" "$PREV" "$ALL_NUDGES" "$ALL_READY" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_NUDGES" = "false" ] && [ "$HAS_READY" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"
+printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "return_nudges": %s, "ready_to_merge": %s, "contribution_concentration": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}\n' \
+  "$WAKE" "$TODAY" "$PREV" "$ALL_NUDGES" "$ALL_READY" "$ALL_CONC" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_NUDGES" = "false" ] && [ "$HAS_READY" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"

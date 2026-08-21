@@ -25,7 +25,7 @@ community-marketing/
 │   │   └── instructions.md                      # standing brief: draft, never publish
 │   └── tasks/
 │       ├── inbox-check.md                       # 2×/day triage, read-and-draft only
-│       ├── content-draft-cycle.md               # weekday draft → branch → PR
+│       ├── content-draft-cycle.md               # gated: wakes on a new release or weekly floor → draft → PR
 │       ├── social-metrics-snapshot.md             # weekly follower counts — the one stateful asset (durable copy lives with the lead)
 │       ├── weekly-analytics-report.md           # scripted GA4 fetch, agent narrates
 │       └── draft-cleanup.md                     # scripted gate: only wakes on stale PRs
@@ -65,6 +65,9 @@ Edit it directly or message the stamped agent to write it:
 ```bash
 # groups/<folder>/plugin-data/community-marketing/config.env
 GA4_PROPERTY_ID="123456789"          # weekly analytics report — your GA4 numeric property id
+RELEASE_WATCH_REPO="owner/product"   # optional — content-draft-cycle wakes on new
+                                     # releases here (plus a weekly floor); unset =
+                                     # weekly floor only
 CONTENT_REPO="owner/marketing"       # stale-draft cleanup
 ```
 
@@ -105,7 +108,9 @@ lead template's README explains that pattern.
 
 ## Costs
 
-`weekly-analytics-report` and `draft-cleanup` are script-gated: the cleanup task
-never wakes the model unless something is actually new-stale. The agent-turn
-costs are `inbox-check` (2×/day), `content-draft-cycle` (weekdays), and
-`social-metrics-snapshot` (weekly, ungated — it needs the browser/page reads).
+`weekly-analytics-report`, `draft-cleanup`, and `content-draft-cycle` are
+script-gated: cleanup only wakes on newly-stale PRs, and content drafting only
+wakes on a new release or its 7-day evergreen floor (a daily draft for a
+project with no daily news is just a review queue pointed at the owner). The
+agent-turn costs are `inbox-check` (2×/day) and `social-metrics-snapshot`
+(weekly, ungated — it needs the browser/page reads).

@@ -458,7 +458,7 @@ for any of that.**
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 15 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
+| Task schedules (cron lines, all 17 task files) — **the kit pins `TZ=UTC`**, so either adjust the crons or set each group's timezone | Template files | Before stamping (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate) |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | Lead's group folder in the sandbox | After stamping, host-side (or ask the lead to run it) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
@@ -492,6 +492,7 @@ then just talk to the agent.
 | 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
 | 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
 | 13 | The dedicated bot account's GitHub username (never the owner's own) | username | **No** — every GitHub token is checked against it |
+| 14 | A named human backstop: who takes abuse reports and urgent escalations when you're unreachable | name + contact | **Asked always** — going live without one is recorded as an open risk, not silently accepted |
 
 After this, the agent walks you through exactly which credentials to add
 (step 4 below) and verifies each with a real call, offers to set up the
@@ -514,7 +515,7 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 15 (5 per template)
+./bin/ncl tasks list --status paused          # expect all 17 (6 lead, 6 coding, 5 marketing)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
@@ -528,7 +529,9 @@ Resume order (safe → side-effect-adjacent):
    `COMMUNITY_REPOS` is set; it only ever posts already-public release info.
 4. **Coding**: `github-ops-triage`, then the gates you configured
    (`security-advisory-sweep`, `dev-metrics-report`, `posthog-weekly-review`,
-   `good-first-issue-health`).
+   `good-first-issue-health`, `repo-hygiene-audit`).
+   The lead's `docs-gap-review` is safe from day one — it stays quiet until
+   normal support work has filled its question ledger.
 5. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.
 6. **Last, once fill-ins are done and reviewed**: `content-draft-cycle`, and
    `inbox-check` only after an email MCP is actually connected.

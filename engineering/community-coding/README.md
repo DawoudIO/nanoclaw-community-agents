@@ -32,6 +32,7 @@ community-coding/
 │       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
 │       ├── dev-metrics-report.md                 # scripted fetch, wakes only on notable change
 │       ├── good-first-issue-health.md            # weekly, GFI-labeled onboarding funnel check
+│       ├── repo-hygiene-audit.md                 # quarterly, community-profile completeness check
 │       └── posthog-weekly-review.md              # scripted fetch, wakes only on insight change
 ├── skills/
 │   └── coding-ops/
@@ -118,9 +119,10 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-All five tasks are script-gated. `security-advisory-sweep`,
-`github-ops-triage`, and `good-first-issue-health` wake the model only when
-there's something new (or a fetch fails, which must be surfaced);
+All six tasks are script-gated. `security-advisory-sweep`,
+`github-ops-triage`, `good-first-issue-health`, and `repo-hygiene-audit` wake
+the model only when there's something new (or a fetch fails, which must be
+surfaced);
 `dev-metrics-report` and `posthog-weekly-review` wake only when a number
 actually moved, with a 7-day heartbeat so the channel doesn't go silent long
 enough to look dead — a quiet stretch costs a few API calls per run, not an

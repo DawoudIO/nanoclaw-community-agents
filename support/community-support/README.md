@@ -39,10 +39,11 @@ community-support/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
 │   └── tasks/
-│       ├── health-check.md                            # script-gated, wakes only on a problem
+│       ├── health-check.md                            # script-gated, wakes on a problem + weekly proof-of-life
 │       ├── workspace-backup.md                        # script-gated, wakes only on failure
 │       ├── daily-github-triage.md                     # weekday digest, drafts only
 │       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
+│       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
 │       └── weekly-identity-integrity-check.md         # asks before it ever locks anything
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)
