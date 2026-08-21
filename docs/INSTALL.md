@@ -108,6 +108,10 @@ least-privilege permissions** (Send Messages, Embed Links, Attach Files, Read
 Message History — not Administrator, not broad moderation scopes); add more
 later only if a real need appears. This is a Discord policy expectation, not
 just good hygiene — see `discord-mechanics.md`'s platform-rules section.
+**Name the Discord application to visibly match the GitHub bot account**
+(e.g. `acmecrm-bot` on GitHub ↔ "AcmeCRM Bot" as the Discord display name) —
+this is the only agent with a public voice on both platforms, and a
+mismatched pair of names reads as two different bots to your community.
 
 ---
 
@@ -204,6 +208,24 @@ tar -C /path/to/nanoclaw-templates -cf - support engineering marketing \
 
 ## 3 · Stamp the agents and wire them
 
+**What each one actually does — read this before naming or skipping any:**
+
+| Agent | Job | Public voice? | Required? |
+|---|---|---|---|
+| **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, relays the other two agents' work | **Yes — the only one that ever posts** | Always — nothing works without it |
+| **Coding** (`engineering/community-coding`) | Issue/PR triage, security-advisory review, dev metrics, telemetry — drafts and hands everything to the lead | No — headless, no channel access | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
+| **Marketing** (`marketing/community-marketing`) | Content drafts, inbox triage, traffic/follower analytics — drafts and hands everything to the lead | No — headless, no channel access | Optional. Skip it if you don't need content/analytics support yet |
+
+**You don't have to stamp all three now, and this isn't a one-way door.**
+Stamp just the lead today and add coding/marketing months later — the lead
+works standalone. To **disable** an agent later: pause all its tasks
+(`ncl tasks list --status active` on its group, then `ncl tasks pause` each
+— or just stop resuming new ones) rather than deleting the group, so its
+config and memory stay intact if you re-enable it. To **add** one later:
+stamp it fresh, wire its destination to the lead exactly as below, and DM
+the lead to relay config — same process, whether done at hour one or month
+six.
+
 Run inside the sandbox (`sbx exec -it -w /home/agent/nanoclaw nanoclaw bash`,
 or drive it conversationally via `sbx exec -it -w /home/agent/nanoclaw
 nanoclaw claude`):
@@ -212,9 +234,12 @@ nanoclaw claude`):
 and only here matters where.** It's purely an internal `ncl`/dashboard label
 (what you see in `ncl groups list`), unrelated to the Discord bot's display
 name (set when you create the bot application) and unrelated to the
-project name the welcome interview infers from the GitHub repo. Rename these
-three to whatever's useful to you (e.g. `"AcmeCRM Support"`) — nothing reads
-this string except a human looking at the group list.
+project name the welcome interview infers from the GitHub repo. **Pick a
+name for each one now** — the examples below (`"Community Support"` etc.)
+are placeholders, not requirements; something like `"AcmeCRM Support"` /
+`"AcmeCRM Coding"` / `"AcmeCRM Marketing"` makes `ncl groups list` readable
+once you have more than one project's agents running. Nothing but a human
+looking at that list ever reads this string.
 
 ```bash
 # Stamp — check each create response's templateReport for skipped parts,

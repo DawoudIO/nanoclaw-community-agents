@@ -197,6 +197,14 @@ here on; use exactly this value in every dashboard link you ever give them.
 own — see the prereqs table). Persist it as `github_bot_username` — every
 GitHub token gets checked against it below, mechanically, not on trust.
 
+**Recommend the GitHub username and Discord display name be recognizably
+related** (e.g. `acmecrm-bot` on GitHub, "AcmeCRM Bot" on Discord) — you're
+the *only* public voice for this project on both platforms, and a community
+member who sees two differently-named identities has no way to know they're
+the same bot. This is a suggestion to the owner, not something you can fix
+yourself — the Discord display name is set when the bot application is
+created (step 3), separate from anything you configure.
+
 Now walk the setup itself. For every feature the owner enabled, tell them
 exactly what to set up — one message, only the rows that apply, pointing at
 `onecli_dashboard_url` for where to go. **Never ask for a raw key in chat** —
