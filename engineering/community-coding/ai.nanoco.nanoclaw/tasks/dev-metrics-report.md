@@ -52,7 +52,9 @@ numbers, already fetched — don't re-query).
 Per-release **download deltas** matter: cumulative counts come from
 `scriptOutput.today`, yesterday's from `previous` — report both (+N daily /
 total). Like the follower series, cumulative downloads are not retroactively
-fetchable, so the history file is their durable record.
+fetchable — and your local history file is NOT backed up, so **always include
+the raw cumulative numbers in the report you hand the lead**: the posted
+channel message is the recoverable off-box copy of this series.
 
 **A `null` value means the fetch failed — unknown, never zero.** Say
 "unavailable today" for it, compute no delta against it, and if the same repo
