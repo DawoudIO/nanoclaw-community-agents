@@ -54,8 +54,6 @@ script: |
   fi
   printf '{"wakeAgent": %s, "data": {"status": "ok", "insights": %s, "quiet_heartbeat": %s}}\n' \
     "$WAKE" "$COMBINED" "$([ "$CHANGED" = "false" ] && echo true || echo false)"
-' \
-    "$WAKE" "$COMBINED" "$([ "$CHANGED" = "false" ] && echo true || echo false)"
 ---
 Weekly telemetry review. **The goal is finding issues before users report
 them** — error spikes, silently failing flows, anomalies that correlate with a

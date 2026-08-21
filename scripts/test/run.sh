@@ -39,6 +39,26 @@ for sh in "$ROOT"/scripts/tasks/*/*.sh "$ROOT"/*/*/setup-check.sh; do
   fi
 done
 
+# --- 1c. task frontmatter must be structurally valid ------------------------
+# A previous sync-tasks bug left stale script fragments below the block
+# scalar in 12 of 18 task files: unindented shell text inside the YAML
+# frontmatter, which the runtime parses. Both the injector and the checker
+# stopped at the first unindented line, so the corruption was invisible to
+# --check while being preserved by every re-sync. This asserts the shape
+# directly, independent of the sync tool, so that class of bug can't hide
+# again: inside the frontmatter, every line is either a `key:` or indented.
+for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
+  if awk '
+      /^---$/ { fm++; if (fm==2) exit; next }
+      fm==1 && $0 != "" && $0 !~ /^[ \t]/ && $0 !~ /^[a-zA-Z_]+:/ { bad=1; exit }
+      END { exit (bad ? 1 : 0) }
+    ' "$md"; then
+    pass
+  else
+    fail "corrupt frontmatter (unindented non-key line inside ---): $md"
+  fi
+done
+
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.
 # assert_gate <script> <scenario-name> <expected-wakeAgent|any> <config-env-content>

@@ -59,35 +59,6 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"status": "ok", "label": "%s", "results": %s}}\n' "$LABEL" "$ALL"
   fi
-' "$REPO" > "$TMP/$i.json"
-        exit 0
-      fi
-      # A jq failure on an unexpected item shape must surface as fetch-failed
-      # for that repo — never as a silently missing repo in an "ok" report.
-      printf '%s' "$RESP" | jq -c --arg r "$REPO" --argjson cutoff "$STALE_CUTOFF" '{
-        repo: $r,
-        status: "ok",
-        open_count: .total_count,
-        truncated: (.total_count > (.items | length)),
-        unassigned_stale: [.items[]? | select(.assignee == null and ((.updated_at // empty) | fromdateiso8601? // now) < $cutoff)
-          | {number, title: (.title[0:120]), url: .html_url, updated_at}]
-      }' > "$TMP/$i.json" 2>/dev/null \
-        || printf '{"repo": "%s", "status": "fetch-failed"}
-' "$REPO" > "$TMP/$i.json"
-    ) &
-    i=$((i+1))
-  done
-  wait
-  ALL=$(cat "$TMP"/*.json | jq -c -s '.')
-  rm -rf "$TMP"
-  FAILED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="fetch-failed") | .repo]')
-  if [ "$(printf '%s' "$FAILED" | jq 'length')" -gt 0 ]; then
-    printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": %s, "label": "%s", "results": %s}}
-' "$FAILED" "$LABEL" "$ALL"
-  else
-    printf '{"wakeAgent": true, "data": {"status": "ok", "label": "%s", "results": %s}}
-' "$LABEL" "$ALL"
-  fi
 ---
 Weekly good-first-issue funnel check. `scriptOutput.label` is the exact label
 text searched (`GFI_LABEL` in config.env, default `"good first issue"` —

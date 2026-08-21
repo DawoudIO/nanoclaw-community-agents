@@ -26,21 +26,28 @@ group_dir() {
   esac
 }
 
-# Print the embedded script from a task .md (2-space indent stripped),
-# exactly as extract; empty output if the file has no script block.
+# Print the embedded script from a task .md (2-space indent stripped).
+# Empty output if the file has no script block.
+#
+# IMPORTANT: the block runs from `script: |` to the CLOSING `---`, not to the
+# first non-indented line. Stopping at a non-indented line is what let a
+# previous bug hide corrupted frontmatter from --check: stale fragments below
+# that point were invisible to the extractor and preserved by the injector,
+# so the files were broken while the check passed. `script:` is required to
+# be the last frontmatter key (verified for every task file); a key after it
+# would be swallowed by this rule.
 extract_script() {
   awk '
     BEGIN { fm=0; inblock=0 }
     /^---$/ { fm++; if (fm==2) exit; next }
     fm==1 && /^script: \|$/ { inblock=1; next }
-    fm==1 && inblock {
-      if ($0 ~ /^  / || $0 == "") { sub(/^  /, ""); print; next }
-      inblock=0
-    }
+    fm==1 && inblock { sub(/^  /, ""); print; next }
   ' "$1"
 }
 
 # Rewrite a task .md with the script block replaced by the given .sh file.
+# Everything from `script: |` to the closing `---` is discarded and replaced,
+# so a re-sync repairs a corrupted block instead of layering on top of it.
 inject_script() {
   local md="$1" sh="$2" tmp
   tmp=$(mktemp)
@@ -60,10 +67,7 @@ inject_script() {
       close(shfile)
       skipping=1; next
     }
-    fm==1 && skipping {
-      if ($0 ~ /^  / || $0 == "") next
-      skipping=0
-    }
+    fm==1 && skipping { next }
     { print }
   ' "$md" > "$tmp"
   mv "$tmp" "$md"

@@ -66,48 +66,6 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"status": "new-release", "releases": %s, "failed_repos": %s}}\n' "$NEW" "$FAILED"
   fi
-' "$REPO" > "$TMP/$i.json"
-        exit 0
-      fi
-      TAG=$(printf '%s' "$RESP" | jq -r '.tag_name // empty' 2>/dev/null)
-      if [ -z "$TAG" ]; then
-        # 404 (no releases yet) is not a failure - just nothing to announce.
-        printf '{"repo": "%s", "status": "no-releases"}
-' "$REPO" > "$TMP/$i.json"
-        exit 0
-      fi
-      OLD=$(cat "$BASE_F" 2>/dev/null || echo "")
-      if [ -z "$OLD" ]; then
-        printf '%s' "$TAG" > "$BASE_F"
-        printf '{"repo": "%s", "status": "baseline-initialized", "tag": "%s"}
-' "$REPO" "$TAG" > "$TMP/$i.json"
-        exit 0
-      fi
-      if [ "$TAG" = "$OLD" ]; then
-        printf '{"repo": "%s", "status": "no-new-release"}
-' "$REPO" > "$TMP/$i.json"
-        exit 0
-      fi
-      RELEASE=$(printf '%s' "$RESP" | jq -c '{tag: .tag_name, name: (.name // .tag_name), url: .html_url, published_at: .published_at, author: (.author.login // "unknown"), body: (.body // "")}' 2>/dev/null || echo null)
-      printf '{"repo": "%s", "status": "new-release", "baseline_file": "plugin-data/community-support/last-announced-release-%s.txt", "release": %s}
-' "$REPO" "$SAFEREPO" "$RELEASE" > "$TMP/$i.json"
-    ) &
-    i=$((i+1))
-  done
-  wait
-  ALL=$(cat "$TMP"/*.json | jq -c -s '.')
-  rm -rf "$TMP"
-  FAILED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="fetch-failed") | .repo]')
-  NEW=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="new-release")]')
-  if [ "$(printf '%s' "$FAILED" | jq 'length')" -gt 0 ] && [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
-    printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": %s}}
-' "$FAILED"
-  elif [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
-    echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
-  else
-    printf '{"wakeAgent": true, "data": {"status": "new-release", "releases": %s, "failed_repos": %s}}
-' "$NEW" "$FAILED"
-  fi
 ---
 Only invoked when a genuinely new stable release was published (or a fetch
 failed with nothing new to report instead — surface that plainly and stop;

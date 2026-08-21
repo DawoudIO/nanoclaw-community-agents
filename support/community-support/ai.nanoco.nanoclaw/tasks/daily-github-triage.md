@@ -39,16 +39,6 @@ script: |
   else
     printf '{"wakeAgent": true, "data": {"since": "%s", "truncated_repos": "%s", "items": %s}}\n' "${SINCE:-first-run}" "${TRUNC# }" "$ITEMS"
   fi
-' "${FAILED# }" "$ITEMS"
-    exit 0
-  fi
-  echo "$NOW" > "$SINCE_F"
-  if [ "$(printf '%s' "$ITEMS" | jq 'length')" -eq 0 ]; then
-    echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
-  else
-    printf '{"wakeAgent": true, "data": {"since": "%s", "truncated_repos": "%s", "items": %s}}
-' "${SINCE:-first-run}" "${TRUNC# }" "$ITEMS"
-  fi
 ---
 Standalone-mode triage (leave this task paused if the coding sub-agent is
 stamped — its own triage covers this at higher cadence).

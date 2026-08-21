@@ -84,10 +84,6 @@ script: |
     JLIST=$(printf '%s' "$ISSUES" | tr '|' '\n' | sed 's/["\\]//g; s/.*/"&"/' | paste -sd, -)
     printf '{"wakeAgent": true, "data": {"status": "attention", "issues": [%s]}}\n' "$JLIST"
   fi
-' | sed 's/["\]//g; s/.*/"&"/' | paste -sd, -)
-    printf '{"wakeAgent": true, "data": {"status": "attention", "issues": [%s]}}
-' "$JLIST"
-  fi
 ---
 Only invoked when the health-check script found something — or for the weekly
 proof-of-life heartbeat.
