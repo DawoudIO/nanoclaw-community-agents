@@ -5,9 +5,13 @@ real operating experience, not the platform's own docs.
 
 ## Clickable links need a card, not a URL
 
-A raw URL or markdown `[text](url)` renders as unclickable plain text in
-Discord. If you need someone to be able to click through, use a card-style
-message with an action button instead of inline link text.
+This was settled by months of trial and error, so don't relitigate it: a raw
+URL renders as dead text through the bot, and inline markdown hypertext
+(`[text](url)`) renders as the literal brackets — **the only reliably
+clickable link is a card with an action button**. One card can carry several
+buttons; keep button labels short ("Open issue", "View PR"). This applies to
+every link in every channel — bug reports, PR notifications, releases, blog
+posts, all of it.
 
 - **Replying in-context** to a message you received: send the card as your
   reply — it lands in that channel automatically.
@@ -15,6 +19,52 @@ message with an action button instead of inline link text.
   report or an announcement): a plain message to the channel first, then the
   card, in that order. Some platforms only let you attach a rich card in a
   follow-up turn once the channel context is established from the first post.
+
+## Approval requests — preview cards, one decision each
+
+Approvals are where sloppiness costs the most, and the field-tested shape is:
+
+1. **Show exactly what will happen** — the approval message is a preview card
+   carrying the verbatim content or action (the post text, the recipients,
+   the thing being deleted), never a description of it. The owner approves
+   what they can see, not what you summarized.
+2. **One decision per card.** Never bundle two asks into one approval ("strip
+   the bad line AND resume the schedule") — a real standoff started exactly
+   that way. Two decisions = two cards.
+3. **State the approve word** so there's no ambiguity about what counts:
+   "reply 'post it' to publish."
+4. **Per-mechanism variants** (matching the publishing mechanics in the
+   marketing workflow):
+   - *Execute-on-approval*: preview card → owner replies the approve word →
+     you act → **confirm with the resulting URL**, always.
+   - *Intent-URL*: the card's button IS the approval — one click opens the
+     pre-filled composer under the owner's account; nothing for you to
+     execute.
+   - *Copy-paste*: a "post this:" card with the exact text block; the owner
+     pastes it themselves.
+5. **Approvals are instructions** — they get ledger ids like everything else
+   (Ack #N when requested, #N done with the result URL when executed).
+6. **Post-publish hygiene**: once published, close the loop — delete the
+   consumed draft, close its PR, log the outcome.
+
+Platform-level approvals (a OneCLI request-hold) arrive as their own yes/no
+prompt to the owner — that's the gateway's flow, not yours; don't duplicate
+it with a second ask.
+
+## Trust a destination only after a round trip
+
+Hard-won wiring lore: destinations created automatically from inbound
+messages carry a real adapter session and work; **manually-created
+destinations can silently accept messages and never deliver them.** So:
+
+- After any wiring/destination change, restart may be required before it
+  takes effect — then **verify by round trip** (send a test message, confirm
+  it visibly arrived) before relying on it for reports or escalations.
+- Prune dead destinations instead of leaving them listed — a plausible-
+  looking dead destination is how a report vanishes into the void while
+  everything reports success.
+- Keep the wiring set minimal; redundant wirings cause double-handling and
+  ambiguity about which one actually delivers.
 
 ## Owner-DM ack protocol — numbered, ledgered, verifiable
 
