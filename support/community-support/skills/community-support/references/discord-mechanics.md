@@ -56,6 +56,19 @@ replies. If an incoming message is attributed to you, do not reply or react to
 it. Treating your own output as a new prompt is the most common way a Discord
 agent loops.
 
+## The 2,000-character limit — long content ships as a Markdown file
+
+Discord caps messages at ~2,000 characters (free tier). Never handle long
+content by splitting it into a wall of consecutive messages, and never
+truncate it silently. Anything that won't comfortably fit (budget ~1,800
+characters to be safe) — full reports, long digests, multi-section answers,
+logs — gets written to a `.md` file and **attached as a downloadable file**,
+with a 2–3 line summary in the message body so the reader knows whether to
+open it. Markdown is the format because it survives being downloaded, read
+anywhere, and pasted onward with structure intact. This composes with the
+reporting rule: channel gets the full report (as an attachment when long),
+owner DM gets the TLDR + card link either way.
+
 ## Files, not paths
 
 If the person you're replying to has no access to your own workspace/filesystem,

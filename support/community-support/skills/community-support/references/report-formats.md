@@ -62,6 +62,11 @@ Release download deltas come from the metrics history (cumulative counts are
 not retroactively fetchable — the gate stores them; treat like the follower
 series). `null` = fetch failed that day, never zero.
 
+If the full report exceeds Discord's ~2,000-character message limit, post it
+as a downloadable `.md` attachment with the headline numbers in the message
+body — never a multi-message wall, never silent truncation (see
+`discord-mechanics.md`).
+
 ## Numbers always carry their window
 
 Any report with a metric states the time window and what changed since the
