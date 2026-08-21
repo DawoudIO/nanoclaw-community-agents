@@ -80,10 +80,12 @@ skipped as out of scope — Discord + GitHub + Claude is the design.
 
 ### Adopt
 
-| Skill | Blind spot it closes | How it fits |
-|---|---|---|
-| `dashboard` | **Observability** — our biggest documented gap: the owner had no way to see token usage, per-session state, context windows, or live logs without CLI archaeology | Read-only by design (safe), port 3100 — publish it and reach it the same way as the OneCLI dashboard (Tailscale for remote). **Caveat**: it wires a pusher into NanoClaw's source, i.e. a customization of the sealed install — treat it as a *replayable install step*: apply at setup, and it's one more line in the recreate checklist (cattle philosophy: customizations are replayed, never merged) |
-| `debug` | Day-2 troubleshooting — logs, env, mounts, common container problems | Built-in; use from the break-glass Claude session. Add to the break-glass doctrine as the first tool to reach for |
+| Skill | Blind spot it closes | Cost | How it fits |
+|---|---|---|---|
+| `debug` | Day-2 troubleshooting — logs, env, mounts, common container problems | **~zero.** No install step, no persistent process, no source change, no footprint. Purely on-demand (`/debug` inside a session) — costs only the conversation tokens you'd spend diagnosing anyway. Nothing to weigh; just use it | Built-in; use from the break-glass Claude session. First tool to reach for in the break-glass doctrine |
+| `clidash` (not `dashboard` — see below) | **Observability** — our biggest documented gap: the owner had no way to see session/group/channel state or logs without CLI archaeology | **Near-zero.** Zero-dependency, copies one directory (`tools/clidash`), no NanoClaw source touched, no persistent secret, Node built-ins only. A local server, but the read-only/no-injection design keeps footprint minimal | Covers groups/sessions/channels/users, message-activity charts, allowlisted log tails — refresh-driven, not live-push, but that's the only real gap vs. full `dashboard` |
+
+**`dashboard` demoted to gated-upgrade, not default-adopt — the cost is real and asymmetric to what it buys.** Digging into it: it's an always-on Node process (RAM/CPU 24/7, not on-demand), it wires a pusher module directly into NanoClaw's `src/index.ts` (a genuine source customization needing replay on every recreate, not a config toggle), it requires a restart plus a published port to reach remotely, and `DASHBOARD_SECRET` is a plain bearer token living in env config — not OneCLI-brokered (it's inbound human-UI auth, not an outbound agent credential, so it doesn't violate the agents-never-hold-keys rule, but it's still a secret needing its own careful handling if adopted). The one thing it costs nothing on: no LLM tokens, ever — pure local polling. Its actual marginal value over `clidash` is exactly two things: live push (vs. refresh) and token-usage/context-window numbers. **Install it only when that specific number — "which task or agent is burning budget" — becomes a real question**, e.g. approaching plan limits; don't install it by default alongside `clidash`.
 
 ### Optional — adopt when the trigger fires
 
@@ -94,7 +96,6 @@ skipped as out of scope — Discord + GitHub + Claude is the design.
 | `rtk` | Only if interactive lead sessions show heavy bash-output token burn | 60–90% savings on dev-command output via a PreToolUse hook — but our gates already strip the bulk of command output before any model sees it, so expect modest gains here. Per-group, Claude-only |
 | `macos-statusbar` | Host is a Mac running NanoClaw as a host service | Green/red menu-bar dot + start/stop/restart + launch-on-login — directly softens "the session IS the system." **But it manages a launchd NanoClaw, not an `sbx` VM** — for our sandbox deployment it needs adaptation (point it at the sbx lifecycle) before it applies; until then, tmux + the weekly heartbeat is the answer |
 | `learn` | Ongoing | Formalizes what the lead persona's "Grow your toolkit" section already does by hand — distill `plugin-data/*/learned/` notes into proper skills at restamp time |
-| `clidash` | If `dashboard` feels heavy | Zero-dependency read-only alternative built from `ncl` JSON output — less coverage (no token usage), less surface |
 
 ### Not applicable to a sandbox-kit deployment
 
