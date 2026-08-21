@@ -25,8 +25,13 @@ HOT=$(jq -c -s --argjson c "$CUTOFF" '
 # Skip topics already proposed — the agent acks a proposal by appending the
 # topic slug to docs-proposals-sent.txt AFTER handing the draft over, so a
 # lost wake re-surfaces the topic next week. Duplicates beat losses.
+# jq gotcha that made this gate dead code: in `A | index(B)`, B is evaluated
+# against A — so `index(.topic)` looked for `.topic` on the ARRAY, which is a
+# hard error, and with stderr swallowed it silently yielded [] every run.
+# Pipe .topic into IN() instead, so it resolves against the element.
 NEW=$(printf '%s' "$HOT" | jq -c --rawfile p "$PROPOSED" \
-  '[ .[] | select((($p | split("\n")) | index(.topic)) == null) ]' 2>/dev/null || echo '[]')
+  '($p | split("\n") | map(select(length > 0))) as $sent
+   | [ .[] | select(.topic | IN($sent[]) | not) ]' 2>/dev/null || echo '[]')
 if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
   echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
 else
