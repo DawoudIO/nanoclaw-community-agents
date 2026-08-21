@@ -25,6 +25,20 @@ for sh in "$ROOT"/scripts/tasks/*/*.sh; do
   if bash -n "$sh" 2>/dev/null; then pass; else fail "syntax: $sh"; fi
 done
 
+# --- 1b. credential invariant -----------------------------------------------
+# No task script may ever construct an auth header or read a credential:
+# authentication is injected by the OneCLI egress proxy OUTSIDE the container,
+# so the scripts (and the ps table, env, and shell history inside the agent
+# container) never hold a secret. Comments are allowed to mention tokens;
+# code is not allowed to send them.
+for sh in "$ROOT"/scripts/tasks/*/*.sh; do
+  if grep -v '^\s*#' "$sh" | grep -qE '\-H *"?(Authorization|X-Api-Key)|Bearer \$|GITHUB_TOKEN|ANTHROPIC_API_KEY|access_token='; then
+    fail "credential material in $sh — auth belongs to the proxy, never the script"
+  else
+    pass
+  fi
+done
+
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.
 # assert_gate <script> <scenario-name> <expected-wakeAgent|any> <config-env-content>
@@ -56,13 +70,13 @@ MOCK
   out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
         bash <(sed "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") 2>/dev/null | tail -1)
   rm -rf "$sandbox"
-  if ! printf '%s' "$out" | python3 -c 'import json,sys; json.loads(sys.stdin.read())' 2>/dev/null; then
+  if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
     fail "$sname/$name: last line is not valid JSON: ${out:0:120}"
     return
   fi
   if [ "$expect" != "any" ]; then
     local wake
-    wake=$(printf '%s' "$out" | python3 -c 'import json,sys; print(str(json.loads(sys.stdin.read())["wakeAgent"]).lower())')
+    wake=$(printf '%s' "$out" | jq -r '.wakeAgent')
     if [ "$wake" != "$expect" ]; then
       fail "$sname/$name: wakeAgent=$wake, expected $expect"
       return

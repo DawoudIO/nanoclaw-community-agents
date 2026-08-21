@@ -25,7 +25,7 @@ detail.
   something to judge. The gates live as testable code in
   [`scripts/tasks/`](scripts/tasks/) — run [`scripts/test/run.sh`](scripts/test/run.sh)
   to exercise all of them without any agent, and
-  `python3 scripts/sync-tasks.py --check` to verify the templates match their
+  `bash scripts/sync-tasks.sh --check` to verify the templates match their
   sources. Anything with *zero* judgment (label→channel notifications,
   secret scanning) belongs even further out, in CI — see
   [`examples/github-discord-notify.yml`](examples/github-discord-notify.yml).
@@ -50,7 +50,10 @@ detail.
    sandbox → stamp/wire → credentials → configuration → go-live. Includes
    the complete question prep-sheet, the least-privilege scope tables, and
    the break-glass admin doctrine.
-3. **[docs/OPERATIONS.md](docs/OPERATIONS.md)** — day 2 and beyond: models
+3. **[docs/CHECKPOINTS.md](docs/CHECKPOINTS.md)** — the acceptance side:
+   the 13-point ready gate to pass before calling it live, then the day-2,
+   week-1, and month-1 verification checkpoints.
+4. **[docs/OPERATIONS.md](docs/OPERATIONS.md)** — day 2 and beyond: models
    and token budget, the full task reference, the **update policy** (SHA-
    pinned image pulls only — see below), and resource budget.
 

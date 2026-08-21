@@ -2,7 +2,8 @@
 
 Everything after go-live: token budget, the full task reference, keeping the
 system alive, and the update policy. Install steps are in
-[INSTALL.md](INSTALL.md).
+[INSTALL.md](INSTALL.md); the ready gate and the day-2/week-1/month-1
+verification checkpoints are in [CHECKPOINTS.md](CHECKPOINTS.md).
 
 ## Keeping it running — the session IS the system
 

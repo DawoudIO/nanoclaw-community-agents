@@ -547,6 +547,8 @@ Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
 /home/agent/nanoclaw nanoclaw claude` (break-glass admin, see above) ·
 `sbx rm nanoclaw` (teardown — the whole system, gone).
 
-**You're live.** Everything from here — token budget, the full task
-reference, keeping the session alive, and the SHA-pinned update policy — is
-in [OPERATIONS.md](OPERATIONS.md).
+**Not so fast — "resumed" is not "ready."** Before you call it live, walk
+the 13-point ready gate in [CHECKPOINTS.md](CHECKPOINTS.md) — it also gives
+you the day-2, week-1, and month-1 verification checkpoints. Everything else
+— token budget, the full task reference, keeping the session alive, and the
+SHA-pinned update policy — is in [OPERATIONS.md](OPERATIONS.md).
