@@ -52,6 +52,7 @@ Nothing here requires a paid subscription.
 | Cross-cutting | `verification-before-completion`, `systematic-debugging`, `receiving-code-review` | obra/superpowers | MIT | Evidence-before-assertions; root-cause-first; verify-external-feedback |
 | Triage engine | `evaluate-pitches`, `monitor-beat` (references) | nanocoai/nanoclaw-templates (journalist) | MIT | Ledger + incremental batches + learn-from-overrules → issue triage; beat-monitoring → advisory digests |
 | Analytics | `pipeline-check`, `report-spec` | nanocoai/nanoclaw-templates (analyst) | MIT | "Exit-code-zero isn't healthy" telemetry checks; metric definitions |
+| Cost | `ollama-provider` | nanoclaw.dev/skills/ollama-provider | — (official NanoClaw skill) | Per-group routing to a local Ollama model — zero Anthropic tokens for that group. Coding agent only (lead-reviewed output tolerates a weaker model; lead/marketing quality IS the product). See OPERATIONS.md → models for the three preconditions to verify (pinned-image support, VM-to-host networking, host hardware) |
 
 ## Install on deployment only (license blocks redistribution)
 

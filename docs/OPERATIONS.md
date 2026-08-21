@@ -53,6 +53,26 @@ the owner can change them there or later via group config):
 | Lead | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
 | Marketing | Sonnet-class | Content quality is its whole job; drafts are the deliverable |
 | Coding | Haiku-class | Triage/digest work with skills to guide it — and everything it produces is reviewed by the lead before publishing. Upgrade only if draft quality disappoints |
+
+**Zero-token option for the coding agent: local Ollama.** NanoClaw's
+[`ollama-provider` skill](https://nanoclaw.dev/skills/ollama-provider) routes
+individual agent *groups* to a local Ollama model via env overrides in the
+group's `container.json` (`ANTHROPIC_BASE_URL` → `host.docker.internal:11434`,
+dummy key, `blockedHosts: api.anthropic.com` on that group as a spend safety
+net) — no vault entry involved, since there's no real credential. The coding
+agent is the right and only candidate: its work is the most formulaic, and
+the lead reviews everything it produces before a human sees it, so a local
+model's weaker output is caught by design. Keep the lead and marketing on
+Claude — public-voice judgment and draft quality are the two places model
+quality is the product. Before enabling, verify three things: (1) the pinned
+image supports the skill's `ContainerConfig` env/blockedHosts fields (if not,
+it waits for the next digest refresh); (2) `host.docker.internal:11434`
+actually reaches the host's Ollama from inside the sandbox VM's inner Docker
+daemon — test, don't assume; (3) the host can comfortably run a capable model
+(and add the skill's recommended identity clarification, since local models
+sometimes claim to be Claude). Watch the first week's digests for quality
+regression — the lead's review catches errors, but consistently bad drafts
+cost more lead-attention than the tokens saved.
 | Any scheduled task | never Opus-class | Wakes are frequent; premium models belong in interactive sessions, not cron |
 
 **If you still hit plan limits**, pause in this order (lowest value first):
