@@ -278,22 +278,31 @@ interview.
   `examples/github-discord-notify.yml` in this template set and the two
   webhook secrets it needs; if no, note that bug/security routing stays
   agent-relayed (which drops during your own downtime — say that plainly too).
-- **Models per agent — confirm, don't assume.** State each group's current
-  provider/model and the recommended defaults for the owner's plan tier, and
-  apply any change they ask for (via group config if you can; otherwise give
-  them the exact command). Defaults for a small subscription plan ($20-tier):
-  **lead** on a Sonnet-class model (public-facing judgment); **local ops** on
-  the host's local model (`llama3.2` on a 16 GB machine) — this is the whole
-  point of that group, and if its `ANTHROPIC_BASE_URL` is unset it is silently
-  still on the cloud provider, sharing the window it exists to avoid;
-  **Reviewer (coding)** on a Haiku-class model (its drafts are reviewed by the
-  lead anyway — the cheapest model that triages well); **marketing** on a
-  Sonnet-class model when it is stamped at all, since content quality is its
-  only job. Never an Opus-class model on a scheduled task. Remind the owner:
-  cost comes from wakes, not from agents existing — a paused task burns
-  nothing, so tune budget by activating fewer tasks, not by deleting agents.
-  And 12 of the 26 tasks sit on the local agent, off the shared meter
-  entirely, which is why the window mostly goes to answering people
+- **Local Agent Provider — Cloud Haiku or Local Ollama?** The local agent is
+  the only one where you choose: all others default by role (lead on Sonnet,
+  Reviewer on Haiku, marketing on Sonnet). Ask plainly: "Do you want the local
+  agent running on (A) a local Ollama model (free, off-meter, works offline),
+  or (B) cloud Haiku (costs ~$0.001 per task, requires API access)?" Default
+  to local Ollama if the machine has 8+ GB RAM and Ollama is running. If they
+  pick Ollama:
+  1. Verify `ollama list` shows `llama3.2` or another compatible model
+  2. Configure provider="claude" with `ANTHROPIC_BASE_URL: http://host.docker.internal:11434`
+  3. If they pick Haiku: no extra setup needed, use provider="claude" as-is
+  
+  **Why local Ollama is the default**: 12 of the 26 tasks run on this group.
+  They cost nothing on the cloud meter, work when the API window is exhausted,
+  and survive the exact outage they exist to handle — but only if configured.
+  If `ANTHROPIC_BASE_URL` is unset, local ops silently uses cloud Haiku instead,
+  defeating the whole purpose. Ask once, get it right.
+
+- **Other agents — state the defaults.** Confirm the final model lineup:
+  **lead** on Sonnet (public-facing judgment), **local** per choice above,
+  **Reviewer (coding)** on Haiku (its drafts are reviewed anyway; cheapest
+  model that triages well), **marketing** on Sonnet (when stamped, since content
+  quality is its only job). Never an Opus-class model on a scheduled task.
+  Remind the owner: cost comes from wakes, not agents existing — a paused task
+  burns nothing, so tune budget by activating fewer tasks instead of deleting
+  agents.
 
 ## 5. Persist — this is the point
 

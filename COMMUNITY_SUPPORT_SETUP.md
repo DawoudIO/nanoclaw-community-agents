@@ -113,6 +113,32 @@ Each agent:
 3. Confirms to lead agent it's ready
 4. Reports back to owner via lead
 
+### Phase 4b: Configure Local Agent for Ollama (Architecture)
+
+**Problem**: NanoClaw agent-runner expects provider names ("claude", "opencode"), not URLs. Stamping `provider: "http://localhost:11434"` fails validation and causes crash-loops.
+
+**Solution**: Use the "claude" provider with per-group environment overrides.
+
+The local agent uses the **claude** provider (which speaks Anthropic API), but redirects to a local Ollama instance via environment config:
+
+```bash
+# Configure local agent to use Ollama instead of cloud Claude
+ncl groups config update --id <local-agent-group-id> --provider claude
+
+# Set the environment to redirect to local Ollama:
+# ANTHROPIC_BASE_URL: http://host.docker.internal:11434
+# ANTHROPIC_AUTH_TOKEN: placeholder (Ollama ignores auth)
+# Model: llama3.2 (already set by template)
+```
+
+This approach:
+- ✅ Uses correct provider validation (provider="claude")
+- ✅ Per-group environment isolation (only local agent redirects)
+- ✅ No code changes per new agent
+- ✅ Template can bake the config directly
+
+**Why this beats manual workarounds**: The agent-runner validates providers at spawn time. A raw URL string will always fail, so the environment-config approach is the only one that works reliably.
+
 ### Phase 5: Discord Channels Wire Automatically
 
 **Agent autonomy**: The lead agent wires Discord channels directly based on channel IDs you provided during onboarding.
@@ -227,6 +253,24 @@ ollama list | grep llama3.2
 Once `llama3.2` is pulled, the Local Ops agent will start successfully and the crash-loop stops.
 
 **Prevention**: Always run `ollama list` before setup to confirm `llama3.2` is available. The Prerequisites section lists this as critical.
+
+### Local Ops Agent Provider Validation Issue (Crash-Loop)
+
+**Symptom**: Local Ops exits with exitCode=1 in under 1 second, then retries every ~60 seconds (host sweep interval). Logs show no errors, just instant exit.
+
+**Root Cause**: The template stamped `provider: "http://localhost:11434"` (a raw URL). NanoClaw's agent-runner validates providers against known implementations (claude, opencode, etc.). A URL string is not a valid provider name, so validation fails and the container exits immediately on spawn.
+
+**Correct Fix** (Phase 4b):
+Configure the local agent to use provider="claude" with per-group environment overrides that redirect to local Ollama:
+```bash
+ncl groups config update --id <local-agent-group-id> --provider claude
+# Set ANTHROPIC_BASE_URL: http://host.docker.internal:11434
+# Set ANTHROPIC_AUTH_TOKEN: placeholder
+```
+
+This uses the correct provider ("claude") while redirecting only that group to local Ollama, leaving other agents (like Community Support) using cloud Claude.
+
+**Why raw URLs fail**: Agent-runner validates `provider` at spawn time against a whitelist of known provider implementations. A URL string cannot pass this validation, so it is not a workaround — it will always cause instant exit.
 
 ---
 
