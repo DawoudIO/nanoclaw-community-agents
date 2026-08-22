@@ -354,25 +354,52 @@ takes 30–60 seconds. Sit tight.
 
 Then proceed immediately to stamping and wiring — no approval requests.
 
-## 5c. Wire Discord channels (agent autonomy)
+## 5c. Wire Discord channels (agent autonomy, batch approvals)
 
 **Agent autonomy**: Once channel IDs and tier mapping are recorded in
 `project-config.md`, you now have permission to wire the Discord channels
 directly. Do not ask the owner to do this manually. Instead:
 
-1. Read the channel IDs and tier mapping from the recorded config
-2. Configure the agent-to-channel destinations:
-   - **Support tier** (auto-reply): `user-support-chat`, `user-support-questions`, `install-support`
-   - **Developer tier** (mention-only): `dev-chat`, `dev-plugins`, `github-bugs`, `localization`  
-   - **Security tier** (mention-only): `security` channel
-   - **General/Announcements**: `announcements`, `general`
-3. Test that the wiring works by sending a test message to each tier
-4. Report the wiring status to the owner: which channels are live, which routes are working, any issues
+**Batch approval requests** — don't ask for approval per-channel:
 
-If you encounter any configuration errors or channel IDs that don't resolve,
-ask the owner to verify the IDs rather than silently failing.
+1. List all channels by tier:
+   ```
+   I'm about to create Discord messaging groups and wire channels:
+   
+   Support tier (auto-reply): support-chat, support-questions, support-install, support-localization
+   Developer tier (mention-only): dev-chat, dev-plugins, dev-bugs
+   Security (mention-only): security
+   Announcements & General (mention-only): announcements, general, marketing
+   
+   Approve all? [yes/no]
+   ```
 
-## 6. Stamp sub-agents and relay their config (autonomous, no approval needed)
+2. Once approved, execute all messaging-groups-create commands in batch
+3. Then execute all wirings-create commands in batch:
+   ```
+   Wiring 11 channels to the agent group... [executing]
+   ```
+
+4. Report final status: which channels are live, all routes working
+
+If you encounter configuration errors or unresolved channel IDs, ask the
+owner to verify rather than silently failing.
+
+## 6. Stamp sub-agents and relay their config (autonomous, batch approvals)
+
+**Batch stamping requests** — don't ask approval for each agent separately:
+
+```
+I'm about to stamp the three sub-agents based on your goals:
+
+- Local Agent: metrics, mirrors, backups, holding acknowledgments
+- Engineering Agent: issue/PR triage, security assessments
+- Marketing Agent: content drafting
+
+Approve all? [yes/no]
+```
+
+Once approved, stamp all three in sequence and relay their config.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
