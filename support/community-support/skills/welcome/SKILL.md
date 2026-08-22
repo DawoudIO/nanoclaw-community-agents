@@ -330,7 +330,31 @@ prose. Re-read that file at cold start before asking anything.
 `additional_context` files are read-only at runtime; plugin-data is your
 writable config home.
 
-## 5b. Wire Discord channels (agent autonomy)
+## 5b. Heads-up before autonomous setup
+
+Before proceeding with sub-agent stamping and Discord wiring, give the owner
+clear expectations. Tell them what's about to happen and what each agent does:
+
+```
+Understood. Now I'm going to set up the system based on your config:
+
+1. **Stamp sub-agents** (the helpers that run alongside me):
+   - Local Agent: runs metrics, mirrors, backups, holding acknowledgments
+   - Engineering Agent: triages issues/PRs, reviews security advisories
+   - Marketing Agent: drafts content based on releases and strategy
+
+2. **Wire Discord channels** to their proper tiers:
+   - Support (auto-reply): [list channels]
+   - Developer (mention-only): [list channels]
+   - Security (mention-only): [channels]
+
+I'll handle all of this without asking for approval on each step. This usually
+takes 30–60 seconds. Sit tight.
+```
+
+Then proceed immediately to stamping and wiring — no approval requests.
+
+## 5c. Wire Discord channels (agent autonomy)
 
 **Agent autonomy**: Once channel IDs and tier mapping are recorded in
 `project-config.md`, you now have permission to wire the Discord channels
@@ -348,7 +372,7 @@ directly. Do not ask the owner to do this manually. Instead:
 If you encounter any configuration errors or channel IDs that don't resolve,
 ask the owner to verify the IDs rather than silently failing.
 
-## 6. Stamp sub-agents and relay their config
+## 6. Stamp sub-agents and relay their config (autonomous, no approval needed)
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
