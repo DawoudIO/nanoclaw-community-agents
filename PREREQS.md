@@ -20,14 +20,16 @@ is aimed at catching that mistake *before* it happens, not after.
 
 | Credential | Create it here | Notes |
 |---|---|---|
-| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Two separate budgets](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached |
+| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. Note this row covers the three *cloud* agents only — the local agent draws on no window at all (see the Ollama row below) |
+| **Local model runtime (what the local agent thinks with)** | **Ollama on the host** — `ollama.com/download`, then `ollama pull llama3.2` | Not a credential and never in the vault — a *host* prerequisite, and the local agent's entire model dependency. It holds no model key at all; it reaches Ollama on `:11434`. On the 16 GB Mac mini reference host `llama3.2` is ~2 GB resident and shares **unified memory** with Docker and the sandbox VM — there is no separate VRAM, so those 2 GB come out of the same 16 GB everything else uses. VM→host reachability to `:11434` crosses two network boundaries and is **unverified** — test it before trusting it |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
-| Lead GitHub PAT | `github.com/settings/tokens` (classic) | Scope `repo` (public-only: `public_repo`). Not `read:org` |
-| Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Contents+Issues+PRs; + Dependabot alerts if enabling the sweep |
+| Lead GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS`. Not classic, not `read:org` |
+| Local GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only over `COMMUNITY_REPOS` + `MIRROR_REPOS`; plus Contents **write on the backup repo only** |
+| Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Issues+PRs; + Dependabot alerts if enabling the sweep. `COMMUNITY_REPOS` only |
 | Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Content repo only, Contents+PRs read/write |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`) |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API |
+| PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`). **Belongs to the local agent** (`posthog-weekly-review`) — no other agent should be able to reach it |
+| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the local agent** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
 
@@ -49,7 +51,7 @@ explicitly permitted to take. Regenerate the endpoint list any time with:
 grep -rhoE 'https://api\.github\.com/[^"]*' scripts/tasks/*/*.sh */*/setup-check.sh | sort -u
 ```
 
-**Use fine-grained PATs for all three agents.** A classic `repo` scope is
+**Use fine-grained PATs for all four agents.** A classic `repo` scope is
 account-wide (every repo the bot can see, read *and* write); a fine-grained
 token is an allowlist of named repos with per-category permissions. Nothing
 here needs classic. Note that a fine-grained token's repo list gates
@@ -58,9 +60,25 @@ a repo left off the list fails silently rather than falling back to public
 access. That's the single most common misconfiguration in this system.
 
 **Every script call is a read.** Writes happen exclusively in the agents'
-live actions, which is why only two of the three tokens need write at all.
+live actions — which is why, of the four tokens, write is narrow and unevenly
+distributed:
 
-There is exactly one `POST` in the whole system and it is **not** a write:
+- **Lead** — Issues and PRs write, for its own live replies: filing a bug
+  report from a Discord conversation, commenting, labelling.
+- **Marketing** — Contents and PRs write, on the content repo only, to commit
+  a draft and open its PR.
+- **Local** — Contents write on the **backup repo only**, for
+  `workspace-backup`'s git push. Everything else it does is a read.
+- **Coding (the Reviewer)** — **no write of any kind, anywhere.** It is the
+  one token that is structurally incapable of changing anything.
+
+So three of four hold some write, but only two hold write on a repo anyone
+reads (the lead on the community repos, marketing on the content repo). Local's
+write reaches exactly one private backup repo, which is why it is worth cutting
+as a separate token rather than widening the one it already has.
+
+There is exactly one `POST` in the whole system, it belongs to the **local**
+agent (`weekly-analytics-report`), and it is **not** a write:
 GA4's `analyticsdata.googleapis.com/v1beta/properties/{id}:runReport`. That
 API takes its query (date range, which metrics) as a JSON body, so Google
 made the query verb a POST — it returns rows and mutates nothing. The
@@ -76,15 +94,52 @@ gets gated.
 | Permission | Level | Justified by |
 |---|---|---|
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
-| Issues | **Read + Write** | reads `GET /repos/{repo}/issues` (`daily-github-triage`); writes = filing bug reports from Discord, commenting, labelling (`github-bug-workflow.md`) |
-| Pull requests | Read + Write | commenting on PRs; the issues endpoint also returns PRs |
+| Issues | **Read + Write** | reads `GET /repos/{repo}/issues` (`daily-github-triage`); writes = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
+| Pull requests | Read + Write | commenting on PRs in those same live replies; the issues endpoint also returns PRs |
 | Contents | Read | `GET /repos/{repo}/releases/latest` (`release-announcement-watch`) |
-| Contents (**backup repo only**) | Write | `workspace-backup` pushes over `github.com` git — a *separate vault entry* from `api.github.com`, and ideally a separate token scoped to just that repo |
 
-Repo list: everything in `COMMUNITY_REPOS`, plus the backup repo if enabled.
-**Never** `admin:*`, `delete_repo`, `read:org`, or workflow scopes — nothing
-reads org membership (listing an org's repos during onboarding needs no such
-scope) and nothing touches Actions.
+Repo list: everything in `COMMUNITY_REPOS`. **Never** `admin:*`,
+`delete_repo`, `read:org`, or workflow scopes — nothing reads org membership
+(listing an org's repos during onboarding needs no such scope) and nothing
+touches Actions.
+
+One nuance on the Issues row worth knowing before you cut it smaller:
+`daily-github-triage` is the lead's **standalone-mode fallback** and is
+normally left paused when the Reviewer is stamped, because `github-ops-triage`
+covers the same ground at higher cadence. Pausing that task does *not* let you
+drop the write permission — the lead needs Issues and PRs write for its live
+replies regardless, which is the larger justification of the two.
+
+### Local — `local/community-local`
+
+Eleven of the nineteen tasks, and the only agent holding credentials that
+aren't GitHub at all. Almost entirely read-only: its single write is a git
+push to one private repo.
+
+| Permission | Level | Justified by |
+|---|---|---|
+| Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check, `/community/profile` (`repo-hygiene-audit`), `/contributors` (`dev-metrics-report`) |
+| Issues | Read | `GET /repos/{repo}/issues` and `GET /search/issues` (`good-first-issue-health`, `dev-metrics-report`, `repo-hygiene-audit`) |
+| Contents | Read | `GET /repos/{repo}/releases` (download counts), plus `git clone/fetch` over `github.com` for `repo-mirror-sync` |
+| Pull requests | Read | `GET /repos/{repo}/pulls` (`draft-cleanup`) |
+| Contents (**backup repo only**) | **Write** | `workspace-backup` pushes over `github.com` git — a *separate vault entry* from `api.github.com`, and ideally a separate token scoped to just that repo |
+
+Two non-GitHub hosts live on this agent and nowhere else: the PostHog key
+(`<region>.posthog.com`, `posthog-weekly-review`) and the GA4 OAuth connection
+(`analyticsdata.googleapis.com`, `weekly-analytics-report`). If
+`agent-access` reports either of them reachable by the lead, the Reviewer, or
+marketing, that's a finding — see §3.
+
+Repo list: the union of `COMMUNITY_REPOS` and `MIRROR_REPOS` (the mirror set is
+usually the larger — it covers docs/site/wiki even when those aren't triaged),
+plus the backup repo if enabled. Public repos need no credential at all for the
+git clone.
+
+Worth noticing what is *absent* from every row above: `unanswered-watch`, the
+task the whole responsiveness guarantee rests on. It has no network access and
+no credential — it reads local message state only. That is exactly why it keeps
+working during the outage it exists to cover; a token problem cannot silence it,
+because it never had a token.
 
 ### Coding — `engineering/community-coding`
 
@@ -92,32 +147,56 @@ scope) and nothing touches Actions.
 is designed never to post, so its token should be incapable of it — that way
 a prompt injection that slips past the persona still cannot act.
 
+After the model-tier split this agent holds exactly **two** tasks —
+`github-ops-triage` and `security-advisory-sweep` — which makes it the
+smallest token of the four. Everything the older, larger version of this scope
+list justified (metrics, GFI health, hygiene, mirroring, release download
+counts) is the local agent's work now. If you are re-cutting this token against
+an earlier copy of this doc, you are cutting it **smaller**, not wider.
+
 | Permission | Level | Justified by |
 |---|---|---|
-| Metadata | Read | `GET /repos/{repo}`, `/community/profile` (`repo-hygiene-audit`), `/contributors` (`dev-metrics-report`) |
-| Issues | Read | `GET /repos/{repo}/issues` (`github-ops-triage`), `GET /search/issues` (metrics, GFI health, ready-to-merge) |
-| Pull requests | Read | the same search + issues endpoints return PRs |
-| Contents | Read | `GET /repos/{repo}/releases` (download counts), and `git clone/fetch` over `github.com` for `repo-mirror-sync` |
+| Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
+| Issues | Read | `GET /repos/{repo}/issues` (`github-ops-triage`) |
+| Pull requests | Read | the same issues endpoint also returns PRs |
 | Dependabot alerts | Read | `GET /repos/{repo}/dependabot/alerts` (`security-advisory-sweep`) — **omit this and the sweep 403s**; it's the one permission people forget |
 
-Repo list: the union of `COMMUNITY_REPOS` and `MIRROR_REPOS` (the mirror set
-is usually the larger one — it covers docs/site/wiki even when those aren't
-triaged). Public repos need no credential at all for the git clone.
+No Contents permission at all: the two things that needed it (release download
+counts, and `git clone/fetch` for `repo-mirror-sync`) both moved to local.
+
+Repo list: `COMMUNITY_REPOS` only — **not** `MIRROR_REPOS`. Mirroring is the
+local agent's job, so a mirror-only repo on this token is access nothing here
+uses, and unused access is exactly what §3's audit exists to catch.
 
 ### Marketing — `marketing/community-marketing`
+
+This agent holds exactly **one** task, `content-draft-cycle`, and every
+permission below traces to it.
 
 | Permission | Level | Justified by |
 |---|---|---|
 | Metadata | Read | setup-check reachability probes |
 | Contents | **Read + Write** on `CONTENT_REPO` | commits drafts to a branch (`content-workflow.md` step 2) |
-| Pull requests | **Read + Write** on `CONTENT_REPO` | opens the draft PR (step 3); `GET /repos/{repo}/pulls` for `draft-cleanup` |
+| Pull requests | **Read + Write** on `CONTENT_REPO` | opens the draft PR (step 3) |
 | Contents | Read on `BRAND_SOURCE_REPO` | reads brand voice / pillars / calendar, if a different repo |
 | Contents | Read on `RELEASE_WATCH_REPO` | `GET /releases/latest` for the content trigger, if a different repo |
 
+The PR write used to carry a second justification, `draft-cleanup`'s
+`GET /repos/{repo}/pulls`. That task is the local agent's now — and it only
+ever needed *read*, so this is one fewer reason for the write, not one fewer
+permission. The write still stands on step 3 alone: marketing has to open the
+draft PR it just committed.
+
 Repo list: `CONTENT_REPO` (write) plus `BRAND_SOURCE_REPO` and
 `RELEASE_WATCH_REPO` (read) **when those differ** — the most common silent
-failure in this system is leaving one of the latter two off the list. No
-social-platform credential is wired to this agent in any configuration.
+failure in this system is leaving one of the latter two off the list. Note
+`CONTENT_REPO` is set on **both** marketing and local, for different reasons
+and at different levels: marketing writes drafts there, local only reads PRs
+there to find stale ones.
+
+No social-platform credential is wired to this agent in any configuration, and
+no analytics credential either — GA4 and PostHog belong to the local agent.
+Marketing writes the drafts; it does not read the numbers.
 
 ### Why PATs and not a GitHub App
 
@@ -194,7 +273,7 @@ A real deployment's audit, applying the steps above:
 |---|---|
 | GitHub (Apps tab), Gmail (Apps tab), Google Analytics (Apps tab) | ✅ expected — confirm identity with the `GET /user` check below regardless |
 | GitHub App, GitLab, Google Drive, Google Calendar, Google Chat — all **not connected** | ✅ correct — nothing in this template set uses them; an unconnected integration sitting in the "Apps" list is not a requirement, don't connect it "just in case" |
-| PostHog API Key (Custom, host `us.posthog.com`) | ✅ matches the coding agent's telemetry row |
+| PostHog API Key (Custom, host `us.posthog.com`) | ✅ matches the **local** agent's telemetry row (`posthog-weekly-review`). If `agent-access` shows the Reviewer reaching it, that's a leftover from before the model-tier split — remove it |
 | Discord Bot Token (Custom, host `discord.com`) | ✅ expected — `/add-discord`'s own registration, not a manual step |
 | LinkedIn Access Token (Custom, host `api.linkedin.com`) | 🚩 **finding**: this template's default LinkedIn posting is the free intent-URL flow, which needs no API credential at all. A live token here with nothing in the current design that calls it is exactly the kind of stale, unused-but-still-valid credential this audit exists to catch — confirm it's actually in use before carrying it forward; if not, remove it |
 | 4× Twitter/X secrets (`TWITTER_API_KEY`/`_SECRET`, `TWITTER_ACCESS_TOKEN`/`_SECRET`, all Custom, host `api.x.com`, OAuth 1.0a headers) | 🚩 **verify before reuse**: this is the legacy OAuth 1.0a posting flow. X's pricing changed in Feb 2026 to pay-per-use — confirm whether the *new* API uses this same auth scheme before assuming these four secrets still work; only relevant at all if the owner opts into paid X posting (default is free intent-URL, needing none of this) |
