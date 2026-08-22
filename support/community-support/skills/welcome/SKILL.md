@@ -330,10 +330,15 @@ prose. Re-read that file at cold start before asking anything.
 `additional_context` files are read-only at runtime; plugin-data is your
 writable config home.
 
-## 5b. Heads-up before autonomous setup
+## 5b. Heads-up before autonomous setup (with timing for long operations)
 
-Before proceeding with sub-agent stamping and Discord wiring, give the owner
-clear expectations. Tell them what's about to happen and what each agent does:
+Before proceeding with any long-running operation (sub-agent stamping, Discord
+wiring, workspace setup), give the owner clear expectations upfront:
+1. **What's about to happen** (summary of operations)
+2. **How long it takes** (rough time estimate)
+3. **What to expect** (silence during processing, will report when done)
+
+Tell them what's about to happen and what each agent does:
 
 ```
 Understood. Now I'm going to set up the system based on your config:
@@ -399,7 +404,13 @@ I'm about to stamp the three sub-agents based on your goals:
 Approve all? [yes/no]
 ```
 
-Once approved, stamp all three in sequence and relay their config.
+Once approved, **give a heads-up before starting long-running operations**:
+
+```
+Stamping sub-agents now (this takes about 30–60 seconds, no further messages until done)…
+```
+
+Then stamp all three in sequence and relay their config. Report when complete.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
