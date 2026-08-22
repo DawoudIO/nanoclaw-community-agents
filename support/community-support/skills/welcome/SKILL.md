@@ -423,7 +423,9 @@ Report when complete.
 2. **For the local agent**: Auto-detect Ollama configuration:
    - Probe `http://localhost:11434` to check if Ollama is running
    - Query the models endpoint to list installed models
-   - Apply the detected endpoint + model automatically (no user input needed)
+   - **Verify that `llama3.2` is available** in the model list
+   - If llama3.2 is missing, alert the owner: "Ollama is running but llama3.2 is not pulled. Run `ollama pull llama3.2` and try again."
+   - If llama3.2 is available, apply the detected endpoint + model automatically (no user input needed)
    - If Ollama is unreachable or misconfigured, ask the owner for the endpoint/model
 3. Relay the config keys listed below to each agent
 4. Report the stamping result and each agent's status to the owner
