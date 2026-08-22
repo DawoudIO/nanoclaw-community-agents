@@ -97,7 +97,7 @@ window**, so budget them together:
 - **Welcome interview**: the biggest single line item — ~15K context per turn
   over 8–15 turns, heavily cache-discounted after the first.
 - **Sub-agent relay + each `setup-check.sh`**: ~2–3 turns each, small.
-- **Gate testing**: of the 21 script-gated tasks, **13 exit `not-configured`
+- **Gate testing**: of the 22 script-gated tasks, **13 exit `not-configured`
   with no model wake at all** on a fresh install — those are free. Of the
   remaining four, `docs-gap-review` exits `no-ledger-yet` (also free, and stays
   that way for weeks), and `health-check` + `unanswered-watch` are local-agent
@@ -120,7 +120,7 @@ persona plus whatever skill loads:
 The local agent is absent from these numbers on purpose, not by oversight:
 its context is loaded into a model running on your own host, so its wakes are
 billed in RAM and wall-clock, never against the shared window. That's 11 of
-the 23 tasks — the bulk of the recurring work — costing zero here. If you want
+the 24 tasks — the bulk of the recurring work — costing zero here. If you want
 to size it, size it against the host (`ollama ps`, memory headroom), which is
 a different measurement with a different unit; don't add it to this column.
 
@@ -142,7 +142,7 @@ scoped to the wrong repo list. Four things that protect the window:
 2. **Use the answers file.** `onboarding-answers.json` collapses an 8–15 turn
    interview into ~2 — on a shared window this is the single largest saving
    available, and it makes a retry nearly free.
-3. **Don't interactively test all 21 gates.** Run the ones you configured;
+3. **Don't interactively test all 22 gates.** Run the ones you configured;
    the rest are provably free and the harness covers their logic.
 4. **Read the docs yourself rather than through the session** — `docs/` +
    PREREQS + README is ~22K tokens of context you don't need to spend.
@@ -156,7 +156,7 @@ Code for anything else that day.**
 
 **Four agents, but only three of them can spend your window.** Burn comes from
 model *wakes*, not from agents existing: a stamped agent whose tasks are paused
-costs nothing. 21 of 23 tasks are script-gated, so quiet periods cost near zero
+costs nothing. 22 of 24 tasks are script-gated, so quiet periods cost near zero
 regardless of agent count. The two highest-frequency gates are also the two
 cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
@@ -356,7 +356,8 @@ Every config key below lives in `plugin-data/community-local/config.env`:
 | `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
 | `workspace-backup` (daily) | on failure | git repo + remote + git identity + a `github.com` (git) vault secret | silent skip |
 
-**Reviewer** (`engineering/community-coding`) — read-only, never posts
+**Reviewer** (`engineering/community-coding`) — read-only except for drafting
+security patch PRs and docs PRs (branch + draft PR, never merged), never posts
 publicly. Config in `plugin-data/community-coding/config.env`.
 `contributor-health-review` and `posthog-weekly-review` are here rather than on
 the local tier for the same reason: each is the *interpretation* half of a
@@ -367,6 +368,7 @@ local; judgment stayed cloud.
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
+| `docs-currency-watch` (every 6h) | only on merged PRs not yet assessed | coding PAT (Contents+PRs **write**) + `PRODUCT_REPO`/`COMMUNITY_REPOS` + `DOCS_REPO` | silent skip — no `DOCS_REPO` means the project has no docs site and the task never fires |
 | `posthog-weekly-review` (Mon) | only on an insight-value change, else a 28-day heartbeat | PostHog key + `POSTHOG_PROJECT_ID` (+ optional `POSTHOG_HOST`) + allowlist | silent skip |
 | `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
@@ -406,12 +408,13 @@ the round minutes because it's the task the north star depends on:
 | `weekly-analytics-report` | Local ops | **weekly** | 14:19, Sun | yes |
 | `workspace-backup` | Local ops | **daily** | 08:43 | yes |
 | `contributor-health-review` | Reviewer | **weekly** | 11:26, Wed | yes |
+| `docs-currency-watch` | Reviewer | **every 6h** | every 6h at :29 | yes |
 | `github-ops-triage` | Reviewer | **every 6h** | every 6h at :35 | yes |
 | `posthog-weekly-review` | Reviewer | **weekly** | 15:09, Mon | yes |
 | `security-advisory-sweep` | Reviewer | **every 4h** | every 4h at :45 | yes |
 | `content-draft-cycle` | Marketing | **weekdays** | 13:38, Mon–Fri | yes |
 
-_23 tasks across 4 agents; 21 script-gated (ungated: inbox-check social-metrics-snapshot)_
+_24 tasks across 4 agents; 22 script-gated (ungated: inbox-check social-metrics-snapshot)_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
 
 **This table is generated — do not hand-edit it.** It was hand-maintained
@@ -598,7 +601,7 @@ refreshes when the issue appears.
 5. **Restore the local tier: host Ollama running, and `ollama pull llama3.2`.**
    Then re-point the local group at it and confirm with its `setup-check.sh`
    that `local_provider_active` reports `ok`. This is the step most likely to
-   be skipped and the most expensive to skip: **11 of the 23 tasks belong to
+   be skipped and the most expensive to skip: **11 of the 24 tasks belong to
    the local agent**, and if the model isn't there — or the group is stamped
    but `ANTHROPIC_BASE_URL` is unset — those tasks are dead or silently back on
    the cloud provider, and **nothing in the system detects it.** A missing

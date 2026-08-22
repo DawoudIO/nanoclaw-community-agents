@@ -22,12 +22,39 @@ NEW="[]"; FAILED=""
 for REPO in $REPOS; do
   ALERTS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
     "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100") || { FAILED="$FAILED $REPO"; continue; }
-  IDS=$(printf '%s' "$ALERTS" | jq -r 'if type=="array" then .[].number else empty end' 2>/dev/null || true)
-  for ID in $IDS; do
+  # Carry the whole finding, not just the id. This response already contains
+  # severity, package, scope and the patched version — the previous version
+  # extracted `.number` and threw the rest away, which forced the agent to
+  # re-fetch every alert just to learn whether it was critical or low, and made
+  # severity-based routing impossible. `dependency.scope` matters most of all:
+  # a development-only dependency is a materially different risk from a runtime
+  # one, and it is the first input to the reachability judgment.
+  ENRICHED=$(printf '%s' "$ALERTS" | jq -c --arg r "$REPO" 'if type=="array" then
+    [ .[] | {
+        repo: $r,
+        alert: .number,
+        ghsa_id: (.security_advisory.ghsa_id // null),
+        cve_id: (.security_advisory.cve_id // null),
+        severity: ((.security_advisory.severity // .security_vulnerability.severity // "unknown") | ascii_downcase),
+        cvss: (.security_advisory.cvss.score // null),
+        package: (.security_vulnerability.package.name // null),
+        ecosystem: (.security_vulnerability.package.ecosystem // null),
+        scope: (.dependency.scope // null),
+        vulnerable_range: (.security_vulnerability.vulnerable_version_range // null),
+        first_patched: (.security_vulnerability.first_patched_version.identifier // null),
+        summary: ((.security_advisory.summary // "") | .[0:200]),
+        url: (.html_url // null)
+      } ]
+    else [] end' 2>/dev/null || echo '[]')
+  while IFS= read -r ONE; do
+    [ -z "$ONE" ] && continue
+    ID=$(printf '%s' "$ONE" | jq -r '.alert')
     if ! grep -qxF "$REPO#$ID" "$SEEN"; then
-      NEW=$(printf '%s' "$NEW" | jq -c --arg r "$REPO" --arg i "$ID" '. + [{repo: $r, alert: ($i|tonumber)}]')
+      NEW=$(printf '%s' "$NEW" | jq -c --argjson o "$ONE" '. + [$o]')
     fi
-  done
+  done <<EOF
+$(printf '%s' "$ENRICHED" | jq -c '.[]' 2>/dev/null)
+EOF
 done
 if [ -n "$FAILED" ]; then
   printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": "%s", "hint": "403 usually means the fine-grained token is missing the Dependabot alerts (read) permission", "new": %s}}\n' "${FAILED# }" "$NEW"
@@ -36,5 +63,15 @@ fi
 if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
   echo '{"wakeAgent": false, "data": {"status": "no-new-advisories"}}'
 else
-  printf '{"wakeAgent": true, "data": {"status": "new", "advisories": %s}}\n' "$NEW"
+  # Sort worst-first and roll up the counts, so the report can lead with what
+  # matters instead of the order GitHub happened to return.
+  SORTED=$(printf '%s' "$NEW" | jq -c '
+    def rank: {"critical":0,"high":1,"moderate":2,"medium":2,"low":3,"unknown":4};
+    sort_by(rank[.severity] // 4, .repo, .alert)')
+  COUNTS=$(printf '%s' "$SORTED" | jq -c '
+    reduce .[] as $a ({}; .[$a.severity] = ((.[$a.severity] // 0) + 1))')
+  TOP=$(printf '%s' "$SORTED" | jq -r '.[0].severity // "unknown"')
+  RUNTIME=$(printf '%s' "$SORTED" | jq '[.[] | select(.scope != "development")] | length')
+  printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "advisories": %s}}\n' \
+    "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$SORTED"
 fi

@@ -98,3 +98,20 @@ isn't. Duplicates beat losses.
 Never announce a prerelease or draft — the script only ever sees stable
 releases, so if something looks unfinished, don't post it; flag it to your
 owner instead as a likely fetch anomaly.
+
+## The docs PRs waiting on this release
+
+A release is the trigger for merging the documentation that describes it. The
+Reviewer's `docs-currency-watch` drafts a docs PR for every merge that changed
+observable behaviour and **holds it as a draft**, tagged with the version,
+because docs describing an unreleased fix are wrong for everyone reading them
+today.
+
+So on a new stable release, before you announce anything: list the open docs
+PRs whose milestone or `docs-pending-release` label matches this version, and
+hand the owner that list with the release note. They are ready to merge now —
+the hold existed only until the code shipped.
+
+Say plainly if the list is empty (nothing needed documenting, which is common
+for a patch release) and if any docs PR has no version at all, since that is
+the one case that silently never gets swept up. Do not merge them yourself.

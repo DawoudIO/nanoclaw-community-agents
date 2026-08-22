@@ -647,6 +647,52 @@ assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-res
 assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
   'COMMUNITY_REPOS="acme/crm"' 2
+# security-advisory-sweep: three alerts of mixed severity and scope. Asserts
+# the enrichment the agent depends on — worst-first ordering, the severity
+# rollup, and `scope`, which is the first input to "are we genuinely
+# affected": a development-only dependency is a different risk from a runtime
+# one. Before this, the gate emitted only alert numbers and the agent had to
+# re-fetch each one to learn any of it.
+assert_scenario "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" advisory-mixed true \
+  '(.data.status == "new")
+   and (.data.count == 3)
+   and (.data.highest_severity == "critical")
+   and (.data.advisories[0].severity == "critical")
+   and (.data.advisories[0].package == "lodash")
+   and (.data.advisories[0].scope == "runtime")
+   and (.data.advisories[0].first_patched == "4.17.21")
+   and (.data.advisories[0].ghsa_id == "GHSA-crit-0002")
+   and (.data.by_severity.critical == 1)
+   and (.data.by_severity.low == 1)
+   and (.data.runtime_scoped == 1)' \
+  'COMMUNITY_REPOS="acme/crm"'
+# docs-currency-watch: three merged PRs, and the assertions that matter are
+# the RELEASE GATING inputs — the milestone the docs PR must be tagged with,
+# and latest_release so the agent can tell "already shipped, merge it" from
+# "unreleased, hold it as a draft". Docs describing an unreleased fix are wrong
+# for everyone reading the site today, so this is a correctness property.
+assert_scenario "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" docs-merges true \
+  '(.data.status == "new-merges")
+   and (.data.count == 3)
+   and (.data.latest_release == "v5.2.0")
+   and (.data.source_repo == "acme/crm")
+   and (.data.docs_repo == "acme/docs")
+   and (.data.without_milestone == 1)
+   and ([.data.merged[] | select(.number == 301) | .milestone] == ["v5.3.0"])
+   and (.data.deferred == 0)' \
+  'COMMUNITY_REPOS="acme/crm"
+DOCS_REPO="acme/docs"'
+
+# docs-currency-watch: no DOCS_REPO means the project has no docs site, and the
+# task must stay silent forever rather than inventing a target.
+assert_gate "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" no-docs-target false \
+  'COMMUNITY_REPOS="acme/crm"'
+
+# docs-currency-watch, run 2: the same merges must not resurface.
+assert_scenario "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" docs-merges false \
+  '.data.status == "no-new-merges"' \
+  'COMMUNITY_REPOS="acme/crm"
+DOCS_REPO="acme/docs"' 2
 
 echo
 echo "passed: $PASS  failed: $FAIL"

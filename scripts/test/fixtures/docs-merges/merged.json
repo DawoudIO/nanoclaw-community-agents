@@ -1,0 +1,46 @@
+{
+ "total_count": 3,
+ "items": [
+  {
+   "number": 301,
+   "title": "Add --strict flag to import command",
+   "user": {
+    "login": "dev1"
+   },
+   "html_url": "https://github.com/acme/crm/pull/301",
+   "closed_at": "2026-08-20T10:00:00Z",
+   "labels": [
+    {
+     "name": "enhancement"
+    }
+   ],
+   "milestone": {
+    "title": "v5.3.0"
+   }
+  },
+  {
+   "number": 302,
+   "title": "Refactor internal cache helper",
+   "user": {
+    "login": "dev2"
+   },
+   "html_url": "https://github.com/acme/crm/pull/302",
+   "closed_at": "2026-08-20T11:00:00Z",
+   "labels": [],
+   "milestone": {
+    "title": "v5.3.0"
+   }
+  },
+  {
+   "number": 303,
+   "title": "Fix typo and update guide",
+   "user": {
+    "login": "dev3"
+   },
+   "html_url": "https://github.com/acme/crm/pull/303",
+   "closed_at": "2026-08-20T12:00:00Z",
+   "labels": [],
+   "milestone": null
+  }
+ ]
+}

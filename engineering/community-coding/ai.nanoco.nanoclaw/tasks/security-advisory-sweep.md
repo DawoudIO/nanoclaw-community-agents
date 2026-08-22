@@ -25,12 +25,39 @@ script: |
   for REPO in $REPOS; do
     ALERTS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
       "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100") || { FAILED="$FAILED $REPO"; continue; }
-    IDS=$(printf '%s' "$ALERTS" | jq -r 'if type=="array" then .[].number else empty end' 2>/dev/null || true)
-    for ID in $IDS; do
+    # Carry the whole finding, not just the id. This response already contains
+    # severity, package, scope and the patched version — the previous version
+    # extracted `.number` and threw the rest away, which forced the agent to
+    # re-fetch every alert just to learn whether it was critical or low, and made
+    # severity-based routing impossible. `dependency.scope` matters most of all:
+    # a development-only dependency is a materially different risk from a runtime
+    # one, and it is the first input to the reachability judgment.
+    ENRICHED=$(printf '%s' "$ALERTS" | jq -c --arg r "$REPO" 'if type=="array" then
+      [ .[] | {
+          repo: $r,
+          alert: .number,
+          ghsa_id: (.security_advisory.ghsa_id // null),
+          cve_id: (.security_advisory.cve_id // null),
+          severity: ((.security_advisory.severity // .security_vulnerability.severity // "unknown") | ascii_downcase),
+          cvss: (.security_advisory.cvss.score // null),
+          package: (.security_vulnerability.package.name // null),
+          ecosystem: (.security_vulnerability.package.ecosystem // null),
+          scope: (.dependency.scope // null),
+          vulnerable_range: (.security_vulnerability.vulnerable_version_range // null),
+          first_patched: (.security_vulnerability.first_patched_version.identifier // null),
+          summary: ((.security_advisory.summary // "") | .[0:200]),
+          url: (.html_url // null)
+        } ]
+      else [] end' 2>/dev/null || echo '[]')
+    while IFS= read -r ONE; do
+      [ -z "$ONE" ] && continue
+      ID=$(printf '%s' "$ONE" | jq -r '.alert')
       if ! grep -qxF "$REPO#$ID" "$SEEN"; then
-        NEW=$(printf '%s' "$NEW" | jq -c --arg r "$REPO" --arg i "$ID" '. + [{repo: $r, alert: ($i|tonumber)}]')
+        NEW=$(printf '%s' "$NEW" | jq -c --argjson o "$ONE" '. + [$o]')
       fi
-    done
+    done <<EOF
+  $(printf '%s' "$ENRICHED" | jq -c '.[]' 2>/dev/null)
+  EOF
   done
   if [ -n "$FAILED" ]; then
     printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": "%s", "hint": "403 usually means the fine-grained token is missing the Dependabot alerts (read) permission", "new": %s}}\n' "${FAILED# }" "$NEW"
@@ -39,7 +66,17 @@ script: |
   if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
     echo '{"wakeAgent": false, "data": {"status": "no-new-advisories"}}'
   else
-    printf '{"wakeAgent": true, "data": {"status": "new", "advisories": %s}}\n' "$NEW"
+    # Sort worst-first and roll up the counts, so the report can lead with what
+    # matters instead of the order GitHub happened to return.
+    SORTED=$(printf '%s' "$NEW" | jq -c '
+      def rank: {"critical":0,"high":1,"moderate":2,"medium":2,"low":3,"unknown":4};
+      sort_by(rank[.severity] // 4, .repo, .alert)')
+    COUNTS=$(printf '%s' "$SORTED" | jq -c '
+      reduce .[] as $a ({}; .[$a.severity] = ((.[$a.severity] // 0) + 1))')
+    TOP=$(printf '%s' "$SORTED" | jq -r '.[0].severity // "unknown"')
+    RUNTIME=$(printf '%s' "$SORTED" | jq '[.[] | select(.scope != "development")] | length')
+    printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "advisories": %s}}\n' \
+      "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$SORTED"
   fi
 ---
 **If `status` is `fetch-failed`**: report to your lead — a `403` here almost
@@ -47,16 +84,85 @@ always means the fine-grained token is missing the **Dependabot alerts
 (read)** repository permission. This is a security task; a broken fetch must
 be surfaced, never mistaken for a quiet day.
 
+**If `status` is `new`**: the gate hands you every open alert, worst-first,
+already enriched — `severity`, `cvss`, `package`, `ecosystem`, `scope`,
+`vulnerable_range`, `first_patched`, `ghsa_id`, `summary`, `url` — plus
+`by_severity`, `highest_severity` and `runtime_scoped`. You do not need to
+re-fetch anything to triage.
+
+Two jobs per advisory, in order.
+
+## 1. Is the severity real *for this repo*?
+
+GitHub's severity is generic; yours is specific. Downgrade or upgrade it with
+reasons, and say which you did:
+
+- **`scope: "development"`** is the biggest discount. A build-time dependency
+  is not in the shipped attack surface. It still gets patched eventually, but
+  it is not an incident.
+- **Reachability.** Is the vulnerable function actually called? Grep the repo.
+  "Vulnerable version present but the affected API is never invoked" is a
+  legitimate, defensible downgrade — write down the path you checked so a
+  human can disagree with a specific claim rather than a vibe.
+- **Exploitability in context.** A DoS in a CLI a maintainer runs locally is
+  not the same as one in a request path.
+- **Project rules.** If `project-config.md` sets a security policy — a minimum
+  severity to act on, a dependency-freeze, a supported-version window — that
+  overrides these defaults. Read it before deciding.
+
+Record the verdict as **confirmed**, **downgraded** or **not-applicable**,
+always with the reason. `not-applicable` is a real and valuable answer;
+inflating everything to critical is how a security channel gets muted.
+
+## 2. If it is a true risk, draft the fix
+
+**You draft a patch PR. This is the one place you write.** Move the advisory
+out of triage and into a reviewable change — a report saying "you should
+upgrade lodash" is strictly worse than a branch that already does it.
+
+Draft it when all three hold:
+
+1. `first_patched` exists (there is somewhere to go), **and**
+2. the verdict is **confirmed** — a real risk to this project, **and**
+3. the bump is non-breaking: a patch or minor version, or a major one the
+   project has already moved past elsewhere.
+
+Then:
+
+- Branch from the default branch: `security/<ghsa-id>` or
+  `security/bump-<package>-<version>`.
+- Change **only** the dependency version — manifest and lockfile. Nothing else,
+  no drive-by tidying, no reformatting.
+- Open it as a **DRAFT** pull request. Never ready-for-review, never merged,
+  never pushed to the default branch.
+- Body: the GHSA id and link, severity as GitHub states it **and** your verdict
+  with its reason, the version change, and what you did *not* verify — say
+  plainly that tests have not been run and a human must confirm nothing broke.
+- Reference the alert so GitHub links them.
+
+**Do not attempt the fix** when it needs a code change, a major upgrade with
+breaking changes, or a transitive dependency you cannot pin directly. Say so,
+name what a human has to decide, and stop. A confidently wrong security patch
+costs more than an honest hand-off.
+
+**Never write a code-level vulnerability fix.** Your scope is version bumps.
+Fixing the vulnerable logic itself belongs to a maintainer.
+
 **If `status` is `new`**: for each advisory in `scriptOutput.new`/`advisories`:
-read the actual alert, assess whether the project is genuinely affected (a
-vulnerable dependency that isn't reachable in this codebase is worth a
-different note than an exploitable one), and hand your assessment to your
-lead. **Then ack**: append one `owner/repo#id` line per handled alert to
+**Then ack**: append one `owner/repo#id` line per handled alert to
 `plugin-data/community-coding/seen-advisories.txt` — that's your
 acknowledgment, and it's yours to write, not the script's, so an alert whose
 wake was lost re-surfaces next run instead of vanishing. Duplicates beat
 losses.
 
+## Routing
+
+Hand your lead: the verdict per advisory, the draft PR links, and anything you
+declined to patch with the reason. A `critical` or `high` with a **confirmed**
+verdict and runtime scope is owner-urgent — it bypasses the daily digest.
+Everything downgraded or not-applicable rides the normal digest.
+
 Never post advisory detail to a public channel yourself, and never open a
-public issue about an unfixed vulnerability. Your lead routes this per its own
-escalation rules.
+public *issue* about an unfixed vulnerability — a draft PR referencing an
+already-public GHSA is fine, an issue advertising an unpatched hole is not.
+Your lead routes disclosure per its own escalation rules.

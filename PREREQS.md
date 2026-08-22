@@ -142,30 +142,58 @@ because it never had a token.
 
 ### Coding — `engineering/community-coding`
 
-**Read-only. No write permission of any kind, in any category.** This agent
-is designed never to post, so its token should be incapable of it — that way
-a prompt injection that slips past the persona still cannot act.
-
-After the model-tier split this agent holds exactly **two** tasks —
-`github-ops-triage` and `security-advisory-sweep` — which makes it the
-smallest token of the four. Everything the older, larger version of this scope
-list justified (metrics, GFI health, hygiene, mirroring, release download
-counts) is the local agent's work now. If you are re-cutting this token against
-an earlier copy of this doc, you are cutting it **smaller**, not wider.
+**Read everywhere; write in exactly one place — security patch PRs.** This
+agent drafts a dependency-bump PR when it confirms an advisory genuinely
+affects the project, so it needs enough write to create a branch and open a
+draft PR, and nothing beyond that.
 
 | Permission | Level | Justified by |
 |---|---|---|
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
 | Issues | Read | `GET /repos/{repo}/issues` (`github-ops-triage`) |
-| Pull requests | Read | the same issues endpoint also returns PRs |
 | Dependabot alerts | Read | `GET /repos/{repo}/dependabot/alerts` (`security-advisory-sweep`) — **omit this and the sweep 403s**; it's the one permission people forget |
+| Contents | **Write** | create the `security/<ghsa-id>` branch and commit the manifest/lockfile version bump (`security-advisory-sweep`); create the docs branch (`docs-currency-watch`) |
+| Pull requests | **Write** | `POST /repos/{repo}/pulls` with `draft: true` — the security patch, and the version-tagged docs PR |
+| Issues | Read → **also needed on `DOCS_REPO`** | `docs-currency-watch` reads merged PRs on the product repo and opens a PR on the docs repo |
 
-No Contents permission at all: the two things that needed it (release download
-counts, and `git clone/fetch` for `repo-mirror-sync`) both moved to local.
+**Why this is still least-privilege.** Contents write is the permission that
+lets an agent change a repo, so it deserves the scrutiny: it is here because
+"you should upgrade lodash" is strictly less useful than a branch that already
+does it, and no smaller permission creates a branch. What bounds it is not the
+token but the combination of the token and **branch protection** — which is why
+the next paragraph is a requirement, not a suggestion.
 
-Repo list: `COMMUNITY_REPOS` only — **not** `MIRROR_REPOS`. Mirroring is the
+**Require branch protection on the default branch of every repo on this
+token.** The agent is instructed never to push to the default branch and never
+to mark a PR ready or merge it, but instructions are not a control. Protection
+is: require a PR and at least one approving review, and the agent physically
+cannot land anything on its own even if a prompt injection convinces it to try.
+If a repo on this token has no branch protection, this token should not have
+Contents write on it — drop to read there and accept that advisories on that
+repo get a report instead of a patch.
+
+**Note what it still cannot do**, and check these on the fine-grained form:
+no Administration, no Actions, no Secrets, no Workflows (a workflow-file write
+is remote code execution on your CI), no Issues *write* — it drafts issue text
+for the lead rather than opening issues itself.
+
+**Repo list: `COMMUNITY_REPOS` plus `DOCS_REPO`.** This is the one place the
+Reviewer's token reaches outside the triaged set, and it is easy to miss:
+fine-grained PATs are per-repository even for public data, so if the docs live
+in their own repo and it is not on this token's access list,
+`docs-currency-watch` fails to open its PR with a 403 and the whole
+docs-follows-release loop silently never runs. If the docs are a subdirectory
+of the product repo instead, no extra repo is needed — set `DOCS_PATH`.
+
+Still **not** `MIRROR_REPOS`. Mirroring is the
 local agent's job, so a mirror-only repo on this token is access nothing here
 uses, and unused access is exactly what §3's audit exists to catch.
+
+Three tasks now sit on this token (`github-ops-triage`,
+`security-advisory-sweep`, `posthog-weekly-review`, `contributor-health-review`
+— four, with PostHog on its own non-GitHub host). If you are re-cutting this
+token against an older copy of this doc that said "read-only, no write of any
+kind", that changed deliberately: the Reviewer drafts security patches now.
 
 ### Marketing — `marketing/community-marketing`
 

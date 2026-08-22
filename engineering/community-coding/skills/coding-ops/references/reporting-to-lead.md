@@ -28,7 +28,8 @@ out.
 
 ## The boundary
 
-Your GitHub token is **read-only by design** (see this template's README —
+Your GitHub token is **read-only for everything except drafting a security
+patch PR** (see this template's README —
 fine-grained, Contents/Issues/PRs read, no write scope of any kind). But
 scope is a backstop, not the rule itself: even if a deployment's token turned
 out to carry more than it should, the rule stands on its own. Concretely:

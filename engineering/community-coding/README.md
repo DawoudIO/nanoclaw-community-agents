@@ -1,6 +1,7 @@
 # Community Coding Agent Template
 
-The **Reviewer** of the set: a headless, **read-only** GitHub-ops sub-agent
+The **Reviewer** of the set: a headless GitHub-ops sub-agent, read-only
+everywhere except one path — it drafts security patch PRs — and a
 running on **Claude Haiku**. It triages issues and PRs, assesses security
 advisories, and interprets contributor-health trends — handing all of it to a
 lead support agent rather than posting publicly.
@@ -38,7 +39,8 @@ community-coding/
 │   │   └── instructions.md                       # standing brief: draft, never post
 │   └── tasks/                                    # all created paused
 │       ├── github-ops-triage.md                  # 4×/day, issue + PR triage digest
-│       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
+│       ├── security-advisory-sweep.md
+│       ├── docs-currency-watch.md        # merged PR -> version-tagged docs PR            # scripted gate: only wakes on new alerts
 │       └── contributor-health-review.md          # weekly, wakes on a real trend move
 ├── skills/
 │   └── coding-ops/
@@ -143,7 +145,7 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained, read-only** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained. Read everywhere, plus Contents+PRs write for security patches** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
 
 This agent needs a **PostHog key** (`posthog-weekly-review`) but **no GA4
 access** — GA4 traffic narration is the local agent's. It no longer touches
@@ -155,7 +157,7 @@ MCP server won't boot without the variable present; the real token is injected a
 request time. Never replace it with a real value.
 
 Least privilege is the point here: because the agent is designed never to write,
-a read-only token both matches its job and removes the possibility of a
+a near-read-only token both matches its job and removes the possibility of a
 public-facing mistake even if an instruction slips through.
 
 ## Costs

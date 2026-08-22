@@ -8,7 +8,7 @@
     "login": "newcomer"
    },
    "html_url": "https://github.com/acme/crm/issues/501",
-   "created_at": "2026-08-22T00:42:36Z"
+   "created_at": "2020-01-01T00:00:00Z"
   },
   {
    "number": 502,
@@ -17,7 +17,7 @@
     "login": "driveby"
    },
    "html_url": "https://github.com/acme/crm/pull/502",
-   "created_at": "2026-08-22T02:10:36Z",
+   "created_at": "2099-01-01T00:00:00Z",
    "pull_request": {
     "url": "x"
    }

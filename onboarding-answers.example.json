@@ -74,7 +74,10 @@
       "_derives": [
         "config.env:COMMUNITY_REPOS — space-separated list of repos to TRIAGE (issues/PRs/advisories/metrics). Normally every repo here, but it's the owner's call. Set on THREE agents: support (the lead), local, and engineering — each reads it for different tasks, so a repo missing from one is missing from that agent's work only.",
         "config.env:MIRROR_REPOS — space-separated list of ALL repos above (including wiki, including ones sharing a repo) for repo-mirror-sync to keep checked out. Superset of COMMUNITY_REPOS; falls back to it if unset. LOCAL ONLY — repo-mirror-sync belongs to the local agent, so a mirror-only repo on any other agent's token is access nothing uses.",
-        "config.env:CONTENT_REPO — where content drafts get committed and PR'd. Needed by TWO agents, for different reasons and at different levels: marketing WRITES drafts there (content-draft-cycle) and local only READS pull requests there to find stale ones (draft-cleanup). Both hard-require it."
+        "config.env:CONTENT_REPO — where content drafts get committed and PR'd. Needed by TWO agents, for different reasons and at different levels: marketing WRITES drafts there (content-draft-cycle) and local only READS pull requests there to find stale ones (draft-cleanup). Both hard-require it.",
+        "config.env:PRODUCT_REPO — the main repo, from repo_map.product. Set on the REVIEWER; docs-currency-watch watches its merged PRs.",
+        "config.env:DOCS_REPO — from repo_map.docs.repo. Set on the REVIEWER; where docs-currency-watch opens the docs PR. Leave it unset and that task stays silent forever: no docs target, nowhere to send a PR.",
+        "config.env:DOCS_PATH — from repo_map.docs.subpath, only when the docs are a subdirectory rather than their own repo. Lets the gate tell whether a merged PR already updated the docs itself."
       ],
       "product": {
         "repo": null,
@@ -369,6 +372,17 @@
       "_ask": "What hour (0-23) in YOUR LOCAL time do you want the one daily TLDR? Default 07:00 — the start of your day, so you are awake and can act on it.",
       "persists_to": "config.env:TLDR_LOCAL_HOUR",
       "_note": "Resolved against OWNER_TZ at runtime, so it survives daylight saving. This hour also opens a 15-hour waking window: findings that mean we may be blind (a degraded fetch, a dead credential) escalate within ~4h DURING that window and otherwise wait for the morning digest, because escalating at 3am spends a wake to deliver something you read at 7am anyway. Genuinely urgent findings bypass all of this and arrive immediately, any hour."
+    },
+    "docs_watch_max": {
+      "value": 6,
+      "_ask": "Max merged PRs to assess for docs impact per run (default 6). Only raise it if the project merges faster than that every 6 hours.",
+      "persists_to": "config.env:DOCS_WATCH_MAX",
+      "_note": "Reviewer only. The cap bounds cost — each PR costs one extra API call for its file list. Nothing is dropped: whatever doesn't fit surfaces next run, and the count is reported as `deferred` so a merge-queue burst is visible rather than looking like a quiet period."
+    },
+    "docs_release_gating": {
+      "value": true,
+      "_ask": "Hold docs PRs as drafts until the release that contains the change actually ships? Strongly recommended — say no only if your docs site is versioned separately from the product.",
+      "_note": "Not a config key — it is the shipped behaviour of docs-currency-watch, recorded here because it is a policy the owner should knowingly accept. Docs describing an unreleased fix are wrong for everyone reading the site today, so every docs PR is tagged with its version (the source PR's milestone) and held as a draft. release-announcement-watch surfaces the matching set when the version ships; a human merges them. A docs PR that misses its release is merged on approval or swept up by the next cycle — late is fine, early is not."
     }
   }
 }

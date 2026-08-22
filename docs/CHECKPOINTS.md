@@ -20,7 +20,7 @@ an expected result; a miss means stop and fix, not proceed.
 
 It grew from 14 to 17 when the local agent joined: nothing in the original gate
 touched it, which meant an install could pass every check while the tier that
-owns 11 of the 23 tasks was absent, misconfigured, or quietly billing to the
+owns 11 of the 24 tasks was absent, misconfigured, or quietly billing to the
 cloud window. Items 14–16 close that.
 
 | # | Test | How | Pass looks like |
@@ -38,7 +38,7 @@ cloud window. Items 14–16 close that.
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §4's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
 | 13 | **Which meter the agents bill to — and which are off it** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter, **and that only three of the four agents bill to it.** If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. You also know the corollary that makes an exhaustion survivable: **the local agent's 12 of 21 tasks keep running when that window is gone**, including the two that would tell you about it (`health-check`, `unanswered-watch`) |
-| 14 | **Host Ollama is up and the model is pulled** | `ollama ps` on the host; confirm `llama3.2` is present | The model is loaded and the host has headroom. This is the local tier's foundation — 11 of the 23 tasks are dead without it |
+| 14 | **Host Ollama is up and the model is pulled** | `ollama ps` on the host; confirm `llama3.2` is present | The model is loaded and the host has headroom. This is the local tier's foundation — 11 of the 24 tasks are dead without it |
 | 15 | **The local group is actually on the local provider** | Run the local group's `setup-check.sh` | It reports `local_provider_active: ok`. **A stamped local group with `ANTHROPIC_BASE_URL` unset is still silently on the cloud provider** — it works, so nothing looks wrong, but it's now spending the very window it exists to avoid and it defeats its own purpose entirely. This check is the only mechanical way to tell the two states apart |
 | 16 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
 | 17 | You know the death signal | No action — confirm you understand it | A one-line heartbeat reaches you at least weekly — produced by the local agent's `health-check`, relayed by the lead. **More than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |

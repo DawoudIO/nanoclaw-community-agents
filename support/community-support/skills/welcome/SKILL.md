@@ -288,7 +288,7 @@ Then the rest of what a complete config needs:
   only job. Never an Opus-class model on a scheduled task. Remind the owner:
   cost comes from wakes, not from agents existing — a paused task burns
   nothing, so tune budget by activating fewer tasks, not by deleting agents.
-  And 11 of the 23 tasks sit on the local agent, off the shared meter
+  And 11 of the 24 tasks sit on the local agent, off the shared meter
   entirely, which is why the window mostly goes to answering people
 
 ## 5. Persist — this is the point
@@ -334,7 +334,7 @@ sub-agent writes its own `config.env` + `project-config.md` and confirms.
 A key you don't relay is a feature that silently never runs.
 
 **local** → `plugin-data/community-local/config.env` — **relay this one first.**
-It owns 11 of the 23 tasks, more than the other three combined, so an
+It owns 11 of the 24 tasks, more than the other three combined, so an
 unrelayed key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
