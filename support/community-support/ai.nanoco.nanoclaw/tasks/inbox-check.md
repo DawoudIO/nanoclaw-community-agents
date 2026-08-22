@@ -1,5 +1,5 @@
 ---
-schedule: "0 6,16 * * *"
+schedule: "55 6,16 * * *"
 ---
 Check the project's shared inbox and triage what's there. This is your work,
 not a sub-agent's: an inbox is a support channel with a different transport,

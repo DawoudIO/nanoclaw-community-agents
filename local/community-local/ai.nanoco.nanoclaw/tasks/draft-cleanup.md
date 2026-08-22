@@ -1,5 +1,5 @@
 ---
-schedule: "30 17 * * *"
+schedule: "33 17 * * *"
 script: |
   #!/bin/bash
   set -euo pipefail

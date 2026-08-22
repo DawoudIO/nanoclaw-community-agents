@@ -215,11 +215,41 @@ turns.
 | `draft-cleanup` (daily) | marketing | on stale PRs | PAT + `CONTENT_REPO` | silent skip |
 | `social-metrics-snapshot` (Sun) | marketing | every run | public profile pages (no credentials) + **sandbox allowlist entries for the platform hosts** | leave paused until platforms are configured and allowlisted — it guards the one stateful asset (follower series; durable copy = the lead's ledger) |
 
-Shipped times (UTC under the kit): health-check every 3h · backup 08:40 ·
-release watch every 3h · lead triage weekdays 13:00 · coding triage every 6h ·
-sweep every 4h · dev metrics 12:00 · PostHog Mon 15:00 · GFI health Mon 16:00 ·
-inbox 06:00 + 16:00 · content weekdays 13:30 · social snapshot Sun 13:00 ·
-GA4 Sun 14:00 · cleanup 17:30 · integrity check Mon 15:00 · docs-gap review Tue 15:00 · repo hygiene quarterly (1st, 10:00) · repo mirror sync every 15m (the highest-frequency task, and the cheapest — a no-change sync never wakes the model). Rules of thumb: put the
+**Shipped times (UTC under the kit) — deliberately staggered.** On a
+memory-constrained host (a 16 GB Mac mini is the reference) every task
+firing at :00 means several agent containers spinning up at once. These
+are offset so no two tasks share a minute, and `unanswered-watch` keeps
+the round minutes because it's the task the north star depends on:
+
+| Agent | Task | Cron (UTC) |
+|---|---|---|
+| engineering | `daily-github-triage` | `13 13 * * 1-5` |
+| engineering | `docs-gap-review` | `15 15 * * 2` |
+| engineering | `github-ops-triage` | `35 */6 * * *` |
+| engineering | `security-advisory-sweep` | `45 */4 * * *` |
+| local | `dev-metrics-report` | `15 12 * * *` |
+| local | `draft-cleanup` | `33 17 * * *` |
+| local | `good-first-issue-health` | `16 16 * * 1` |
+| local | `health-check` | `25 */3 * * *` |
+| local | `posthog-weekly-review` | `5 15 * * 1` |
+| local | `repo-hygiene-audit` | `55 10 1 */3 *` |
+| local | `repo-mirror-sync` | `7,22,37,52 * * * *` |
+| local | `social-metrics-snapshot` | `23 13 * * 0` |
+| local | `unanswered-watch` | `*/10 * * * *` |
+| local | `weekly-analytics-report` | `14 14 * * 0` |
+| local | `workspace-backup` | `43 8 * * *` |
+| marketing | `content-draft-cycle` | `37 13 * * 1-5` |
+| support | `inbox-check` | `55 6,16 * * *` |
+| support | `release-announcement-watch` | `5 */3 * * *` |
+| support | `weekly-identity-integrity-check` | `45 15 * * 1` |
+
+If you re-time these, keep them collision-free — the check is one command:
+
+```bash
+grep -h '^schedule:' */*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d
+```
+
+Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day. Ungated tasks cap
 at 4 fires/day — the script gate is what lets health-check (8×) and the sweep
