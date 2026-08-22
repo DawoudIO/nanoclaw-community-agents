@@ -28,24 +28,35 @@
     "four of which setup-check.sh greps literally. Getting these two namespaces",
     "backwards is the #1 cause of 'I answered that but nothing happened'."
   ],
-
   "decide_before_stamping": {
     "_note": "These two shape how tasks get created. Answering them late is expensive — see docs/INSTALL.md step 2.",
     "timezone": {
       "value": "UTC",
       "_ask": "What timezone should scheduled work land in? Schedules are cron lines in task frontmatter and the kit pins TZ=UTC; changing a time after stamping means cancel-and-recreate per task.",
-      "_action_if_not_utc": "Edit the schedule: lines in your local copy of the 22 task files BEFORE stamping."
+      "_action_if_not_utc": "Edit the schedule: lines in your local copy of the 23 task files BEFORE stamping."
     },
     "agents_to_stamp": {
-      "value": ["support", "local", "engineering"],
+      "value": [
+        "support",
+        "local",
+        "engineering"
+      ],
       "_ask": "Which agents do you want? 'support' (the lead) is required. 'local' is the recommended second: it runs on a local Ollama model, so it is always-on and costs nothing against the shared usage window, and it owns unanswered-watch — the task that keeps the community from hearing silence when the lead runs out of window. 'engineering' (the Reviewer) is optional. 'marketing' is optional and is NOT stamped by default.",
-      "_options": ["support", "local", "engineering", "marketing"],
+      "_options": [
+        "support",
+        "local",
+        "engineering",
+        "marketing"
+      ],
       "_note": "The value above is the recommended install: lead + local + Reviewer. Marketing is deliberately absent — it holds one task (content-draft-cycle) and can be added later without touching anything else. Stamping 'local' has a host prerequisite the others don't: Ollama running with operations.local_model already pulled (see PREREQS.md section 1). Without it the local agent stamps but cannot think."
     }
   },
-
   "project": {
-    "name": { "value": null, "_ask": "Project name, e.g. AcmeCRM", "persists_to": "project_config" },
+    "name": {
+      "value": null,
+      "_ask": "Project name, e.g. AcmeCRM",
+      "persists_to": "project_config"
+    },
     "primary_github_repo": {
       "value": null,
       "_ask": "The project's main GitHub repo — everything else is inferred from this. Format owner/repo.",
@@ -59,44 +70,105 @@
         "config.env:MIRROR_REPOS — space-separated list of ALL repos above (including wiki, including ones sharing a repo) for repo-mirror-sync to keep checked out. Superset of COMMUNITY_REPOS; falls back to it if unset. LOCAL ONLY — repo-mirror-sync belongs to the local agent, so a mirror-only repo on any other agent's token is access nothing uses.",
         "config.env:CONTENT_REPO — where content drafts get committed and PR'd. Needed by TWO agents, for different reasons and at different levels: marketing WRITES drafts there (content-draft-cycle) and local only READS pull requests there to find stale ones (draft-cleanup). Both hard-require it."
       ],
-      "product":   { "repo": null, "subpath": null },
-      "docs":      { "repo": null, "subpath": null },
-      "site":      { "repo": null, "subpath": null },
-      "marketing": { "repo": null, "subpath": null },
-      "wiki":      { "repo": null, "subpath": null, "_note": "A GitHub wiki is a real repo named owner/repo.wiki. Use null if the project has none." }
+      "product": {
+        "repo": null,
+        "subpath": null
+      },
+      "docs": {
+        "repo": null,
+        "subpath": null
+      },
+      "site": {
+        "repo": null,
+        "subpath": null
+      },
+      "marketing": {
+        "repo": null,
+        "subpath": null
+      },
+      "wiki": {
+        "repo": null,
+        "subpath": null,
+        "_note": "A GitHub wiki is a real repo named owner/repo.wiki. Use null if the project has none."
+      }
     },
     "triage_repos_override": {
       "value": null,
       "_ask": "Optional: if you DON'T want every repo above triaged, list just the ones you do. Leave null to triage all of them.",
       "_note": "Only changes COMMUNITY_REPOS. MIRROR_REPOS always covers the full map — mirroring is cheap and read-only."
     },
-    "docs_site_url": { "value": null, "_ask": "Where you point people for how-to answers", "persists_to": "project_config" },
-    "primary_language": { "value": "English", "_ask": "Primary language for replies", "persists_to": "project_config" },
-    "topic_scope": { "value": null, "_ask": "What's on-topic; anything else gets a friendly redirect", "persists_to": "project_config" }
+    "docs_site_url": {
+      "value": null,
+      "_ask": "Where you point people for how-to answers",
+      "persists_to": "project_config"
+    },
+    "primary_language": {
+      "value": "English",
+      "_ask": "Primary language for replies",
+      "persists_to": "project_config"
+    },
+    "topic_scope": {
+      "value": null,
+      "_ask": "What's on-topic; anything else gets a friendly redirect",
+      "persists_to": "project_config"
+    }
   },
-
   "goals": {
     "_ask": "Which of the four jobs are goals for this project? Each yes makes a set of tasks eligible; each no keeps them paused. See welcome/SKILL.md step 3 for the task mapping.",
     "_note": "Every task below is labelled with the agent that OWNS it, because a 'no' has to pause tasks in the right group — the same goal now spans agents (awareness_growth, for example, pauses one marketing task and four local ones). The owning agent is derived from the task files; run `bash scripts/gen-task-table.sh` for the live mapping rather than trusting this list if the two ever disagree. FOUR tasks are deliberately in no goal list, because they are infrastructure rather than a goal: inbox-check (lead — and it stays paused anyway until an email MCP is connected), weekly-identity-integrity-check (lead), health-check (local), workspace-backup (local). Answering every goal 'no' does not stop those four.",
     "community_support": {
       "value": null,
-      "_tasks": ["daily-github-triage (lead)", "docs-gap-review (lead)", "release-announcement-watch (lead)", "github-ops-triage (engineering)", "unanswered-watch (local)"],
+      "_tasks": [
+        "daily-github-triage (lead)",
+        "docs-gap-review (lead)",
+        "release-announcement-watch (lead)",
+        "github-ops-triage (engineering)",
+        "unanswered-watch (local)"
+      ],
       "_note": "Two things to know before answering. (1) unanswered-watch is the task the responsiveness goal actually rests on — saying no here pauses the one thing that prevents silence when the lead runs out of usage window, so pause it knowingly. (2) daily-github-triage and github-ops-triage cover the same ground; leave daily-github-triage paused when engineering is stamped, and activate it only as the lead's standalone-mode fallback."
     },
     "awareness_growth": {
       "value": null,
-      "_tasks": ["content-draft-cycle (marketing)", "draft-cleanup (local)", "social-metrics-snapshot (local)", "weekly-analytics-report (local)", "good-first-issue-health (local)", "repo-hygiene-audit (local)"],
-      "audience_priority": { "value": [], "_ask": "If growth is a goal: which audiences, in priority order?", "_options": ["users", "contributors"] }
+      "_tasks": [
+        "content-draft-cycle (marketing)",
+        "draft-cleanup (local)",
+        "social-metrics-snapshot (local)",
+        "weekly-analytics-report (local)",
+        "good-first-issue-health (local)",
+        "repo-hygiene-audit (local)"
+      ],
+      "audience_priority": {
+        "value": [],
+        "_ask": "If growth is a goal: which audiences, in priority order?",
+        "_options": [
+          "users",
+          "contributors"
+        ]
+      }
     },
-    "proactive_detection": { "value": null, "_tasks": ["posthog-weekly-review (Reviewer)", "dev-metrics-report (local)", "repo-mirror-sync (local)"] },
-    "security": { "value": null, "_tasks": ["security-advisory-sweep (engineering)"] }
+    "proactive_detection": {
+      "value": null,
+      "_tasks": [
+        "posthog-weekly-review (Reviewer)",
+        "dev-metrics-report (local)",
+        "repo-mirror-sync (local)"
+      ]
+    },
+    "security": {
+      "value": null,
+      "_tasks": [
+        "security-advisory-sweep (engineering)"
+      ]
+    }
   },
-
   "identity": {
     "github_bot_username": {
       "value": null,
       "_ask": "The dedicated bot account's GitHub username — NEVER the owner's own. Every token is checked against this mechanically.",
-      "persists_to": ["config.env:GITHUB_BOT_USERNAME (all four agents)", "project_config:github_bot_username"],
+      "persists_to": [
+        "config.env:GITHUB_BOT_USERNAME (all four agents)",
+        "project_config:github_bot_username"
+      ],
       "_required": true,
       "_note": "Needs to land in BOTH namespaces: the scripts read the uppercase env key, setup-check.sh greps the lowercase prose key."
     },
@@ -106,19 +178,38 @@
       "persists_to": "project_config"
     }
   },
-
   "channels": {
     "_ask": "Which Discord channels belong to which tier. Tier decides engage-mode, not per-message judgment.",
-    "support_auto_reply": { "value": [], "_note": "Replies without being @mentioned. Needs --sender-scope all at wiring time." },
-    "developer_mention_only": { "value": [] },
-    "team_lead_mention_only": { "value": [] },
-    "announcements_channel": { "value": null, "_ask": "If the team-lead tier has more than one channel, which is THE announcements channel? release-announcement-watch needs one unambiguous target." },
-    "discord_invite_url": { "value": null, "_ask": "Invite URL to offer from GitHub replies when real-time chat would help, or null" }
+    "support_auto_reply": {
+      "value": [],
+      "_note": "Replies without being @mentioned. Needs --sender-scope all at wiring time."
+    },
+    "developer_mention_only": {
+      "value": []
+    },
+    "team_lead_mention_only": {
+      "value": []
+    },
+    "announcements_channel": {
+      "value": null,
+      "_ask": "If the team-lead tier has more than one channel, which is THE announcements channel? release-announcement-watch needs one unambiguous target."
+    },
+    "discord_invite_url": {
+      "value": null,
+      "_ask": "Invite URL to offer from GitHub replies when real-time chat would help, or null"
+    }
   },
-
   "escalation": {
-    "security_contact": { "value": null, "_ask": "Private security disclosure path", "persists_to": "project_config:security_contact", "_required_if": "goals.security" },
-    "maintainers": { "value": [], "_ask": "Who counts as a maintainer for decisions the agent must not make" },
+    "security_contact": {
+      "value": null,
+      "_ask": "Private security disclosure path",
+      "persists_to": "project_config:security_contact",
+      "_required_if": "goals.security"
+    },
+    "maintainers": {
+      "value": [],
+      "_ask": "Who counts as a maintainer for decisions the agent must not make"
+    },
     "escalation_backstop": {
       "value": null,
       "_ask": "The second human — name and contact — who takes abuse reports and urgent escalations when you're unreachable.",
@@ -126,7 +217,6 @@
       "_note": "Going live without one is recorded as an open risk, not silently accepted. Code-of-conduct response is a human role everywhere it's done seriously — never an agent's."
     }
   },
-
   "content": {
     "target_audience": {
       "value": null,
@@ -134,14 +224,28 @@
       "persists_to": "project_config (relayed to marketing)",
       "_note": "Marketing writes for this. Without it, drafts default to generic SaaS copy and the no-jargon rule has nothing to anchor to."
     },
-    "tone": { "value": null, "_ask": "The register that follows from that audience, e.g. 'warm, practical, no engineering jargon'", "persists_to": "project_config (relayed to marketing)" },
+    "tone": {
+      "value": null,
+      "_ask": "The register that follows from that audience, e.g. 'warm, practical, no engineering jargon'",
+      "persists_to": "project_config (relayed to marketing)"
+    },
     "docs_style": {
       "value": null,
       "_ask": "Current-state only, or is version-history language ('added in 2.1') fine?",
-      "_options": ["current-state-only", "version-history-ok"],
-      "persists_to": ["project_config:docs_style", "relayed to coding"]
+      "_options": [
+        "current-state-only",
+        "version-history-ok"
+      ],
+      "persists_to": [
+        "project_config:docs_style",
+        "relayed to coding"
+      ]
     },
-    "brand_source_repo": { "value": null, "_ask": "Repo holding brand voice / content pillars / calendar, if different from the content repo", "persists_to": "config.env:BRAND_SOURCE_REPO" },
+    "brand_source_repo": {
+      "value": null,
+      "_ask": "Repo holding brand voice / content pillars / calendar, if different from the content repo",
+      "persists_to": "config.env:BRAND_SOURCE_REPO"
+    },
     "release_watch_repo": {
       "value": null,
       "_ask": "Which repo's releases should trigger content drafting? Usually the product repo.",
@@ -149,10 +253,12 @@
       "_note": "Unset means content-draft-cycle loses its release trigger and only fires on its weekly floor. If this differs from the content repo, the marketing token's repo-access list must include BOTH."
     }
   },
-
   "social": {
     "_ask": "Platforms this project has (for the follower series), which ones it posts to, and how each publishes.",
-    "profiles": { "value": [], "_format": "list of public profile URLs — read-only, no credential" },
+    "profiles": {
+      "value": [],
+      "_format": "list of public profile URLs — read-only, no credential"
+    },
     "posts_to": {
       "value": [],
       "_format": "list of {platform, mechanism}",
@@ -163,19 +269,28 @@
       }
     }
   },
-
   "analytics": {
-    "ga4_property_id": { "value": null, "_ask": "GA4 numeric property id, or null for 'not now'", "persists_to": "config.env:GA4_PROPERTY_ID" },
-    "posthog_project_id": { "value": null, "_ask": "PostHog project id, or null", "persists_to": "config.env:POSTHOG_PROJECT_ID" },
+    "ga4_property_id": {
+      "value": null,
+      "_ask": "GA4 numeric property id, or null for 'not now'",
+      "persists_to": "config.env:GA4_PROPERTY_ID"
+    },
+    "posthog_project_id": {
+      "value": null,
+      "_ask": "PostHog project id, or null",
+      "persists_to": "config.env:POSTHOG_PROJECT_ID"
+    },
     "posthog_host": {
       "value": "https://us.posthog.com",
       "_ask": "PostHog region host",
-      "_options": ["https://us.posthog.com", "https://eu.posthog.com"],
+      "_options": [
+        "https://us.posthog.com",
+        "https://eu.posthog.com"
+      ],
       "persists_to": "config.env:POSTHOG_HOST",
       "_note": "The script defaults to US. An EU project MUST set this or every call hits the wrong region."
     }
   },
-
   "operations": {
     "onecli_dashboard_url": {
       "value": null,
@@ -183,14 +298,35 @@
       "persists_to": "project_config",
       "_note": "127.0.0.1 only resolves on the sandbox host. If you'll ever check from a phone or another laptop, give the reachable address instead."
     },
-    "workspace_backup_repo": { "value": null, "_ask": "Private repo the workspace gets pushed to, or null to skip", "_note": "This is the only thing that survives a sandbox recreate. The push is the LOCAL agent's job (workspace-backup), not the lead's — so this repo is the one place the local agent needs write access, and it needs it on this repo and nothing else." },
-    "github_actions_notifications": { "value": null, "_ask": "Set up deterministic label→Discord notifications in CI? See examples/github-discord-notify.yml", "_options": [true, false] },
-    "gfi_label": { "value": null, "_ask": "Your beginner-friendly issue label, if it isn't 'good first issue'", "persists_to": "config.env:GFI_LABEL" },
-    "shared_inbox": { "value": null, "_ask": "Shared project inbox address, or null. inbox-check stays paused until an email MCP is actually connected." },
+    "workspace_backup_repo": {
+      "value": null,
+      "_ask": "Private repo the workspace gets pushed to, or null to skip",
+      "_note": "This is the only thing that survives a sandbox recreate. The push is the LOCAL agent's job (workspace-backup), not the lead's — so this repo is the one place the local agent needs write access, and it needs it on this repo and nothing else."
+    },
+    "github_actions_notifications": {
+      "value": null,
+      "_ask": "Set up deterministic label→Discord notifications in CI? See examples/github-discord-notify.yml",
+      "_options": [
+        true,
+        false
+      ]
+    },
+    "gfi_label": {
+      "value": null,
+      "_ask": "Your beginner-friendly issue label, if it isn't 'good first issue'",
+      "persists_to": "config.env:GFI_LABEL"
+    },
+    "shared_inbox": {
+      "value": null,
+      "_ask": "Shared project inbox address, or null. inbox-check stays paused until an email MCP is actually connected."
+    },
     "local_model": {
       "value": "llama3.2",
       "_ask": "Which Ollama model should the always-local ops agent run? Depends on host RAM — see docs/INSTALL.md, 'On a Mac mini specifically'.",
-      "_options": ["llama3.2", "gemma4:12b"],
+      "_options": [
+        "llama3.2",
+        "gemma4:12b"
+      ],
       "_note": "On Apple Silicon the model shares unified memory with Docker and the sandbox, so total RAM decides: llama3.2 (~2 GB) for a 16 GB machine, gemma4:12b (~8 GB) from 24 GB up. There is no separate VRAM to fall back on. Only dev-metrics-report really stresses the model — test that one task's rule-following before spending RAM on a bigger model. This value must agree with operations.models.local; changing one without the other is a silent contradiction."
     },
     "ack_grace_minutes": {
@@ -202,13 +338,31 @@
     "models": {
       "_ask": "Confirm or override the per-agent model tier. Never Opus-class on a scheduled task.",
       "_note": "Four agents, and one of them is not on a cloud tier at all. That split is the whole point of the arrangement: the three cloud agents share one usage window, the local one draws on none of it.",
-      "support": { "value": "sonnet-class" },
+      "support": {
+        "value": "sonnet-class"
+      },
       "local": {
         "value": "ollama:llama3.2",
         "_note": "NOT a cloud tier. This is the local Ollama model and it must match operations.local_model above — same model, stated twice for two different readers, so change both or neither. Because this agent consumes no shared usage window, it can afford the every-10-minute cadence unanswered-watch needs, which no metered tier could."
       },
-      "engineering": { "value": "haiku-class" },
-      "marketing": { "value": "sonnet-class" }
+      "engineering": {
+        "value": "haiku-class"
+      },
+      "marketing": {
+        "value": "sonnet-class"
+      }
+    },
+    "tldr_hour": {
+      "value": 18,
+      "_ask": "What hour (0-23, UTC) do you want your one daily TLDR? Pick your end of day — this is the single answer that decides whether the system feels like a colleague or a notification stream.",
+      "persists_to": "config.env:TLDR_HOUR",
+      "_note": "Lead only. Routine items wait for this hour; anything marked attention (a degraded fetch, a failing credential — i.e. we may be blind) escalates within ~4h regardless, and genuinely urgent findings bypass the queue entirely and arrive immediately."
+    },
+    "first_response_grace_minutes": {
+      "value": 15,
+      "_ask": "How many minutes should a brand-new GitHub issue/PR sit before the lead replies? Default 15.",
+      "persists_to": "config.env:FIRST_RESPONSE_GRACE_MINUTES",
+      "_note": "Lead only, github-first-response (runs every 10 min). The grace exists so we don't beat a human maintainer who is already typing — replying 40 seconds after someone opens an issue reads as a bot rather than as attention. Lower it for speed, raise it if maintainers are usually first."
     }
   }
 }

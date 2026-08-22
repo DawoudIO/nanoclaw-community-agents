@@ -110,15 +110,35 @@ ends; a close-without-merge rate that keeps climbing costs you the next
 contributor either way.
 
 **Always offered regardless of goals** — these protect the system itself, not
-a goal: `unanswered-watch`, `owner-tldr`, `health-check`, `workspace-backup`,
-`weekly-identity-integrity-check`.
+a goal: `unanswered-watch`, `github-first-response`, `owner-tldr`,
+`health-check`, `workspace-backup`, `weekly-identity-integrity-check`.
+
+`github-first-response` is the GitHub half of responsiveness. Discord you
+answer live through your channel wiring, so it needs no task — but GitHub has
+no live wiring here, so this polls every 10 minutes for issues and PRs nobody
+has replied to. Time-to-first-response is the metric the north star actually
+rests on, and the 6-hourly triage digest is far too slow to carry it. Ask
+whether the default 15-minute grace is right for this project: it exists so you
+don't beat a maintainer who is already typing.
 
 `owner-tldr` is the one to explain properly, because it changes what the owner
 experiences more than any other task here. Sub-agent reports are **queued, not
 relayed**: each one appends a line to a digest queue, and this task turns a
 day's worth into a single TLDR. Ask the owner what time of day they want it and
-set the cron accordingly — that one answer decides whether this system feels
-like a colleague or a notification stream. Urgent things (security, an outage, a
+set `TLDR_HOUR` accordingly — that one answer decides whether this system feels
+like a colleague or a notification stream. Say plainly what the three tiers
+mean, because owners assume "daily" means slow: routine items wait for their
+hour, anything meaning **we may be blind** (a degraded fetch, a dead
+credential) escalates within about four hours, and genuinely urgent findings
+never touch the queue at all.
+
+**Also tell them what does NOT come to their DM.** Dev metrics, ready-to-merge,
+GFI health and contributor health go to the developer channel; advisories to the
+security channel; releases and content to announcements. That is deliberate —
+those reports are for the people who act on them, and duplicating them into the
+owner's DM buries them and clutters the DM at once. Ask which channel is which
+now (`channel-routing.md`), because a report with nowhere to go ends up in the
+DM by default, which is the outcome we're avoiding. Urgent things (security, an outage, a
 decision that blocks work) bypass the queue and arrive immediately; everything
 else waits for the digest.
 
@@ -259,7 +279,7 @@ Then the rest of what a complete config needs:
   only job. Never an Opus-class model on a scheduled task. Remind the owner:
   cost comes from wakes, not from agents existing — a paused task burns
   nothing, so tune budget by activating fewer tasks, not by deleting agents.
-  And 11 of the 22 tasks sit on the local agent, off the shared meter
+  And 11 of the 23 tasks sit on the local agent, off the shared meter
   entirely, which is why the window mostly goes to answering people
 
 ## 5. Persist — this is the point
@@ -305,7 +325,7 @@ sub-agent writes its own `config.env` + `project-config.md` and confirms.
 A key you don't relay is a feature that silently never runs.
 
 **local** → `plugin-data/community-local/config.env` — **relay this one first.**
-It owns 11 of the 22 tasks, more than the other three combined, so an
+It owns 11 of the 23 tasks, more than the other three combined, so an
 unrelayed key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |

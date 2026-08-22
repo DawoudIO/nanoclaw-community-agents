@@ -566,7 +566,28 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"queued before the limit hit\"}" >> "$D/digest-queue.processing.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"also before\"}" >> "$D/digest-queue.processing.jsonl";
-   echo "{\"at\":\"$NOW\",\"source\":\"marketing\",\"severity\":\"info\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
+   echo "{\"at\":\"$NOW\",\"source\":\"marketing\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: routine info items must be HELD outside the owner's chosen hour.
+# This is the assertion that keeps the digest at one message a day instead of
+# one per two-hour gate run. TLDR_HOUR is set 5 hours away in the seed so the
+# routine tier cannot fire, and nothing is `attention`, so nothing escalates.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
+  '(.data.status == "held") and (.data.pending == 2) and (.data.attention_pending == 0)' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "TLDR_HOUR=\"%s\"\n" "$(( ($(date -u +%-H) + 5) % 24 ))" > "$D/config.env";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: ...and the same items DO go out at the chosen hour.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+  '(.data.trigger == "routine") and (.data.total == 2)' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "TLDR_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr: an entry marked urgent should never be in the queue at all —
 # urgent bypasses it. The gate flags it as a process failure.
@@ -574,13 +595,33 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
   '(.data.misfiled_present == true) and (.data.misfiled_urgent | length == 1)' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"urgent\",\"line\":\"should have bypassed\"}" >> "$D/digest-queue.jsonl"'
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"urgent\",\"line\":\"should have bypassed\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"attention\",\"line\":\"and something blind\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr: a malformed line must not lose the batch or break the contract.
 assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
   '.data.status == "queue-unparseable"' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
    printf "not json at all\n" >> "$D/digest-queue.jsonl"'
+# github-first-response: two brand-new unanswered items, but only ONE is past
+# the 15-minute grace. The fresh one must NOT surface — replying 2 minutes
+# after someone opens a PR reads as a bot, which is the whole reason the grace
+# exists. Asserts the filter, not just the fetch.
+assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-response-new true \
+  '(.data.status == "needs-first-response")
+   and (.data.count == 1)
+   and (.data.items[0].number == 501)
+   and (.data.items[0].type == "issue")
+   and (.data.grace_minutes == 15)
+   and (.data.degraded_repos | length == 0)' \
+  'COMMUNITY_REPOS="acme/crm"'
+
+# github-first-response, run 2: the same item must not surface again. At six
+# runs an hour, a gate that re-reports the same issue would wake the lead 144
+# times a day for one unanswered issue.
+assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-response-new false \
+  '(.data.status == "all-answered") and (.data.count == 0)' \
+  'COMMUNITY_REPOS="acme/crm"' 2
 
 echo
 echo "passed: $PASS  failed: $FAIL"

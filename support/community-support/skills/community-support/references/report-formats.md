@@ -3,14 +3,50 @@
 Pre-packaged formats so every recurring report reads the same way regardless of
 who ran it or when. Don't improvise a new layout per run.
 
-## The digest queue — how sub-agent reports reach the owner
+## First decide WHERE a report goes — channel or owner
 
-**Do not relay sub-agent reports to the owner as they arrive.** Twenty-one
-tasks across four agents fire on their own schedules, and forwarding each one
-turns the owner's DM into a notification stream — which is the failure this
-whole system exists to prevent, aimed at the one person it exists to unburden.
+Most reports are **not for the owner at all.** They belong in the channel whose
+readers care about them, and putting them in the owner's DM instead does double
+damage: it buries them from the people who'd act on them, and it clutters the
+one person this system exists to unburden.
 
-When a sub-agent hands you something, append **one line** to
+Route by audience, not by which agent produced it:
+
+| Report | Destination | Cadence |
+|---|---|---|
+| Dev metrics, ready-to-merge, GFI health, contributor health | developer tier (`#dev-*`) | its own schedule, posted when it fires |
+| Security advisories | the security channel named in `channel-routing.md` | when it fires — never batched |
+| Release announcements, published content | the announcements channel | when it fires |
+| Traffic/analytics, follower counts, content drafts | team-lead tier | its own schedule |
+| Repo hygiene, docs gaps | developer tier | its own schedule |
+| **Escalations, decisions, system-broken, anything needing the owner** | **owner DM** | see the digest below |
+
+**A report with a channel goes to that channel now, in full.** Do not queue it,
+and never post the same content twice. Channel reports are the project talking
+to its community; the digest is the system talking to its operator — different
+audiences, different cadence.
+
+The owner is not cut out of channel reports, just not duplicated into: when a
+channel report goes out, enqueue **one line** noting it happened (with a link
+to the channel message where the platform supports it), so the daily TLDR can
+say "dev report posted, nothing needed" without restating it. The detail lives
+where the people who act on it are.
+
+Security is the exception in both directions: it goes to the security channel
+**and** to the owner immediately, never batched — see `escalation-paths.md`.
+
+## The digest queue — for OWNER-BOUND items only
+
+**Do not relay owner-bound items as they arrive.** Twenty-three tasks fire on
+their own schedules, and forwarding each one turns the owner's DM into a
+notification stream.
+
+This queue is **only** for what genuinely needs the owner: an escalation, a
+decision, a system-broken finding, or a one-line note that a channel report
+went out so the daily TLDR can mention it without repeating it. Everything with
+a channel of its own is already delivered and does not belong here.
+
+When something is owner-bound, append **one line** to
 `plugin-data/community-support/digest-queue.jsonl`:
 
 ```json
@@ -110,15 +146,6 @@ not padded.>
 
 If literally nothing needs attention, reply with one line saying so — never
 expand a quiet day into a report that only exists to look thorough.
-
-## Where reports go — full report to its channel, owner gets a TLDR
-
-Every recurring report has a home channel by audience (dev reports → the
-developer-tier channel, marketing/analytics → the team-lead channel, security
-per `escalation-paths.md`). **The full report is posted there; the owner's DM
-gets only a 2–3 bullet TLDR plus a card link to the channel message** — never
-the full content twice. This keeps the owner DM scannable and puts the detail
-where the audience that acts on it lives.
 
 ## Dev report skeleton (field-proven format)
 

@@ -1,0 +1,26 @@
+{
+ "total_count": 2,
+ "items": [
+  {
+   "number": 501,
+   "title": "CSV import fails on semicolon delimiter",
+   "user": {
+    "login": "newcomer"
+   },
+   "html_url": "https://github.com/acme/crm/issues/501",
+   "created_at": "2026-08-22T00:42:36Z"
+  },
+  {
+   "number": 502,
+   "title": "Typo in README",
+   "user": {
+    "login": "driveby"
+   },
+   "html_url": "https://github.com/acme/crm/pull/502",
+   "created_at": "2026-08-22T02:10:36Z",
+   "pull_request": {
+    "url": "x"
+   }
+  }
+ ]
+}

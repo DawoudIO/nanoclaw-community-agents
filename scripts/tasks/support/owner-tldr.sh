@@ -11,10 +11,24 @@ set -uo pipefail
 # So the lead no longer relays each report as it arrives: it appends a one-line
 # entry to a queue, and this task turns the queue into ONE digest.
 #
-# The rule the owner actually asked for: batch everything, interrupt only for
-# what's urgent. Urgency bypasses this queue entirely — the lead sends those
-# immediately and does NOT enqueue them (see references/report-formats.md).
-# This gate exists for the other 95%.
+# THREE TIERS, because "how often" has three different right answers:
+#
+#   urgent    -> bypasses this queue entirely; the lead sends it the moment it
+#                happens (security, an outage, a decision that blocks work).
+#   attention -> escalated: digest within ~4h. This tier exists for findings
+#                that mean WE ARE BLIND — a degraded fetch, a failing
+#                credential, a gate that can't read a repo. health-check runs
+#                every 3h, and letting its finding sit in a queue until
+#                evening would waste the entire point of checking often.
+#   info      -> the daily TLDR at the owner's chosen hour. Routine.
+#
+# Why not simply digest every 2-4 hours: the digest is not in any
+# responsiveness path. Community responsiveness is unanswered-watch (every 10
+# minutes) plus the lead's live replies; nobody outside is waiting on this. A
+# fixed 4-hourly digest would therefore buy the OWNER six messages a day in
+# place of one, without making the system any faster for anyone else — which
+# is the notification stream this task was created to remove. The escalation
+# tier gets the responsiveness where it's actually needed and nowhere else.
 #
 # Crash safety follows the same principle as every other ledger here:
 # duplicates beat losses. The queue is ROTATED into a .processing file when we
@@ -22,6 +36,14 @@ set -uo pipefail
 # session that died mid-digest costs one repeated line, never a lost finding.
 DATA="/workspace/agent/plugin-data/community-support"
 mkdir -p "$DATA"
+if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
+# Hour (UTC, 0-23) for the routine daily digest. The gate runs every 2h but
+# only lets the ROUTINE tier through at this hour, so the owner gets a
+# predictable slot instead of one that drifts.
+TLDR_HOUR="${TLDR_HOUR:-18}"
+case "$TLDR_HOUR" in ''|*[!0-9]*) TLDR_HOUR=18;; esac
+[ "$TLDR_HOUR" -gt 23 ] && TLDR_HOUR=18
+ESCALATE_GAP_H=4          # min hours between escalated digests
 QUEUE="$DATA/digest-queue.jsonl"
 PROC="$DATA/digest-queue.processing.jsonl"
 
@@ -92,5 +114,56 @@ if [ -n "$OLDEST" ]; then
   case "$OE" in ''|*[!0-9]*) :;; *) AGE_H=$(( ( $(date +%s) - OE ) / 3600 ));; esac
 fi
 
-printf '{"wakeAgent": true, "data": {"status": "digest-ready", "total": %s, "oldest_entry": "%s", "oldest_age_hours": %s, "deferred_runs": %s, "by_source": %s, "misfiled_urgent": %s, "misfiled_present": %s}}\n' \
-  "$TOTAL" "$OLDEST" "$AGE_H" "$DEFERRED" "$BY_SOURCE" "$MISFILED" "$HAS_MISFILED"
+# --- which tier is pending, and may it go out now? ---------------------
+ATTENTION=$(printf '%s' "$ITEMS" | jq '[.[] | select((.severity // "info") == "attention")] | length')
+# digest-last-sent is written ONLY on a real delivery, so its ABSENCE means
+# "never sent" — not "sent long ago" and not "just anchored". Conflating those
+# is how the routine slot got ignored on a fresh install in one direction, and
+# how an attention item got held for 4 hours in the other.
+LAST_F="$DATA/digest-last-sent"
+NEVER_SENT=true
+HOURS_SINCE=0
+if [ -f "$LAST_F" ]; then
+  LS=$(cat "$LAST_F" 2>/dev/null || echo 0)
+  case "$LS" in ''|*[!0-9]*) LS=0;; esac
+  if [ "$LS" -gt 0 ]; then
+    NEVER_SENT=false
+    HOURS_SINCE=$(( ( $(date +%s) - LS ) / 3600 ))
+  fi
+fi
+HOUR_NOW=$(date -u +%-H 2>/dev/null || date -u +%H | sed 's/^0//')
+case "$HOUR_NOW" in ''|*[!0-9]*) HOUR_NOW=0;; esac
+
+WAKE=false; REASON=held
+# Escalated: something says we may be blind. Never wait for the evening slot,
+# and never wait on a clock that has never been set.
+if [ "$ATTENTION" -gt 0 ] && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge "$ESCALATE_GAP_H" ]; }; then
+  WAKE=true; REASON=escalated
+# Routine: the owner's chosen hour, at most once for it.
+elif [ "$HOUR_NOW" -eq "$TLDR_HOUR" ] && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge 20 ]; }; then
+  WAKE=true; REASON=routine
+# Safety net: the routine slot was missed entirely (a spent window, a restart).
+# Only meaningful once a real digest has been sent — otherwise "never sent"
+# would masquerade as "30 hours overdue" on a fresh install.
+elif [ "$NEVER_SENT" = "false" ] && [ "$HOURS_SINCE" -ge 30 ]; then
+  WAKE=true; REASON=overdue
+fi
+
+# The queue is only rotated when we are actually going to deliver. Rotating on
+# a held run would hand the batch to a session that never starts, and the
+# fold-back would then have to undo it every 2 hours.
+if [ "$WAKE" = "false" ]; then
+  # put it back so the next run sees one queue, not a split batch
+  if [ -s "$PROC" ]; then
+    if [ -s "$QUEUE" ]; then cat "$PROC" "$QUEUE" > "$QUEUE.m" && mv "$QUEUE.m" "$QUEUE"
+    else cp "$PROC" "$QUEUE"; fi
+    rm -f "$PROC"
+  fi
+  printf '{"wakeAgent": false, "data": {"status": "held", "pending": %s, "attention_pending": %s, "next_routine_hour_utc": %s}}\n' \
+    "$TOTAL" "$ATTENTION" "$TLDR_HOUR"
+  exit 0
+fi
+printf '%s' "$(date +%s)" > "$LAST_F"
+
+printf '{"wakeAgent": true, "data": {"status": "digest-ready", "trigger": "%s", "total": %s, "attention_pending": %s, "oldest_entry": "%s", "oldest_age_hours": %s, "deferred_runs": %s, "by_source": %s, "misfiled_urgent": %s, "misfiled_present": %s}}\n' \
+  "$REASON" "$TOTAL" "$ATTENTION" "$OLDEST" "$AGE_H" "$DEFERRED" "$BY_SOURCE" "$MISFILED" "$HAS_MISFILED"
