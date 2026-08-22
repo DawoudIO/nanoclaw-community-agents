@@ -32,7 +32,26 @@ script: |
     # severity-based routing impossible. `dependency.scope` matters most of all:
     # a development-only dependency is a materially different risk from a runtime
     # one, and it is the first input to the reachability judgment.
-    ENRICHED=$(printf '%s' "$ALERTS" | jq -c --arg r "$REPO" 'if type=="array" then
+    # Dependabot usually FIXES what it reports: with security updates enabled it
+    # opens the bump PR itself. So list its open PRs and correlate them to the
+    # alerts by package name — otherwise this agent drafts a second branch for a
+    # fix that already exists, and the maintainer gets two PRs for one CVE.
+    # When a PR exists the job is REVIEWING that diff, not recreating it.
+    DPRS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
+      "https://api.github.com/repos/$REPO/pulls?state=open&per_page=100" 2>/dev/null \
+      | jq -c '[ .[]
+          | select((.user.login // "") | test("^dependabot(\\[bot\\])?$"))
+          | {number, title, url: .html_url, draft,
+             head: (.head.ref // null),
+             # Dependabot titles are machine-generated and stable:
+             # "Bump <pkg> from <a> to <b>" (or "chore(deps): bump ...").
+             package: ((.title | capture("(?i)bump (?<p>[^ ]+) from") | .p) // null),
+             from_version: ((.title | capture("(?i) from (?<v>[^ ]+) to ") | .v) // null),
+             to_version: ((.title | capture("(?i) to (?<v>[^ ]+)$") | .v) // null),
+             created_at} ]' 2>/dev/null || echo '[]')
+    [ -z "$DPRS" ] && DPRS='[]'
+
+    ENRICHED=$(printf '%s' "$ALERTS" | jq -c --arg r "$REPO" --argjson dprs "$DPRS" 'if type=="array" then
       [ .[] | {
           repo: $r,
           alert: .number,
@@ -47,7 +66,21 @@ script: |
           first_patched: (.security_vulnerability.first_patched_version.identifier // null),
           summary: ((.security_advisory.summary // "") | .[0:200]),
           url: (.html_url // null)
-        } ]
+        }
+        | . as $a
+        # Match a Dependabot PR to this alert by package name, case-insensitively.
+        | .dependabot_pr = ( [ $dprs[]
+            | select(($a.package // "") != "" and (.package // "") != "")
+            | select((.package | ascii_downcase) == ($a.package | ascii_downcase)) ] | first // null)
+        | .has_fix_pr = (.dependabot_pr != null)
+        # semver delta of the proposed bump — the single best predictor of whether
+        # this is a safe merge or a breaking change wearing a security label.
+        | .bump = (if .dependabot_pr == null then null
+                   else ((.dependabot_pr.from_version // "") | split(".") | .[0]) as $fj
+                      | ((.dependabot_pr.to_version // "") | split(".") | .[0]) as $tj
+                      | (if ($fj|length) == 0 or ($tj|length) == 0 then "unknown"
+                         elif $fj != $tj then "major" else "minor-or-patch" end) end)
+      ]
       else [] end' 2>/dev/null || echo '[]')
     while IFS= read -r ONE; do
       [ -z "$ONE" ] && continue
@@ -75,8 +108,11 @@ script: |
       reduce .[] as $a ({}; .[$a.severity] = ((.[$a.severity] // 0) + 1))')
     TOP=$(printf '%s' "$SORTED" | jq -r '.[0].severity // "unknown"')
     RUNTIME=$(printf '%s' "$SORTED" | jq '[.[] | select(.scope != "development")] | length')
-    printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "advisories": %s}}\n' \
-      "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$SORTED"
+    WITH_PR=$(printf '%s' "$SORTED" | jq '[.[] | select(.has_fix_pr)] | length')
+    NEEDS_PR=$(printf '%s' "$SORTED" | jq '[.[] | select(.has_fix_pr | not)] | length')
+    MAJOR=$(printf '%s' "$SORTED" | jq '[.[] | select(.bump == "major")] | length')
+    printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "with_fix_pr": %s, "needs_fix_pr": %s, "major_bumps": %s, "advisories": %s}}\n' \
+      "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$WITH_PR" "$NEEDS_PR" "$MAJOR" "$SORTED"
   fi
 ---
 **If `status` is `fetch-failed`**: report to your lead — a `403` here almost
@@ -114,13 +150,46 @@ Record the verdict as **confirmed**, **downgraded** or **not-applicable**,
 always with the reason. `not-applicable` is a real and valuable answer;
 inflating everything to critical is how a security channel gets muted.
 
-## 2. If it is a true risk, draft the fix
+## 2. If it is a true risk — review the fix, or draft one
+
+**Check `has_fix_pr` first.** Dependabot usually fixes what it reports: with
+security updates enabled it opens the bump PR itself, and the gate has already
+correlated its open PRs to these alerts by package name. Opening your own branch
+for a fix that already exists gives the maintainer two PRs for one CVE.
+
+### 2a. `has_fix_pr: true` — review Dependabot's diff
+
+This is the common path, and reviewing is the more valuable job anyway.
+`dependabot_pr` has the number, url, from/to versions, and `bump` is the semver
+delta. **Make the impact clear** — that is the whole deliverable, because
+Dependabot tells you a version changed and says nothing about what it means
+here:
+
+- **`bump: "major"` is the headline.** A major version inside a security PR is
+  a breaking change wearing a security label. Read the release notes between the
+  two versions and say what breaks. `major_bumps` counts these; they are the
+  ones that sit unmerged for weeks because nobody knew what they'd cost.
+- **Do we even call the affected code?** Same reachability question as above.
+  You have no local mirror — read the relevant files via the API, or ask your
+  lead to have the local agent grep its mirror. "We import this package in two
+  places, neither touches the vulnerable API" is the most useful sentence you
+  can write.
+- **Read the actual diff**, not just the title. A lockfile-only change is
+  routine; a bump that also drags in transitive majors is not.
+- **Verdict**: safe to merge / merge but expect breakage in X / do not merge
+  yet, needs a human decision on Y. Say what you checked and what you didn't —
+  you have not run the tests.
+
+You cannot comment on the PR, and that is deliberate: PR conversation is the
+lead's. Hand it your review and let the lead post it.
+
+### 2b. `has_fix_pr: false` — draft it yourself
 
 **You draft a patch PR. This is the one place you write.** Move the advisory
 out of triage and into a reviewable change — a report saying "you should
 upgrade lodash" is strictly worse than a branch that already does it.
 
-Draft it when all three hold:
+`needs_fix_pr` counts these. Draft when all three hold:
 
 1. `first_patched` exists (there is somewhere to go), **and**
 2. the verdict is **confirmed** — a real risk to this project, **and**
@@ -157,8 +226,10 @@ losses.
 
 ## Routing
 
-Hand your lead: the verdict per advisory, the draft PR links, and anything you
-declined to patch with the reason. A `critical` or `high` with a **confirmed**
+Hand your lead: the verdict per advisory, your review of any Dependabot PR
+(with the merge recommendation), the draft PR links for ones you created, and
+anything you declined to patch with the reason. Lead with `major_bumps` if any —
+those are the ones that stall. A `critical` or `high` with a **confirmed**
 verdict and runtime scope is owner-urgent — it bypasses the daily digest.
 Everything downgraded or not-applicable rides the normal digest.
 

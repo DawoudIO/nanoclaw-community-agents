@@ -383,6 +383,21 @@
       "value": true,
       "_ask": "Hold docs PRs as drafts until the release that contains the change actually ships? Strongly recommended — say no only if your docs site is versioned separately from the product.",
       "_note": "Not a config key — it is the shipped behaviour of docs-currency-watch, recorded here because it is a policy the owner should knowingly accept. Docs describing an unreleased fix are wrong for everyone reading the site today, so every docs PR is tagged with its version (the source PR's milestone) and held as a draft. release-announcement-watch surfaces the matching set when the version ships; a human merges them. A docs PR that misses its release is merged on approval or swept up by the next cycle — late is fine, early is not."
+    },
+    "dependabot_security_updates": {
+      "value": null,
+      "_ask": "Do you want Dependabot SECURITY UPDATES enabled on the triaged repos? If yes, Dependabot opens the bump PR itself and the Reviewer reviews that diff. If no, the Reviewer drafts the bump PR instead. Either works — pick one so you don't get two PRs per CVE.",
+      "_options": [
+        "yes-enable",
+        "already-enabled",
+        "no-agent-drafts-instead"
+      ],
+      "_note": "WE CANNOT ENABLE THIS FOR YOU. It is a repository setting (Settings > Code security > Dependabot security updates), and no agent here holds Administration write — deliberately, since that permission would let an agent reconfigure the repo. So this answer records your intent and the lead reminds you to flip the switch; it does not change anything itself. The Reviewer detects reality regardless by correlating open Dependabot PRs to alerts, so a wrong answer degrades gracefully rather than breaking.",
+      "_mechanisms": [
+        "yes-enable / already-enabled -> Dependabot opens the fix PR; the Reviewer REVIEWS it: semver delta, whether the bump is major, whether our code touches the affected API, and a merge-or-hold recommendation. It does not open a duplicate.",
+        "no-agent-drafts-instead -> no Dependabot PR exists, so the Reviewer drafts the branch and a draft PR itself for confirmed advisories with a patched version available.",
+        "Recommended: enable it. Dependabot's own bump is more reliable than an agent reconstructing one, and it leaves the agent doing the part it is actually good at — judging whether the change is safe and whether we were ever affected."
+      ]
     }
   }
 }

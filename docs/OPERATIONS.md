@@ -372,7 +372,7 @@ local; judgment stayed cloud.
 | `posthog-weekly-review` (Mon) | only on an insight-value change, else a 28-day heartbeat | PostHog key + `POSTHOG_PROJECT_ID` (+ optional `POSTHOG_HOST`) + allowlist | silent skip |
 | `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
-| `security-advisory-sweep` (6×/day) | on new alerts | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` | silent skip |
+| `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` | silent skip |
 
 **Marketing** (`marketing/community-marketing`) — 1 task, not stamped by
 default. Config in `plugin-data/community-marketing/config.env`:

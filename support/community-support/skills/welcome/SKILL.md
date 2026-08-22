@@ -261,6 +261,20 @@ Then the rest of what a complete config needs:
   opt-in only)
 - Optional analytics: GA4 property id, PostHog project id/host — "not now" is
   a fine answer; the tasks silent-skip until configured
+- **Dependabot security updates — ask, and be honest that you can't do it.**
+  "Do you want Dependabot opening the fix PR when it reports a vulnerability?"
+  If yes (recommended), Dependabot's own bump is more reliable than the Reviewer
+  reconstructing one, and the Reviewer's job becomes reviewing that diff — is it
+  a major bump, does our code touch the affected API, is it safe to merge. If
+  no, the Reviewer drafts the bump itself. Pick one, or the project gets two
+  PRs per CVE.
+
+  **You cannot enable it.** It is a repository setting (Settings → Code security)
+  and no agent here holds Administration write, on purpose — that permission
+  would let an agent reconfigure the repo. So point the owner at the checkbox
+  and record their answer. The Reviewer detects reality anyway by correlating
+  open Dependabot PRs against alerts, so a stale answer degrades rather than
+  breaks.
 - **Discord invite URL** (e.g. `discord.gg/yourcode`) — used when a GitHub
   reply points someone toward real-time chat instead of async back-and-forth
   on the issue. If the project has no public Discord, or doesn't want GitHub

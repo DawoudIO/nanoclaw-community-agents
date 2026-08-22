@@ -29,7 +29,26 @@ for REPO in $REPOS; do
   # severity-based routing impossible. `dependency.scope` matters most of all:
   # a development-only dependency is a materially different risk from a runtime
   # one, and it is the first input to the reachability judgment.
-  ENRICHED=$(printf '%s' "$ALERTS" | jq -c --arg r "$REPO" 'if type=="array" then
+  # Dependabot usually FIXES what it reports: with security updates enabled it
+  # opens the bump PR itself. So list its open PRs and correlate them to the
+  # alerts by package name — otherwise this agent drafts a second branch for a
+  # fix that already exists, and the maintainer gets two PRs for one CVE.
+  # When a PR exists the job is REVIEWING that diff, not recreating it.
+  DPRS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/$REPO/pulls?state=open&per_page=100" 2>/dev/null \
+    | jq -c '[ .[]
+        | select((.user.login // "") | test("^dependabot(\\[bot\\])?$"))
+        | {number, title, url: .html_url, draft,
+           head: (.head.ref // null),
+           # Dependabot titles are machine-generated and stable:
+           # "Bump <pkg> from <a> to <b>" (or "chore(deps): bump ...").
+           package: ((.title | capture("(?i)bump (?<p>[^ ]+) from") | .p) // null),
+           from_version: ((.title | capture("(?i) from (?<v>[^ ]+) to ") | .v) // null),
+           to_version: ((.title | capture("(?i) to (?<v>[^ ]+)$") | .v) // null),
+           created_at} ]' 2>/dev/null || echo '[]')
+  [ -z "$DPRS" ] && DPRS='[]'
+
+  ENRICHED=$(printf '%s' "$ALERTS" | jq -c --arg r "$REPO" --argjson dprs "$DPRS" 'if type=="array" then
     [ .[] | {
         repo: $r,
         alert: .number,
@@ -44,7 +63,21 @@ for REPO in $REPOS; do
         first_patched: (.security_vulnerability.first_patched_version.identifier // null),
         summary: ((.security_advisory.summary // "") | .[0:200]),
         url: (.html_url // null)
-      } ]
+      }
+      | . as $a
+      # Match a Dependabot PR to this alert by package name, case-insensitively.
+      | .dependabot_pr = ( [ $dprs[]
+          | select(($a.package // "") != "" and (.package // "") != "")
+          | select((.package | ascii_downcase) == ($a.package | ascii_downcase)) ] | first // null)
+      | .has_fix_pr = (.dependabot_pr != null)
+      # semver delta of the proposed bump — the single best predictor of whether
+      # this is a safe merge or a breaking change wearing a security label.
+      | .bump = (if .dependabot_pr == null then null
+                 else ((.dependabot_pr.from_version // "") | split(".") | .[0]) as $fj
+                    | ((.dependabot_pr.to_version // "") | split(".") | .[0]) as $tj
+                    | (if ($fj|length) == 0 or ($tj|length) == 0 then "unknown"
+                       elif $fj != $tj then "major" else "minor-or-patch" end) end)
+    ]
     else [] end' 2>/dev/null || echo '[]')
   while IFS= read -r ONE; do
     [ -z "$ONE" ] && continue
@@ -72,6 +105,9 @@ else
     reduce .[] as $a ({}; .[$a.severity] = ((.[$a.severity] // 0) + 1))')
   TOP=$(printf '%s' "$SORTED" | jq -r '.[0].severity // "unknown"')
   RUNTIME=$(printf '%s' "$SORTED" | jq '[.[] | select(.scope != "development")] | length')
-  printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "advisories": %s}}\n' \
-    "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$SORTED"
+  WITH_PR=$(printf '%s' "$SORTED" | jq '[.[] | select(.has_fix_pr)] | length')
+  NEEDS_PR=$(printf '%s' "$SORTED" | jq '[.[] | select(.has_fix_pr | not)] | length')
+  MAJOR=$(printf '%s' "$SORTED" | jq '[.[] | select(.bump == "major")] | length')
+  printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "with_fix_pr": %s, "needs_fix_pr": %s, "major_bumps": %s, "advisories": %s}}\n' \
+    "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$WITH_PR" "$NEEDS_PR" "$MAJOR" "$SORTED"
 fi

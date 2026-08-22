@@ -147,6 +147,13 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained. Read everywhere, plus Contents+PRs write for security patches** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
 
+**On Dependabot.** If the repo has Dependabot security updates enabled,
+Dependabot opens the fix PR and this agent *reviews* it — semver delta, whether
+our code reaches the affected API, and a merge-or-hold call. If it is disabled,
+this agent drafts the bump instead. Either is fine; having both produces two PRs
+per CVE, which is why onboarding asks. Nothing here can turn the setting on —
+that needs Administration write, which no agent in this set holds.
+
 This agent needs a **PostHog key** (`posthog-weekly-review`) but **no GA4
 access** — GA4 traffic narration is the local agent's. It no longer touches
 either. Those credentials belong to `local/community-local`; see that

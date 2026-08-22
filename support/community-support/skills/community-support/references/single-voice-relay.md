@@ -42,6 +42,32 @@ member or maintainer builds trust with one consistent voice and tone, not with
   channel (untested — see `UPSTREAM-ISSUES.md`), and that the local agent
   checks whether you already replied before it posts, since a duplicate reply
   under one bot name reads as a broken bot.
+- **The second exception: the Reviewer opens pull requests.** It drafts security
+  patch PRs and version-tagged docs PRs, so it writes to repos. Single voice
+  still holds, on four separate axes — and it is worth knowing which of them are
+  enforced rather than merely instructed:
+
+  1. **One identity.** All four agents' tokens are issued from the *same*
+     dedicated bot account, so a PR it opens appears as the same author the lead
+     posts as. A reader sees no new party. `weekly-identity-integrity-check`
+     and each agent's `GET /user` check exist to keep this true.
+  2. **It cannot converse — enforced by scope, not by prompt.** GitHub PR
+     comments are issue comments, and the Reviewer's token has Issues **read**
+     only. So it can open a PR and it physically cannot comment on one, reply to
+     review feedback, or comment on an issue. Every conversation stays the
+     lead's. This is the important one: withholding Issues write is not an
+     oversight, it is the single-voice control.
+  3. **A PR is a structured artifact, not speech.** Title, body, diff — from a
+     fixed template, stating what changed, what was verified, and what wasn't.
+     No free-form prose in the project's voice.
+  4. **It stays a draft until a human takes it.** It never marks its own PR
+     ready-for-review and never merges. The lead reviews the text before it
+     goes anywhere.
+
+  If a deployment ever needs the Reviewer to reply on a PR thread, the answer is
+  **not** to grant it Issues write — it is to have it hand the reply to the
+  lead, which is what every other finding already does.
+
 - Scheduled tasks belonging to a headless helper should say so explicitly in
   their own prompt body — "do not post anything public from this task, hand your
   output to the standing agent for review" — because a task's stored prompt is

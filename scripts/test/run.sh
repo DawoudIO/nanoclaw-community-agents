@@ -244,6 +244,29 @@ for group in local engineering marketing; do
 done
 [ "$OWNER_DIRECT" -eq 0 ] && pass || fail "sub-agent task(s) address the owner directly — they have no owner DM; route via the lead"
 
+# --- 1i. single voice: no sub-agent task may instruct a public comment -----
+# The Reviewer now opens pull requests (security patches, docs PRs), which is a
+# deliberate exception. The line it must not cross is CONVERSATION: commenting
+# on an issue or PR is the lead's job, and the real control is that the
+# Reviewer's token has Issues *read* only, so PR comments are impossible.
+#
+# This guards the prompt side of that, because a prompt telling an agent to
+# comment would produce silent 403s rather than an obvious failure — and would
+# be an argument for widening the token, which is exactly the wrong fix.
+COMMENTERS=0
+for group in local engineering marketing; do
+  gdir=$(dir_of "$group")
+  for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
+    [ -f "$md" ] || continue
+    if hits=$(grep -nEi 'post a (public )?comment|comment on the (issue|pr|pull)|reply (on|to) the (issue|pr|pull)|leave a comment' "$md"               | grep -viE 'never|not |do not|cannot|forbidden|instead of'); then
+      echo "  public-comment instruction in a sub-agent task: ${md#"$ROOT"/}"
+      printf '    %s\n' "$hits"
+      COMMENTERS=1
+    fi
+  done
+done
+[ "$COMMENTERS" -eq 0 ] && pass || fail "sub-agent task(s) instruct posting a public comment — conversation is the lead's, and their tokens cannot do it anyway"
+
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.
 # assert_gate <script> <scenario-name> <expected-wakeAgent|any> <config-env-content>
@@ -664,7 +687,14 @@ assert_scenario "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" adv
    and (.data.advisories[0].ghsa_id == "GHSA-crit-0002")
    and (.data.by_severity.critical == 1)
    and (.data.by_severity.low == 1)
-   and (.data.runtime_scoped == 1)' \
+   and (.data.runtime_scoped == 1)
+   and (.data.with_fix_pr == 2)
+   and (.data.needs_fix_pr == 1)
+   and (.data.major_bumps == 1)
+   and ([.data.advisories[] | select(.package == "lodash") | .dependabot_pr.number] == [11])
+   and ([.data.advisories[] | select(.package == "lodash") | .bump] == ["major"])
+   and ([.data.advisories[] | select(.package == "chalk") | .bump] == ["minor-or-patch"])
+   and ([.data.advisories[] | select(.package == "postcss") | .has_fix_pr] == [false])' \
   'COMMUNITY_REPOS="acme/crm"'
 # docs-currency-watch: three merged PRs, and the assertions that matter are
 # the RELEASE GATING inputs — the milestone the docs PR must be tagged with,

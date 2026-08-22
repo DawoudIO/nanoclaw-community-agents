@@ -1,0 +1,41 @@
+[
+ {
+  "number": 11,
+  "title": "Bump lodash from 4.17.20 to 5.0.0",
+  "user": {
+   "login": "dependabot[bot]"
+  },
+  "html_url": "https://github.com/acme/crm/pull/900",
+  "draft": false,
+  "head": {
+   "ref": "dependabot/npm_and_yarn/lodash-5.0.0"
+  },
+  "created_at": "2026-08-20T00:00:00Z"
+ },
+ {
+  "number": 12,
+  "title": "chore(deps): bump chalk from 5.0.0 to 5.0.1",
+  "user": {
+   "login": "dependabot[bot]"
+  },
+  "html_url": "https://github.com/acme/crm/pull/901",
+  "draft": false,
+  "head": {
+   "ref": "dependabot/npm_and_yarn/chalk-5.0.1"
+  },
+  "created_at": "2026-08-20T00:00:00Z"
+ },
+ {
+  "number": 13,
+  "title": "Human PR, not dependabot",
+  "user": {
+   "login": "someone"
+  },
+  "html_url": "https://github.com/acme/crm/pull/902",
+  "draft": false,
+  "head": {
+   "ref": "feature/x"
+  },
+  "created_at": "2026-08-20T00:00:00Z"
+ }
+]

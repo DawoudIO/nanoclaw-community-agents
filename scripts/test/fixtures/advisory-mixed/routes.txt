@@ -1,1 +1,2 @@
 dependabot/alerts|alerts.json
+pulls?state=open|pulls.json
