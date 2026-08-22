@@ -18,7 +18,16 @@ DATA="/workspace/agent/plugin-data/community-local"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 # Minutes a support-tier message may go unanswered before we acknowledge it.
+# MUST be a bare integer. It is used inside $(( )), where bash resolves a bare
+# name recursively as an arithmetic variable — so a human-friendly value like
+# "20 minutes" makes bash look up `minutes`, which under `set -u` is a FATAL
+# error that produces no output at all. This gate runs every 10 minutes and is
+# the one thing standing between a rate-limited lead and total silence, so it
+# must never die on a config typo: fall back to the default instead.
 GRACE="${ACK_GRACE_MINUTES:-20}"
+case "$GRACE" in
+  ''|*[!0-9]*) GRACE=20;;
+esac
 SEEN="$DATA/acknowledged.txt"
 touch "$SEEN"
 

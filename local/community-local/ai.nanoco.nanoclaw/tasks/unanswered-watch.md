@@ -21,7 +21,16 @@ script: |
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   # Minutes a support-tier message may go unanswered before we acknowledge it.
+  # MUST be a bare integer. It is used inside $(( )), where bash resolves a bare
+  # name recursively as an arithmetic variable — so a human-friendly value like
+  # "20 minutes" makes bash look up `minutes`, which under `set -u` is a FATAL
+  # error that produces no output at all. This gate runs every 10 minutes and is
+  # the one thing standing between a rate-limited lead and total silence, so it
+  # must never die on a config typo: fall back to the default instead.
   GRACE="${ACK_GRACE_MINUTES:-20}"
+  case "$GRACE" in
+    ''|*[!0-9]*) GRACE=20;;
+  esac
   SEEN="$DATA/acknowledged.txt"
   touch "$SEEN"
 
@@ -84,13 +93,13 @@ acknowledged twice.
   just record the id — a duplicate under the same bot name reads as broken.
 - **Security- or abuse-shaped** (a vulnerability report, harassment, anything
   legal): acknowledge with the same neutral line, do **not** repeat any of
-  its detail, and flag it to the owner DM immediately. Never assess it.
+  its detail, and flag it to your lead as owner-DM-urgent immediately. Never assess it.
 - **Leave the work outstanding.** Your acknowledgment is a receipt. Report
   every id you acknowledged to the lead so it picks them up when its window
   returns — an acknowledged message that nobody ever answers is a worse
   outcome than the silence you replaced.
 
-**If `status` is `cannot-read-messages`**: report it to the lead and the owner
+**If `status` is `cannot-read-messages`**: report it to your lead, marked for the owner,
 rather than assuming quiet. This gate failing open (staying silent) is the
 one failure mode it must never hide — verify the `ncl messages list` shape on
 this NanoClaw version.

@@ -50,17 +50,11 @@ else
   add "identity_check" "ok" ""
 fi
 
-if [ -n "${GA4_PROPERTY_ID:-}" ]; then
-  add "ga4_configured" "ok" ""
-else
-  add "ga4_configured" "skipped" "optional — GA4_PROPERTY_ID unset, weekly-analytics-report stays paused"
-fi
-
-# agent-browser: social-metrics-snapshot needs a page-reading capability
-# (Claude's built-in web fetch, or NanoClaw's agent-browser skill). No API
-# call proves this from inside a bash gate — the agent itself must confirm
-# it can actually open a URL and read content before trusting this task.
-add "page_read_capability" "unknown" "run one real fetch of a configured social profile URL yourself and confirm you can read it — this is not curl-testable"
+# NOTE: GA4 and the social-profile page-read check are deliberately NOT here.
+# weekly-analytics-report and social-metrics-snapshot both belong to the
+# community-local agent now, and its setup-check.sh verifies them. Checking
+# config you don't consume produces false "incomplete" status and sends the
+# owner hunting for a credential this agent never uses.
 
 printf '{"status": %s, "checks": %s}\n' \
   "$(printf '%s' "$CHECKS" | jq 'if any(.[]; .status=="missing" or .status=="unreachable") then "incomplete" else "complete" end')" \

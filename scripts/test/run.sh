@@ -88,6 +88,109 @@ else
   fail "onboarding-answers.example.json is out of sync with the code (run: bash scripts/check-onboarding.sh)"
 fi
 
+# --- 1e. docs must not contradict the real topology ------------------------
+# Prose that hand-restates counts ("18 tasks", "three agents") goes stale
+# silently on every restructure, because prose isn't testable. This makes it
+# testable: scripts/gen-task-table.sh derives the truth from the task files
+# and fails on any doc still claiming the old shape.
+if bash "$ROOT/scripts/gen-task-table.sh" --check >/dev/null 2>&1; then
+  pass
+else
+  fail "docs contradict the real agent/task topology (run: bash scripts/gen-task-table.sh --check)"
+fi
+
+# --- 1f. every task file must have a schedule, and none may collide --------
+# Two tasks on the same cron minute start two agent containers at once. On a
+# 16 GB host that contends with Docker, the sandbox VM, Postgres and the
+# local model, so collisions are a resource bug, not a style nit.
+MISSING_SCHED=0
+for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
+  grep -q '^schedule:' "$md" || { MISSING_SCHED=1; echo "  no schedule: $md"; }
+done
+[ "$MISSING_SCHED" -eq 0 ] && pass || fail "task file(s) missing a schedule: line"
+
+DUPE=$(grep -h '^schedule:' "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d)
+if [ -z "$DUPE" ]; then pass; else fail "two tasks share a cron schedule: $DUPE"; fi
+
+# --- 1g. no task may reference ANOTHER agent's plugin-data ----------------
+# Each agent sees only its own /workspace/agent/plugin-data/<its-name>/. A
+# path naming a different agent's dir is not a slow failure, it is a
+# permanently dead task: the file is simply never there.
+#
+# This shipped three times at once. `docs-gap-review` read the lead's
+# question-ledger from the coding agent's dir (and its own test fixture seeded
+# the same wrong path, so the suite agreed with the bug); `social-metrics-snapshot`
+# appended the follower series into marketing's dir; `health-check` watched an
+# owner-instruction ledger only the lead writes. Two of the three were
+# append-only ledgers, where a silent miss is unrecoverable data loss.
+#
+# Checked on BOTH sides: the gate scripts and the task prompts, because the
+# prompt is what tells the agent where to write.
+agent_of() {
+  case "$1" in
+    support)     echo "community-support";;
+    local)       echo "community-local";;
+    engineering) echo "community-coding";;
+    marketing)   echo "community-marketing";;
+  esac
+}
+dir_of() {
+  case "$1" in
+    support)     echo "support/community-support";;
+    local)       echo "local/community-local";;
+    engineering) echo "engineering/community-coding";;
+    marketing)   echo "marketing/community-marketing";;
+  esac
+}
+CROSS=0
+for group in support local engineering marketing; do
+  own=$(agent_of "$group")
+  gdir=$(dir_of "$group")
+  for f in "$ROOT/scripts/tasks/$group"/*.sh "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
+    [ -f "$f" ] || continue
+    for other in community-support community-local community-coding community-marketing; do
+      [ "$other" = "$own" ] && continue
+      if grep -q "plugin-data/$other" "$f" 2>/dev/null; then
+        echo "  cross-agent path: ${f#"$ROOT"/} (owned by $own) references plugin-data/$other"
+        CROSS=1
+      fi
+    done
+  done
+done
+[ "$CROSS" -eq 0 ] && pass || fail "task(s) reference another agent's plugin-data — those paths are never readable"
+
+# --- 1h. sub-agent tasks must report through the lead, never to the owner --
+# Every sub-agent is headless: its only outbound path is the `parent`
+# destination to the lead, which relays to the owner DM. A sub-agent task that
+# tells the agent to "send the owner" a report is asking for a route that does
+# not exist, so the report reaches nobody.
+#
+# This shipped in three of the local agent's tasks at once — health-check's
+# proof-of-life heartbeat, workspace-backup's failure report, and
+# unanswered-watch's urgent security flag. All three are exactly the messages
+# you cannot afford to lose, which is what makes this worth a hard gate rather
+# than a review habit.
+#
+# Lead-owned tasks are exempt: the lead HAS the owner DM, so addressing the
+# owner is correct for them.
+OWNER_DIRECT=0
+for group in local engineering marketing; do
+  gdir=$(dir_of "$group")
+  for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
+    [ -f "$md" ] || continue
+    # Imperative constructions only, and never a line that also names the lead
+    # — "hand it to your lead marked for the owner" is the CORRECT phrasing and
+    # must not trip this. Likewise "you have no owner DM" is the rule itself.
+    if hits=$(grep -nEi 'send the owner|tell the owner|DM the owner|report [^.]{0,24}to the owner|flag [^.]{0,24}to the owner' "$md" \
+              | grep -vi 'your lead\|no owner DM'); then
+      echo "  direct-to-owner in a sub-agent task: ${md#"$ROOT"/}"
+      printf '    %s\n' "$hits"
+      OWNER_DIRECT=1
+    fi
+  done
+done
+[ "$OWNER_DIRECT" -eq 0 ] && pass || fail "sub-agent task(s) address the owner directly — they have no owner DM; route via the lead"
+
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.
 # assert_gate <script> <scenario-name> <expected-wakeAgent|any> <config-env-content>
@@ -228,7 +331,7 @@ assert_gate "$ROOT/scripts/tasks/local/draft-cleanup.sh" \
   "fetch-fails-must-wake" "true" 'CONTENT_REPO="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/engineering/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/engineering/daily-github-triage.sh" \
+assert_gate "$ROOT/scripts/tasks/support/daily-github-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 
 # health-check: no config needed; on a healthy fresh box the only wake
@@ -313,22 +416,22 @@ RELEASE_WATCH_REPO="acme/demo"' 2
 # docs-gap-review: pure local-file logic, previously the ONLY gate with no
 # behavioral coverage at all. Ledger seeded with one topic 4× inside the
 # 60-day window and one 2× — only the 3+ topic may surface.
-assert_scenario "$ROOT/scripts/tasks/engineering/docs-gap-review.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures true \
   '(.data.status == "hot-topics")
    and (.data.topics | length == 1)
    and (.data.topics[0].topic == "csv-import-fails")
    and (.data.topics[0].count == 4)' \
   '' 1 \
-  'D="$SANDBOX/plugin-data/community-coding"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    for i in 1 2; do echo "{\"date\":\"$NOW\",\"topic\":\"how-to-backup\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done'
 
 # docs-gap-review: a topic already proposed must not re-surface (the ack
 # ledger is what stops the same docs page being proposed every week).
-assert_scenario "$ROOT/scripts/tasks/engineering/docs-gap-review.sh" no-fixtures false \
+assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures false \
   '.data.status == "quiet"' '' 1 \
-  'D="$SANDBOX/plugin-data/community-coding"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'

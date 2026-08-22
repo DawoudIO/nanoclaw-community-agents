@@ -90,15 +90,30 @@ This template can do four jobs, but which ones this project wants is the
 owner's call, not a default. Ask directly — "is X a goal? do you want help
 with Y?" — one compact menu:
 
+Each task is labelled with the agent that owns it, because declining a goal
+pauses tasks in whichever group holds them:
+
 | Goal | If yes, these tasks become eligible |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` (standalone only) · `github-ops-triage` · `docs-gap-review` · `release-announcement-watch` |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` · `draft-cleanup` · `social-metrics-snapshot` · `weekly-analytics-report` · `good-first-issue-health` · `repo-hygiene-audit` · `dev-metrics-report`'s contributor/concentration sections |
-| **Proactive issue detection** — finding problems before users report them | `posthog-weekly-review` · `dev-metrics-report` · `repo-mirror-sync` |
-| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` · the escalation paths in `escalation-paths.md` |
+| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` *(marketing)* · `draft-cleanup` *(local)* · `social-metrics-snapshot` *(local)* · `weekly-analytics-report` *(local)* · `good-first-issue-health` *(local)* · `repo-hygiene-audit` *(local)* · `dev-metrics-report`'s contributor/concentration sections *(local)* |
+| **Proactive issue detection** — finding problems before users report them | `posthog-weekly-review` *(local)* · `dev-metrics-report` *(local)* · `repo-mirror-sync` *(local)* |
+| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
 
 **Always offered regardless of goals** — these protect the system itself, not
-a goal: `health-check`, `workspace-backup`, `weekly-identity-integrity-check`.
+a goal: `unanswered-watch`, `health-check`, `workspace-backup`,
+`weekly-identity-integrity-check`.
+
+`unanswered-watch` is the one to never skip. It is the local agent's
+every-10-minutes check that no support message has been sitting unanswered
+past `ACK_GRACE_MINUTES`, and if one has, it posts a holding acknowledgment.
+It exists because response delay is the strongest predictor of whether a
+first-time contributor comes back, and because *this* is what happens when
+the shared usage window runs out: the lead stops replying and the community
+hears nothing. It runs on the local model with no network and no credentials,
+so it survives the exact outage it compensates for — and it costs nothing on
+the meter. Offer it as protection for the north star, not as a feature.
+
 **Not goal-scoped**: `inbox-check` — the lead's own task. An inbox is a
 support channel on a different transport, so the same escalation rules apply;
 offered only if the project has a shared inbox and an email tool is
@@ -110,10 +125,15 @@ Two things to get right here:
   both growth and detection; `good-first-issue-health` under growth but read
   by security-minded maintainers too). Eligible = **any** of its goals was
   chosen, never all of them.
-- **Declining a goal never orphans another goal's task.** Marketing owns
-  `weekly-analytics-report`, which serves *detection*, not growth — so if
-  detection is yes and growth is no, marketing is **not** dormant: relay it
-  only the analytics config it needs and say which single task is active.
+- **Declining a goal never orphans another goal's task.** The local agent is
+  the one this matters for, because its 11 tasks span every goal:
+  `weekly-analytics-report` and `social-metrics-snapshot` serve growth, while
+  `posthog-weekly-review`, `dev-metrics-report` and `repo-mirror-sync` serve
+  *detection*. So if detection is yes and growth is no, the local agent is
+  **not** dormant — relay it only the config those active tasks need, and say
+  which ones are live. Marketing is the opposite case: it owns exactly one
+  task, `content-draft-cycle`, which serves growth only, so declining growth
+  makes it genuinely dormant (and it is not stamped by default anyway).
   Dormancy (step 6) applies only when *every* goal that agent's tasks serve
   was declined.
 
@@ -211,12 +231,18 @@ Then the rest of what a complete config needs:
   provider/model and the recommended defaults for the owner's plan tier, and
   apply any change they ask for (via group config if you can; otherwise give
   them the exact command). Defaults for a small subscription plan ($20-tier):
-  lead and marketing on a Sonnet-class model (public-facing judgment, content
-  quality), coding on a Haiku-class model (its drafts are reviewed by the lead
-  anyway — the cheapest model that triages well); never an Opus-class model on
-  a scheduled task. Remind the owner: cost comes from wakes, not from agents
-  existing — a paused task burns nothing, so tune budget by activating fewer
-  tasks, not by deleting agents
+  **lead** on a Sonnet-class model (public-facing judgment); **local ops** on
+  the host's local model (`llama3.2` on a 16 GB machine) — this is the whole
+  point of that group, and if its `ANTHROPIC_BASE_URL` is unset it is silently
+  still on the cloud provider, sharing the window it exists to avoid;
+  **Reviewer (coding)** on a Haiku-class model (its drafts are reviewed by the
+  lead anyway — the cheapest model that triages well); **marketing** on a
+  Sonnet-class model when it is stamped at all, since content quality is its
+  only job. Never an Opus-class model on a scheduled task. Remind the owner:
+  cost comes from wakes, not from agents existing — a paused task burns
+  nothing, so tune budget by activating fewer tasks, not by deleting agents.
+  And 11 of the 19 tasks sit on the local agent, off the shared meter
+  entirely, which is why the window mostly goes to answering people
 
 ## 5. Persist — this is the point
 
@@ -260,30 +286,52 @@ Relay the keys below **by name** over the agent-to-agent destinations; each
 sub-agent writes its own `config.env` + `project-config.md` and confirms.
 A key you don't relay is a feature that silently never runs.
 
-**coding** → `plugin-data/community-coding/config.env`:
+**local** → `plugin-data/community-local/config.env` — **relay this one first.**
+It owns 11 of the 19 tasks, more than the other three combined, so an
+unrelayed key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | triage, advisory sweep, dev metrics, GFI health, repo hygiene |
-| `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing/wiki, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged |
+| `COMMUNITY_REPOS` | repos it reads | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit` |
+| `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing/wiki, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged. Optional: falls back to `COMMUNITY_REPOS`, so relay it only to mirror *more* than the triaged set |
+| `CONTENT_REPO` | content repo | `draft-cleanup`. Note this key goes to **both** local and marketing, for different tasks |
+| `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report` |
 | `POSTHOG_PROJECT_ID` | project id, or omit | `posthog-weekly-review` |
 | `POSTHOG_HOST` | `https://us.posthog.com` or `https://eu.posthog.com` | **relay this whenever the owner is on EU** — the script defaults to US, so an EU project fails against the wrong region |
 | `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
+| `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a lead that was about to answer |
+| `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
+
+Plus in prose: that it reports **everything through you** — it has no owner
+DM — and that its acknowledgment channel must be the one the community
+actually posts in.
+
+**coding** (the Reviewer) → `plugin-data/community-coding/config.env`:
+
+| Key | Value | Why it matters |
+|---|---|---|
+| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep` — its only two tasks |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 
 Plus in prose: default branch, label policy, and **`docs_style`** — the
 coding agent's `triage-rules.md` enforces it on every docs issue/PR it
 drafts, so an unrelayed answer means an unconfigured assumption.
 
+It gets **no** `MIRROR_REPOS`, `POSTHOG_*`, or `GFI_LABEL` — those moved to
+the local agent with their tasks. Relaying them here configures nothing.
+
 **marketing** → `plugin-data/community-marketing/config.env`:
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `CONTENT_REPO` | content repo | `draft-cleanup`, and `content-draft-cycle` won't run at all without it |
+| `CONTENT_REPO` | content repo | `content-draft-cycle` won't run at all without it |
 | `RELEASE_WATCH_REPO` | the repo whose releases trigger content (usually product) | without it `content-draft-cycle` silently loses its release trigger and only ever fires on the weekly floor |
 | `BRAND_SOURCE_REPO` | brand/strategy repo, **if different from `CONTENT_REPO`** | its setup-check verifies the token can actually reach it |
-| `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report` |
 | `GITHUB_BOT_USERNAME` | the bot account | same dead-check problem |
+
+No `GA4_PROPERTY_ID` — analytics moved to the local agent. Marketing is also
+**not stamped at install by default**, so if it was never stamped, skip this
+relay entirely rather than waiting on a confirmation that cannot arrive.
 
 Plus in prose: site repo, social profile URLs and per-platform posting
 mechanism, and — **required, not optional** —
@@ -339,12 +387,13 @@ keys go into the OneCLI vault dashboard only:
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
-| GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
+| GitHub work (lead + sub-agents) | 4 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
+| Backup push + mirror fetches | 1 `github.com` (git) entry, the **local** agent's | `workspace-backup` pushes with it; `repo-mirror-sync` fetches with it |
 | Workspace backup push | `github.com` (git, separate from REST) | step 8 below |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | PostHog review | key on `us.` or `eu.posthog.com` | sandbox allowlist entry |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
-| Inbox check | provider OAuth (read-only scope) | an email MCP server added to the marketing group — a platform config change, not something you can do from in here; point the owner at the template README |
+| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the lead's own group** — `inbox-check` is the lead's task. A platform config change, not something you can do from in here; point the owner at the template README |
 
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:

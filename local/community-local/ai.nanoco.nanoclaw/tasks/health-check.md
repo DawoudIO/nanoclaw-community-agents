@@ -88,14 +88,14 @@ script: |
 Only invoked when the health-check script found something — or for the weekly
 proof-of-life heartbeat.
 
-**If `status` is `heartbeat`**: all checks passed; send the owner exactly one
+**If `status` is `heartbeat`**: all checks passed; send your lead exactly one
 line — "Weekly health heartbeat: all checks passed as of <date/time>." This
 line's *absence* is the outage signal: the owner knows that if more than ~8
 days pass without it, the sandbox process itself has died (nothing inside a
 dead system can report its own death) and needs restarting on the host.
 Don't pad it into a report.
 
-**If `status` is `attention`**: summarize `scriptOutput.issues` for the owner
+**If `status` is `attention`**: summarize `scriptOutput.issues` for your lead
 in one short message — what's stale, newly paused, or missing from the
 environment, and since when. A missing `jq`/`ncl` warning is an
 image/platform defect worth an upstream issue, not something you can fix.

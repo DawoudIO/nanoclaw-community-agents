@@ -1,13 +1,21 @@
 # Community Coding Agent Template
 
-A headless GitHub/codebase-ops sub-agent for an open-source project: triage
-issues and PRs, assess security advisories, compute dev metrics and review
-telemetry — and hand all of it to a lead support agent rather than posting
-publicly.
+The **Reviewer** of the set: a headless, **read-only** GitHub-ops sub-agent
+running on **Claude Haiku**, with **2 tasks** — triage issues and PRs, and
+assess security advisories — handing both to a lead support agent rather than
+posting publicly.
 
-Pairs with **`support/community-support`** (the lead) and
-**`marketing/community-marketing`** (the sibling). It works standalone, but the
-single-public-voice design assumes a lead agent exists to relay through.
+It is deliberately narrow. It does **not** compute dev metrics, review product
+telemetry, or do docs-gap review; all of that moved to
+`local/community-local`, which runs a local model and pays no subscription cost
+to narrate numbers a script already computed. What's left here is the work that
+actually needs judgment about code and severity — which is why it keeps a
+cloud model, and why that model is the cheap one.
+
+Pairs with **`support/community-support`** (the lead); its siblings are
+**`local/community-local`** and **`marketing/community-marketing`**. It works
+standalone, but the single-public-voice design assumes a lead agent exists to
+relay through.
 
 ## Why headless
 
@@ -27,14 +35,9 @@ community-coding/
 ├── ai.nanoco.nanoclaw/
 │   ├── context/
 │   │   └── instructions.md                       # standing brief: draft, never post
-│   └── tasks/
+│   └── tasks/                                    # 2 tasks, both created paused
 │       ├── github-ops-triage.md                  # 4×/day, issue + PR triage digest
-│       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
-│       ├── dev-metrics-report.md                 # scripted fetch, wakes only on notable change
-│       ├── good-first-issue-health.md            # weekly, GFI-labeled onboarding funnel check
-│       ├── repo-hygiene-audit.md                 # quarterly, community-profile completeness check
-│       ├── posthog-weekly-review.md              # scripted fetch, wakes only on insight change
-│       └── repo-mirror-sync.md                   # keeps local checkouts current, flags real changes
+│       └── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
 ├── skills/
 │   └── coding-ops/
 │       ├── SKILL.md
@@ -45,6 +48,13 @@ community-coding/
 │           └── metrics-and-telemetry.md
 └── README.md
 ```
+
+**Where the other tasks went.** `dev-metrics-report`,
+`good-first-issue-health`, `repo-hygiene-audit`, `posthog-weekly-review` and
+`repo-mirror-sync` are now `local/community-local` tasks. `docs-gap-review` and
+`daily-github-triage` are the lead's — `docs-gap-review` reads a ledger only
+the lead writes, and since no agent can read another agent's plugin-data, it was
+permanently dead while it lived here.
 
 ## Stamp it
 
@@ -73,17 +83,16 @@ stamped agent to write it:
 
 ```bash
 # groups/<folder>/plugin-data/community-coding/config.env
-COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep + dev metrics
-MIRROR_REPOS="owner/repo1 owner/repo2 owner/repo1.wiki"  # repo-mirror-sync;
-                                                  # full repo map, not just
-                                                  # triaged repos — falls back
-                                                  # to COMMUNITY_REPOS if unset
-POSTHOG_PROJECT_ID="12345"                       # posthog weekly review
-POSTHOG_HOST="https://us.posthog.com"            # or https://eu.posthog.com
-GFI_LABEL="good first issue"                     # optional — good-first-issue-health;
-                                                  # only needed if your repo uses a
-                                                  # different beginner-friendly label
+COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep + issue/PR triage
 ```
+
+That is the whole file now. **If you configured this agent before the
+restructure, four keys have moved out of here:** `MIRROR_REPOS`,
+`POSTHOG_PROJECT_ID`, `POSTHOG_HOST` and `GFI_LABEL` all belong to
+`plugin-data/community-local/config.env`, because the tasks that read them
+(`repo-mirror-sync`, `posthog-weekly-review`, `good-first-issue-health`) are the
+local agent's. Setting them here has no effect — nothing in this template reads
+them.
 
 Every script exits cleanly with `wakeAgent: false, status: "not-configured"`
 when its key is unset — an unconfigured task costs nothing rather than failing.
@@ -113,7 +122,10 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained, read-only** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
-| PostHog | `us.posthog.com` or `eu.posthog.com` | `Authorization: Bearer` | Personal API key, **read** scopes on insights/query only | PostHog → Settings → Personal API keys |
+
+This agent needs **no PostHog key and no GA4 access** — it no longer touches
+either. Those credentials belong to `local/community-local`; see that
+template's README.
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at
@@ -125,13 +137,14 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-All seven tasks are script-gated. `security-advisory-sweep`,
-`github-ops-triage`, `repo-hygiene-audit`, and `repo-mirror-sync` wake the
-model only when there's something new (or a fetch fails, which must be
-surfaced); `good-first-issue-health` wakes weekly by design (its whole output
-is the funnel state, whether or not it changed);
-`dev-metrics-report` and `posthog-weekly-review` wake only when a number
-actually moved, each with a heartbeat longer than its own cron so a fully
-static stretch still proves life (7 days for the daily report, 28 for the
-weekly review) — a quiet stretch costs a few API calls per run, not an agent
-turn.
+Both tasks are script-gated, and neither has an ungated wake.
+`github-ops-triage` wakes only on new or updated issues and PRs;
+`security-advisory-sweep` only on a new alert. Either also wakes when its fetch
+fails outright — a broken fetch must never read as a quiet day. A genuinely
+quiet stretch costs a few API calls per run, not an agent turn.
+
+Two gated tasks on Haiku is a small footprint against the shared usage window,
+which is the point of putting the Reviewer on the cheap tier. The costs that
+used to be listed here — dev metrics, GFI health, hygiene audit, PostHog,
+mirror sync — are the local agent's now, and they cost memory rather than
+tokens.

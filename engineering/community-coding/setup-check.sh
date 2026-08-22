@@ -31,11 +31,10 @@ else
   add "identity_check" "ok" ""
 fi
 
-if [ -n "${POSTHOG_PROJECT_ID:-}" ]; then
-  add "posthog_configured" "ok" ""
-else
-  add "posthog_configured" "skipped" "optional — POSTHOG_PROJECT_ID unset, posthog-weekly-review stays paused"
-fi
+# NOTE: no PostHog check here. `posthog-weekly-review` belongs to the
+# community-local agent and its setup-check.sh verifies it. Checking config
+# this agent never consumes produces a false "incomplete" and sends the owner
+# hunting for a credential the Reviewer does not use.
 
 printf '{"status": %s, "checks": %s}\n' \
   "$(printf '%s' "$CHECKS" | jq 'if any(.[]; .status=="missing" or .status=="unreachable" or .status=="mismatch") then "incomplete" else "complete" end')" \

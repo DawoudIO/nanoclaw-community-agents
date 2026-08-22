@@ -32,11 +32,20 @@ RESP=$(curl -sS --max-time 25 -X POST \
   -H 'Content-Type: application/json' \
   -d '{"dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday"}],"metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"}]}' \
   2>/dev/null || echo '')
-if [ -z "$RESP" ] || ! printf '%s' "$RESP" | jq -e '.rows' >/dev/null 2>&1; then
+# Guard on the exact field we are about to read, not just `.rows`. `jq -e
+# '.rows'` treats an empty array as truthy, so a valid-but-empty GA4 response
+# ({"rows":[]} — a property with no data in the window) passed this check and
+# then died on `null | tonumber`, aborting under `set -e` with NO JSON at all.
+# A gate that emits nothing is worse than one that reports a failure.
+if [ -z "$RESP" ] || ! printf '%s' "$RESP" | jq -e '.rows[0].metricValues[2].value' >/dev/null 2>&1; then
   echo '{"wakeAgent": true, "data": {"status": "fetch-failed"}}'
   exit 0
 fi
-WEEK=$(printf '%s' "$RESP" | jq -c '{activeUsers: (.rows[0].metricValues[0].value|tonumber), sessions: (.rows[0].metricValues[1].value|tonumber), pageViews: (.rows[0].metricValues[2].value|tonumber)}')
+WEEK=$(printf '%s' "$RESP" | jq -c '{activeUsers: (.rows[0].metricValues[0].value|tonumber), sessions: (.rows[0].metricValues[1].value|tonumber), pageViews: (.rows[0].metricValues[2].value|tonumber)}' 2>/dev/null || echo '')
+if [ -z "$WEEK" ]; then
+  echo '{"wakeAgent": true, "data": {"status": "fetch-failed", "hint": "GA4 responded but the metric values were not parseable as numbers"}}'
+  exit 0
+fi
 PREV=$(jq -c '.[-1].metrics // {}' "$HIST")
 jq -c --argjson m "$WEEK" --arg d "$(date -u +%Y-%m-%d)" \
   '. + [{date: $d, metrics: $m}] | .[-26:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"

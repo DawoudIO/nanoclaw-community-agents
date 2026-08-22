@@ -1,6 +1,6 @@
 ---
 name: marketing-ops
-description: Headless marketing operations for an open-source or community project — drafting social and blog content through a review-and-pull-request workflow and narrating traffic and audience analytics — always producing a draft for a lead support agent and a human to approve rather than publishing directly. Use this skill WHENEVER drafting a post or announcement, triaging inbox mail, preparing or narrating traffic/audience metrics, reviewing stale content drafts, or deciding whether something is ready to promote. Trigger it even when the request is phrased as "write a post about X", "how did traffic do", or "anything to announce".
+description: Headless marketing operations for an open-source or community project — drafting social and blog content through a review-and-pull-request workflow, in plain language aimed at the project's real audience rather than at engineers — always producing a draft for a lead support agent and a human to approve rather than publishing directly. Use this skill WHENEVER drafting a post or announcement, checking a draft against the project's audience and tone, or deciding whether something is ready to promote. Trigger it even when the request is phrased as "write a post about X" or "anything to announce". Do NOT use it for traffic or audience metrics, inbox triage, or stale-draft cleanup — those belong to other agents.
 ---
 
 # Marketing Ops

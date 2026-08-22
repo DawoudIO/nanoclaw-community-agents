@@ -17,7 +17,8 @@ jump to §6's prep sheet below.
 |---|---|---|
 | **Docker Desktop with `sbx`** (Docker Sandboxes) | The micro-VM everything runs in | Required |
 | **A Discord server you admin** (Manage Server permission) | To create/invite the bot and wire channels | Required |
-| **A GitHub account for the bot** — make a dedicated service account (e.g. `yourproject-bot`), not your personal one | All GitHub work appears as this identity; you'll cut 3 scoped tokens from it | Required |
+| **A GitHub account for the bot** — make a dedicated service account (e.g. `yourproject-bot`), not your personal one | All GitHub work appears as this identity; you'll cut 4 scoped tokens from it | Required |
+| **Ollama on the host**, serving `:11434` with `llama3.2` already pulled | The local ops agent's whole model provider — you supply Ollama, the kit doesn't ship it. Wired in with `/add-ollama-provider` (see the platform-skills table below) | Required **if you stamp the local agent** |
 | **PostHog account** | `posthog-weekly-review` task | Optional |
 | **Google Cloud project + GA4 property access** | `weekly-analytics-report` task | Optional |
 | **A shared project inbox** (e.g. Gmail) | the lead's `inbox-check` task | Optional |
@@ -95,19 +96,34 @@ project IDs, label text — never secrets) live in each agent's
 asks you to create a `.env` containing a key is violating this system's own
 rules; refuse it.
 
-**GitHub — three tokens from the bot account** (github.com → Settings →
-Developer settings → Personal access tokens):
+**GitHub — four tokens from the bot account, one per agent** (github.com →
+Settings → Developer settings → Personal access tokens). One token per agent
+is the point: four tokens are what make the per-agent least-privilege table in
+§4 enforceable at all, and they all match the same API host, which is why §4
+also switches every agent to `selective` secret mode.
 
 1. **Lead token** (classic): scope `repo` (or `public_repo` for public-only
    projects) — this one comments on issues, so it needs write on issues/PRs.
    **Not `read:org`**: nothing here reads org membership or teams (listing an
    org's repos, which the welcome interview does, needs no such scope) —
    dropped as an unjustified grant. Never `admin:*`, never `delete_repo`.
-2. **Coding token** (fine-grained): all triaged repos, **read-only**
+2. **Local token** (fine-grained): the widest *repo list* of the fine-grained
+   three, and close to the narrowest *permissions* — it covers
+   `COMMUNITY_REPOS` **plus**
+   `MIRROR_REPOS` (mirroring is this agent's job, not the reviewer's) with
+   Contents/Issues **read**, Pull requests **read** (`draft-cleanup` only
+   looks at stale drafts, it doesn't touch them), and **Contents write on the
+   backup repo and nothing else** (`workspace-backup`). A fine-grained
+   token's repo list gates everything the token does, including reads of
+   public data, so a mirror repo left off the list shows up as
+   `repo-mirror-sync` quietly never syncing that one.
+3. **Coding token** (fine-grained): `COMMUNITY_REPOS` only, **read-only**
    (Contents/Issues/PRs read; add Dependabot alerts read for the advisory
-   sweep). A classic `repo`-scope PAT is inherently read/write — don't use one
+   sweep). **No `MIRROR_REPOS`** — mirroring moved to the local agent, so
+   listing the mirror set here is now surplus access with no task behind it.
+   A classic `repo`-scope PAT is inherently read/write — don't use one
    here; this agent never posts, so give it a token that *can't*.
-3. **Marketing token** (fine-grained): Fine-grained tokens → limit to the
+4. **Marketing token** (fine-grained): Fine-grained tokens → limit to the
    **content repo** → Contents + Pull requests read/write. It opens draft
    PRs and nothing else. **If the brand/strategy source or the release-watch
    repo (content-draft-cycle's `RELEASE_WATCH_REPO`) is a *different* repo
@@ -117,9 +133,14 @@ Developer settings → Personal access tokens):
    #1 cause of "why did this silently never trigger" — `setup-check.sh`
    (§3's monitoring step, or run anytime) catches it as
    `brand_source_access`/`release_watch_repo_access: unreachable`.
-4. If you enable workspace backup, the lead's push goes to `github.com` (git),
-   a **separate vault host match** from `api.github.com` (REST) — one more
-   vault entry, same or a fourth token.
+   Marketing is not stamped by default (see step 3), so skip this token
+   entirely until you actually stamp it.
+5. If you enable workspace backup, the push goes to `github.com` (git) — a
+   **separate vault host match** from `api.github.com` (REST), so it's one
+   more vault entry regardless. `workspace-backup` belongs to the **local**
+   agent, so this is the local token's `github.com` counterpart: reuse that
+   token, or better, cut a fifth one scoped to just the backup repo so a
+   push credential and a read credential aren't the same string.
 
 **PostHog** (optional): PostHog → Settings → Personal API Keys → create with
 **read** access to insights/query. Note whether your org is on
@@ -228,8 +249,8 @@ task file's frontmatter, the kit pins `TZ=UTC`, and frontmatter is not
 runtime-editable — so after stamping, changing a time means cancel-and-recreate
 per task. The shipped times (see OPERATIONS.md → "Shipped times") are UTC. If
 UTC doesn't suit the owner's working day, edit the `schedule:` lines in your
-local copy of the 18 task files **before** the stamp step below — it's a
-one-minute edit now versus 18 recreates later. Everything else is collected
+local copy of the 19 task files **before** the stamp step below — it's a
+one-minute edit now versus 19 recreates later. Everything else is collected
 conversationally after wiring; pre-stamp file fill-ins are optional defaults,
 and personas mount read-only once stamped.
 
@@ -237,20 +258,30 @@ and personas mount read-only once stamped.
 it — by then this cheap window has closed, which is exactly why the decision
 belongs here.)
 
+Don't count or transcribe those crons by hand. From your local copy of this
+repo, `bash scripts/gen-task-table.sh` prints the authoritative
+task/agent/schedule table straight from the task files' frontmatter — so
+what you're editing against is what actually ships, not a table someone
+retyped. `--counts` gives just the headline numbers, and `--check` fails if
+these docs have drifted from the files. **One rule when you retime anything:
+no two tasks may share a cron minute** — a 16 GB host can't absorb two
+simultaneous wakes, and `unanswered-watch` owns the round `*/10` minutes
+deliberately, so retime around it rather than into it.
+
 **A — from a git staging repo** (github.com is already allowlisted):
 
 ```bash
 sbx exec nanoclaw bash -lc '
   git clone --depth 1 https://github.com/<you>/<staging-repo>.git /tmp/tpl &&
   mkdir -p /home/agent/nanoclaw/templates &&
-  cp -R /tmp/tpl/support /tmp/tpl/engineering /tmp/tpl/marketing /home/agent/nanoclaw/templates/'
+  cp -R /tmp/tpl/support /tmp/tpl/local /tmp/tpl/engineering /tmp/tpl/marketing /home/agent/nanoclaw/templates/'
 ```
 
 **B — stream your local copy over exec stdin** (no repo needed):
 
 ```bash
 sbx exec nanoclaw mkdir -p /home/agent/nanoclaw/templates
-tar -C /path/to/nanoclaw-templates -cf - support engineering marketing \
+tar -C /path/to/nanoclaw-templates -cf - support local engineering marketing \
   | sbx exec -i nanoclaw tar -C /home/agent/nanoclaw/templates -xf -
 ```
 
@@ -258,21 +289,33 @@ tar -C /path/to/nanoclaw-templates -cf - support engineering marketing \
 
 **What each one actually does — read this before naming or skipping any:**
 
-| Agent | Job | Public voice? | Required? |
-|---|---|---|---|
-| **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, relays the other two agents' work | **Yes — the only one that ever posts** | Always — nothing works without it |
-| **Coding** (`engineering/community-coding`) | Issue/PR triage, security-advisory review, dev metrics, telemetry — drafts and hands everything to the lead | No — headless, no channel access | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
-| **Marketing** (`marketing/community-marketing`) | Content drafts, traffic/follower analytics — drafts and hands everything to the lead | No — headless, no channel access | Optional. Skip it if you don't need content/analytics support yet |
+The four agents are split by **model tier**, not by subject: capable models
+where judgment is needed, a free local model where reliability matters more
+than capability.
 
-**You don't have to stamp all three now, and this isn't a one-way door.**
-Stamp just the lead today and add coding/marketing months later — the lead
-works standalone. To **disable** an agent later: pause all its tasks
+| Agent | Job | Model | Public voice? | Required? |
+|---|---|---|---|---|
+| **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, watches releases, reviews docs gaps, and relays the three sub-agents' work | Claude Sonnet | **Yes — the primary, full voice** | Always — nothing works without it |
+| **Local ops** (`local/community-local`) | The always-on tier, on a local Ollama `llama3.2`: narrates script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | **Local** (Ollama `llama3.2`) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It's the only agent with no usage window to exhaust, so it's the only one still working when the shared window closes |
+| **Coding** (`engineering/community-coding`) | Issue/PR triage and security-advisory review — 2 tasks, read-only, drafts everything for the lead. **Not** metrics, telemetry, or docs gaps: metrics/telemetry moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
+| **Marketing** (`marketing/community-marketing`) | Content drafts via PR, in the audience's language — 1 task | Claude | No — headless, no channel wiring at all | Optional, and **not stamped by default.** Skip it until you actually want content drafted |
+
+Why `docs-gap-review` sits with the lead and not the reviewer, since it reads
+like reviewer work: it consumes `question-ledger.jsonl`, which only the lead
+writes, and an agent cannot read another agent's `plugin-data/`. On the
+engineering side it was permanently dead — always zero input, never a finding.
+
+**You don't have to stamp all four now, and this isn't a one-way door.**
+Stamp just the lead today and add the others later — the lead works standalone.
+If you're adding exactly one, add **local ops**: it takes the bulk of the
+recurring work off the metered tier and it's what keeps the project from going
+silent during an outage. To **disable** an agent later: pause all its tasks
 (`ncl tasks list --status active` on its group, then `ncl tasks pause` each
 — or just stop resuming new ones) rather than deleting the group, so its
 config and memory stay intact if you re-enable it. To **add** one later:
 stamp it fresh, wire its destination to the lead exactly as below, and DM
-the lead to relay config — same process, whether done at hour one or month
-six.
+the lead to relay config (see §6's relay table for which keys each one
+needs) — same process, whether done at hour one or month six.
 
 Run inside the sandbox (`sbx exec -it -w /home/agent/nanoclaw nanoclaw bash`,
 or drive it conversationally via `sbx exec -it -w /home/agent/nanoclaw
@@ -285,24 +328,47 @@ name (set when you create the bot application) and unrelated to the
 project name the welcome interview infers from the GitHub repo. **Pick a
 name for each one now** — the examples below (`"Community Support"` etc.)
 are placeholders, not requirements; something like `"AcmeCRM Support"` /
-`"AcmeCRM Coding"` / `"AcmeCRM Marketing"` makes `ncl groups list` readable
-once you have more than one project's agents running. Nothing but a human
-looking at that list ever reads this string.
+`"AcmeCRM Local Ops"` / `"AcmeCRM Coding"` / `"AcmeCRM Marketing"` makes
+`ncl groups list` readable once you have more than one project's agents
+running. Nothing but a human looking at that list ever reads this string.
 
 ```bash
 # Stamp — check each create response's templateReport for skipped parts,
 # and note each group's id from the response: the destination wiring below
 # and the OneCLI selective-mode step need them.
 ./bin/ncl groups create --template support/community-support     --name "Community Support"
+./bin/ncl groups create --template local/community-local         --name "Community Local Ops"
 ./bin/ncl groups create --template engineering/community-coding  --name "Community Coding"
+# Marketing is OPTIONAL and not stamped by default — run this line only if you
+# actually want content drafted now. Its token (§0) is needed only if you do.
 ./bin/ncl groups create --template marketing/community-marketing --name "Community Marketing"
 
-# Wire sub-agents to the lead — agent-to-agent both ways, NEVER to a channel
+# Wire sub-agents to the lead — agent-to-agent both ways, NEVER to a channel.
+# One pair per sub-agent: `parent` on the child pointing at the lead, and a
+# named destination on the lead pointing back. A missing pair doesn't error —
+# the sub-agent's reports just reach nobody.
+./bin/ncl destinations add --agent-group-id <local-id>     --name parent    --target <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>      --name local     --target <local-id>
 ./bin/ncl destinations add --agent-group-id <coding-id>    --name parent    --target <lead-id>
 ./bin/ncl destinations add --agent-group-id <lead-id>      --name coding    --target <coding-id>
 ./bin/ncl destinations add --agent-group-id <marketing-id> --name parent    --target <lead-id>
 ./bin/ncl destinations add --agent-group-id <lead-id>      --name marketing --target <marketing-id>
 ```
+
+Sub-agents are headless and this `parent` destination is their **only**
+outbound path — which is why every sub-agent task addresses the *lead*, never
+the owner. A sub-agent has no owner DM, so a report addressed to the owner
+goes nowhere at all (this was a real bug in `health-check`,
+`workspace-backup` and `unanswered-watch`, now fixed). Lead-owned tasks may
+address the owner directly; that's correct for them.
+
+If you stamp the local agent, its model provider is a **host** prerequisite,
+not something the stamp sets up: Ollama must be serving `llama3.2` on
+`:11434` and the group must be routed to it with `/add-ollama-provider` (see
+the platform-skills table below). Without that, the group stamps fine and
+looks healthy right up until something actually needs narrating: the bash
+gates keep running as normal, and then every one of its 11 tasks fails at the
+wake, because the group has no model to wake into.
 
 (Credential registration is step 4 — the welcome interview below runs before
 it by design, so its verification pass will first report services as unwired;
@@ -329,10 +395,26 @@ first question is the project's GitHub repo, from which it infers a proposed
 config, confirms with you, persists it as runtime config in `plugin-data/`,
 and relays the sub-agents' values over their destinations. (Pre-stamp file
 fill-ins still work as defaults; the conversational config wins.) Only then
-wire the public channels + guild catch-all, **lead only** — sub-agents get no
-channel wiring; that's the single-voice design, enforced by absence. After
-setup, everything runs through Discord; the sandbox Claude CLI is break-glass
-admin only (see below).
+wire the public channels + guild catch-all — **the lead gets all of them, and
+the reviewer and marketing get none**: they have no channel wiring at all and
+cannot post publicly even if instructed to, which is single-voice enforced by
+absence.
+
+**The local agent is the one deliberate exception, and it's worth stating
+precisely** — the older blanket claim that no sub-agent has any channel
+identity is no longer true. Holding acknowledgments only work if something
+can actually speak while the lead can't, so the local agent gets **one**
+channel wiring and posts through the *same* Discord bot — one public identity
+still, not a second bot. Its restriction is enforced by *scope* rather than
+absence: one channel, read-only credentials everywhere else, no write access,
+and a template-only reply it is forbidden to compose freely. It is a receipt
+("we've seen this, a human/the lead will follow up"), never a resolution.
+**Unverified**: whether two groups can both wire to the same Discord channel
+in your NanoClaw version — test it on the real install rather than assuming
+it, and fall back to a dedicated acknowledgment channel if not.
+
+After setup, everything runs through Discord; the sandbox Claude CLI is
+break-glass admin only (see below).
 
 ## Break-glass admin: the Claude CLI — how it helps, how it hurts
 
@@ -414,7 +496,7 @@ marked *modifies install* has to be re-applied after
 | `/add-discord` | **Required** | Step 3, in the sandbox Claude session. Owner DM wiring first, then public channels after the interview | No — config only |
 | `/debug` | Built-in, nothing to install | Any time, from a break-glass session. First move for a container-level problem | No |
 | `/add-clidash` | **Recommended** | Right after step 3 (see the monitoring section above) | Copies `tools/clidash`; no source edit |
-| `/add-ollama-provider` | **Proposed, undecided** — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) | Only after a decision, and only for the coding group. *Alternative to `/add-ollama`, not a companion* | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
+| `/add-ollama-provider` | **Required if you stamp the local agent** — no longer the open question it was | Step 3, right after stamping `local/community-local`: this is what routes that group to your host's Ollama `llama3.2`. It is the group's only model provider, so skipping it leaves all 11 local tasks unable to wake. Still **not** adopted for the coding group — that agent stays on Haiku, reasoning in [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). *Alternative to `/add-ollama`, not a companion*. **Host prerequisites are yours**: Ollama running on `:11434` with the model pulled, and **unverified** whether `host.docker.internal:11434` reaches the host through the sandbox VM's *inner* Docker daemon — two network boundaries where the skill assumes one, so test it before relying on it | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
 | `/add-ollama` (the tool) | **Proposed, undecided** | Only if bilingual translation volume proves expensive. Gives an agent a local model to *call* while it stays on Claude — the lead's case, never the coding agent's | **Yes** — copies an MCP server into the source tree and rebuilds the image. Replay on recreate |
 | `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real "which task is burning budget" question | **Yes** — wires a pusher into `src/index.ts`, runs a persistent process, adds `DASHBOARD_SECRET`. Replay on recreate |
 | `/update-skills` | **Break-glass only** | Never in steady state — it's in-place mutation, which the update policy forbids. Acceptable for an urgent upstream channel fix that can't wait for a kit image | **Yes**, and it desyncs you from `platform-baseline.json` — note it and do a digest-pinned recreate as soon as one exists |
@@ -474,21 +556,23 @@ For each credential from step 0, create a vault secret matched to its API host:
 | Secret | Host match | Auth style |
 |---|---|---|
 | GitHub lead token | `api.github.com` | `Authorization: Bearer` |
+| GitHub local token | `api.github.com` | `Authorization: Bearer` |
 | GitHub coding token | `api.github.com` | `Authorization: Bearer` |
-| GitHub marketing token | `api.github.com` | `Authorization: Bearer` |
-| GitHub backup push (optional) | `github.com` | `Authorization: Bearer` |
+| GitHub marketing token (only if marketing is stamped) | `api.github.com` | `Authorization: Bearer` |
+| GitHub backup push (optional — the **local** agent's) | `github.com` | `Authorization: Bearer` |
 | PostHog key (optional) | `us.posthog.com` or `eu.posthog.com` | `Authorization: Bearer` |
 | GA4 OAuth (optional) | `analyticsdata.googleapis.com` | OAuth 2.0 Bearer |
 | Gmail (optional) | `gmail.googleapis.com` | OAuth 2.0 Bearer |
 
-**Then set the three agents to `selective` secret mode and assign each its own
-GitHub secret** — all three tokens match the same host, and in the default
+**Then set every stamped agent to `selective` secret mode and assign each its
+own GitHub secret** — all four tokens match the same host, and in the default
 `all` mode every agent would get whichever matches first, collapsing your
-scoped tokens back into shared access:
+scoped tokens back into shared access. With four tokens on one host this
+matters more than it did with three, not less:
 
 ```bash
 onecli agents list
-onecli agents set-secret-mode --id <agent-id> --mode selective   # ×3
+onecli agents set-secret-mode --id <agent-id> --mode selective   # ×4
 # assign each agent its own secret in the dashboard
 ```
 
@@ -502,21 +586,31 @@ One canonical list, so "does it need that?" always has a checkable answer
 instead of a guess. Anything not listed under **Needs** is deliberately
 **never granted**, not an oversight.
 
-**Discord bot** (one, the lead's — sub-agents get no Discord identity at all):
+**Discord bot** (exactly one, for the whole system). It's the lead's voice, and
+the **local agent posts its holding acknowledgments through this same bot** —
+one bot application, one public identity, two agents allowed to speak through
+it with very different scopes. The **reviewer and marketing have no Discord
+identity at all** and cannot post even if instructed to. The local agent's
+limit isn't absence, it's scope: one channel, template-only text, no write
+credentials anywhere else. Permissions below are the bot's, so they're the
+union of both — and they're already minimal, which is why sharing one bot
+doesn't widen anything:
 
 | | |
 |---|---|
 | Needs | Send Messages, Embed Links, Attach Files, Read Message History, and the **Message Content privileged intent** (justified: auto-reply in support channels means reading messages the bot wasn't @mentioned in — this is the one privileged grant this system needs, and it's why 100+ guild deployments trigger Discord's own bot verification, see `discord-mechanics.md`) |
 | Never | Administrator, Manage Server, Manage Roles, Manage Channels, Manage Messages (deleting others' messages), Kick/Ban/Timeout Members, View Audit Log — none of this is moderation, and it never will be from this bot |
 
-**GitHub tokens** (three, least-privilege split — never one shared token):
+**GitHub tokens** (four, one per agent, least-privilege split — never one
+shared token):
 
 | Token | Needs | Never |
 |---|---|---|
 | Lead | `repo` (or `public_repo`) — comments, labels, opens issues | `read:org`, `admin:*`, `delete_repo`, org/team scopes |
-| Coding | Fine-grained, **read-only**: Contents + Issues + PRs read; + Dependabot alerts read if the security sweep is enabled | Any write scope at all — this agent never posts, so its token literally cannot |
-| Marketing | Fine-grained, **content repo only**: Contents + PRs read/write | Write on any repo but the content one; org-wide scopes |
-| Backup (optional) | Push to one backup repo (`github.com` host match) | Nothing beyond that repo |
+| Local | Fine-grained over `COMMUNITY_REPOS` **+ `MIRROR_REPOS`**: Contents + Issues read, PRs read (`draft-cleanup`), and Contents **write on the backup repo only** | Write on anything but the backup repo; issue/PR comment rights — it never replies on GitHub, only on its one Discord channel |
+| Coding | Fine-grained over `COMMUNITY_REPOS` only, **read-only**: Contents + Issues + PRs read; + Dependabot alerts read if the security sweep is enabled | Any write scope at all — this agent never posts, so its token literally cannot. Also **not** `MIRROR_REPOS`: mirroring is the local agent's task now, so those repos would be access with no task behind it |
+| Marketing | Fine-grained, **content repo only**: Contents + PRs read/write (add `RELEASE_WATCH_REPO` if it's a different repo) | Write on any repo but the content one; org-wide scopes |
+| Backup (optional) | Push to one backup repo (`github.com` host match) — assigned to the **local** agent, which owns `workspace-backup` | Nothing beyond that repo |
 
 **The instinct to check, always**: if a future feature seems to need broader
 access, the fix is almost never "widen this token" — it's "does this actually
@@ -535,21 +629,31 @@ formality.
 
 | Agent | Secret mode | Granted | Host | Used by |
 |---|---|---|---|---|
-| Lead | `selective` | Lead GitHub PAT | `api.github.com` | `daily-github-triage`, `release-announcement-watch`, issue/PR replies |
-| Lead | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
-| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit` |
-| Coding | `selective` | same PAT, git protocol *(only for private repos)* | `github.com` | `repo-mirror-sync` — public repos need no credential |
-| Coding | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
-| Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle`, `draft-cleanup` |
-| Marketing | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Lead | `selective` | Lead GitHub PAT | `api.github.com` | `daily-github-triage`, `docs-gap-review`, `release-announcement-watch`, `weekly-identity-integrity-check`, live issue/PR replies |
 | Lead | `selective` | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` — an inbox is a support channel, so it belongs to the agent that owns support escalation |
-| Marketing | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
+| Local | `selective` | Local GitHub PAT | `api.github.com` | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup` |
+| Local | `selective` | same PAT, git protocol *(only for private repos)* | `github.com` (git) | `repo-mirror-sync` — public repos need no credential |
+| Local | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
+| Local | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
+| Local | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Local | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
+| Local | — (no secret, no network) | nothing at all | — | `unanswered-watch`, `health-check` — local message/container state only. **This is why they survive the outage they compensate for**: nothing to fail, nothing to expire |
+| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep` — and nothing else; this agent has exactly 2 tasks |
+| Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle` — its only task |
 
-**Coding never appears against Discord, PostHog access on Marketing, or any
-agent against a host it has no row for above.** `selective` mode (not the
-default `all`) is what makes this enforceable at all — in `all` mode every
-agent gets every secret whose host matches, which collapses this entire table
-back into shared access.
+Note where the analytics and telemetry rows landed: **on Local, not
+Marketing or Coding.** That's the whole restructure in one table — the
+metered agents kept judgment work, and everything that is "run a script,
+narrate the numbers" moved to the tier that never runs out.
+
+**A row that doesn't exist here is a finding, not a formality.** Concretely:
+the reviewer and marketing agents never appear against Discord at all;
+neither of them appears against PostHog, GA4, the social hosts, or
+`github.com` git; and the local agent never appears with a write grant
+outside the single backup repo. `selective` mode (not the default `all`) is
+what makes any of this enforceable — in `all` mode every agent gets every
+secret whose host matches, and with four PATs on `api.github.com` that
+collapses this entire table back into one shared token.
 
 ### Confirm identity, don't assume it (and audit what's already connected)
 
@@ -613,10 +717,12 @@ docs site and project website hosts (e.g. `docs.yourproject.org:443`,
 allowlist host alone isn't enough — something inside the agent needs to
 actually fetch and read the page. Confirm the container has either Claude's
 own built-in web fetch or NanoClaw's [`agent-browser`](https://nanoclaw.dev/skills/agent-browser)
-skill installed for the marketing group before resuming `social-metrics-snapshot`;
-this isn't curl-testable (that's why `setup-check.sh` marks it `unknown`,
-not `ok`/`missing`) — verify it once with a real fetch of one configured
-profile URL.
+skill installed **for the local group** — `social-metrics-snapshot` is the
+local agent's task, so the marketing container is the wrong place to check —
+before resuming it. This isn't curl-testable (that's why `setup-check.sh`
+marks it `unknown`, not `ok`/`missing`) — verify it once with a real fetch of
+one configured profile URL. Whether `agent-browser` is present in that
+container at all is **unverified** on this stack; the real fetch is the test.
 
 Clone the kit, edit `nanoclaw/spec.yaml` → `permissions.network.allow`
 (e.g. add your project hosts, `analyticsdata.googleapis.com:443`,
@@ -660,12 +766,39 @@ the project identity, repo map, docs site, language, channel tiers, security
 contact, social platforms, and optional analytics ids. **You edit zero files
 for any of that.**
 
+### The relay — you talk to the lead, the lead configures the others
+
+You only ever answer questions once, in the owner DM. The lead then pushes
+each sub-agent's parameters over the destination pair you wired in step 3,
+and each sub-agent writes its own `plugin-data/<agent>/config.env`. That's
+three separate relays now, not one, and they are very unequal in size:
+
+| Sub-agent | Keys the lead relays into its `config.env` |
+|---|---|
+| **Local ops** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `POSTHOG_PROJECT_ID`, `POSTHOG_HOST`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
+| **Reviewer** (coding) | `COMMUNITY_REPOS` |
+| **Marketing** | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
+
+Plus `GITHUB_BOT_USERNAME`, which all four agents hold — it's what every
+token's identity check is compared against.
+
+**Check the local relay specifically, because it fails quietly.** It's by far
+the largest payload, it feeds the 11 tasks that do the bulk of the recurring
+work, and a missing key isn't an error — the gate script exits
+`not-configured` and the task goes back to sleep. The symptom is "the local
+agent was stamped and never does anything," which reads like a broken agent
+and is actually an unrelayed key. `ACK_GRACE_MINUTES` is the one with a
+built-in default (20 minutes before a holding acknowledgment goes out), so
+`unanswered-watch` still works unrelayed; nothing else does. Confirm by
+reading that file in the group folder, or ask the lead to echo back what the
+local agent reported receiving.
+
 **Only three things live outside the conversation:**
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 18 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
-| Workspace backup: `git init` + `remote` + identity + `.gitignore` | Lead's group folder in the sandbox | After stamping, host-side (or ask the lead to run it) |
+| Task schedules (cron lines, all 19 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
+| Workspace backup: `git init` + `remote` + identity + `.gitignore` | The **local** agent's group folder in the sandbox — it owns `workspace-backup` | After stamping, host-side (or ask the lead to relay the request) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
 **Pre-stamp file fill-ins remain available as version-controlled defaults** —
@@ -732,6 +865,25 @@ rather than silently missed.
 complete recovery set. Stamp fresh, drop both in, and you're where you were —
 no interview, no reconstruction from memory.
 
+**Already installed conversationally and wish you had the file?** You don't
+have to redo the interview to get one:
+
+```bash
+bash scripts/export-answers.sh <nanoclaw-root> [out.json]   # e.g. ~/nanoclaw
+```
+
+It walks the live install, reads every `config.env` key the templates
+consume across all four agents, and writes them back into the same shape as
+`onboarding-answers.example.json` — so a conversational install becomes an
+editable, diffable record after the fact. That closes the loop: change one
+value in the file and rebuild, instead of talking the agent through a
+correction. Two limits worth knowing before you trust the output: each
+agent's `project-config.md` is copied in verbatim as `_project_config_raw`
+rather than parsed (it's prose an agent wrote), and anything that never lands
+in a `config.env` — free-text tone/audience guidance, and every credential —
+comes back `null` with its `_ask` prompt intact. Credentials live only in the
+vault and the export **fails** rather than writing a file containing one.
+
 ### Answer these two before you stamp anything
 
 Everything else in this section is safe to answer live, mid-conversation.
@@ -740,8 +892,8 @@ settled before the stamp step:
 
 | Asked | Format | Why it can't wait |
 |---|---|---|
-| **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. 18 recreates later — see step 2 |
-| **Which agents do you want at all?** — lead only, or lead + coding and/or marketing | pick | Determines what you stamp. Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
+| **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. 19 recreates later — see step 2 |
+| **Which agents do you want at all?** — lead only, or lead + local ops and/or coding and/or marketing | pick | Determines what you stamp. If you add exactly one, add **local ops** — it's the tier that keeps working when the shared window closes, and it carries 11 of the 19 tasks. Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
 
 ### Then the interview asks these
 
@@ -759,9 +911,9 @@ settled before the stamp step:
 | 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
 | 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
 | 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
-| 13 | Docs style — current-state only, or is version-history language ("added in 2.1") fine? | either | Relayed to the coding agent, enforced on every docs PR it drafts |
+| 13 | Docs style — current-state only, or is version-history language ("added in 2.1") fine? | either | Enforced on every docs draft — which is the **lead's** work now, since `docs-gap-review` moved there |
 | 14 | Who your content is actually for, in your own words, and the tone that follows | free text | **No** — marketing writes for this; without it, drafts default to generic copy |
-| 15 | Workspace backup — a private repo the lead pushes its config/ledgers to | `owner/repo` or "skip" | Optional, but it's the only thing that survives a sandbox recreate |
+| 15 | Workspace backup — a private repo the config/ledgers get pushed to (the **local** agent does the pushing) | `owner/repo` or "skip" | Optional, but it's the only thing that survives a sandbox recreate |
 | 16 | The dedicated bot account's GitHub username (never the owner's own) | username | **No** — every GitHub token is checked against it |
 | 17 | A named human backstop: who takes abuse reports and urgent escalations when you're unreachable | name + contact | **Asked always** — going live without one is recorded as an open risk, not silently accepted |
 
@@ -786,41 +938,74 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 18 (7 lead, 7 coding, 4 marketing)
+./bin/ncl tasks list --status paused          # expect all 19 (5 support, 11 local, 2 engineering, 1 marketing)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
 
+Marketing's 1 task won't be in that list unless you actually stamped that
+template — it isn't stamped by default (step 3), so **18 paused tasks is the
+expected result for a default install**, not a missing task. For the
+authoritative per-task list, with owners and schedules, run
+`bash scripts/gen-task-table.sh` from your local copy of this repo rather
+than trusting any table typed into a doc.
+
 Resume order (safe → side-effect-adjacent):
 
-1. **Lead safety net**: `health-check`, `weekly-identity-integrity-check` —
-   need nothing, wake only on problems.
-2. **Lead backup** (`workspace-backup`) — only after the git setup in step 6.
+1. **The outage safety net, first** — these need no credentials and no
+   network, so nothing about them can be misconfigured yet:
+   `unanswered-watch` (local) is the highest-frequency task in the system
+   (every 10 minutes) and the one thing that keeps the project from going
+   silent when the lead is rate-limited or down; it reads local message
+   state only and posts a template-only holding acknowledgment after
+   `ACK_GRACE_MINUTES`. Resume it early — deferring it means deferring
+   exactly the coverage you installed the local agent for. Alongside it:
+   `health-check` (local) and `weekly-identity-integrity-check` (lead) —
+   both wake only on problems.
+2. **Local backup** (`workspace-backup`) — the local agent's task; only after
+   the git setup in step 6.
 3. **Lead announcements** (`release-announcement-watch`) — safe as soon as
    `COMMUNITY_REPOS` is set; it only ever posts already-public release info.
-4. **Coding**: `github-ops-triage`, then the gates you configured
-   (`security-advisory-sweep`, `dev-metrics-report`, `posthog-weekly-review`,
-   `good-first-issue-health`, `repo-hygiene-audit`, `repo-mirror-sync`).
-   The lead's `docs-gap-review` is safe from day one — it stays quiet until
-   normal support work has filled its question ledger.
-5. **Marketing gates**: `weekly-analytics-report`, `draft-cleanup`.
-6. **Last, once fill-ins are done and reviewed**: `content-draft-cycle`, and
-   the lead's `inbox-check` only after an email MCP is actually connected
-   (it's ungated — resuming it without a mailbox burns turns).
-7. **Never resume** the lead's `daily-github-triage` if the coding agent is
-   stamped — it's the standalone-mode fallback and would double-report.
+   The lead's `docs-gap-review` is safe from day one too — it stays quiet
+   until normal support work has filled its question ledger.
+4. **Local gates**, once §6's relay has actually landed in the local
+   `config.env`: `repo-mirror-sync`, `dev-metrics-report`,
+   `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup`,
+   `weekly-analytics-report` (GA4), `posthog-weekly-review`. Each silently
+   exits `not-configured` if its key is missing, so resume them and then
+   check they actually did something.
+5. **Coding**: `github-ops-triage` and `security-advisory-sweep`. That is the
+   reviewer's complete task list — if you're looking for metrics or telemetry
+   here, they're in step 4 now.
+6. **Ungated tasks last**, because nothing stops them from burning a wake on
+   an unconfigured service — there are exactly two:
+   `social-metrics-snapshot` (local), only after you've verified a real page
+   fetch works (§5), and the lead's `inbox-check`, only after an email MCP is
+   actually connected.
+7. **Marketing** (only if stamped): `content-draft-cycle`, once the content
+   fill-ins are done and reviewed. It's the marketing agent's only task.
+8. **Never resume** the lead's `daily-github-triage` while the coding agent is
+   stamped. It's the lead's own standalone-mode fallback — the same ground at
+   a lower cadence, kept so a lead-only install still triages — and
+   `github-ops-triage` supersedes it. Running both double-reports every issue.
+   Stamp the reviewer later? Pause this one at the same time.
 
 Smoke-test before walking away: post a question in a support-tier channel
 (expect an unprompted reply), @mention the lead in a dev-tier channel (expect a
-reply *only* because you tagged it), and DM the lead asking it to ping both
-sub-agents and relay their answers.
+reply *only* because you tagged it), and DM the lead asking it to ping every
+sub-agent you stamped and relay their answers — that exercises all three
+destination pairs at once, and a silent sub-agent here is a missing
+destination, not a broken agent. If you stamped local ops, also confirm the
+holding-acknowledgment path once: it's the one behaviour that only shows up
+when the lead *can't* answer, so it's the easiest thing to leave untested
+until the day you need it.
 
 Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
 /home/agent/nanoclaw nanoclaw claude` (break-glass admin, see above) ·
 `sbx rm nanoclaw` (teardown — the whole system, gone).
 
 **Not so fast — "resumed" is not "ready."** Before you call it live, walk
-the 14-point ready gate in [CHECKPOINTS.md](CHECKPOINTS.md) — it also gives
+the 17-point ready gate in [CHECKPOINTS.md](CHECKPOINTS.md) — it also gives
 you the day-2, week-1, and month-1 verification checkpoints. Everything else
 — token budget, the full task reference, keeping the session alive, and the
 SHA-pinned update policy — is in [OPERATIONS.md](OPERATIONS.md).

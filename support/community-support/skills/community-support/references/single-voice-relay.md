@@ -17,11 +17,31 @@ member or maintainer builds trust with one consistent voice and tone, not with
 
 - Give this template's agent the destinations/wirings for every public channel
   (Discord servers, GitHub repos) the project uses. It is the only group with a
-  public-facing wiring.
+  **full** public-facing wiring.
 - If the project needs a second agent for a different job (say, a coding or
   research specialist), wire it to this agent only — an agent-to-agent
   destination, not a second public channel wiring. That agent does the work and
   reports back; it does not get its own Discord or GitHub presence.
+- **The one exception, and why it is still one voice.** The
+  `local/community-local` agent additionally gets **one** channel wiring — the
+  support channel — so it can post a holding acknowledgment when this agent
+  has stopped replying (a spent usage window, a crashed session). Silence is
+  the failure this system cares most about, and an agent that shares the
+  window cannot be the thing that covers for the window running out.
+
+  It stays a single voice because the exception is scoped on every axis that
+  matters: **one** channel, not every channel; the **same bot identity**, so
+  a reader sees no new party to trust; a **fixed template** it is forbidden to
+  compose freely; **acknowledgment only**, never an answer, an assessment, or
+  a commitment; and every ack is **logged for this agent to pick up**, so it is
+  a receipt rather than a resolution. It holds no write credentials anywhere.
+
+  The security property is preserved by *scope*, not by absence of wiring —
+  which means it has to be verified rather than assumed. Two things to confirm
+  at install: that this agent and the local agent can both wire to the same
+  channel (untested — see `UPSTREAM-ISSUES.md`), and that the local agent
+  checks whether you already replied before it posts, since a duplicate reply
+  under one bot name reads as a broken bot.
 - Scheduled tasks belonging to a headless helper should say so explicitly in
   their own prompt body — "do not post anything public from this task, hand your
   output to the standing agent for review" — because a task's stored prompt is

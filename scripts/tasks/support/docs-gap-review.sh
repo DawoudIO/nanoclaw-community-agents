@@ -8,7 +8,7 @@ set -euo pipefail
 # and hasn't already been proposed — every repeat question is permanent,
 # measurable load on the maintainer, and unlike most community problems it
 # has a fully mechanical fix.
-DATA="/workspace/agent/plugin-data/community-coding"
+DATA="/workspace/agent/plugin-data/community-support"
 mkdir -p "$DATA"
 LEDGER="$DATA/question-ledger.jsonl"
 if [ ! -f "$LEDGER" ]; then

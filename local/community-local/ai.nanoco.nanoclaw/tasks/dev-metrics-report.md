@@ -370,7 +370,7 @@ top_author, top_author_share_pct, candidates}}]`. Two things to do with it:
   demonstrated sustained work who might be worth offering triage rights or a
   bigger role. Frame as suggestions for the owner's judgment; the invitation
   is always the maintainer's, never yours.
-**Both go in the owner's private TLDR only, never the public channel report**
+**Both go to your lead marked private-TLDR-only, never the public channel report** — you have no owner DM; the lead decides what reaches it
 — "you are the single point of failure" and "consider promoting X" are
 conversations for the maintainer, not announcements. Mark `sampled: true`
 data as based on the most recent 100 merged PRs.

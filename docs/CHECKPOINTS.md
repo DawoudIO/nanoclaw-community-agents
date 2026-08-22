@@ -8,32 +8,40 @@ looking at something specific; none is "seems fine."
 **Before you start the clock:** finish PREREQS (every token created, vault
 loaded, identity verified) and decide whether you're filling in
 `onboarding-answers.json` — that collapses the interview from 8–15 turns to
-about 2. See [OPERATIONS.md → Two separate budgets](OPERATIONS.md) for what
-the install actually costs and which meter pays for it; the short version is
-that volume won't threaten a 5-hour window but a credential debugging loop
-will.
+about 2. See [OPERATIONS.md → Model budget — one shared window, and the trap in
+it](OPERATIONS.md) for what the install actually costs and which meter pays for
+it; the short version is that volume won't threaten a 5-hour window but a
+credential debugging loop will.
 
-## The ready gate — do not call it live until every box is checked
+## The ready gate — 17 points, do not call it live until every box is checked
 
 Work through these in order after INSTALL.md §7's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
 
+It grew from 14 to 17 when the local agent joined: nothing in the original gate
+touched it, which meant an install could pass every check while the tier that
+owns 11 of the 19 tasks was absent, misconfigured, or quietly billing to the
+cloud window. Items 14–16 close that.
+
 | # | Test | How | Pass looks like |
 |---|---|---|---|
 | 1 | Owner DM round trip | DM the lead; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
-| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has each sub-agent relay theirs | All three tokens report `GET /user` login == the dedicated bot username — never yours |
+| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has each of the **three** sub-agents relay theirs (each group ships its own) | **All four tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Four reports, not three: a missing one means a sub-agent didn't answer, which is itself the finding |
 | 3 | Support-tier auto-reply | Post a question in a support channel from a **non-owner** account, no @mention | Unprompted reply within a couple of minutes. Silence here = the Message Content intent is off in the Discord dev portal |
 | 4 | Mention-only discipline | Post in a dev-tier channel *without* tagging the bot, then again *with* a tag | No reply to the first, a reply to the second |
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
-| 7 | Sub-agent relay | DM the lead: "ping both sub-agents and relay their answers" | Both answer through the lead; neither ever posts anywhere itself |
+| 7 | Sub-agent relay | DM the lead: "ping all three sub-agents and relay their answers" | All three answer **through the lead** — that's their only outbound path. The Reviewer and Marketing have no channel wiring at all and cannot post publicly even if instructed to. The **local agent is the one deliberate exception**: it holds a single channel, and the only thing it may ever put there is a template-only holding acknowledgment it is forbidden to compose freely. Nothing else it produces should ever appear in public |
 | 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
 | 9 | Backup actually pushed | Check the backup repo on GitHub after the first `workspace-backup` run | A commit from the bot exists; `tasks get` shows `pushed` |
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §4's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured — subscription, OAuth token, or API key | You can state which. **If subscription: you also know the agents share one window with your own Claude Code, including the break-glass recovery session** — see OPERATIONS.md → Model budget for the four defenses |
-| 14 | You know the death signal | No action — confirm you understand it | The lead DMs a one-line heartbeat at least weekly; **more than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
+| 13 | **Which meter the agents bill to — and which are off it** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter, **and that only three of the four agents bill to it.** If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. You also know the corollary that makes an exhaustion survivable: **the local agent's 11 of 19 tasks keep running when that window is gone**, including the two that would tell you about it (`health-check`, `unanswered-watch`) |
+| 14 | **Host Ollama is up and the model is pulled** | `ollama ps` on the host; confirm `llama3.2` is present | The model is loaded and the host has headroom. This is the local tier's foundation — 11 of the 19 tasks are dead without it |
+| 15 | **The local group is actually on the local provider** | Run the local group's `setup-check.sh` | It reports `local_provider_active: ok`. **A stamped local group with `ANTHROPIC_BASE_URL` unset is still silently on the cloud provider** — it works, so nothing looks wrong, but it's now spending the very window it exists to avoid and it defeats its own purpose entirely. This check is the only mechanical way to tell the two states apart |
+| 16 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
+| 17 | You know the death signal | No action — confirm you understand it | A one-line heartbeat reaches you at least weekly — produced by the local agent's `health-check`, relayed by the lead. **More than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
 
 ## Day 2 — did the first unattended cycle actually run?
 
@@ -52,15 +60,42 @@ Ten minutes, the morning after go-live:
   is the cheapest moment to correct tone — one DM to the lead.
 - **No surprise wakes**: gated tasks that had nothing to say stayed silent.
   A gate waking on nothing is a bug worth reporting while it's fresh.
+- **Close out the two unverified local-agent risks.** Both were flagged as
+  needing a real install before anyone could assert them, and both fail
+  *quietly*, which is why they belong on a checklist rather than in a bug
+  report you'd notice on your own:
+  - **Can the lead and the local agent both wire to the same Discord
+    channel?** Still unverified. If the platform refuses the second wiring, or
+    the local agent's channel silently resolves to nothing, `unanswered-watch`
+    will do all its work and then have nowhere to put the acknowledgment. Ready
+    gate item 16 is the test; if you skipped it, do it now.
+  - **Is `ncl messages list --json` the shape the gate expects?** Also
+    unverified — the output shape varies by NanoClaw version. The gate is
+    written to fail safe rather than fail quiet: an unrecognized shape makes it
+    report `cannot-read-messages` instead of concluding "nothing to do."
+    **So check for that status explicitly** (`./bin/ncl tasks get` on an
+    `unanswered-watch` run). A run of `cannot-read-messages` looks almost
+    exactly like a healthy quiet night, and it means the safety net has been
+    off the whole time.
 
 ## Week 1 — the first full weekly cycle
 
 - **Heartbeat received**: the proof-of-life line arrived. If it didn't,
   investigate now — this is your outage detector and it must be known-good.
 - **Weekly reports landed and read sane**: dev report (with the
-  ready-to-merge section present, even if empty), follower snapshot appended
-  to the lead's ledger, GA4/PostHog if enabled. Numbers carry deltas and
-  windows; `null`s are explained, never silently zero.
+  ready-to-merge section present, even if empty), GA4/PostHog if enabled.
+  Numbers carry deltas and windows; `null`s are explained, never silently zero.
+- **The follower snapshot made it across the handoff.** This one is worth
+  checking on both ends, because it's the only genuinely un-re-scrapable
+  series in the system and it crosses an agent boundary to get durable.
+  `social-metrics-snapshot` is the **local** agent's task: it appends its line
+  to `plugin-data/community-local/social-metrics-history.jsonl` (its own
+  working copy, and the one the backup captures) and relays the exact same
+  JSON line plus both deltas to the lead, which appends it to the lead's
+  durable ledger. Confirm the line exists on the local side *and* that the
+  lead has it. **A relay that silently stops leaves the local copy still
+  growing, so the local file looking healthy proves nothing about the
+  handoff** — check both or you haven't checked.
 - **Integrity check is quiet**: `weekly-identity-integrity-check` baseline
   initialized on its first run and no drift alarm since — unless you edited
   a task, in which case you got asked about exactly that edit (good).
@@ -77,13 +112,22 @@ Ten minutes, the morning after go-live:
 ## Month 1 — is it earning its keep?
 
 - **Token/plan usage vs budget**: check your provider's usage page against
-  expectations ([OPERATIONS.md](OPERATIONS.md) → models and token budget).
-  Over budget → pause in the documented order; never delete agents.
+  expectations ([OPERATIONS.md](OPERATIONS.md) → Model budget — one shared
+  window, and the trap in it). Over budget → pause in the documented order,
+  which is cloud-tier only; pausing local tasks saves nothing on that meter.
+  Never delete agents.
 - **Question ledger is accumulating**: `plugin-data/community-support/question-ledger.jsonl`
   has one line per resolved support conversation. If it's empty after a
   month of real support traffic, the lead isn't logging — correct it. If
   `docs-gap-review` fired, its first docs proposal is the system's
-  load-reduction loop working; review it seriously.
+  load-reduction loop working; review it seriously. **The lead owns both
+  halves of this loop** — it writes the ledger and it runs `docs-gap-review`
+  against its own copy, so that path is a within-agent read. It hasn't always
+  been: the task previously lived with the Reviewer, where it read a file only
+  the lead writes, and since one agent cannot read another's `plugin-data` it
+  was permanently dead code that looked configured. Moving it to the lead is
+  the fix. If you see it silent, the cause is an empty ledger, not a wiring
+  fault.
 - **First return-nudges become possible**: the contributor ledger only
   tracks people whose first contribution came *after* install, so
   nudges start appearing from ~week 3 on. If one arrived, the follow-up it

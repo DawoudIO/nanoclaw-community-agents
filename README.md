@@ -1,36 +1,57 @@
 # Community Agent Set for NanoClaw
 
-Three templates that run an open-source project as a team with **one public
+Four templates that run an open-source project as a team with **one public
 voice** — covering the four jobs that keep a project alive: people know about
 it (awareness), reported issues get handled (response), problems get found
-before users report them (proactive detection), and it stays secure. A support
-lead talks to users on Discord and GitHub; two headless sub-agents (coding
-ops, marketing ops) draft and hand off but never post.
+before users report them (proactive detection), and it stays secure.
 
-| Template | Role | Public voice |
-|---|---|---|
-| [`support/community-support`](support/community-support/) | Lead — replies, triage, escalation, relays the sub-agents | **Yes — the only one** |
-| [`engineering/community-coding`](engineering/community-coding/) | Issue/PR triage, security sweeps, dev metrics, telemetry | No |
-| [`marketing/community-marketing`](marketing/community-marketing/) | Content drafts via PR, traffic and follower analytics | No |
+**North star: community support at low cost and high engagement, before people
+give up on GitHub or Discord.** Every design choice below follows from that
+sentence, and the agents are split by **model tier** to serve it — capable
+models where judgment is needed, a free local model where reliability matters
+more than capability.
 
-The lead works standalone; add sub-agents when you want that work done
-without granting a second identity. Each template's README has per-agent
-detail.
+| Template | Role | Model | Public voice |
+|---|---|---|---|
+| [`support/community-support`](support/community-support/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes — the primary one** |
+| [`local/community-local`](local/community-local/) | Narrates script-computed data, keeps mirrors fresh, acknowledges messages when the lead is rate-limited | **Local** (Ollama) | Holding replies only |
+| [`engineering/community-coding`](engineering/community-coding/) | Reviewer — issue/PR triage, duplicates, security advisories, docs gaps. Read-only | Claude Haiku | No |
+| [`marketing/community-marketing`](marketing/community-marketing/) | Content drafts via PR, in the project's audience's language | Claude | No |
+
+The lead works standalone; add sub-agents when you want that work done without
+granting a second identity. Each template's README has per-agent detail.
+
+**Why a local agent is in this set.** The cloud-backed groups share one usage
+window. When it closes, the lead stops replying — and silence is the failure
+mode the north star is about, since response delay is the strongest predictor
+of whether a first-time contributor comes back. The local agent has no window
+to exhaust, so it keeps working: it holds the line with a templated
+acknowledgment (never an answer) and logs the message for the lead to pick up.
+It is deliberately restricted — see its
+[never-do list](local/community-local/ai.nanoco.nanoclaw/context/instructions.md),
+which is the load-bearing part of that template.
 
 ## Design principles
 
-- **Scripts do the work; agents do the judgment.** 16 of 18 recurring tasks
+- **Scripts do the work; agents do the judgment.** 17 of 19 recurring tasks
   are script-gated: deterministic fetching, diffing, and thresholds run as
   bash with no model involved, and the agent wakes only when there's
-  something to judge. The gates live as testable code in
+  something to judge. Run `bash scripts/gen-task-table.sh` for the current
+  task/agent/schedule table — it is generated from the task files, so it
+  can't drift from what actually ships. The gates live as testable code in
   [`scripts/tasks/`](scripts/tasks/) — run [`scripts/test/run.sh`](scripts/test/run.sh)
   to exercise all of them without any agent, and
   `bash scripts/sync-tasks.sh --check` to verify the templates match their
   sources. Anything with *zero* judgment (label→channel notifications,
   secret scanning) belongs even further out, in CI — see
   [`examples/github-discord-notify.yml`](examples/github-discord-notify.yml).
-- **Single public voice, enforced structurally.** Sub-agents have no channel
-  wiring at all — they can't post publicly even if instructed to.
+- **Single public voice, enforced structurally.** The Reviewer and Marketing
+  sub-agents have no channel wiring at all — they cannot post publicly even
+  if instructed to. The local agent is the one deliberate exception: it needs
+  one channel to deliver holding acknowledgments, so its restriction is
+  enforced by *scope* instead — one channel, read-only credentials, no write
+  access anywhere, and a template-only reply it is forbidden to compose
+  freely. It is a receipt, never a resolution.
 - **Statelessness by design.** Agents rebuild context from the project's
   repos on cold start; memory is a disposable cache of the web. The
   exceptions are a handful of append-only ledgers that can't be
@@ -61,7 +82,7 @@ detail.
    the complete question prep-sheet, the least-privilege scope tables, and
    the break-glass admin doctrine.
 3. **[docs/CHECKPOINTS.md](docs/CHECKPOINTS.md)** — the acceptance side:
-   the 14-point ready gate to pass before calling it live, then the day-2,
+   the 17-point ready gate to pass before calling it live, then the day-2,
    week-1, and month-1 verification checkpoints.
 4. **[docs/OPERATIONS.md](docs/OPERATIONS.md)** — day 2 and beyond: models
    and token budget, the full task reference, the **update policy** (SHA-

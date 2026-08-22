@@ -19,7 +19,7 @@ not to treat it as an incident.
    docs/INSTALL.md §5, the allowlist step). Report that to your lead instead; a
    week of nulls caused by policy is a config bug, not data.
 3. Append one JSON line to your working copy,
-   `plugin-data/community-marketing/social-metrics-history.jsonl`:
+   `plugin-data/community-local/social-metrics-history.jsonl`:
    `{"date": "<today>", "<platform>": <count|null>, ...}` — append-only.
 4. **Compute deltas from the file you just appended to**, per platform:
    - **Week-over-week (WoW)**: vs. the previous line — if last week was

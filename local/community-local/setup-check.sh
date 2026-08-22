@@ -14,10 +14,12 @@ else
   add "local_provider_active" "missing" "ANTHROPIC_BASE_URL is unset — this group is still on the CLOUD provider, so it shares the usage window and defeats its own purpose. Re-run /add-ollama-provider for this group."
 fi
 
-for k in COMMUNITY_REPOS MIRROR_REPOS; do
-  eval "v=\${$k:-}"
-  [ -n "$v" ] && add "config:$k" "ok" "" || add "config:$k" "missing" "relay $k from the lead"
-done
+[ -n "${COMMUNITY_REPOS:-}" ] && add "config:COMMUNITY_REPOS" "ok" "" || add "config:COMMUNITY_REPOS" "missing" "relay COMMUNITY_REPOS from the lead"
+# MIRROR_REPOS is OPTIONAL: repo-mirror-sync falls back to COMMUNITY_REPOS
+# when it is unset. Reporting it "missing" flipped the whole check to
+# "incomplete" on a correctly-configured install, which trains the owner to
+# ignore this report — the opposite of what it is for.
+[ -n "${MIRROR_REPOS:-}" ] && add "config:MIRROR_REPOS" "ok" "" || add "config:MIRROR_REPOS" "skipped" "optional — repo-mirror-sync falls back to COMMUNITY_REPOS. Set it only to mirror MORE than the triaged repos (e.g. the wiki)"
 [ -n "${CONTENT_REPO:-}" ] && add "config:CONTENT_REPO" "ok" "" || add "config:CONTENT_REPO" "skipped" "optional — draft-cleanup stays paused"
 [ -n "${GA4_PROPERTY_ID:-}" ] && add "config:GA4_PROPERTY_ID" "ok" "" || add "config:GA4_PROPERTY_ID" "skipped" "optional — weekly-analytics-report stays paused"
 [ -n "${POSTHOG_PROJECT_ID:-}" ] && add "config:POSTHOG_PROJECT_ID" "ok" "" || add "config:POSTHOG_PROJECT_ID" "skipped" "optional — posthog-weekly-review stays paused"
@@ -33,6 +35,13 @@ if [ -n "${COMMUNITY_REPOS:-}" ]; then
 fi
 
 add "message_visibility" "unknown" "unanswered-watch depends on 'ncl messages list --json' — run it once by hand and confirm the shape, or the acknowledger fails silent"
+
+# social-metrics-snapshot is the one task here with NO gate script: this agent
+# opens the profile pages itself. That needs a real page-reading capability
+# (NanoClaw's agent-browser skill, or a built-in fetch), which no curl call
+# from inside a bash gate can prove. It moved here with the task — it used to
+# live in the marketing template, which no longer owns the task.
+add "page_read_capability" "unknown" "open ONE configured social profile URL yourself and confirm you can read the follower count off it. If you cannot read an exact number, social-metrics-snapshot must record null — an estimated follower count is worse than a missing one, because the history ledger is append-only and a wrong entry is permanent."
 
 printf '{"status": %s, "checks": %s}\n' \
   "$(printf '%s' "$CHECKS" | jq 'if any(.[]; .status=="missing" or .status=="unreachable") then "incomplete" else "complete" end')" \

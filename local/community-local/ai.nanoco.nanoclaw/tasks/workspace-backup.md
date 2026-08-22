@@ -38,6 +38,6 @@ Only invoked when the push failed — a clean, up-to-date, or not-yet-configured
 backup never wakes you. The commits are safe locally and this gate retries
 them on every future run until the push lands (that retry claim is real: the
 gate pushes anything unpushed, not just new changes). Report the failure to
-the owner in one line — `github.com` vault entry and network policy are the
+your lead in one line — `github.com` vault entry and network policy are the
 usual suspects — and don't attempt to fix git state yourself (no force-push,
 no reset) without being asked.
