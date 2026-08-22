@@ -6,12 +6,12 @@ script: |
   # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy.
   # A ledger keyed on number:updated_at means each stale PR is reported once
   # per state — not re-nagged daily until a human acts.
-  DATA="/workspace/agent/plugin-data/community-marketing"
+  DATA="/workspace/agent/plugin-data/community-local"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPO="${CONTENT_REPO:-}"
   if [ -z "$REPO" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set CONTENT_REPO in plugin-data/community-marketing/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set CONTENT_REPO in plugin-data/community-local/config.env"}}'
     exit 0
   fi
   PRS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \

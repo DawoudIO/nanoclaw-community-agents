@@ -4,12 +4,12 @@ set -euo pipefail
 # Repos are fetched IN PARALLEL to stay inside the platform's script
 # timeout, and a failed fetch records null (unknown) — never zero, which
 # would corrupt the delta series with fake swings.
-DATA="/workspace/agent/plugin-data/community-coding"
+DATA="/workspace/agent/plugin-data/community-local"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-local/config.env"}}'
   exit 0
 fi
 HIST="$DATA/metrics-history.json"

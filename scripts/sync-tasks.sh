@@ -22,6 +22,7 @@ group_dir() {
     support)     echo "support/community-support";;
     engineering) echo "engineering/community-coding";;
     marketing)   echo "marketing/community-marketing";;
+    local)       echo "local/community-local";;
     *)           echo "";;
   esac
 }
@@ -102,7 +103,7 @@ for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
   tdir=$(basename "$(dirname "$(dirname "$(dirname "$(dirname "$md")")")")")
   name=$(basename "$md" .md)
   case "$tdir" in
-    support|engineering|marketing) sh="$ROOT/scripts/tasks/$tdir/$name.sh";;
+    support|engineering|marketing|local) sh="$ROOT/scripts/tasks/$tdir/$name.sh";;
     *) sh="";;
   esac
   if [ -z "$sh" ] || [ ! -f "$sh" ]; then

@@ -11,12 +11,12 @@ script: |
   # the time vs 72% for healthy ones — a well-tended good-first-issue list on
   # a repo with no CONTRIBUTING.md optimizes step two of a path with no step
   # one. Wakes only when something is missing or a fetch failed.
-  DATA="/workspace/agent/plugin-data/community-coding"
+  DATA="/workspace/agent/plugin-data/community-local"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPOS="${COMMUNITY_REPOS:-}"
   if [ -z "$REPOS" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-local/config.env"}}'
     exit 0
   fi
   TMP=$(mktemp -d)

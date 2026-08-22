@@ -21,13 +21,13 @@ script: |
   # flag anything worth a human's attention — a wiki page contradicting
   # current code, a docs edit that needs review) OR on failure. Silent only
   # when literally nothing moved since the last run.
-  DATA="/workspace/agent/plugin-data/community-coding"
+  DATA="/workspace/agent/plugin-data/community-local"
   MIRRORS="$DATA/repo-mirror"
   mkdir -p "$MIRRORS"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPOS="${MIRROR_REPOS:-${COMMUNITY_REPOS:-}}"
   if [ -z "$REPOS" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set MIRROR_REPOS (or COMMUNITY_REPOS) in plugin-data/community-coding/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set MIRROR_REPOS (or COMMUNITY_REPOS) in plugin-data/community-local/config.env"}}'
     exit 0
   fi
   FAILED="[]"

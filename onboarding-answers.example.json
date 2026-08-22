@@ -181,6 +181,12 @@
     "github_actions_notifications": { "value": null, "_ask": "Set up deterministic label→Discord notifications in CI? See examples/github-discord-notify.yml", "_options": [true, false] },
     "gfi_label": { "value": null, "_ask": "Your beginner-friendly issue label, if it isn't 'good first issue'", "persists_to": "config.env:GFI_LABEL" },
     "shared_inbox": { "value": null, "_ask": "Shared project inbox address, or null. inbox-check stays paused until an email MCP is actually connected." },
+    "ack_grace_minutes": {
+      "value": 20,
+      "_ask": "How long may a community message go unanswered before the always-local agent posts a holding acknowledgment? (minutes)",
+      "persists_to": "config.env:ACK_GRACE_MINUTES",
+      "_note": "This is the safety net for the lead running out of usage window. Too short and the local agent talks over a lead that was about to reply; too long and someone waits in silence. 20 minutes is a reasonable default."
+    },
     "models": {
       "_ask": "Confirm or override the per-agent model tier. Never Opus-class on a scheduled task.",
       "support": { "value": "sonnet-class" },

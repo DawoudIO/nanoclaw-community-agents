@@ -17,12 +17,12 @@ set -euo pipefail
 #     run this call, that alone proves it isn't mutating anything.
 # Consequence for OneCLI: a request-hold rule that gates on HTTP method would
 # flag this harmless report. Match on host+path if you gate anything here.
-DATA="/workspace/agent/plugin-data/community-marketing"
+DATA="/workspace/agent/plugin-data/community-local"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 PROPERTY_ID="${GA4_PROPERTY_ID:-}"
 if [ -z "$PROPERTY_ID" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set GA4_PROPERTY_ID in plugin-data/community-marketing/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set GA4_PROPERTY_ID in plugin-data/community-local/config.env"}}'
   exit 0
 fi
 HIST="$DATA/traffic-history.json"

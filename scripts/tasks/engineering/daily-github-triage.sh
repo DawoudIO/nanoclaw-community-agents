@@ -4,12 +4,12 @@ set -euo pipefail
 # Gate: fetch the delta since last run; wake the model only if there is one.
 # The cursor advances ONLY on a fully successful fetch — a failed or
 # unauthorized fetch must never silently swallow a window of updates.
-DATA="/workspace/agent/plugin-data/community-support"
+DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-support/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
   exit 0
 fi
 SINCE_F="$DATA/triage-last-run"

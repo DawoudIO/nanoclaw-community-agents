@@ -5,7 +5,7 @@ script: |
   set -euo pipefail
   # Deps: bash + coreutils only. jq/ncl are checked for, not required — a
   # degraded image is itself a finding this gate must be able to report.
-  DATA="/workspace/agent/plugin-data/community-support"
+  DATA="/workspace/agent/plugin-data/community-local"
   mkdir -p "$DATA"
   ISSUES=""
   note() { ISSUES="${ISSUES}${ISSUES:+|}$1"; }

@@ -6,12 +6,12 @@ set -euo pipefail
 # steady — the bottleneck is supply and review, not demand. This tracks the
 # supply side: how many GFI issues are open, and how many are sitting
 # unassigned and stale (the starved-onboarding-pipeline signal).
-DATA="/workspace/agent/plugin-data/community-coding"
+DATA="/workspace/agent/plugin-data/community-local"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-local/config.env"}}'
   exit 0
 fi
 LABEL="${GFI_LABEL:-good first issue}"

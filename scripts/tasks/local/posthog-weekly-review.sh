@@ -2,13 +2,13 @@
 set -euo pipefail
 # Deps: bash, curl, jq. The PostHog personal API key is injected by the
 # OneCLI proxy for the PostHog host — no key belongs in this file.
-DATA="/workspace/agent/plugin-data/community-coding"
+DATA="/workspace/agent/plugin-data/community-local"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 PROJECT_ID="${POSTHOG_PROJECT_ID:-}"
 HOST="${POSTHOG_HOST:-https://us.posthog.com}"
 if [ -z "$PROJECT_ID" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set POSTHOG_PROJECT_ID in plugin-data/community-coding/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set POSTHOG_PROJECT_ID in plugin-data/community-local/config.env"}}'
   exit 0
 fi
 RESP=$(curl -sS --max-time 20 "$HOST/api/projects/$PROJECT_ID/insights/?limit=25" 2>/dev/null || echo '')

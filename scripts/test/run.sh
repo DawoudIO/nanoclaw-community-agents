@@ -97,7 +97,8 @@ assert_gate() {
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$ROOT/scripts/test/fixtures/$sname"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-support" \
-           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
+           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing" \
+           "$sandbox/plugin-data/community-local"
   # fake curl: first URL-ish arg is matched against fixture patterns
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
@@ -112,7 +113,7 @@ fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-support community-coding community-marketing; do
+  for g in community-support community-coding community-marketing community-local; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   local out
@@ -154,7 +155,8 @@ assert_scenario() {
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$ROOT/scripts/test/fixtures/$fixture"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-support" \
-           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
+           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing" \
+           "$sandbox/plugin-data/community-local"
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
@@ -168,7 +170,7 @@ fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-support community-coding community-marketing; do
+  for g in community-support community-coding community-marketing community-local; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   [ -n "$seed" ] && ( cd "$sandbox" && SANDBOX="$sandbox" bash -c "$seed" )
@@ -198,9 +200,16 @@ MOCK
 }
 
 # Unconfigured: every config-gated script must exit clean without waking.
+# Two local gates are deliberately excluded: health-check isn't config-gated
+# (it wakes on its own first-run heartbeat, asserted separately below) and
+# workspace-backup requires a real /workspace/agent git checkout rather than
+# a config key, so "unconfigured" isn't a meaningful state for it.
 for sh in "$ROOT"/scripts/tasks/engineering/*.sh "$ROOT"/scripts/tasks/marketing/*.sh \
-          "$ROOT"/scripts/tasks/support/daily-github-triage.sh \
+          "$ROOT"/scripts/tasks/local/*.sh \
           "$ROOT"/scripts/tasks/support/release-announcement-watch.sh; do
+  case "$(basename "$sh")" in
+    health-check.sh|workspace-backup.sh) continue;;
+  esac
   assert_gate "$sh" "unconfigured" "false" ""
 done
 
@@ -209,26 +218,26 @@ done
 # for every URL because no fixtures matched.
 assert_gate "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" \
+assert_gate "$ROOT/scripts/tasks/local/dev-metrics-report.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/engineering/good-first-issue-health.sh" \
+assert_gate "$ROOT/scripts/tasks/local/good-first-issue-health.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/support/release-announcement-watch.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/marketing/draft-cleanup.sh" \
+assert_gate "$ROOT/scripts/tasks/local/draft-cleanup.sh" \
   "fetch-fails-must-wake" "true" 'CONTENT_REPO="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/engineering/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/support/daily-github-triage.sh" \
+assert_gate "$ROOT/scripts/tasks/engineering/daily-github-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 
 # health-check: no config needed; on a healthy fresh box the only wake
 # reason is the first-run weekly heartbeat.
-assert_gate "$ROOT/scripts/tasks/support/health-check.sh" "first-run-heartbeat" "true" ""
+assert_gate "$ROOT/scripts/tasks/local/health-check.sh" "first-run-heartbeat" "true" ""
 
 # repo-mirror-sync: a nonexistent repo is a real clone failure (no mock
 # needed — git's own error against a real host is the test).
-assert_gate "$ROOT/scripts/tasks/engineering/repo-mirror-sync.sh" \
+assert_gate "$ROOT/scripts/tasks/local/repo-mirror-sync.sh" \
   "nonexistent-repo-clone-must-wake" "true" 'MIRROR_REPOS="acme/this-repo-does-not-exist-xyz-12345"'
 
 # --- 2c. success-path assertions -------------------------------------------
@@ -239,7 +248,7 @@ assert_gate "$ROOT/scripts/tasks/engineering/repo-mirror-sync.sh" \
 # dev-metrics-report: every field its prompt references, in the nesting the
 # prompt describes. `count` (14) deliberately exceeds the listed prs (2) so
 # the "N approved PRs waiting, oldest 10 listed" truncation path is covered.
-assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metrics-full true \
+assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-full true \
   '.data.today["acme/demo"] as $t
    | ($t.stars == 937) and ($t.forks == 558)
      and ($t.open_issues == 42) and ($t.open_prs == 7)
@@ -256,14 +265,14 @@ assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metr
 
 # dev-metrics-report, run 2: nothing changed between runs, and no approved PRs
 # this time, so the wake gate must SUPPRESS. Untestable without multi-run.
-assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metrics-quiet false \
+assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-quiet false \
   '.data.quiet_heartbeat == true' 'COMMUNITY_REPOS="acme/demo"' 2
 
 # posthog: byte-identical insight results across two runs must suppress, and
 # previous_result must be populated from history on run 2. This is the exact
 # bug the 28-day heartbeat fix addressed — a 7-day heartbeat on a weekly cron
 # made this assertion impossible to satisfy.
-assert_scenario "$ROOT/scripts/tasks/engineering/posthog-weekly-review.sh" posthog-static false \
+assert_scenario "$ROOT/scripts/tasks/local/posthog-weekly-review.sh" posthog-static false \
   '(.data.quiet_heartbeat == true)
    and (.data.insights[0].result == .data.insights[0].previous_result)
    and (.data.insights[0].name == "Weekly signups")' \
@@ -271,7 +280,7 @@ assert_scenario "$ROOT/scripts/tasks/engineering/posthog-weekly-review.sh" posth
 
 # good-first-issue-health: only the unassigned AND stale issue is listed;
 # truncated must be true because total_count (150) > items returned (3).
-assert_scenario "$ROOT/scripts/tasks/engineering/good-first-issue-health.sh" gfi-stale true \
+assert_scenario "$ROOT/scripts/tasks/local/good-first-issue-health.sh" gfi-stale true \
   '.data.results[0] as $r
    | ($r.open_count == 150) and ($r.truncated == true)
      and ($r.unassigned_stale | length == 1)
@@ -304,22 +313,22 @@ RELEASE_WATCH_REPO="acme/demo"' 2
 # docs-gap-review: pure local-file logic, previously the ONLY gate with no
 # behavioral coverage at all. Ledger seeded with one topic 4× inside the
 # 60-day window and one 2× — only the 3+ topic may surface.
-assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/engineering/docs-gap-review.sh" no-fixtures true \
   '(.data.status == "hot-topics")
    and (.data.topics | length == 1)
    and (.data.topics[0].topic == "csv-import-fails")
    and (.data.topics[0].count == 4)' \
   '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-coding"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    for i in 1 2; do echo "{\"date\":\"$NOW\",\"topic\":\"how-to-backup\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done'
 
 # docs-gap-review: a topic already proposed must not re-surface (the ack
 # ledger is what stops the same docs page being proposed every week).
-assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures false \
+assert_scenario "$ROOT/scripts/tasks/engineering/docs-gap-review.sh" no-fixtures false \
   '.data.status == "quiet"' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-coding"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'
