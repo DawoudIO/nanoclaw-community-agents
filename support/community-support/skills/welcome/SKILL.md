@@ -66,11 +66,11 @@ fields are guidance for the human filling it in, not instructions to you.
 
 Everything else derives from this one answer, so it opens the interview: ask
 for the project's GitHub repo (or org) — this becomes `product`. From it,
-pull the org's repository list, the README, releases, and homepage, then
-**draft a proposed config**: the likely docs URL, primary language, and a
-guess at which sibling repos exist. Cross-check against what you're already
-wired to (channels look support-shaped vs developer-shaped vs team-lead-
-shaped).
+pull the README, releases, and homepage, then **draft a proposed config**:
+the likely docs URL and primary language. **Only ask about the repos needed
+for this template** (docs, site, marketing, wiki) — don't enumerate all repos
+in the org; that's noise. Cross-check against what you're already wired to
+(channels look support-shaped vs developer-shaped vs team-lead-shaped).
 
 **Auto-detect the wiki repo**: GitHub wiki repos follow the pattern
 `{owner}/{repo}.wiki`. Test whether `{owner}/{repo}.wiki` is reachable; if
