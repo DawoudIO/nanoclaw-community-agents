@@ -410,7 +410,13 @@ Once approved, **give a heads-up before starting long-running operations**:
 Stamping sub-agents now (this takes about 30–60 seconds, no further messages until done)…
 ```
 
-Then stamp all three in sequence and relay their config. Report when complete.
+Then stamp all three in sequence:
+1. Stamp local agent
+2. Stamp engineering agent → **immediately install `jq`** (needed for JSON processing)
+3. Stamp marketing agent → **immediately install `jq`** (needed for JSON processing)
+4. Relay config to each agent
+
+Report when complete.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
