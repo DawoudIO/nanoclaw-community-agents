@@ -200,6 +200,36 @@ After setup, verify:
 
 ---
 
+## Troubleshooting
+
+### Local Ops Agent Crash-Loop (exitCode=1)
+
+**Symptom**: The Community Local Ops agent spawns but exits immediately within 1 second, then retries every ~60 seconds:
+```
+13:58:53 Spawning session → 13:58:54 Session ended, exitCode=1
+13:59:54 Spawning session → 13:59:55 Session ended, exitCode=1
+```
+
+**Root Cause**: Ollama is running, but the required `llama3.2` model is not pulled. The agent config expects `llama3.2` and fails instantly if it's not available.
+
+**Fix**:
+```bash
+# Check what models are installed
+ollama list
+
+# If llama3.2 is missing, pull it
+ollama pull llama3.2
+
+# Verify it's installed
+ollama list | grep llama3.2
+```
+
+Once `llama3.2` is pulled, the Local Ops agent will start successfully and the crash-loop stops.
+
+**Prevention**: Always run `ollama list` before setup to confirm `llama3.2` is available. The Prerequisites section lists this as critical.
+
+---
+
 ## FAQ
 
 **Q: Do I need sbx/Docker?**  
