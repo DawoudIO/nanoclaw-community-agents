@@ -10,7 +10,11 @@
 
 **Prerequisites**:
 - Node.js 18+
-- Ollama with `llama3.2` model (for local agent)
+- **Ollama running on `http://localhost:11434`** with `llama3.2` model pulled (for local agent)
+  - **Check if Ollama is running**: `curl http://localhost:11434` should return status 200
+  - **Check if llama3.2 is pulled**: `ollama list` should show `llama3.2` in the output
+  - **If not pulled yet**: `ollama pull llama3.2` (takes 5–10 min depending on network speed)
+  - **Critical**: Local agent will crash-loop if llama3.2 is not available — always verify this before setup
 - GitHub bot account (dedicated, not personal)
 - Discord bot token
 - OneCLI vault for credentials
