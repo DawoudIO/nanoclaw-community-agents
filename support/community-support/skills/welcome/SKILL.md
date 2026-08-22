@@ -414,8 +414,13 @@ Then stamp all three in sequence and relay their config. Report when complete.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
-2. Relay the config keys listed below to each agent
-3. Report the stamping result and each agent's status to the owner
+2. **For the local agent**: Auto-detect Ollama configuration:
+   - Probe `http://localhost:11434` to check if Ollama is running
+   - Query the models endpoint to list installed models
+   - Apply the detected endpoint + model automatically (no user input needed)
+   - If Ollama is unreachable or misconfigured, ask the owner for the endpoint/model
+3. Relay the config keys listed below to each agent
+4. Report the stamping result and each agent's status to the owner
 
 Sub-agents never talk to the owner, so their config arrives through you. Send the
 keys listed below **by name** over agent-to-agent destinations once stamped; each
