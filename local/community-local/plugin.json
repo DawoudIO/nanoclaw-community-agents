@@ -5,5 +5,13 @@
   "description": "Always-available local-model agent: narrates script-computed data, keeps mirrors fresh, and acknowledges community messages when the cloud-backed lead is rate-limited",
   "extensions": {
     "ai.nanoco.nanoclaw": { "agentName": "Community Local Ops" }
+  },
+  "container_configs": {
+    "provider": "claude",
+    "model": "llama3.2",
+    "env": {
+      "ANTHROPIC_BASE_URL": "http://host.docker.internal:11434",
+      "ANTHROPIC_AUTH_TOKEN": "placeholder"
+    }
   }
 }
