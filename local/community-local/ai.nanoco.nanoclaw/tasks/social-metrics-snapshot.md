@@ -1,5 +1,7 @@
 ---
+name: social-metrics-snapshot
 schedule: "23 13 * * 0"
+status: paused
 ---
 Record this week's social follower counts — the one genuinely stateful asset
 in this system: a time series that can't be re-scraped retroactively, unlike

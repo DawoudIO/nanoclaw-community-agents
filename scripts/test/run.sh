@@ -88,6 +88,25 @@ else
   fail "onboarding-answers.example.json is out of sync with the code (run: bash scripts/check-onboarding.sh)"
 fi
 
+# --- 1d2. every task must declare name + status: paused -------------------
+# The whole design is "stamp everything, then enable only what onboarding
+# selected". That depends on `status: paused` being in the file — and 19 of 26
+# task files were relying on an undocumented platform default instead, because
+# newer files were written to a different shape than the originals. If the
+# runtime honours the key, those tasks would have gone LIVE on stamp; if it
+# ignores the key, declaring it costs nothing. Only one of those outcomes is
+# survivable, so the invariant is now explicit and checked.
+#
+# `name` must match the filename: it is what `ncl tasks` shows, and a mismatch
+# means the thing you pause is not the thing you meant to pause.
+TASKMETA=0
+for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
+  n=$(basename "$md" .md)
+  grep -q "^name: $n\$" "$md" || { echo "  missing or mismatched 'name: $n' in ${md#"$ROOT"/}"; TASKMETA=1; }
+  grep -q '^status: paused$' "$md" || { echo "  missing 'status: paused' in ${md#"$ROOT"/}"; TASKMETA=1; }
+done
+[ "$TASKMETA" -eq 0 ] && pass || fail "task file(s) missing name/status — every task must be stamped PAUSED and enabled only by onboarding"
+
 # --- 1e. docs must not contradict the real topology ------------------------
 # Prose that hand-restates counts ("18 tasks", "three agents") goes stale
 # silently on every restructure, because prose isn't testable. This makes it

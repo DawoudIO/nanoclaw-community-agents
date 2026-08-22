@@ -1,5 +1,7 @@
 ---
+name: dev-metrics-report
 schedule: "15 12 * * *"
+status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

@@ -1,5 +1,7 @@
 ---
+name: repo-mirror-sync
 schedule: "7,22,37,52 * * * *"
+status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

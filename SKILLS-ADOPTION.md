@@ -452,15 +452,17 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
    Allocation follows the tasks, so the model-tier split moved several of these:
    - **lead** — triage/support (`ticket-triage`, `customer-escalation`) +
      `security-review`.
-   - **local** — the analyst pair (`pipeline-check`, `report-spec`) and
-     google's `google-analytics-data-api-basics`. These follow the tasks
-     that read telemetry, and those are local's now: `dev-metrics-report`,
-     `weekly-analytics-report`. "Exit-code-zero isn't
-     healthy" and metric definitions are exactly the guardrails a small model
-     narrating numbers needs.
+   - **local** — google's `google-analytics-data-api-basics`, following
+     `weekly-analytics-report`. Metric definitions are exactly the guardrail a
+     small model narrating numbers needs. The analyst pair moved to coding with
+     `posthog-weekly-review`; what stays here is narration, not diagnosis.
    - **marketing** — coreyhaines subset + `brand-voice-enforcement` /
      `draft-content`. One task, so keep this set tight.
-   - **coding** — trailofbits (`semgrep`, `sharp-edges`) + `ghsa`, matching its tasks including `posthog-weekly-review`. The analyst pair used to be listed here; it isn't coding's work any more.
+   - **coding** — trailofbits (`semgrep`, `sharp-edges`) + `ghsa` for the
+     advisory work, plus the analyst pair (`pipeline-check`, `report-spec`)
+     for `posthog-weekly-review`, which is the Reviewer's task: deciding
+     whether a telemetry anomaly is a real defect is assessment, not
+     narration.
 2. Prefer the analyst template's many-small-skills layout over one mega-skill.
 3. Re-run `check-templates.mjs` (frontmatter + no-symlink rules apply to
    vendored skills too) and restamp.

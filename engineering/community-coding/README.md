@@ -40,7 +40,7 @@ community-coding/
 │   └── tasks/                                    # all created paused
 │       ├── github-ops-triage.md                  # 4×/day, issue + PR triage digest
 │       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
-│       ├── dependabot-pr-review.md       # what does this bump cost us?
+│       ├── dependabot-pr-review.md               # what does this bump cost us?
 │       ├── docs-currency-watch.md                # merged PR -> version-tagged docs PR
 │       └── contributor-health-review.md          # weekly, wakes on a real trend move
 ├── skills/
