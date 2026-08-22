@@ -111,11 +111,11 @@ agent's file, and there are three relays to get right:
 
 | Sub-agent | Keys the lead relays |
 |---|---|
-| `local/community-local` | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `POSTHOG_PROJECT_ID`, `POSTHOG_HOST`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
+| `local/community-local` | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
 | `engineering/community-coding` | `COMMUNITY_REPOS` |
 | `marketing/community-marketing` | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
 
-The local agent's is by far the largest payload — it owns 11 of the 19 tasks in
+The local agent's is by far the largest payload — it owns 11 of the 21 tasks in
 the set — so it's the relay most likely to end up half-done. Note that
 `CONTENT_REPO` is relayed to **both** local (for `draft-cleanup`) and marketing
 (for `content-draft-cycle`); the same value has to exist in two files.

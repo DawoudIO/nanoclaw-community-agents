@@ -249,7 +249,7 @@ task file's frontmatter, the kit pins `TZ=UTC`, and frontmatter is not
 runtime-editable — so after stamping, changing a time means cancel-and-recreate
 per task. The shipped times (see OPERATIONS.md → "Shipped times") are UTC. If
 UTC doesn't suit the owner's working day, edit the `schedule:` lines in your
-local copy of the 19 task files **before** the stamp step below — it's a
+local copy of the 21 task files **before** the stamp step below — it's a
 one-minute edit now versus 19 recreates later. Everything else is collected
 conversationally after wiring; pre-stamp file fill-ins are optional defaults,
 and personas mount read-only once stamped.
@@ -634,7 +634,7 @@ formality.
 | Local | `selective` | Local GitHub PAT | `api.github.com` | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup` |
 | Local | `selective` | same PAT, git protocol *(only for private repos)* | `github.com` (git) | `repo-mirror-sync` — public repos need no credential |
 | Local | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
-| Local | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
+| Reviewer (coding) | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
 | Local | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
 | Local | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
 | Local | — (no secret, no network) | nothing at all | — | `unanswered-watch`, `health-check` — local message/container state only. **This is why they survive the outage they compensate for**: nothing to fail, nothing to expire |
@@ -775,7 +775,7 @@ three separate relays now, not one, and they are very unequal in size:
 
 | Sub-agent | Keys the lead relays into its `config.env` |
 |---|---|
-| **Local ops** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `POSTHOG_PROJECT_ID`, `POSTHOG_HOST`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
+| **Local ops** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
 | **Reviewer** (coding) | `COMMUNITY_REPOS` |
 | **Marketing** | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
 
@@ -797,7 +797,7 @@ local agent reported receiving.
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 19 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
+| Task schedules (cron lines, all 21 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | The **local** agent's group folder in the sandbox — it owns `workspace-backup` | After stamping, host-side (or ask the lead to relay the request) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
@@ -893,7 +893,7 @@ settled before the stamp step:
 | Asked | Format | Why it can't wait |
 |---|---|---|
 | **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. 19 recreates later — see step 2 |
-| **Which agents do you want at all?** — lead only, or lead + local ops and/or coding and/or marketing | pick | Determines what you stamp. If you add exactly one, add **local ops** — it's the tier that keeps working when the shared window closes, and it carries 11 of the 19 tasks. Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
+| **Which agents do you want at all?** — lead only, or lead + local ops and/or coding and/or marketing | pick | Determines what you stamp. If you add exactly one, add **local ops** — it's the tier that keeps working when the shared window closes, and it carries 12 of the 21 tasks. Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
 
 ### Then the interview asks these
 
@@ -938,7 +938,7 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 19 (5 support, 11 local, 2 engineering, 1 marketing)
+./bin/ncl tasks list --status paused          # expect all 21 (5 support, 12 local, 3 engineering, 1 marketing)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```

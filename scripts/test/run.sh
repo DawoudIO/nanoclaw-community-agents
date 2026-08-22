@@ -109,8 +109,61 @@ for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
 done
 [ "$MISSING_SCHED" -eq 0 ] && pass || fail "task file(s) missing a schedule: line"
 
-DUPE=$(grep -h '^schedule:' "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d)
-if [ -z "$DUPE" ]; then pass; else fail "two tasks share a cron schedule: $DUPE"; fi
+# Comparing schedule STRINGS is not enough, and this bit us: `5 */3 * * *`
+# and `5 15 * * 1` are different strings that both fire at 15:05 on Mondays,
+# and `7,22,37,52 * * * *` silently claims four minutes of every hour. Two
+# real collisions hid behind the string check. So expand every field and
+# compare actual firing slots across minute x hour x day-of-week.
+COLLIDE=$(python3 - "$ROOT" <<'PY' 2>/dev/null || echo "SKIP"
+import glob, re, sys, collections
+root = sys.argv[1]
+def expand(f, lo, hi):
+    out = set()
+    for part in f.split(','):
+        if part == '*':
+            out |= set(range(lo, hi + 1)); continue
+        m = re.fullmatch(r'\*/(\d+)', part)
+        if m:
+            out |= {v for v in range(lo, hi + 1) if (v - lo) % int(m.group(1)) == 0}; continue
+        m = re.fullmatch(r'(\d+)-(\d+)', part)
+        if m:
+            out |= set(range(int(m.group(1)), int(m.group(2)) + 1)); continue
+        try: out.add(int(part))
+        except ValueError: pass
+    return out
+fires = collections.defaultdict(set)
+for md in glob.glob(root + '/*/*/ai.nanoco.nanoclaw/tasks/*.md'):
+    m = re.search(r'^schedule:\s*"([^"]+)"', open(md).read(), re.M)
+    if not m: continue
+    parts = m.group(1).split()
+    if len(parts) != 5: continue
+    mi, ho, _dom, _mon, dow = parts
+    name = md.split('/')[-1][:-3]
+    for a in expand(mi, 0, 59):
+        for b in expand(ho, 0, 23):
+            for c in expand(dow, 0, 6):
+                fires[(a, b, c)].add(name)
+seen, out = set(), []
+for slot, names in sorted(fires.items()):
+    if len(names) > 1:
+        key = tuple(sorted(names))
+        if key in seen: continue
+        seen.add(key)
+        out.append("min=%02d hr=%02d dow=%d -> %s" % (slot[0], slot[1], slot[2], ", ".join(sorted(names))))
+print("\n".join(out))
+PY
+)
+if [ "$COLLIDE" = "SKIP" ]; then
+  # No python3 in this image — fall back to the weaker string check rather
+  # than silently asserting nothing.
+  DUPE=$(grep -h '^schedule:' "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d)
+  if [ -z "$DUPE" ]; then pass; else fail "two tasks share a cron schedule string: $DUPE"; fi
+elif [ -z "$COLLIDE" ]; then
+  pass
+else
+  printf '  %s\n' "$COLLIDE"
+  fail "two or more tasks fire in the same minute — on a 16 GB host that starts multiple agent containers at once"
+fi
 
 # --- 1g. no task may reference ANOTHER agent's plugin-data ----------------
 # Each agent sees only its own /workspace/agent/plugin-data/<its-name>/. A
@@ -358,13 +411,60 @@ assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-fu
      and ($t.releases[0].downloads == 1000)
      and ($t.awaiting_first_response.issues == 5)
      and ($t.awaiting_first_response.oldest_issue_since == "2026-06-01T00:00:00Z")
-     and ($t.closed_prs_30d.merged == 20) and ($t.closed_prs_30d.unmerged == 4)
-     and ($t.closed_prs_30d.unmerged_ratio == 0.17)
-     and (.data.ready_to_merge[0].ready_to_merge.count == 14)
-     and (.data.ready_to_merge[0].ready_to_merge.prs | length == 2)
-     and (.data.ready_to_merge[0].ready_to_merge.prs[0].author == "contribA")
+     and (.data.degraded_repos | length == 0)
+     and (($t | has("closed_prs_30d")) | not)
+     and ((.data | has("ready_to_merge")) | not)
+     and ((.data | has("contribution_concentration")) | not)' \
+  'COMMUNITY_REPOS="acme/demo"'
+# The three `has(...) | not` assertions are the split's regression test: those
+# fields moved to ready-to-merge and contributor-health-review, so if one
+# reappears here the split has been partially reverted and two tasks are
+# reporting the same thing.
+
+# ready-to-merge: 14 approved PRs waiting with only the 2 oldest listed, so
+# the truncation path is covered. First run has no prior set, so every PR is
+# "newly ready" and the gate must wake.
+assert_scenario "$ROOT/scripts/tasks/local/ready-to-merge.sh" ready-to-merge-waiting true \
+  '(.data.status == "ready")
+   and (.data.total == 14)
+   and (.data.repos[0].truncated == true)
+   and (.data.repos[0].prs | length == 2)
+   and (.data.repos[0].prs[0].author == "contribA")
+   and (.data.newly_ready | length == 2)
+   and (.data.resurfaced == false)
+   and (.data.degraded_repos | length == 0)' \
+  'COMMUNITY_REPOS="acme/demo"'
+
+# ready-to-merge, run 2: identical approved set, so the "changed" gate must
+# SUPPRESS rather than re-report the same PRs the next morning. This is the
+# difference between useful and nagging, and it only exists from run 2 on.
+assert_scenario "$ROOT/scripts/tasks/local/ready-to-merge.sh" ready-to-merge-waiting false \
+  '(.data.resurfaced == true) and (.data.newly_ready | length == 0)' \
+  'COMMUNITY_REPOS="acme/demo"' 2
+
+# contributor-health-review: the Reviewer's half of the split. Asserts the
+# histogram maths the script does so the agent never has to — 20/6/4 across
+# three authors is a 67% top-author share and exactly two candidates at the
+# 5-merged floor. first_run must be true (no history to diff yet) and must
+# wake, because a baseline is worth one report.
+assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" contributor-health-move true \
+  '.data.repos[0] as $r
+   | ($r.closed_prs_30d.merged == 20)
+     and ($r.closed_prs_30d.unmerged == 4)
+     and ($r.closed_prs_30d.unmerged_ratio == 0.17)
+     and ($r.concentration.distinct_authors_90d == 3)
+     and ($r.concentration.top_author == "maintainer")
+     and ($r.concentration.top_author_share_pct == 67)
+     and ($r.concentration.candidates | length == 2)
+     and (.data.first_run == true)
      and (.data.degraded_repos | length == 0)' \
   'COMMUNITY_REPOS="acme/demo"'
+
+# contributor-health-review, run 2: byte-identical numbers, so nothing
+# "moved" and the quarterly heartbeat has not elapsed — must suppress.
+assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" contributor-health-move false \
+  '(.data.quiet_heartbeat == true) and (.data.moved | length == 0) and (.data.first_run == false)' \
+  'COMMUNITY_REPOS="acme/demo"' 2
 
 # dev-metrics-report, run 2: nothing changed between runs, and no approved PRs
 # this time, so the wake gate must SUPPRESS. Untestable without multi-run.
@@ -375,7 +475,7 @@ assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-qu
 # previous_result must be populated from history on run 2. This is the exact
 # bug the 28-day heartbeat fix addressed — a 7-day heartbeat on a weekly cron
 # made this assertion impossible to satisfy.
-assert_scenario "$ROOT/scripts/tasks/local/posthog-weekly-review.sh" posthog-static false \
+assert_scenario "$ROOT/scripts/tasks/engineering/posthog-weekly-review.sh" posthog-static false \
   '(.data.quiet_heartbeat == true)
    and (.data.insights[0].result == .data.insights[0].previous_result)
    and (.data.insights[0].name == "Weekly signups")' \

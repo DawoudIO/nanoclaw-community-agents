@@ -34,7 +34,7 @@
     "timezone": {
       "value": "UTC",
       "_ask": "What timezone should scheduled work land in? Schedules are cron lines in task frontmatter and the kit pins TZ=UTC; changing a time after stamping means cancel-and-recreate per task.",
-      "_action_if_not_utc": "Edit the schedule: lines in your local copy of the 19 task files BEFORE stamping."
+      "_action_if_not_utc": "Edit the schedule: lines in your local copy of the 21 task files BEFORE stamping."
     },
     "agents_to_stamp": {
       "value": ["support", "local", "engineering"],
@@ -88,7 +88,7 @@
       "_tasks": ["content-draft-cycle (marketing)", "draft-cleanup (local)", "social-metrics-snapshot (local)", "weekly-analytics-report (local)", "good-first-issue-health (local)", "repo-hygiene-audit (local)"],
       "audience_priority": { "value": [], "_ask": "If growth is a goal: which audiences, in priority order?", "_options": ["users", "contributors"] }
     },
-    "proactive_detection": { "value": null, "_tasks": ["posthog-weekly-review (local)", "dev-metrics-report (local)", "repo-mirror-sync (local)"] },
+    "proactive_detection": { "value": null, "_tasks": ["posthog-weekly-review (Reviewer)", "dev-metrics-report (local)", "repo-mirror-sync (local)"] },
     "security": { "value": null, "_tasks": ["security-advisory-sweep (engineering)"] }
   },
 

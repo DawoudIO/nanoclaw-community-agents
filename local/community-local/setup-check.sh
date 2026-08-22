@@ -22,7 +22,10 @@ fi
 [ -n "${MIRROR_REPOS:-}" ] && add "config:MIRROR_REPOS" "ok" "" || add "config:MIRROR_REPOS" "skipped" "optional — repo-mirror-sync falls back to COMMUNITY_REPOS. Set it only to mirror MORE than the triaged repos (e.g. the wiki)"
 [ -n "${CONTENT_REPO:-}" ] && add "config:CONTENT_REPO" "ok" "" || add "config:CONTENT_REPO" "skipped" "optional — draft-cleanup stays paused"
 [ -n "${GA4_PROPERTY_ID:-}" ] && add "config:GA4_PROPERTY_ID" "ok" "" || add "config:GA4_PROPERTY_ID" "skipped" "optional — weekly-analytics-report stays paused"
-[ -n "${POSTHOG_PROJECT_ID:-}" ] && add "config:POSTHOG_PROJECT_ID" "ok" "" || add "config:POSTHOG_PROJECT_ID" "skipped" "optional — posthog-weekly-review stays paused"
+# No PostHog check: posthog-weekly-review moved to the Reviewer
+# (engineering/community-coding). Its numbers only matter once someone judges
+# whether an anomaly is a real defect, which this tier must not do. GA4 stays
+# here because traffic counts are narration, not assessment.
 
 if [ -n "${COMMUNITY_REPOS:-}" ]; then
   for REPO in $COMMUNITY_REPOS; do

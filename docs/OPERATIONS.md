@@ -97,7 +97,7 @@ window**, so budget them together:
 - **Welcome interview**: the biggest single line item — ~15K context per turn
   over 8–15 turns, heavily cache-discounted after the first.
 - **Sub-agent relay + each `setup-check.sh`**: ~2–3 turns each, small.
-- **Gate testing**: of the 17 script-gated tasks, **13 exit `not-configured`
+- **Gate testing**: of the 19 script-gated tasks, **13 exit `not-configured`
   with no model wake at all** on a fresh install — those are free. Of the
   remaining four, `docs-gap-review` exits `no-ledger-yet` (also free, and stays
   that way for weeks), and `health-check` + `unanswered-watch` are local-agent
@@ -120,7 +120,7 @@ persona plus whatever skill loads:
 The local agent is absent from these numbers on purpose, not by oversight:
 its context is loaded into a model running on your own host, so its wakes are
 billed in RAM and wall-clock, never against the shared window. That's 11 of
-the 19 tasks — the bulk of the recurring work — costing zero here. If you want
+the 21 tasks — the bulk of the recurring work — costing zero here. If you want
 to size it, size it against the host (`ollama ps`, memory headroom), which is
 a different measurement with a different unit; don't add it to this column.
 
@@ -142,7 +142,7 @@ scoped to the wrong repo list. Four things that protect the window:
 2. **Use the answers file.** `onboarding-answers.json` collapses an 8–15 turn
    interview into ~2 — on a shared window this is the single largest saving
    available, and it makes a retry nearly free.
-3. **Don't interactively test all 17 gates.** Run the ones you configured;
+3. **Don't interactively test all 19 gates.** Run the ones you configured;
    the rest are provably free and the harness covers their logic.
 4. **Read the docs yourself rather than through the session** — `docs/` +
    PREREQS + README is ~22K tokens of context you don't need to spend.
@@ -156,7 +156,7 @@ Code for anything else that day.**
 
 **Four agents, but only three of them can spend your window.** Burn comes from
 model *wakes*, not from agents existing: a stamped agent whose tasks are paused
-costs nothing. 17 of 19 tasks are script-gated, so quiet periods cost near zero
+costs nothing. 19 of 21 tasks are script-gated, so quiet periods cost near zero
 regardless of agent count. The two highest-frequency gates are also the two
 cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
@@ -212,7 +212,7 @@ the owner can change them there or later via group config):
 | Marketing | Sonnet-class | Content quality is its whole job; drafts are the deliverable. Not stamped by default |
 
 **Decided: no local model for the Reviewer — Haiku stays.** Compared against
-Haiku (not Sonnet), the case collapses: the Reviewer's 2 tasks together wake
+Haiku (not Sonnet), the case collapses: the Reviewer's tasks together wake
 only a few dozen times a week because the gates already suppress the rest, so
 there is little left to save on the cheapest tier — while the risk lands
 precisely on what's left, which is nothing but judgment: advisory reachability
@@ -230,9 +230,10 @@ Wakes are frequent; premium models belong in interactive sessions, not cron.
 
 **If you hit the window ceiling** (on a shared subscription this also
 restores your own Claude Code access), the first thing to get right is *which
-tasks are even on that meter*. **Only the 8 cloud-tier tasks can spend it** —
-the lead's 5, the Reviewer's 2, Marketing's 1. The local agent's 11 tasks bill
-to RAM, so **pausing them saves nothing on the meter you're trying to relieve.**
+tasks are even on that meter*. **Only the cloud-tier tasks can spend it** —
+the lead's 5, everything the Reviewer owns, Marketing's 1. The local agent's 11
+tasks bill to RAM, so **pausing them saves nothing on the meter you're trying
+to relieve.**
 This corrects earlier advice in this file that opened with `repo-mirror-sync`
 and `dev-metrics-report`: both are local, both are now the wrong lever, and
 pausing them buys you host headroom rather than window headroom. Pause them
@@ -245,10 +246,17 @@ Pause in this order — lowest value first, cloud tier only:
 2. `inbox-check` — ungated, so it wakes the lead on **every** run, twice a day,
    whether or not there's mail. Per-wake it's the most reliably expensive thing
    in the set.
-3. `content-draft-cycle` → reduce to 3×/week.
-4. `release-announcement-watch` → reduce from every 3h to daily.
-5. `github-ops-triage` → reduce to 2×/day.
-6. `security-advisory-sweep` → reduce to 2×/day. Last of the cloud tier
+3. `contributor-health-review` — a reasonable early pause: nothing it reports
+   is time-sensitive. It reads 30- and 90-day windows weekly, and the signals
+   it tracks (unmerged ratio, contribution concentration) move over months, so
+   a few skipped weeks change the picture by nothing. One cost worth knowing:
+   its history only gains a point on a run, so after a pause the next run
+   diffs against the last week it actually ran — the first post-resume "move"
+   will look larger than any single week's drift really was.
+4. `content-draft-cycle` → reduce to 3×/week.
+5. `release-announcement-watch` → reduce from every 3h to daily.
+6. `github-ops-triage` → reduce to 2×/day.
+7. `security-advisory-sweep` → reduce to 2×/day. Last of the cloud tier
    deliberately: a late advisory is a worse outcome than a late digest.
 
 `docs-gap-review` and `weekly-identity-integrity-check` are weekly and gated to
@@ -265,6 +273,13 @@ near-silence, so pausing them is effort without savings.
   detector. Pausing it saves nothing and blinds you.
 - **`workspace-backup`.** Also local and off-meter; pausing it trades zero
   savings for real data risk.
+- **`ready-to-merge`.** Local, so off-meter, and the best value-per-token in
+  the set on either meter: it produces a *list* rather than an assessment, runs
+  twice a day, and only wakes when the set of approved PRs actually changes (an
+  unchanged set resurfaces once a week, not every run). What it costs you is a
+  few API calls; what it prevents is a contributor's already-approved work
+  sitting unmerged, which is the most discouraging way for a contribution to
+  end. There is no ceiling at which pausing this is the right trade.
 - **Community replies.** They are the job.
 
 ## Reference: every task, required vs optional
@@ -305,7 +320,7 @@ Every config key below lives in `plugin-data/community-local/config.env`:
 | `draft-cleanup` (daily) | on stale PRs | local PAT (PRs read) + `CONTENT_REPO` | silent skip |
 | `good-first-issue-health` (Mon) | weekly | local PAT + `COMMUNITY_REPOS` (+ optional `GFI_LABEL`) | silent skip |
 | `health-check` (every 3h) | on a problem, plus a forced weekly heartbeat | nothing | safe |
-| `posthog-weekly-review` (Mon) | only on an insight-value change, else a 28-day heartbeat | PostHog key + `POSTHOG_PROJECT_ID` (+ optional `POSTHOG_HOST`) + allowlist | silent skip |
+| `ready-to-merge` (2×/day) | only when the *set* of approved-and-open PRs changes, plus one weekly resurface while any of them stay open, plus any fetch failure | local PAT + `COMMUNITY_REPOS` | silent skip |
 | `repo-hygiene-audit` (quarterly) | only on missing community files | local PAT + `COMMUNITY_REPOS` | silent skip |
 | `repo-mirror-sync` (4×/hour) | only on a real content change or a sync failure | local PAT + `MIRROR_REPOS` (falls back to `COMMUNITY_REPOS`) + `github.com` allowlisted for git | silent skip |
 | `social-metrics-snapshot` (Sun) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts | leave paused until platforms are configured and allowlisted — it guards the one stateful asset, the follower series |
@@ -313,11 +328,19 @@ Every config key below lives in `plugin-data/community-local/config.env`:
 | `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
 | `workspace-backup` (daily) | on failure | git repo + remote + git identity + a `github.com` (git) vault secret | silent skip |
 
-**Reviewer** (`engineering/community-coding`) — 2 tasks, read-only, never posts
-publicly. Config in `plugin-data/community-coding/config.env`:
+**Reviewer** (`engineering/community-coding`) — read-only, never posts
+publicly. Config in `plugin-data/community-coding/config.env`.
+`contributor-health-review` and `posthog-weekly-review` are here rather than on
+the local tier for the same reason: each is the *interpretation* half of a
+metric. The same unmerged-PR ratio means opposite things depending on why it
+moved, naming a delegation candidate is a judgment about a person, and deciding
+whether a telemetry anomaly is a real defect is an assessment. Narration went
+local; judgment stayed cloud.
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
+| `posthog-weekly-review` (Mon) | only on an insight-value change, else a 28-day heartbeat | PostHog key + `POSTHOG_PROJECT_ID` (+ optional `POSTHOG_HOST`) + allowlist | silent skip |
+| `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | on new alerts | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` | silent skip |
 
@@ -334,32 +357,50 @@ firing at :00 means several agent containers spinning up at once. These
 are offset so no two tasks share a minute, and `unanswered-watch` keeps
 the round minutes because it's the task the north star depends on:
 
-| Agent | Task | Cron (UTC) |
-|---|---|---|
-| support | `daily-github-triage` | `13 13 * * 1-5` |
-| support | `docs-gap-review` | `15 15 * * 2` |
-| engineering | `github-ops-triage` | `35 */6 * * *` |
-| engineering | `security-advisory-sweep` | `45 */4 * * *` |
-| local | `dev-metrics-report` | `15 12 * * *` |
-| local | `draft-cleanup` | `33 17 * * *` |
-| local | `good-first-issue-health` | `16 16 * * 1` |
-| local | `health-check` | `25 */3 * * *` |
-| local | `posthog-weekly-review` | `5 15 * * 1` |
-| local | `repo-hygiene-audit` | `55 10 1 */3 *` |
-| local | `repo-mirror-sync` | `7,22,37,52 * * * *` |
-| local | `social-metrics-snapshot` | `23 13 * * 0` |
-| local | `unanswered-watch` | `*/10 * * * *` |
-| local | `weekly-analytics-report` | `14 14 * * 0` |
-| local | `workspace-backup` | `43 8 * * *` |
-| marketing | `content-draft-cycle` | `37 13 * * 1-5` |
-| support | `inbox-check` | `55 6,16 * * *` |
-| support | `release-announcement-watch` | `5 */3 * * *` |
-| support | `weekly-identity-integrity-check` | `45 15 * * 1` |
+| Task | Agent | Cadence | When (UTC) | Gated |
+|------|-------|---------|------------|-------|
+| `daily-github-triage` | Lead | **weekdays** | 13:13, Mon–Fri | yes |
+| `docs-gap-review` | Lead | **weekly** | 15:15, Tue | yes |
+| `inbox-check` | Lead | **2× daily** | 06:55, 16:55 | no |
+| `release-announcement-watch` | Lead | **every 3h** | every 3h at :05 | yes |
+| `weekly-identity-integrity-check` | Lead | **weekly** | 15:45, Mon | yes |
+| `dev-metrics-report` | Local ops | **daily** | 12:15 | yes |
+| `draft-cleanup` | Local ops | **daily** | 17:33 | yes |
+| `good-first-issue-health` | Local ops | **weekly** | 16:16, Mon | yes |
+| `health-check` | Local ops | **every 3h** | every 3h at :25 | yes |
+| `ready-to-merge` | Local ops | **2× daily** | 09:47, 17:47 | yes |
+| `repo-hygiene-audit` | Local ops | **quarterly** | 10:55, day 1 every 3 months | yes |
+| `repo-mirror-sync` | Local ops | **4× hourly** | :7/22/37/52 each hour | yes |
+| `social-metrics-snapshot` | Local ops | **weekly** | 13:23, Sun | no |
+| `unanswered-watch` | Local ops | **every 10 min** | on the 10-minute mark | yes |
+| `weekly-analytics-report` | Local ops | **weekly** | 14:14, Sun | yes |
+| `workspace-backup` | Local ops | **daily** | 08:43 | yes |
+| `contributor-health-review` | Reviewer | **weekly** | 11:26, Wed | yes |
+| `github-ops-triage` | Reviewer | **every 6h** | every 6h at :35 | yes |
+| `posthog-weekly-review` | Reviewer | **weekly** | 15:09, Mon | yes |
+| `security-advisory-sweep` | Reviewer | **every 4h** | every 4h at :45 | yes |
+| `content-draft-cycle` | Marketing | **weekdays** | 13:38, Mon–Fri | yes |
 
-If you re-time these, keep them collision-free — the check is one command:
+_21 tasks across 4 agents; 19 script-gated (ungated: inbox-check social-metrics-snapshot)_
+_Generated by `scripts/gen-task-table.sh` — do not hand-edit._
+
+**This table is generated — do not hand-edit it.** It was hand-maintained
+until a `posthog-weekly-review` move left it claiming the wrong agent and the
+wrong minute, so it now comes straight from the task files:
 
 ```bash
-grep -h '^schedule:' */*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d
+bash scripts/gen-task-table.sh
+```
+
+If you re-time these, keep them collision-free — but **do not check it by
+comparing cron strings.** That is what we did, and it missed two real
+collisions: `5 */3 * * *` and `5 15 * * 1` are different strings that both
+fire at 15:05 on Mondays, and `7,22,37,52 * * * *` quietly claims four minutes
+of every hour. The harness now expands every field across minute × hour ×
+day-of-week:
+
+```bash
+bash scripts/test/run.sh        # fails on any two tasks sharing a firing slot
 ```
 
 Rules of thumb: put the
@@ -527,7 +568,7 @@ refreshes when the issue appears.
 5. **Restore the local tier: host Ollama running, and `ollama pull llama3.2`.**
    Then re-point the local group at it and confirm with its `setup-check.sh`
    that `local_provider_active` reports `ok`. This is the step most likely to
-   be skipped and the most expensive to skip: **11 of the 19 tasks belong to
+   be skipped and the most expensive to skip: **11 of the 21 tasks belong to
    the local agent**, and if the model isn't there — or the group is stamped
    but `ANTHROPIC_BASE_URL` is unset — those tasks are dead or silently back on
    the cloud provider, and **nothing in the system detects it.** A missing

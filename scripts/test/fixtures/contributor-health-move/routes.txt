@@ -1,0 +1,3 @@
+is:closed+is:unmerged|unmerged.json
+&per_page=100|m90.json
+is:pr+is:merged+merged:|merged30.json

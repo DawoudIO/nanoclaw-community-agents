@@ -28,8 +28,8 @@ is aimed at catching that mistake *before* it happens, not after.
 | Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Issues+PRs; + Dependabot alerts if enabling the sweep. `COMMUNITY_REPOS` only |
 | Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Content repo only, Contents+PRs read/write |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`). **Belongs to the local agent** (`posthog-weekly-review`) — no other agent should be able to reach it |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the local agent** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
+| PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`). **Belongs to the Reviewer (`engineering/community-coding`)** (`posthog-weekly-review`) — no other agent should be able to reach it |
+| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Reviewer (`engineering/community-coding`)** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
 
@@ -124,8 +124,7 @@ push to one private repo.
 | Pull requests | Read | `GET /repos/{repo}/pulls` (`draft-cleanup`) |
 | Contents (**backup repo only**) | **Write** | `workspace-backup` pushes over `github.com` git — a *separate vault entry* from `api.github.com`, and ideally a separate token scoped to just that repo |
 
-Two non-GitHub hosts live on this agent and nowhere else: the PostHog key
-(`<region>.posthog.com`, `posthog-weekly-review`) and the GA4 OAuth connection
+One non-GitHub host lives on this agent and nowhere else: the GA4 OAuth connection
 (`analyticsdata.googleapis.com`, `weekly-analytics-report`). If
 `agent-access` reports either of them reachable by the lead, the Reviewer, or
 marketing, that's a finding — see §3.
@@ -195,7 +194,7 @@ and at different levels: marketing writes drafts there, local only reads PRs
 there to find stale ones.
 
 No social-platform credential is wired to this agent in any configuration, and
-no analytics credential either — GA4 and PostHog belong to the local agent.
+no analytics credential either — GA4 belongs to the local agent and PostHog to the Reviewer.
 Marketing writes the drafts; it does not read the numbers.
 
 ### Why PATs and not a GitHub App
@@ -273,7 +272,7 @@ A real deployment's audit, applying the steps above:
 |---|---|
 | GitHub (Apps tab), Gmail (Apps tab), Google Analytics (Apps tab) | ✅ expected — confirm identity with the `GET /user` check below regardless |
 | GitHub App, GitLab, Google Drive, Google Calendar, Google Chat — all **not connected** | ✅ correct — nothing in this template set uses them; an unconnected integration sitting in the "Apps" list is not a requirement, don't connect it "just in case" |
-| PostHog API Key (Custom, host `us.posthog.com`) | ✅ matches the **local** agent's telemetry row (`posthog-weekly-review`). If `agent-access` shows the Reviewer reaching it, that's a leftover from before the model-tier split — remove it |
+| PostHog API Key (Custom, host `us.posthog.com`) | ✅ matches the **Reviewer's** telemetry row (`posthog-weekly-review`). If `agent-access` shows the Reviewer reaching it, that's a leftover from before the model-tier split — remove it |
 | Discord Bot Token (Custom, host `discord.com`) | ✅ expected — `/add-discord`'s own registration, not a manual step |
 | LinkedIn Access Token (Custom, host `api.linkedin.com`) | 🚩 **finding**: this template's default LinkedIn posting is the free intent-URL flow, which needs no API credential at all. A live token here with nothing in the current design that calls it is exactly the kind of stale, unused-but-still-valid credential this audit exists to catch — confirm it's actually in use before carrying it forward; if not, remove it |
 | 4× Twitter/X secrets (`TWITTER_API_KEY`/`_SECRET`, `TWITTER_ACCESS_TOKEN`/`_SECRET`, all Custom, host `api.x.com`, OAuth 1.0a headers) | 🚩 **verify before reuse**: this is the legacy OAuth 1.0a posting flow. X's pricing changed in Feb 2026 to pay-per-use — confirm whether the *new* API uses this same auth scheme before assuming these four secrets still work; only relevant at all if the owner opts into paid X posting (default is free intent-URL, needing none of this) |

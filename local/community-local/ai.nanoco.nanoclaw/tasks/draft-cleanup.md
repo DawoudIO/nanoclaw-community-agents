@@ -52,7 +52,14 @@ re-nag; `total_stale_open` tells you how many are still sitting there overall.
 
 **If `status` is `fetch-failed`**: report the symptom to your lead instead.
 
-Report the new ones to your lead: number, title, how long stale, and a
-recommend-close-or-revive with a one-line reason for each. Mention the total
-still-open count once. **Report only** — never close, merge, or delete a draft
-PR yourself, even one you opened. Someone may be waiting on it.
+Report the new ones to your lead: number, title, and how long it has been
+stale. Mention the total still-open count once.
+
+**List, don't rank, and don't recommend.** Whether a draft should be closed or
+revived depends on the content calendar and the owner's intent, neither of
+which you can see — so give the facts and let the lead decide. "PR #41,
+'Release notes for 2.3', untouched 9 days" is complete. Adding "probably
+abandoned, suggest closing" is a guess dressed as a finding.
+
+**Report only** — never close, merge, or delete a draft PR. Someone may be
+waiting on it.

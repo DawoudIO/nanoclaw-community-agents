@@ -1,16 +1,17 @@
 # Community Coding Agent Template
 
 The **Reviewer** of the set: a headless, **read-only** GitHub-ops sub-agent
-running on **Claude Haiku**, with **2 tasks** — triage issues and PRs, and
-assess security advisories — handing both to a lead support agent rather than
-posting publicly.
+running on **Claude Haiku**. It triages issues and PRs, assesses security
+advisories, and interprets contributor-health trends — handing all of it to a
+lead support agent rather than posting publicly.
 
 It is deliberately narrow. It does **not** compute dev metrics, review product
 telemetry, or do docs-gap review; all of that moved to
 `local/community-local`, which runs a local model and pays no subscription cost
 to narrate numbers a script already computed. What's left here is the work that
-actually needs judgment about code and severity — which is why it keeps a
-cloud model, and why that model is the cheap one.
+actually needs judgment — about code, about severity, and about what a moving
+number *means* — which is why it keeps a cloud model, and why that model is the
+cheap one.
 
 Pairs with **`support/community-support`** (the lead); its siblings are
 **`local/community-local`** and **`marketing/community-marketing`**. It works
@@ -35,9 +36,10 @@ community-coding/
 ├── ai.nanoco.nanoclaw/
 │   ├── context/
 │   │   └── instructions.md                       # standing brief: draft, never post
-│   └── tasks/                                    # 2 tasks, both created paused
+│   └── tasks/                                    # all created paused
 │       ├── github-ops-triage.md                  # 4×/day, issue + PR triage digest
-│       └── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
+│       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
+│       └── contributor-health-review.md          # weekly, wakes on a real trend move
 ├── skills/
 │   └── coding-ops/
 │       ├── SKILL.md
@@ -50,11 +52,25 @@ community-coding/
 ```
 
 **Where the other tasks went.** `dev-metrics-report`,
-`good-first-issue-health`, `repo-hygiene-audit`, `posthog-weekly-review` and
-`repo-mirror-sync` are now `local/community-local` tasks. `docs-gap-review` and
+`good-first-issue-health`, `repo-hygiene-audit` and `repo-mirror-sync` are now
+`local/community-local` tasks. `posthog-weekly-review` came back here — its
+question is "is this anomaly a real defect users haven't reported yet", which
+is assessment, not narration. `docs-gap-review` and
 `daily-github-triage` are the lead's — `docs-gap-review` reads a ledger only
 the lead writes, and since no agent can read another agent's plugin-data, it was
 permanently dead while it lived here.
+
+**And one metrics task came back.** `contributor-health-review` was split out of
+the local agent's `dev-metrics-report` and landed here, which looks like a
+reversal and isn't: the line was never "metrics live on the local tier," it was
+"narration lives on the local tier." Reporting that stars went up is narration.
+Deciding whether a rising close-without-merge rate means low-quality
+submissions arriving or maintainers quietly burning out — opposite problems,
+opposite responses, the same number — is judgment, and so is naming a
+contributor as a delegation candidate. The fetching and the arithmetic stay
+scripted; only the interpreting moved. The sibling half of that same split,
+`ready-to-merge`, stayed local for the mirror-image reason: a list of approved
+PRs is decided by the search, not by the reader.
 
 ## Stamp it
 
@@ -83,16 +99,22 @@ stamped agent to write it:
 
 ```bash
 # groups/<folder>/plugin-data/community-coding/config.env
-COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep + issue/PR triage
+COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep, issue/PR triage,
+                                                 # contributor-health review
+POSTHOG_PROJECT_ID="12345"                       # optional — posthog-weekly-review
+POSTHOG_HOST="https://us.posthog.com"            # or https://eu.posthog.com
 ```
 
-That is the whole file now. **If you configured this agent before the
-restructure, four keys have moved out of here:** `MIRROR_REPOS`,
-`POSTHOG_PROJECT_ID`, `POSTHOG_HOST` and `GFI_LABEL` all belong to
-`plugin-data/community-local/config.env`, because the tasks that read them
-(`repo-mirror-sync`, `posthog-weekly-review`, `good-first-issue-health`) are the
-local agent's. Setting them here has no effect — nothing in this template reads
-them.
+**If you configured this agent before the restructure, two keys moved out and
+two moved in.** Out: `MIRROR_REPOS` and `GFI_LABEL`, to
+`plugin-data/community-local/config.env`, because `repo-mirror-sync` and
+`good-first-issue-health` are the local agent's now — setting them here has no
+effect. In: `POSTHOG_PROJECT_ID` and `POSTHOG_HOST`, because
+`posthog-weekly-review` is this agent's.
+
+**Set `POSTHOG_HOST` if the project is on EU.** The script defaults to US, so
+an EU project queries the wrong region and reports nothing rather than
+failing loudly.
 
 Every script exits cleanly with `wakeAgent: false, status: "not-configured"`
 when its key is unset — an unconfigured task costs nothing rather than failing.
@@ -123,7 +145,8 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained, read-only** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
 
-This agent needs **no PostHog key and no GA4 access** — it no longer touches
+This agent needs a **PostHog key** (`posthog-weekly-review`) but **no GA4
+access** — GA4 traffic narration is the local agent's. It no longer touches
 either. Those credentials belong to `local/community-local`; see that
 template's README.
 
@@ -137,14 +160,25 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-Both tasks are script-gated, and neither has an ungated wake.
+Every task here is script-gated, and none has an ungated wake.
 `github-ops-triage` wakes only on new or updated issues and PRs;
-`security-advisory-sweep` only on a new alert. Either also wakes when its fetch
-fails outright — a broken fetch must never read as a quiet day. A genuinely
-quiet stretch costs a few API calls per run, not an agent turn.
+`security-advisory-sweep` only on a new alert. Any of them also wakes when its
+fetch fails outright — a broken fetch must never read as a quiet day. A
+genuinely quiet stretch costs a few API calls per run, not an agent turn.
 
-Two gated tasks on Haiku is a small footprint against the shared usage window,
-which is the point of putting the Reviewer on the cheap tier. The costs that
+`contributor-health-review` is the cheapest task here despite being the most
+expensive prompt, because its gate is a comparison rather than a poll. It runs
+weekly and wakes only when one of four things is true: the unmerged ratio or the
+top-author share moved **10 points or more** against last week's stored values;
+it is the **first run** and there is no baseline to diff against; a fetch
+failed; or **90 days** have passed with none of the above, which forces one
+quarterly look so bus-factor risk can't sit unexamined forever. The 10-point
+floor is deliberate — on repos this size a 1–2 point swing is sampling noise,
+and waking a model to narrate noise is how a useful signal becomes something
+the owner learns to skip. A steady quarter costs one wake.
+
+A short list of gated tasks on Haiku is a small footprint against the shared
+usage window, which is the point of putting the Reviewer on the cheap tier. The costs that
 used to be listed here — dev metrics, GFI health, hygiene audit, PostHog,
 mirror sync — are the local agent's now, and they cost memory rather than
 tokens.

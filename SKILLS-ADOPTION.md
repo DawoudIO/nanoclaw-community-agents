@@ -275,12 +275,19 @@ owns **two** tasks, not seven. Realistic wakes per week:
 
 That is ~10–21 wakes/week at ~6.2K context each, with a byte-identical persona
 prefix that caches. On the cheapest model tier it isn't close to noise — it
-*is* noise. The five tasks that used to pad this table
+*is* noise. Four of the tasks that used to pad this table
 (`dev-metrics-report`, `repo-mirror-sync`, `good-first-issue-health`,
-`posthog-weekly-review`, `repo-hygiene-audit`) belong to the local agent now,
-and the two that went to the lead (`daily-github-triage`, `docs-gap-review`)
-are Sonnet-tier by design. Neither set is coding's to save, so neither belongs
-in a table about coding's spend.
+`repo-hygiene-audit`) belong to the local agent now, and the two that went to
+the lead (`daily-github-triage`, `docs-gap-review`) are Sonnet-tier by design.
+Neither set is coding's to save, so neither belongs in a table about coding's
+spend.
+
+`posthog-weekly-review` and `contributor-health-review` DO belong to it, and
+they are the sharpest argument against a local model here: both exist to
+decide *why* a number moved (a defect vs. normal variance; low-quality PRs
+vs. maintainer burnout), which is precisely the reasoning a smaller model does
+worst. They were placed on this tier deliberately, so moving this tier down
+would undo that decision.
 
 **2. The risk was concentrated in exactly the wrong tasks — and that split is
 precisely what shipped.** The old seven divided cleanly into mechanical
@@ -460,7 +467,7 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
 3. Re-run `check-templates.mjs` (frontmatter + no-symlink rules apply to
    vendored skills too) and restamp.
 4. Consider optional `mcp.json` entries: a community GA4 MCP server and
-   PostHog's MCP — **both belong on `local`, not on marketing or coding**.
+   PostHog's MCP — **GA4 on `local`, PostHog on the Reviewer**.
    `weekly-analytics-report` and `posthog-weekly-review` both run there, and
    local is the only agent holding the GA4 and PostHog credentials at all, so
    an entry on any other agent would be an MCP server with nothing to

@@ -35,6 +35,64 @@ group_dir() {
   esac
 }
 
+# Translate a 5-field cron into the words a human uses. Nobody reads
+# "55 10 1 */3 *" and thinks "quarterly", which is why the schedule tables
+# were unreadable even when they were correct.
+cadence() {
+  local mi ho dom mon dow
+  read -r mi ho dom mon dow <<< "$1"
+  local nh nm
+  nm=$(printf '%s' "$mi" | awk -F, '{print NF}')
+  nh=$(printf '%s' "$ho" | awk -F, '{print NF}')
+  case "$mi" in
+    */*) echo "every ${mi#*/} min"; return;;
+  esac
+  if [ "$ho" = "*" ]; then
+    [ "$nm" -gt 1 ] && echo "${nm}× hourly" || echo "hourly"
+    return
+  fi
+  case "$ho" in
+    */*) echo "every ${ho#*/}h"; return;;
+  esac
+  # a specific hour: cadence is set by the day fields
+  case "$mon" in
+    */*) echo "quarterly"; return;;
+  esac
+  if [ "$dom" != "*" ]; then echo "monthly"; return; fi
+  case "$dow" in
+    '*') [ "$nh" -gt 1 ] && echo "${nh}× daily" || echo "daily";;
+    *-*) echo "weekdays";;
+    *,*) echo "twice weekly";;
+    *)   echo "weekly";;
+  esac
+}
+dow_name() {
+  case "$1" in
+    0) echo Sun;; 1) echo Mon;; 2) echo Tue;; 3) echo Wed;;
+    4) echo Thu;; 5) echo Fri;; 6) echo Sat;; *) echo "";;
+  esac
+}
+# Human "when": the clock time plus the day, in UTC.
+when() {
+  local mi ho dom mon dow
+  read -r mi ho dom mon dow <<< "$1"
+  case "$mi" in */*) echo "on the ${mi#*/}-minute mark"; return;; esac
+  if [ "$ho" = "*" ]; then echo ":$(printf '%s' "$mi" | tr ',' '/') each hour"; return; fi
+  case "$ho" in */*) case "$mi" in ''|*[!0-9]*) :;; *) mi=$(printf '%02d' "$mi");; esac; echo "every ${ho#*/}h at :$mi"; return;; esac
+  local t
+  # pad a bare numeric minute so 15:9 reads as 15:09
+  case "$mi" in ''|*[!0-9]*) :;; *) mi=$(printf '%02d' "$mi");; esac
+  t=$(printf '%s' "$ho" | awk -F, -v m="$mi" '{s="";for(i=1;i<=NF;i++){s=s sprintf("%02d:%s",$i,m); if(i<NF) s=s ", "}; print s}')
+  case "$mon" in */*) echo "$t, day $dom every ${mon#*/} months"; return;; esac
+  [ "$dom" != "*" ] && { echo "$t on day $dom"; return; }
+  case "$dow" in
+    '*') echo "$t";;
+    1-5) echo "$t, Mon–Fri";;
+    *,*) echo "$t, $(dow_name "${dow%%,*}")+";;
+    *)   echo "$t, $(dow_name "$dow")";;
+  esac
+}
+
 TOTAL=0; GATED=0; UNGATED=""
 ROWS=""
 for group in support local engineering marketing; do
@@ -50,7 +108,7 @@ for group in support local engineering marketing; do
       gate="no"; UNGATED="$UNGATED $name"
     fi
     TOTAL=$((TOTAL+1))
-    ROWS="$ROWS| \`$name\` | $agent | \`$sched\` | $gate |
+    ROWS="$ROWS| \`$name\` | $agent | **$(cadence "$sched")** | $(when "$sched") | $gate |
 "
   done
 done
@@ -147,8 +205,8 @@ case "$MODE" in
     if [ "$BAD" -eq 0 ]; then echo "task-table check OK: $(counts)"; fi
     exit $BAD;;
   *)
-    echo "| Task | Agent | Schedule (UTC) | Script-gated |"
-    echo "|------|-------|----------------|--------------|"
+    echo "| Task | Agent | Cadence | When (UTC) | Gated |"
+    echo "|------|-------|---------|------------|-------|"
     printf '%s' "$ROWS"
     echo
     echo "_$(counts)_"

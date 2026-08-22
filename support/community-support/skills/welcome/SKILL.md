@@ -95,10 +95,19 @@ pauses tasks in whichever group holds them:
 
 | Goal | If yes, these tasks become eligible |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` *(marketing)* · `draft-cleanup` *(local)* · `social-metrics-snapshot` *(local)* · `weekly-analytics-report` *(local)* · `good-first-issue-health` *(local)* · `repo-hygiene-audit` *(local)* · `dev-metrics-report`'s contributor/concentration sections *(local)* |
-| **Proactive issue detection** — finding problems before users report them | `posthog-weekly-review` *(local)* · `dev-metrics-report` *(local)* · `repo-mirror-sync` *(local)* |
+| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* · `ready-to-merge` *(local)* |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` *(marketing)* · `draft-cleanup` *(local)* · `social-metrics-snapshot` *(local)* · `weekly-analytics-report` *(local)* · `good-first-issue-health` *(local)* · `repo-hygiene-audit` *(local)* · `dev-metrics-report`'s new-contributor and return-nudge sections *(local)* · `contributor-health-review` *(Reviewer)* |
+| **Proactive issue detection** — finding problems before users report them | `posthog-weekly-review` *(Reviewer)* · `dev-metrics-report` *(local)* · `repo-mirror-sync` *(local)* |
 | **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
+
+Two placements in that menu surprise people, so say the reasoning out loud if
+the owner asks. **`ready-to-merge` is a support task**, not a metrics one: an
+approved PR left sitting is a responsiveness failure, and the contributor is
+waiting on a human exactly as a question-asker is — the only difference is that
+this one already did the work. **`contributor-health-review` sits under growth**
+because contributor retention and maintainer load are one problem seen from two
+ends; a close-without-merge rate that keeps climbing costs you the next
+contributor either way.
 
 **Always offered regardless of goals** — these protect the system itself, not
 a goal: `unanswered-watch`, `health-check`, `workspace-backup`,
@@ -128,7 +137,7 @@ Two things to get right here:
 - **Declining a goal never orphans another goal's task.** The local agent is
   the one this matters for, because its 11 tasks span every goal:
   `weekly-analytics-report` and `social-metrics-snapshot` serve growth, while
-  `posthog-weekly-review`, `dev-metrics-report` and `repo-mirror-sync` serve
+  `dev-metrics-report` and `repo-mirror-sync` serve
   *detection*. So if detection is yes and growth is no, the local agent is
   **not** dormant — relay it only the config those active tasks need, and say
   which ones are live. Marketing is the opposite case: it owns exactly one
@@ -241,7 +250,7 @@ Then the rest of what a complete config needs:
   only job. Never an Opus-class model on a scheduled task. Remind the owner:
   cost comes from wakes, not from agents existing — a paused task burns
   nothing, so tune budget by activating fewer tasks, not by deleting agents.
-  And 11 of the 19 tasks sit on the local agent, off the shared meter
+  And 11 of the 21 tasks sit on the local agent, off the shared meter
   entirely, which is why the window mostly goes to answering people
 
 ## 5. Persist — this is the point
@@ -287,7 +296,7 @@ sub-agent writes its own `config.env` + `project-config.md` and confirms.
 A key you don't relay is a feature that silently never runs.
 
 **local** → `plugin-data/community-local/config.env` — **relay this one first.**
-It owns 11 of the 19 tasks, more than the other three combined, so an
+It owns 11 of the 21 tasks, more than the other three combined, so an
 unrelayed key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
@@ -296,8 +305,6 @@ unrelayed key here is the largest single source of "nothing is happening":
 | `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing/wiki, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged. Optional: falls back to `COMMUNITY_REPOS`, so relay it only to mirror *more* than the triaged set |
 | `CONTENT_REPO` | content repo | `draft-cleanup`. Note this key goes to **both** local and marketing, for different tasks |
 | `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report` |
-| `POSTHOG_PROJECT_ID` | project id, or omit | `posthog-weekly-review` |
-| `POSTHOG_HOST` | `https://us.posthog.com` or `https://eu.posthog.com` | **relay this whenever the owner is on EU** — the script defaults to US, so an EU project fails against the wrong region |
 | `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a lead that was about to answer |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
@@ -310,15 +317,18 @@ actually posts in.
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep` — its only two tasks |
+| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review` — all three go quiet without it |
+| `POSTHOG_PROJECT_ID` | project id, or omit | `posthog-weekly-review` |
+| `POSTHOG_HOST` | `https://us.posthog.com` or `https://eu.posthog.com` | **relay this whenever the owner is on EU** — the script defaults to US, so an EU project silently queries the wrong region |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 
 Plus in prose: default branch, label policy, and **`docs_style`** — the
 coding agent's `triage-rules.md` enforces it on every docs issue/PR it
 drafts, so an unrelayed answer means an unconfigured assumption.
 
-It gets **no** `MIRROR_REPOS`, `POSTHOG_*`, or `GFI_LABEL` — those moved to
-the local agent with their tasks. Relaying them here configures nothing.
+It gets **no** `MIRROR_REPOS` or `GFI_LABEL` — those belong to the local
+agent with their tasks. It DOES get `POSTHOG_*`: telemetry review asks whether
+an anomaly is a real defect, which is assessment, so it sits on this tier.
 
 **marketing** → `plugin-data/community-marketing/config.env`:
 

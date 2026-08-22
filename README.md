@@ -33,7 +33,7 @@ which is the load-bearing part of that template.
 
 ## Design principles
 
-- **Scripts do the work; agents do the judgment.** 17 of 19 recurring tasks
+- **Scripts do the work; agents do the judgment.** 19 of 21 recurring tasks
   are script-gated: deterministic fetching, diffing, and thresholds run as
   bash with no model involved, and the agent wakes only when there's
   something to judge. Run `bash scripts/gen-task-table.sh` for the current
@@ -87,6 +87,20 @@ which is the load-bearing part of that template.
 4. **[docs/OPERATIONS.md](docs/OPERATIONS.md)** — day 2 and beyond: models
    and token budget, the full task reference, the **update policy** (SHA-
    pinned image pulls only — see below), and resource budget.
+5. **[docs/REPORTING-STANDARD.md](docs/REPORTING-STANDARD.md)** — the shape
+   every report follows, and why. A maintainer who starts skimming has
+   silently turned the system off, so this is a correctness concern rather
+   than a style guide: verdict line first, at most three exceptions, one
+   rolled-up line for everything that didn't change.
+
+**What runs when** is generated, never hand-written — so it can't drift from
+what actually ships:
+
+```bash
+bash scripts/gen-task-table.sh          # task, agent, cadence, exact UTC time
+bash scripts/gen-task-table.sh --state  # what each task persists: cache vs ledger
+bash scripts/gen-task-table.sh --check  # fails the harness if a doc contradicts it
+```
 
 ## Update policy: SHA-pinned packages only — never `git pull`
 

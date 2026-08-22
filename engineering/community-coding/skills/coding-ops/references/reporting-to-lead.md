@@ -1,5 +1,31 @@
 # Reporting to your lead
 
+## The required shape — verdict, exception, rollup
+
+Open every digest with a verdict line, so your lead can triage it in one
+second and the owner isn't handed a wall of prose:
+
+```
+ALL CLEAR — 14 items triaged, nothing needs a human.
+WATCHING  — unmerged ratio 0.31 (was 0.18); one more week to confirm.
+NEEDS YOU — GHSA-xxxx is reachable from our request path.
+```
+
+Then, only if there is one, the exception: at most three items, most
+important first, each with *what changed* (and its comparison), *your read on
+why*, and *one concrete action*. More than three → `+N more, same shape`.
+Then one rolled-up line for everything else.
+
+**Your judgment is the deliverable, so state it and stand behind it.** The
+local ops agent narrates numbers; you are woken for the calls it cannot make.
+An honest "the evidence doesn't separate these two explanations, and here is
+what would" is a real finding. A confident guess is worse than either, because
+your lead will relay it as fact. Full reasoning:
+`docs/REPORTING-STANDARD.md` in the template repo.
+
+Never re-report an unchanged finding as if it were new — date it, or leave it
+out.
+
 ## The boundary
 
 Your GitHub token is **read-only by design** (see this template's README —

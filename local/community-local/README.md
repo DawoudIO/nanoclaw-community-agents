@@ -41,8 +41,9 @@ local/community-local/
 │       ├── unanswered-watch.md         # the one the north star depends on
 │       ├── repo-mirror-sync.md
 │       ├── dev-metrics-report.md
+│       ├── ready-to-merge.md           # split out of dev-metrics-report:
+│       │                               # approved-and-open PRs, 2×/day
 │       ├── weekly-analytics-report.md
-│       ├── posthog-weekly-review.md
 │       ├── social-metrics-snapshot.md
 │       ├── good-first-issue-health.md
 │       ├── repo-hygiene-audit.md
@@ -115,8 +116,6 @@ MIRROR_REPOS="owner/repo1 owner/repo1.wiki" # repo-mirror-sync; the FULL repo
                                             # Falls back to COMMUNITY_REPOS.
 CONTENT_REPO="owner/marketing"              # optional — draft-cleanup
 GA4_PROPERTY_ID="123456789"                 # optional — weekly-analytics-report
-POSTHOG_PROJECT_ID="12345"                  # optional — posthog-weekly-review
-POSTHOG_HOST="https://us.posthog.com"       # or https://eu.posthog.com
 GFI_LABEL="good first issue"                # optional — only if your repo uses
                                             # a different beginner label
 ACK_GRACE_MINUTES="20"                      # unanswered-watch: how long a
@@ -169,9 +168,10 @@ everything else is rate-limited or down:
 | `unanswered-watch` | none — reads local message state | Survives an outage of the very API it's compensating for |
 | `workspace-backup` | git push only | Local disk → remote, no third-party API |
 
-## Known risk: `dev-metrics-report` is the one oversized prompt here
+## Known risk, now reduced: `dev-metrics-report` is still the largest prompt here
 
-Measure the task prompts and one stands out badly:
+Measure the task prompts before trusting any claim in this section, including
+this one:
 
 ```bash
 for f in ai.nanoco.nanoclaw/tasks/*.md; do
@@ -179,30 +179,56 @@ for f in ai.nanoco.nanoclaw/tasks/*.md; do
 done | sort -rn
 ```
 
-`dev-metrics-report` is ~1,130 words against a median of about 280 — roughly
-**four times** the next largest, with eleven distinct interpretive sections
-(ready-to-merge, first-response backlog, unmerged ratio, return nudges,
-contribution concentration, candidate contributors, degraded repos, …) over
-twenty-plus data fields. Functionally it is several reports wearing one task's
-name.
+**The split happened.** `dev-metrics-report` was ~1,130 words with eleven
+interpretive sections over twenty-plus fields — several reports wearing one
+task's name, on the weakest tier in the system, which is precisely where a long
+conditional prompt fails first. It was split by **capability**, and that is what
+decided who owns each half:
 
-That matters here specifically, because **instruction-following is the first
-capability to degrade on a small model**, and this is the longest conditional
-prompt on the weakest tier in the system. The mitigations already in place are
-real — the gate computes every number, so the model only narrates, and `null`
-means "unavailable, never zero" — but they reduce the risk rather than remove
-it.
+- **The judgment half left this tier.** Unmerged ratio, contribution
+  concentration, and delegation candidates are now
+  `contributor-health-review`, a weekly task on the **Reviewer** (Haiku). Those
+  numbers are arithmetic, but each one is meaningless until somebody decides
+  *why* it moved — a rising unmerged ratio is either incoming low-quality PRs
+  or maintainer burnout, opposite problems with opposite responses behind the
+  same number — and naming a person as a delegation candidate is the last
+  judgment you want on a small model.
+- **The list half stayed here.** Approved-and-open PRs are now
+  `ready-to-merge`, twice daily, still local — because the GitHub search
+  decides what counts as approved, so the output is a list to relay rather than
+  an assessment to make. Capability, not topic, is the line.
 
-Two things follow:
+What's left is pure narration: stars and forks, open issues and PRs, releases,
+`awaiting_first_response`, `new_contributors_7d`, `return_nudges`,
+`degraded_repos`, `quiet_heartbeat`. The prompt is ~740 words, down from
+~1,130.
+
+**It is still the largest prompt on this tier** — roughly 1.8× the next largest
+(`repo-mirror-sync`, ~400 words) against a median near 300 — so it still earns
+week-one attention, just less of it. The standing mitigations are unchanged and
+still load-bearing: the gate computes every number, so the model only narrates,
+and `null` means "unavailable, never zero". One new one worth knowing: the
+return-nudge loop is **capped at 2 checks per repo per run**. It was the one
+serial network path left in an otherwise parallel script, at up to 8s a call
+against a 30s script budget — four contributors entering the nudge window on
+the same day could blow the timeout and kill the script before it printed
+anything, which under this contract means the task silently does nothing. The
+cap is surfaced as `nudges_deferred` so the truncation is never silent, and the
+nudge ledger makes it safe: whoever is skipped today is still in the window
+tomorrow.
+
+Two things still follow:
 
 - **Week one, read this report's output closely** rather than skimming it. It
-  is the most likely place to find a section quietly ignored or two numbers
-  transposed. If that happens, the fix is to split the task, not to switch
-  models: splitting shrinks each prompt to something the tier handles well and
-  lets you pause a section you don't read.
+  is still the likeliest place in this template to find a section quietly
+  ignored or two numbers transposed. If that happens, the fix is to split
+  again, not to switch models.
 - **Don't add to it.** New metrics belong in a new task with its own gate and
-  its own schedule. This is also the general rule for this agent — one task,
-  one question, one short answer.
+  its own schedule — and that rule now has a worked example rather than being
+  advice: the two tasks above came out of exactly this prompt, and the split
+  chose their owning agent by asking whether the output was a list or an
+  assessment. This is the general rule for this agent — one task, one question,
+  one short answer.
 
 By contrast, the other agents' single tasks really are single:
 `content-draft-cycle` is ~170 words with two trigger branches (a release, or

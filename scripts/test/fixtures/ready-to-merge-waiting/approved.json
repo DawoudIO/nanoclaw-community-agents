@@ -1,0 +1,3 @@
+{"total_count": 14, "items":[
+ {"number":101,"title":"Fix login redirect","user":{"login":"contribA"},"html_url":"https://github.com/acme/demo/pull/101","created_at":"2026-08-01T00:00:00Z"},
+ {"number":102,"title":"Add pagination","user":{"login":"contribB"},"html_url":"https://github.com/acme/demo/pull/102","created_at":"2026-08-10T00:00:00Z"}]}

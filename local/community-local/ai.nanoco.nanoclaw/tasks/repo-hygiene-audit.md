@@ -66,15 +66,16 @@ possible values include `code_of_conduct`, `contributing`, `issue_template`,
   CODE_OF_CONDUCT.md means no named process when something goes wrong — and
   a code of conduct needs a *human* responder named in it, which no agent can
   be).
-- For the mechanical ones (issue/PR templates, a CONTRIBUTING skeleton),
-  write the file's full proposed content into your report and hand it to your
-  lead — do NOT try to open a PR. Your token is read-only by design and you
-  have no publish path; the lead (or a human) creates anything that lands.
-  These are the cheapest high-leverage files in the repo, so a complete
-  ready-to-commit draft in the hand-off is the whole contribution.
-- For CODE_OF_CONDUCT.md, recommend the Contributor Covenant and note it
-  requires a real reporting contact (a human, not the bot) before it means
-  anything — that's the owner's call, not a file you can complete for them.
+- **Do not write the files.** These land in the repo under the project's name
+  and are read as the project speaking, which is not yours to do — a
+  CONTRIBUTING.md is the first thing a newcomer reads. Name the absence and
+  its cost; ask your lead to draft the content. (This is a deliberate change:
+  handing over a ready-to-commit draft was faster, but a file written on this
+  tier and committed under the project's name is exactly the risk the never-do
+  list exists for.)
+- For CODE_OF_CONDUCT.md, note only that one is absent and that any code of
+  conduct needs a named *human* reporting contact before it means anything.
+  Which document to adopt is the owner's call — don't name a specific one.
 
 Hand the audit to your lead as one short report, worst repo first. Include
 each repo's `health_percentage` so the owner sees the trend quarter over

@@ -2,7 +2,7 @@
 
 ## Your scripts fetch; you narrate
 
-The `dev-metrics-report` and `posthog-weekly-review` tasks both fetch their data
+The `contributor-health-review` and `posthog-weekly-review` tasks both fetch their data
 in a `script:` gate and hand it to you as `scriptOutput`. Don't re-query what
 you've already been given, and don't invent a number that isn't in there.
 

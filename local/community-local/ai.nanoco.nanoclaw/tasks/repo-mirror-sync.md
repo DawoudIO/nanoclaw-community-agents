@@ -74,13 +74,16 @@ Invoked on a sync failure, or when something in the mirror actually
 changed — a run where nothing moved stays silent.
 
 **`changed`**: for each entry, `files_changed` (up to 20) and `commits` (up
-to 10 subjects) since the last sync. Skim it — this is genuinely "learn
-from the update," not a rubber stamp: does a wiki edit contradict current
-code or a recent release? Does a docs change need a currency check against
-what support has been telling users? Does a product-repo commit touch
-something a recent bug report was about? Flag anything real to your lead;
-most syncs are ordinary and deserve a one-line "nothing notable" at most,
-not a padded readout of every commit message.
+to 10 subjects) since the last sync. **Summarize what changed — do not judge
+whether it is correct.** One line per repo: which areas moved (docs, product
+code, wiki) and anything unusual on its face, like a docs page changing right
+after a release, or a wiki edit touching a file a recent bug report named.
+
+Deciding whether a wiki edit actually *contradicts* the code, or whether a
+docs change makes past support answers stale, is reachability reasoning — that
+belongs to the Reviewer. Surface the coincidence and say you have not assessed
+it; let the Reviewer do that. Most syncs are ordinary and deserve a one-line
+"nothing notable" at most, never a padded readout of every commit message.
 
 **`dirty-tree`**: something modified a mirror directly. Nothing — no task,
 no skill, no live session — should ever write into `repo-mirror/`; it's a
