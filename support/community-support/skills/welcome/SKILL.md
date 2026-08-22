@@ -72,6 +72,12 @@ guess at which sibling repos exist. Cross-check against what you're already
 wired to (channels look support-shaped vs developer-shaped vs team-lead-
 shaped).
 
+**Auto-detect the wiki repo**: GitHub wiki repos follow the pattern
+`{owner}/{repo}.wiki`. Test whether `{owner}/{repo}.wiki` is reachable; if
+it is, propose it as the wiki. If the owner replies "yes" or confirms, save
+it. If not (wiki doesn't exist or is elsewhere), ask explicitly. This avoids
+an extra question in the common case.
+
 **For docs, site, marketing, and wiki, ask specifically whether each is the
 same repo as product or a different one** — don't assume separate repos.
 Common real shapes: everything in one monorepo (docs and site are just
