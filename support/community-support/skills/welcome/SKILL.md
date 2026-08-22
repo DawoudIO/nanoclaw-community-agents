@@ -189,32 +189,16 @@ Record the answers (with audience priorities) in `project-config.md` as the
 "what's not set up" flow, re-running one piece never means redoing this
 interview.
 
-## 4. Confirm and fill the gaps — one compact message
+## 4. Conversational configuration — one question at a time
 
-**Only for the goals chosen above** — skip every bullet whose goal was
-declined. Present the proposal for confirmation and ask only for what you
-couldn't infer. The full list a complete config needs:
+**Conversational approach**: Rather than asking everything at once, ask one question at a time. After each answer, confirm you understood, move to the next, and always give the owner a chance to ask clarifying questions. This creates a more natural interview where corrections are easy and the owner doesn't feel interrogated.
 
-**Ask the timezone question first, before anything else in this step.** It
-governs when every scheduled task fires, so a wrong answer here quietly
-misplaces the entire timetable — and unlike everything else in this
-interview, it is expensive to change: schedules are cron lines in task
-frontmatter, not runtime config. Say plainly: *"Your tasks are scheduled in
-UTC right now. What timezone do you actually work in, and do those times
-suit your day?"*
+**Ask the timezone question first**, before anything else in this step. It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable — and unlike everything else in this interview, it is expensive to change: schedules are cron lines in task frontmatter, not runtime config. Say plainly: *"Your tasks are scheduled in UTC right now. What timezone do you actually work in, and do those times suit your day?"*
 
-- If UTC suits them, or the shipped times already land well in their
-  timezone: record it and move on.
-- If not: the install runbook asks them to fix this **before stamping**, so
-  either it wasn't done or the answer changed. Be honest about the cost now
-  rather than later — changing a schedule after stamping means
-  cancel-and-recreate for each task affected, host-side. Tell them which
-  tasks are at bad local times, offer to list them, and let them decide
-  whether to fix now or live with it. Never quietly accept a mismatch: a
-  digest landing at 3am local is the kind of thing that reads as "this
-  system doesn't work" three weeks in.
+- If UTC suits them, or the shipped times already land well in their timezone: record it and move on.
+- If not: the install runbook asks them to fix this **before stamping**, so either it wasn't done or the answer changed. Be honest about the cost now rather than later — changing a schedule after stamping means cancel-and-recreate for each task affected, host-side. Tell them which tasks are at bad local times, offer to list them, and let them decide whether to fix now or live with it. Never quietly accept a mismatch: a digest landing at 3am local is the kind of thing that reads as "this system doesn't work" three weeks in.
 
-Then the rest of what a complete config needs:
+**Then proceed one question at a time** through the rest of what a complete config needs:
 
 - Repo map: product / docs / site / marketing (any may share a repo or be absent)
 - Docs site URL, primary language, topic scope
@@ -340,12 +324,35 @@ prose. Re-read that file at cold start before asking anything.
 `additional_context` files are read-only at runtime; plugin-data is your
 writable config home.
 
-## 6. Relay sub-agent config
+## 5b. Wire Discord channels (agent autonomy)
 
-Sub-agents never talk to the owner, so their config arrives through you.
-Relay the keys below **by name** over the agent-to-agent destinations; each
-sub-agent writes its own `config.env` + `project-config.md` and confirms.
-A key you don't relay is a feature that silently never runs.
+**Agent autonomy**: Once channel IDs and tier mapping are recorded in
+`project-config.md`, you now have permission to wire the Discord channels
+directly. Do not ask the owner to do this manually. Instead:
+
+1. Read the channel IDs and tier mapping from the recorded config
+2. Configure the agent-to-channel destinations:
+   - **Support tier** (auto-reply): `user-support-chat`, `user-support-questions`, `install-support`
+   - **Developer tier** (mention-only): `dev-chat`, `dev-plugins`, `github-bugs`, `localization`  
+   - **Security tier** (mention-only): `security` channel
+   - **General/Announcements**: `announcements`, `general`
+3. Test that the wiring works by sending a test message to each tier
+4. Report the wiring status to the owner: which channels are live, which routes are working, any issues
+
+If you encounter any configuration errors or channel IDs that don't resolve,
+ask the owner to verify the IDs rather than silently failing.
+
+## 6. Stamp sub-agents and relay their config
+
+**Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
+1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
+2. Relay the config keys listed below to each agent
+3. Report the stamping result and each agent's status to the owner
+
+Sub-agents never talk to the owner, so their config arrives through you. Send the
+keys listed below **by name** over agent-to-agent destinations once stamped; each
+sub-agent writes its own `config.env` + `project-config.md` and confirms. A key
+you don't relay is a feature that silently never runs.
 
 **local** → `plugin-data/community-local/config.env` — **relay this one first.**
 It owns 12 of the 26 tasks, more than the other three combined, so an
