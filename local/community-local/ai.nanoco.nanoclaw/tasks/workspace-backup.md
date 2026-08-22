@@ -1,7 +1,5 @@
 ---
-name: workspace-backup
 schedule: "43 8 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

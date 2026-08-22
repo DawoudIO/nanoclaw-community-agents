@@ -1,7 +1,5 @@
 ---
-name: unanswered-watch
 schedule: "*/10 * * * *"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

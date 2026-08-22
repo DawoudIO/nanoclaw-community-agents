@@ -1,7 +1,5 @@
 ---
-name: good-first-issue-health
 schedule: "16 16 * * 1"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

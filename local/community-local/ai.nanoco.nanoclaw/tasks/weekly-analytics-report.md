@@ -1,7 +1,5 @@
 ---
-name: weekly-analytics-report
 schedule: "19 14 * * 0"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

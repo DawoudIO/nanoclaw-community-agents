@@ -1,7 +1,5 @@
 ---
-name: github-first-response
 schedule: "4,14,24,34,44,54 * * * *"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail

@@ -1,7 +1,5 @@
 ---
-name: health-check
 schedule: "25 */3 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

@@ -1,7 +1,5 @@
 ---
-name: content-draft-cycle
 schedule: "38 13 * * 1-5"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

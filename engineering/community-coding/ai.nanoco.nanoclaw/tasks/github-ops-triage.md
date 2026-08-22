@@ -1,7 +1,5 @@
 ---
-name: github-ops-triage
 schedule: "35 */6 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

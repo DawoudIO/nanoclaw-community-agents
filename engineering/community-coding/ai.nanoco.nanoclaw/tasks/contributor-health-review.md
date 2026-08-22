@@ -1,7 +1,5 @@
 ---
-name: contributor-health-review
 schedule: "26 11 * * 3"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail

@@ -1,7 +1,5 @@
 ---
-name: weekly-identity-integrity-check
 schedule: "45 15 * * 1"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

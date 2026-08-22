@@ -1,7 +1,5 @@
 ---
-name: draft-cleanup
 schedule: "33 17 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

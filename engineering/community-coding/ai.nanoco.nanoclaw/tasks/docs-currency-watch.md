@@ -1,7 +1,5 @@
 ---
-name: docs-currency-watch
 schedule: "29 */6 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail

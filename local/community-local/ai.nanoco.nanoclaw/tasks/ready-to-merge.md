@@ -1,7 +1,5 @@
 ---
-name: ready-to-merge
 schedule: "47 9,17 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail

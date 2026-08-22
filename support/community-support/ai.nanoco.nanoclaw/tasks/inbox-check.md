@@ -1,7 +1,5 @@
 ---
-name: inbox-check
 schedule: "55 6,16 * * *"
-status: paused
 ---
 Check the project's shared inbox and triage what's there. This is your work,
 not a sub-agent's: an inbox is a support channel with a different transport,

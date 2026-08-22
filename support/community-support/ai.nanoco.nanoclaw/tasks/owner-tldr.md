@@ -1,7 +1,5 @@
 ---
-name: owner-tldr
 schedule: "41 */2 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail

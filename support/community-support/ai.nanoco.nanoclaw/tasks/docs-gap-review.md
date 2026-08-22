@@ -1,7 +1,5 @@
 ---
-name: docs-gap-review
 schedule: "15 15 * * 2"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

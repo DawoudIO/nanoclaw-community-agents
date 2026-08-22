@@ -1,7 +1,5 @@
 ---
-name: dependabot-pr-review
 schedule: "11 */6 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail

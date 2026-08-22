@@ -1,7 +1,5 @@
 ---
-name: repo-hygiene-audit
 schedule: "55 10 1 */3 *"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

@@ -1,7 +1,5 @@
 ---
-name: posthog-weekly-review
 schedule: "9 15 * * 1"
-status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

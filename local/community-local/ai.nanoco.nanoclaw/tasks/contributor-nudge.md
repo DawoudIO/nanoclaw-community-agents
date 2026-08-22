@@ -1,7 +1,5 @@
 ---
-name: contributor-nudge
 schedule: "18 9 * * *"
-status: paused
 script: |
   #!/bin/bash
   set -uo pipefail
