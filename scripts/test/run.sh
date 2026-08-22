@@ -536,6 +536,52 @@ assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures fal
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'
 
+# owner-tldr: the digest gate. Empty queue must NOT wake — a quiet day is the
+# common case and must cost nothing.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
+  '.data.status == "nothing-queued"' '' 1
+
+# owner-tldr: three queued entries produce one digest, grouped by source.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+  '(.data.status == "digest-ready")
+   and (.data.total == 3)
+   and (.data.deferred_runs == 0)
+   and (.data.misfiled_present == false)
+   and ([.data.by_source[].source] | sort == ["engineering","local"])' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror synced\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"engineering\",\"severity\":\"attention\",\"line\":\"advisory needs a look\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr, RATE-LIMIT SAFETY — the assertion that matters most here.
+# Simulates the exact state a spent usage window leaves behind: a .processing
+# batch the agent never got budget to post, PLUS new entries that arrived
+# while it was blocked. The gate must FOLD them together (2 + 1 = 3) and
+# report the delay, never drop either side. A usage limit must delay the
+# digest, not lose it.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+  '(.data.total == 3) and (.data.deferred_runs == 1)' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"queued before the limit hit\"}" >> "$D/digest-queue.processing.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"also before\"}" >> "$D/digest-queue.processing.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"marketing\",\"severity\":\"info\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: an entry marked urgent should never be in the queue at all —
+# urgent bypasses it. The gate flags it as a process failure.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+  '(.data.misfiled_present == true) and (.data.misfiled_urgent | length == 1)' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"urgent\",\"line\":\"should have bypassed\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: a malformed line must not lose the batch or break the contract.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+  '.data.status == "queue-unparseable"' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "not json at all\n" >> "$D/digest-queue.jsonl"'
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]

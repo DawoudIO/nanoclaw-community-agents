@@ -249,7 +249,7 @@ task file's frontmatter, the kit pins `TZ=UTC`, and frontmatter is not
 runtime-editable — so after stamping, changing a time means cancel-and-recreate
 per task. The shipped times (see OPERATIONS.md → "Shipped times") are UTC. If
 UTC doesn't suit the owner's working day, edit the `schedule:` lines in your
-local copy of the 21 task files **before** the stamp step below — it's a
+local copy of the 22 task files **before** the stamp step below — it's a
 one-minute edit now versus 19 recreates later. Everything else is collected
 conversationally after wiring; pre-stamp file fill-ins are optional defaults,
 and personas mount read-only once stamped.
@@ -797,7 +797,7 @@ local agent reported receiving.
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 21 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
+| Task schedules (cron lines, all 22 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | The **local** agent's group folder in the sandbox — it owns `workspace-backup` | After stamping, host-side (or ask the lead to relay the request) |
 | Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 

@@ -3,6 +3,63 @@
 Pre-packaged formats so every recurring report reads the same way regardless of
 who ran it or when. Don't improvise a new layout per run.
 
+## The digest queue — how sub-agent reports reach the owner
+
+**Do not relay sub-agent reports to the owner as they arrive.** Twenty-one
+tasks across four agents fire on their own schedules, and forwarding each one
+turns the owner's DM into a notification stream — which is the failure this
+whole system exists to prevent, aimed at the one person it exists to unburden.
+
+When a sub-agent hands you something, append **one line** to
+`plugin-data/community-support/digest-queue.jsonl`:
+
+```json
+{"at": "2026-08-21T14:03:00Z", "source": "local", "severity": "info", "line": "mirror sync: docs repo, 3 commits, nothing notable"}
+```
+
+- `at` — full ISO8601, not a bare date.
+- `source` — the reporting agent: `local`, `engineering`, `marketing`, or
+  `self` for your own findings.
+- `severity` — `info` or `attention`. **Never `urgent`** (see below).
+- `line` — one line. If you can't say it in one line, it probably belongs in
+  the ≤3 items the digest will carry, so write the one line and let
+  `owner-tldr` decide.
+
+The `owner-tldr` task turns the queue into a single daily TLDR. That task is
+the **only** routine path to the owner.
+
+### What bypasses the queue
+
+Send immediately, and do **not** enqueue:
+
+- Anything security- or abuse-shaped.
+- An outage or credential failure that stops work now.
+- Anything needing an owner decision before work can continue.
+- A direct answer to something the owner asked you.
+
+Everything else waits. If you find yourself wanting to send a routine finding
+immediately because it feels important, that is exactly the judgment the
+digest exists to make for you — enqueue it as `attention` and let the digest
+rank it against everything else that day.
+
+Queuing something as `urgent` is a contradiction: urgent things bypass the
+queue. The gate reports any such entry as a process failure, because it means
+the fast path didn't work when it should have.
+
+### Why this also saves tokens, and why it survives a rate limit
+
+Each relayed report is a model wake. Batching a day's reports into one digest
+replaces roughly a dozen wakes with one — the largest single saving available
+on the shared window, and it comes from removing work rather than degrading
+it.
+
+It is also **rate-limit-safe by construction**, which matters because the
+window running out is exactly when you most want to know things. The gate is
+bash and costs nothing, so it keeps running and keeps folding new entries into
+the pending batch even while you have no budget to wake. The first digest
+after the window reopens carries everything, labelled with how long it was
+delayed. A usage limit delays the TLDR; it never loses it.
+
 ## Support conversation summary — batched daily, not per-conversation
 
 After a support conversation in any support-tier channel resolves, do two

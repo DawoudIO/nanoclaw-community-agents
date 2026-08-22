@@ -53,6 +53,7 @@ community-support/
 │       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
 │       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
+│       ├── owner-tldr.md                # the ONE daily digest to the owner
 │       ├── inbox-check.md                             # 2×/day shared-inbox triage, read-and-draft only
 │       └── weekly-identity-integrity-check.md         # asks before it ever locks anything
 ├── skills/
@@ -115,7 +116,7 @@ agent's file, and there are three relays to get right:
 | `engineering/community-coding` | `COMMUNITY_REPOS` |
 | `marketing/community-marketing` | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
 
-The local agent's is by far the largest payload — it owns 11 of the 21 tasks in
+The local agent's is by far the largest payload — it owns 11 of the 22 tasks in
 the set — so it's the relay most likely to end up half-done. Note that
 `CONTENT_REPO` is relayed to **both** local (for `draft-cleanup`) and marketing
 (for `content-draft-cycle`); the same value has to exist in two files.

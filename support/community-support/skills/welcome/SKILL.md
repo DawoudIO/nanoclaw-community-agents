@@ -110,8 +110,17 @@ ends; a close-without-merge rate that keeps climbing costs you the next
 contributor either way.
 
 **Always offered regardless of goals** — these protect the system itself, not
-a goal: `unanswered-watch`, `health-check`, `workspace-backup`,
+a goal: `unanswered-watch`, `owner-tldr`, `health-check`, `workspace-backup`,
 `weekly-identity-integrity-check`.
+
+`owner-tldr` is the one to explain properly, because it changes what the owner
+experiences more than any other task here. Sub-agent reports are **queued, not
+relayed**: each one appends a line to a digest queue, and this task turns a
+day's worth into a single TLDR. Ask the owner what time of day they want it and
+set the cron accordingly — that one answer decides whether this system feels
+like a colleague or a notification stream. Urgent things (security, an outage, a
+decision that blocks work) bypass the queue and arrive immediately; everything
+else waits for the digest.
 
 `unanswered-watch` is the one to never skip. It is the local agent's
 every-10-minutes check that no support message has been sitting unanswered
@@ -250,7 +259,7 @@ Then the rest of what a complete config needs:
   only job. Never an Opus-class model on a scheduled task. Remind the owner:
   cost comes from wakes, not from agents existing — a paused task burns
   nothing, so tune budget by activating fewer tasks, not by deleting agents.
-  And 11 of the 21 tasks sit on the local agent, off the shared meter
+  And 11 of the 22 tasks sit on the local agent, off the shared meter
   entirely, which is why the window mostly goes to answering people
 
 ## 5. Persist — this is the point
@@ -296,7 +305,7 @@ sub-agent writes its own `config.env` + `project-config.md` and confirms.
 A key you don't relay is a feature that silently never runs.
 
 **local** → `plugin-data/community-local/config.env` — **relay this one first.**
-It owns 11 of the 21 tasks, more than the other three combined, so an
+It owns 11 of the 22 tasks, more than the other three combined, so an
 unrelayed key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |

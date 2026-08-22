@@ -33,7 +33,7 @@ which is the load-bearing part of that template.
 
 ## Design principles
 
-- **Scripts do the work; agents do the judgment.** 19 of 21 recurring tasks
+- **Scripts do the work; agents do the judgment.** 20 of 22 recurring tasks
   are script-gated: deterministic fetching, diffing, and thresholds run as
   bash with no model involved, and the agent wakes only when there's
   something to judge. Run `bash scripts/gen-task-table.sh` for the current

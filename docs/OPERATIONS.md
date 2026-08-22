@@ -97,7 +97,7 @@ window**, so budget them together:
 - **Welcome interview**: the biggest single line item — ~15K context per turn
   over 8–15 turns, heavily cache-discounted after the first.
 - **Sub-agent relay + each `setup-check.sh`**: ~2–3 turns each, small.
-- **Gate testing**: of the 19 script-gated tasks, **13 exit `not-configured`
+- **Gate testing**: of the 20 script-gated tasks, **13 exit `not-configured`
   with no model wake at all** on a fresh install — those are free. Of the
   remaining four, `docs-gap-review` exits `no-ledger-yet` (also free, and stays
   that way for weeks), and `health-check` + `unanswered-watch` are local-agent
@@ -120,7 +120,7 @@ persona plus whatever skill loads:
 The local agent is absent from these numbers on purpose, not by oversight:
 its context is loaded into a model running on your own host, so its wakes are
 billed in RAM and wall-clock, never against the shared window. That's 11 of
-the 21 tasks — the bulk of the recurring work — costing zero here. If you want
+the 22 tasks — the bulk of the recurring work — costing zero here. If you want
 to size it, size it against the host (`ollama ps`, memory headroom), which is
 a different measurement with a different unit; don't add it to this column.
 
@@ -142,7 +142,7 @@ scoped to the wrong repo list. Four things that protect the window:
 2. **Use the answers file.** `onboarding-answers.json` collapses an 8–15 turn
    interview into ~2 — on a shared window this is the single largest saving
    available, and it makes a retry nearly free.
-3. **Don't interactively test all 19 gates.** Run the ones you configured;
+3. **Don't interactively test all 20 gates.** Run the ones you configured;
    the rest are provably free and the harness covers their logic.
 4. **Read the docs yourself rather than through the session** — `docs/` +
    PREREQS + README is ~22K tokens of context you don't need to spend.
@@ -156,7 +156,7 @@ Code for anything else that day.**
 
 **Four agents, but only three of them can spend your window.** Burn comes from
 model *wakes*, not from agents existing: a stamped agent whose tasks are paused
-costs nothing. 19 of 21 tasks are script-gated, so quiet periods cost near zero
+costs nothing. 20 of 22 tasks are script-gated, so quiet periods cost near zero
 regardless of agent count. The two highest-frequency gates are also the two
 cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
@@ -231,7 +231,7 @@ Wakes are frequent; premium models belong in interactive sessions, not cron.
 **If you hit the window ceiling** (on a shared subscription this also
 restores your own Claude Code access), the first thing to get right is *which
 tasks are even on that meter*. **Only the cloud-tier tasks can spend it** —
-the lead's 5, everything the Reviewer owns, Marketing's 1. The local agent's 11
+the lead's 6, everything the Reviewer owns, Marketing's 1. The local agent's 11
 tasks bill to RAM, so **pausing them saves nothing on the meter you're trying
 to relieve.**
 This corrects earlier advice in this file that opened with `repo-mirror-sync`
@@ -300,13 +300,14 @@ unconfigured burns turns on every fire. And **"wakes model" means a different
 meter depending on the agent** — a Local-ops wake spends host RAM, never the
 shared Claude window.
 
-**Lead** (`support/community-support`) — 5 tasks, the only agent with a full
+**Lead** (`support/community-support`) — 6 tasks, the only agent with a full
 public voice:
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
 | `daily-github-triage` (weekdays) | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip. **This is the lead's standalone-mode fallback** — leave it paused when the Reviewer is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Reviewer |
 | `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the lead's own `plugin-data/community-support/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
+| `owner-tldr` (daily) | only when the digest queue is non-empty | `jq` only — **no network, no credentials** | safe. This is the ONLY routine path to the owner: sub-agent reports are queued, not relayed, and this turns a day's worth into one TLDR |
 | `inbox-check` (2×/day) | **every run** (ungated) | email MCP + read-only mailbox + allowlist | leave paused |
 | `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
@@ -362,6 +363,7 @@ the round minutes because it's the task the north star depends on:
 | `daily-github-triage` | Lead | **weekdays** | 13:13, Mon–Fri | yes |
 | `docs-gap-review` | Lead | **weekly** | 15:15, Tue | yes |
 | `inbox-check` | Lead | **2× daily** | 06:55, 16:55 | no |
+| `owner-tldr` | Lead | **daily** | 18:12 | yes |
 | `release-announcement-watch` | Lead | **every 3h** | every 3h at :05 | yes |
 | `weekly-identity-integrity-check` | Lead | **weekly** | 15:45, Mon | yes |
 | `dev-metrics-report` | Local ops | **daily** | 12:15 | yes |
@@ -381,7 +383,7 @@ the round minutes because it's the task the north star depends on:
 | `security-advisory-sweep` | Reviewer | **every 4h** | every 4h at :45 | yes |
 | `content-draft-cycle` | Marketing | **weekdays** | 13:38, Mon–Fri | yes |
 
-_21 tasks across 4 agents; 19 script-gated (ungated: inbox-check social-metrics-snapshot)_
+_22 tasks across 4 agents; 20 script-gated (ungated: inbox-check social-metrics-snapshot)_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
 
 **This table is generated — do not hand-edit it.** It was hand-maintained
@@ -568,7 +570,7 @@ refreshes when the issue appears.
 5. **Restore the local tier: host Ollama running, and `ollama pull llama3.2`.**
    Then re-point the local group at it and confirm with its `setup-check.sh`
    that `local_provider_active` reports `ok`. This is the step most likely to
-   be skipped and the most expensive to skip: **11 of the 21 tasks belong to
+   be skipped and the most expensive to skip: **11 of the 22 tasks belong to
    the local agent**, and if the model isn't there — or the group is stamped
    but `ANTHROPIC_BASE_URL` is unset — those tasks are dead or silently back on
    the cloud provider, and **nothing in the system detects it.** A missing
