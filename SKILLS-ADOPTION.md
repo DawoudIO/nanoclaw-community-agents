@@ -137,11 +137,14 @@ output humans read as the project's own voice. Marketing's *mechanical* work
 local agent, which was the correct half to move. What's left is precisely the
 half that shouldn't.
 
-A bigger local model (Qwen3 14B, ~9–16 GB) could plausibly draft acceptably,
-and if you ever want zero cloud dependency that's the shape it would take —
-one larger local model serving both local ops and drafting, rather than
-`llama3.2` plus a second model. But it roughly triples the local footprint to
-save 4–6 cloud wakes a month, which is the wrong trade today.
+A bigger local model could plausibly draft acceptably, and if you ever want
+zero cloud dependency that's the shape it would take — one larger model
+serving both local ops and drafting, rather than `llama3.2` plus a second
+model. On the actual host (a Mac mini) that runs into unified memory: the
+model competes with Docker and the sandbox for one pool, so a 12b draft-
+capable model is a 24 GB-and-up proposition. Spending that to save 4–6 cloud
+wakes a month is the wrong trade today. See
+[INSTALL.md → On a Mac mini specifically](docs/INSTALL.md).
 
 ### Standing rule: provenance before the public voice
 

@@ -181,6 +181,12 @@
     "github_actions_notifications": { "value": null, "_ask": "Set up deterministic label→Discord notifications in CI? See examples/github-discord-notify.yml", "_options": [true, false] },
     "gfi_label": { "value": null, "_ask": "Your beginner-friendly issue label, if it isn't 'good first issue'", "persists_to": "config.env:GFI_LABEL" },
     "shared_inbox": { "value": null, "_ask": "Shared project inbox address, or null. inbox-check stays paused until an email MCP is actually connected." },
+    "local_model": {
+      "value": "llama3.2",
+      "_ask": "Which Ollama model should the always-local ops agent run? Depends on host RAM — see docs/INSTALL.md, 'On a Mac mini specifically'.",
+      "_options": ["llama3.2", "gemma4:12b"],
+      "_note": "On Apple Silicon the model shares unified memory with Docker and the sandbox, so total RAM decides: llama3.2 (~2 GB) for a 16 GB machine, gemma4:12b (~8 GB) from 24 GB up. Only dev-metrics-report really stresses the model — test that one task's rule-following before spending RAM on a bigger model."
+    },
     "ack_grace_minutes": {
       "value": 20,
       "_ask": "How long may a community message go unanswered before the always-local agent posts a holding acknowledgment? (minutes)",

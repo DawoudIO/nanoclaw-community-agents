@@ -28,22 +28,54 @@ script gate exits `not-configured` even if resumed.
 ### Disk and memory — a rough budget, not a measured one
 
 Nobody has published exact numbers for this stack, so treat this as a
-planning budget, then verify for real once it's running — don't take either
-number as promised: **10–15 GB free disk** (the sandbox VM image, the nested
-NanoClaw/OneCLI/Postgres images, three agent containers, plus your own repo
-clones) and **a few GB of RAM headroom** beyond your normal usage while the
-sandbox is up (Postgres, the gateway, and up to three agent containers can
-run concurrently, though idle/gated agents use very little). After first
-boot, get real numbers instead of guessing further:
+planning budget and verify once it's running. Two parts now: the sandbox, and
+the local model the always-local ops agent runs on.
+
+**The sandbox**: **10–15 GB free disk** (the VM image, the nested
+NanoClaw/OneCLI/Postgres images, the agent containers, plus your repo clones
+and mirrors) and **a few GB of RAM** while it's up (Postgres, the gateway,
+and up to four agent containers, though idle/gated agents use very little).
+
+**The local model** adds its own footprint on top — and on Apple Silicon
+that's the number that actually binds.
+
+#### On a Mac mini specifically
+
+Apple Silicon uses **unified memory**: the model and Docker draw from the
+*same* pool. There is no separate VRAM to hide in, so a model that "fits in
+16 GB" on paper is competing directly with Docker Desktop, the sbx VM, its
+nested daemon, Postgres, and the agent containers. That's the trap — plan
+against total RAM, not against the model size alone.
+
+| Mac mini RAM | Recommended local model | Reasoning |
+|---|---|---|
+| **16 GB** | **`llama3.2`** (~2 GB) | The sandbox stack wants most of what's left. A 2 GB model leaves the machine usable. This is the default for good reason |
+| **24 GB** | `gemma4:12b` (~8 GB) becomes viable | Google-published with by far the largest install base on Ollama, and 12b follows the longer conditional prompts (like `dev-metrics-report`'s) far more reliably than 2b |
+| **32 GB+** | `gemma4:12b` comfortably | 27–30b models (qwen3, nemotron, muse-glimmer) fit on disk but still crowd unified memory once Docker is up — the gain over 12b isn't worth it for narration work |
+
+The good news: Apple Silicon runs this well. Metal acceleration plus unified
+memory means no PCIe transfer penalty, so a Mac mini is a genuinely sound
+host — the constraint is just how much RAM you bought.
+
+**Which local tasks actually stress the model**: only
+`dev-metrics-report`, whose prompt is ~1,130 words of conditional rules.
+Everything else is listing and short narration that a 2 GB model handles.
+So the honest test after install is: run `dev-metrics-report` once and check
+whether it kept every rule (degraded repos first, `null` ≠ zero, the ratio
+sample floor). If it drops rules on `llama3.2` and you have the RAM, that's
+your reason to move up — not a benchmark.
+
+After first boot, get real numbers instead of guessing further:
 
 ```bash
-docker system df      # actual image/volume disk usage
-docker stats           # live memory/CPU per running container
+docker system df                       # actual image/volume disk usage
+docker stats                            # live memory/CPU per container
+ollama ps                               # what the model is actually holding
 ```
 
-If disk is tight, the biggest lever is the agent containers themselves — you
-only need one running per stamped template, and paused tasks don't spin
-anything up.
+If memory is tight, the levers in order: pause optional tasks, run one agent
+container at a time, then drop to a smaller model. Deleting an agent is the
+last resort, not the first.
 
 ### Tokens / keys — how to get each one
 
