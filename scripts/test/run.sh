@@ -267,6 +267,26 @@ for group in local engineering marketing; do
 done
 [ "$COMMENTERS" -eq 0 ] && pass || fail "sub-agent task(s) instruct posting a public comment — conversation is the lead's, and their tokens cannot do it anyway"
 
+# --- 1j. every `references/...md` a prompt points at must exist ------------
+# Moving craft rules out of a prompt into a skill reference cuts per-wake cost,
+# but it makes the POINTER load-bearing: a wrong path doesn't error, the agent
+# just never reads the guidance and quietly does a worse job. Nothing else in
+# this suite would catch that.
+BADREF=0
+for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md "$ROOT"/*/*/ai.nanoco.nanoclaw/context/instructions.md; do
+  [ -f "$md" ] || continue
+  tpl=$(cd "$(dirname "$md")" && cd .. && pwd)          # .../ai.nanoco.nanoclaw
+  root=$(dirname "$tpl")                                 # the template root
+  for ref in $(grep -ohE '(references|skills)/[A-Za-z0-9._/-]+\.md' "$md" | sort -u); do
+    found=0
+    for cand in "$root/$ref" "$root"/skills/*/"$ref" "$root/skills/$ref"; do
+      [ -f "$cand" ] && { found=1; break; }
+    done
+    [ "$found" -eq 1 ] || { echo "  dangling reference in ${md#"$ROOT"/}: $ref"; BADREF=1; }
+  done
+done
+[ "$BADREF" -eq 0 ] && pass || fail "task prompt(s) point at a reference file that does not exist — the agent silently never reads it"
+
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.
 # assert_gate <script> <scenario-name> <expected-wakeAgent|any> <config-env-content>

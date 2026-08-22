@@ -204,99 +204,56 @@ script: |
     "$REASON" "$TOTAL" "$ATTENTION" "$HOUR_NOW" "$OWNER_TZ" "$TZ_OK" "$OLDEST" "$AGE_H" "$DEFERRED" "$BY_SOURCE" "$MISFILED" "$HAS_MISFILED"
 ---
 
-**One message a day, at 07:00 the owner's local time. This is the only routine
-report they get.**
+**One message a day, at 07:00 the owner's local time — the only routine report
+they get.** Everything the sub-agents produced since the last digest is in
+`by_source`, grouped and counted.
 
-It lands at the start of their day on purpose — awake, at a desk, able to act.
-So write it as a morning brief covering what happened since yesterday, not as
-an end-of-day wrap-up.
+**The shape, in full:** a verdict line (`ALL CLEAR` / `WATCHING` / `NEEDS YOU`)
+plus the single most important fact → at most **three** items that matter, each
+with its comparison and one action → **one** rolled-up line for everything
+steady. Under ~200 words. Never organised by agent.
 
-Everything the sub-agents produced since the last digest is in
-`scriptOutput.by_source`, already grouped by agent and counted. Your job is to
-turn it into a single TLDR the owner can read in under a minute — not a
-concatenation of what each agent said.
+**Read `references/owner-digest.md` before writing.** It carries the craft: why
+07:00 changes the wording, how to rank, and the rule that makes this work —
+this is the one task explicitly asked to **drop** things. Fourteen "mirror
+synced, nothing notable" entries are fourteen queue lines and zero digest lines.
+A digest that lists everything has failed at its only job.
 
-**If `status` is `nothing-queued`** you were not woken. Nothing to do.
+## The branches
 
-**If `tz_resolved` is `false`**, the configured `OWNER_TZ` could not be
-resolved and this digest is running on UTC instead of the owner's local time —
-so "07:00" is not their 07:00. Say so in one line: it is a small, real
-misconfiguration that quietly moves every future digest, and the fix is a valid
-IANA zone name (`Europe/Berlin`, not `UTC+1`) in `config.env`.
+**`nothing-queued`** — you were not woken. Nothing to do.
 
-**If `status` is `queue-unparseable`**: summarize what you can from
-`raw_head`, say plainly that some entries could not be read, and note the
-queue clears on the next run so nothing accumulates. Don't try to repair the
-file.
+**`queue-unparseable`** — summarize what you can from `raw_head`, say plainly
+that some entries could not be read, and note the queue clears next run so
+nothing accumulates. Don't try to repair the file.
 
-## The shape
+**`trigger`** tells you which tier woke you:
+- `routine` — the 07:00 brief.
+- `escalated` — something marked `attention` jumped the queue during the
+  owner's waking hours. Lead with it and say why it couldn't wait.
+- `overdue` — the morning slot was missed entirely.
 
-Follow `references/report-formats.md`, with the whole digest under ~200 words:
+**`deferred_runs > 0`** — previous digests never reached the owner (usually a
+spent usage window) and this is the accumulation. Nothing was lost, it was
+delayed: say so in one clause up front, because a delay and a quiet period look
+identical from outside. See the reference for how to write a late one.
 
-1. **Verdict line.** `ALL CLEAR` / `WATCHING` / `NEEDS YOU`, plus the single
-   most important fact across everything.
-2. **At most three items that matter**, each one line, each naming what
-   changed and what to do. Not three per agent — three total.
-3. **One rollup line** for the rest: *"plus 9 routine items across mirrors,
-   metrics and hygiene — nothing needed."*
+**`oldest_age_hours` > ~26 with `deferred_runs` at 0** — the queue is filling
+but this task isn't delivering. That's a wiring problem, not a busy week.
 
-Never organise the digest by agent. The owner does not care which agent
-noticed something; they care what needs them. `by_source` is grouped for your
-convenience in reading it, not as an output template.
+**`misfiled_present: true`** — something was queued as `urgent`. Urgent is
+supposed to bypass this queue and arrive immediately, so this is a process
+failure, not a routing detail. Lead with the item, then note in one clause that
+it should have arrived immediately — the fast path may be broken.
 
-## Judgment, not aggregation
-
-This is the one task where you are explicitly asked to **drop things**. A
-sub-agent reporting "mirror synced, nothing notable" 14 times is 14 queue
-entries and zero digest lines. If nothing in the whole batch needs the owner,
-the correct output is one line: `ALL CLEAR — 12 routine items, nothing needs
-you.` A digest that lists everything has failed at its only job.
-
-Rank by *what happens if the owner never sees it*. An approved PR sitting 30
-days outranks a follower count. A degraded fetch outranks both, because it
-means we are blind rather than fine.
-
-## When the digest is late — `deferred_runs` and `oldest_age_hours`
-
-`deferred_runs > 0` means one or more previous digests never reached the
-owner, and this batch is the accumulation. The usual cause is the usage window
-running out: the gate is bash and costs nothing, so it kept running and kept
-folding new entries in, but there was no budget left to wake you. **Nothing
-was lost — it was delayed.**
-
-Say so in one clause, up front: *"covering 3 days (digest was delayed by
-usage limits)."* The owner needs to know the gap was a delay and not a quiet
-period, because those two look identical from the outside and only one of them
-is fine.
-
-**A backlog is not permission to write more.** A three-day batch gets the same
-≤3 items and the same ~200 words as a one-day batch — arguably fewer, since
-older routine entries have aged into irrelevance. Prefer "the two things that
-still matter from the last 3 days" over a chronological catch-up. If something
-in the backlog needed the owner two days ago and still does, that is the
-verdict line.
-
-`oldest_age_hours` above roughly 26 with `deferred_runs` at 0 means the queue
-is filling but this task isn't delivering — flag that as a wiring problem, not
-a busy week.
-
-`trigger` tells you which tier woke you. `routine` is the 07:00 brief.
-`escalated` means something marked `attention` jumped the queue during the
-owner's waking hours — lead with it and say why it couldn't wait.
-`overdue` means the morning slot was missed entirely.
-
-## `misfiled_present`
-
-True means something was queued with severity `urgent`. Urgent findings are
-supposed to bypass this queue and go straight to the owner when they happen —
-so this is a real process failure, not just a routing detail. Lead the digest
-with the item itself, then say in one clause that it should have arrived
-immediately, so the owner knows the fast path may be broken.
+**`tz_resolved: false`** — `OWNER_TZ` could not be resolved, so this ran on UTC
+and "07:00" is not their 07:00. One line: the fix is a valid IANA zone name
+(`Europe/Berlin`, not `UTC+1`) in `config.env`.
 
 ## After you post
 
 Delete `plugin-data/community-support/digest-queue.processing.jsonl`. The gate
-deliberately does not clear it for you: if this session dies before posting,
-that file is the only copy of the batch, and the next run folds it back in.
-Deleting it is your confirmation that the digest actually reached the owner —
-so delete it **after** sending, never before.
+deliberately does not clear it: if this session dies before posting, that file
+is the only copy of the batch and the next run folds it back in. Deleting it is
+your confirmation the digest reached the owner — so delete it **after** sending,
+never before.
