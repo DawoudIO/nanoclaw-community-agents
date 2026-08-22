@@ -114,10 +114,10 @@ Each agent:
 **Agent autonomy**: The lead agent wires Discord channels directly based on channel IDs you provided during onboarding.
 
 Routing:
-- **Support tier** (auto-reply): user-support-chat, user-support-questions, install-support
-- **Developer tier** (mention-only): dev-chat, dev-plugins, github-bugs, localization
-- **Security tier** (mention-only): security channel
-- **General**: announcements, general
+- **Support tier** (auto-reply): support-chat, support-questions, support-install, support-localization
+- **Developer tier** (mention-only): dev-chat, dev-plugins, dev-bugs
+- **Security tier** (mention-only): security
+- **General/Announcements**: announcements, general
 
 Lead agent tests each route and reports status.
 
