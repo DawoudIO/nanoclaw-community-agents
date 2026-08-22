@@ -1,5 +1,7 @@
 ---
+name: release-announcement-watch
 schedule: "5 */3 * * *"
+status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

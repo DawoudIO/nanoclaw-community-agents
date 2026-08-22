@@ -1,5 +1,7 @@
 ---
+name: daily-github-triage
 schedule: "13 13 * * 1-5"
+status: paused
 script: |
   #!/bin/bash
   set -euo pipefail

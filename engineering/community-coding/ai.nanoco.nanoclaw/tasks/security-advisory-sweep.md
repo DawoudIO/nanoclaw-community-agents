@@ -1,5 +1,7 @@
 ---
+name: security-advisory-sweep
 schedule: "45 */4 * * *"
+status: paused
 script: |
   #!/bin/bash
   set -euo pipefail
