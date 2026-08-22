@@ -29,7 +29,7 @@ is aimed at catching that mistake *before* it happens, not after.
 | Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Content repo only, Contents+PRs read/write |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
 | PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`). **Belongs to the Reviewer (`engineering/community-coding`)** (`posthog-weekly-review`) — no other agent should be able to reach it |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Reviewer (`engineering/community-coding`)** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
+| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Local ops agent (`local/community-local`)** (`weekly-analytics-report`) — no other agent should be able to reach it |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
 
@@ -189,9 +189,7 @@ Still **not** `MIRROR_REPOS`. Mirroring is the
 local agent's job, so a mirror-only repo on this token is access nothing here
 uses, and unused access is exactly what §3's audit exists to catch.
 
-Three tasks now sit on this token (`github-ops-triage`,
-`security-advisory-sweep`, `posthog-weekly-review`, `contributor-health-review`
-— four, with PostHog on its own non-GitHub host). If you are re-cutting this
+These tasks use this GitHub token (`github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`); `posthog-weekly-review` runs on its own PostHog credential (a separate non-GitHub host). If you are re-cutting this
 token against an older copy of this doc that said "read-only, no write of any
 kind", that changed deliberately: the Reviewer drafts security patches now.
 

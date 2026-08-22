@@ -453,16 +453,14 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
    - **lead** — triage/support (`ticket-triage`, `customer-escalation`) +
      `security-review`.
    - **local** — the analyst pair (`pipeline-check`, `report-spec`) and
-     google's `google-analytics-data-api-basics`. All three follow the tasks
+     google's `google-analytics-data-api-basics`. These follow the tasks
      that read telemetry, and those are local's now: `dev-metrics-report`,
-     `posthog-weekly-review`, `weekly-analytics-report`. "Exit-code-zero isn't
+     `weekly-analytics-report`. "Exit-code-zero isn't
      healthy" and metric definitions are exactly the guardrails a small model
      narrating numbers needs.
    - **marketing** — coreyhaines subset + `brand-voice-enforcement` /
      `draft-content`. One task, so keep this set tight.
-   - **coding** — trailofbits (`semgrep`, `sharp-edges`) + `ghsa`, matching its
-     two remaining tasks. The analyst pair used to be listed here; it isn't
-     coding's work any more.
+   - **coding** — trailofbits (`semgrep`, `sharp-edges`) + `ghsa`, matching its tasks including `posthog-weekly-review`. The analyst pair used to be listed here; it isn't coding's work any more.
 2. Prefer the analyst template's many-small-skills layout over one mega-skill.
 3. Re-run `check-templates.mjs` (frontmatter + no-symlink rules apply to
    vendored skills too) and restamp.
