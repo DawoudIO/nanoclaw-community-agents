@@ -66,7 +66,7 @@ CODE_KEYS=$(
     # truncates at the digit; catch it (and any other digit-bearing key)
     # by name instead.
     grep -rhoE '\b(GA4_PROPERTY_ID)\b' "$ROOT"/scripts/tasks/*/*.sh "$ROOT"/*/*/setup-check.sh 2>/dev/null
-  } | sort -u | grep -vE '^(FAILED|SINCE|TRUNC|ISSUES|STUCK|GA|DATA|REPOS|TMP|HIST|OLD|NEW|ALL|DIGEST|CHANGED|WAKE|PREV|TODAY|LEAKS|CODE|FILE|EXTRA|EXAMPLE|ROOT|FAIL|PROC|QUEUE|DEFER_F)$' \
+  } | sort -u | grep -vE '^(FAILED|SINCE|TRUNC|ISSUES|STUCK|GA|DATA|REPOS|TMP|HIST|OLD|NEW|ALL|DIGEST|CHANGED|WAKE|PREV|TODAY|LEAKS|CODE|FILE|EXTRA|EXAMPLE|ROOT|FAIL|PROC|QUEUE|DEFER_F|NO_LEDGER)$' \
     | grep -vE '^ANTHROPIC_'
 )
 

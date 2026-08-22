@@ -114,71 +114,24 @@ script: |
         fi
       fi
 
-      # Return-nudge: research shows the steepest contributor drop-off is in
-      # the first 30 days, and re-engagement is rare after 90 — so a
-      # contributor whose first-ever contribution landed 20-30 days ago,
-      # with no second one yet, is in the single highest-leverage window for
-      # a maintainer to personally follow up. Checked once per contributor
-      # (nudge-sent ledger, so it fires exactly once, not daily), and only
-      # for names that just entered the window — a handful of extra calls on
-      # a normal day, not a scan of the whole contributor history.
-      #
-      # CAPPED AT 2 PER REPO PER RUN. This is the one serial network path left
-      # in an otherwise fully parallel script, and each call costs up to 8s
-      # against a 30s script budget — four contributors entering the window on
-      # the same day would blow the timeout and the script would be killed
-      # before printing anything at all, which under this contract means the
-      # task silently does nothing. The nudge-sent ledger makes the cap safe:
-      # whoever is skipped today is still in the window tomorrow.
-      NUDGES="[]"
-      NUDGE_CHECKS=0
-      NUDGE_DEFERRED=0
-      NUDGE_SEEN="$DATA/nudge-sent-$SAFEREPO.txt"
-      touch "$NUDGE_SEEN"
-      if [ -f "$KNOWN" ]; then
-        while IFS=, read -r UNAME UDATE; do
-          [ -z "$UNAME" ] && continue
-          [ -z "$UDATE" ] && continue
-          [ "$UDATE" = "seeded" ] && continue
-          if grep -qxF "$UNAME" "$NUDGE_SEEN" 2>/dev/null; then continue; fi
-          UEPOCH=$(date -u -d "$UDATE" +%s 2>/dev/null || date -u -j -f %Y-%m-%d "$UDATE" +%s 2>/dev/null || echo "")
-          [ -z "$UEPOCH" ] && continue
-          AGE_D=$(( (NOW_EPOCH - UEPOCH) / 86400 ))
-          if [ "$AGE_D" -ge 20 ] && [ "$AGE_D" -le 30 ]; then
-            if [ "$NUDGE_CHECKS" -ge 2 ]; then
-              NUDGE_DEFERRED=$((NUDGE_DEFERRED+1))
-              continue
-            fi
-            NUDGE_CHECKS=$((NUDGE_CHECKS+1))
-            CNT=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
-              "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:merged+author:$UNAME&per_page=1" 2>/dev/null \
-              | jq '.total_count // "parse-error"' 2>/dev/null || echo parse-error)
-            case "$CNT" in ''|*parse-error*) continue;; esac
-            echo "$UNAME" >> "$NUDGE_SEEN"
-            if [ "$CNT" -le 1 ]; then
-              NUDGES=$(jq -c -n --argjson a "$NUDGES" --arg u "$UNAME" --arg d "$UDATE" --argjson ad "$AGE_D" \
-                '$a + [{username: $u, first_contribution: $d, days_ago: $ad}]')
-            fi
-          fi
-        done < "$KNOWN"
-      fi
+      # Return-nudge lived here and moved to `contributor-nudge`: it was the one
+      # serial network path in this otherwise parallel script, and because it
+      # printed from the same statement below, a slow nudge check took the whole
+      # metrics report down with it. It also reads the ledger this task WRITES
+      # (known-contributors-<repo>.txt), which is why the write above stays here.
 
-      printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}, "return_nudges": %s, "nudges_deferred": %s}\n' \
-        "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" "$NUDGES" "$NUDGE_DEFERRED" > "$TMP/$i.json"
+      printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}}\n' \
+        "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" > "$TMP/$i.json"
     ) &
     i=$((i+1))
   done
   wait
-  # return_nudges is a live-right-now list, not a trend field — reported fresh
-  # every run and never persisted into the 30-day metrics history (a stale name
-  # in history would be misleading once the person has contributed again).
   #
   # Approved-PR and maintainer-load signals used to live here too. They moved:
   # ready-to-merge to its own local task (time-sensitive, needs its own
   # cadence), and contributor-health-review to the Reviewer (its numbers are
   # meaningless without a judgment this tier must not make).
   TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {stars, forks, open_issues, open_prs, releases, new_contributors_7d, awaiting_first_response}}) | add // {}')
-  ALL_NUDGES=$(cat "$TMP"/*.json | jq -c -s '[.[] | {repo, nudges: .return_nudges, deferred: .nudges_deferred}] | map(select((.nudges | length > 0) or (.deferred > 0)))')
   rm -rf "$TMP"
   jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
     '. + [{date: $d, metrics: $m}] | .[-30:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
@@ -201,8 +154,8 @@ script: |
 
   # Wake gate: history is written every day regardless (continuous trend
   # data), but the AGENT only needs to spend tokens writing a report when
-  # there's something actionable — a new contributor, a return-nudge window,
-  # an approved PR sitting idle, a degraded fetch, or an issue/PR count that
+  # there's something actionable — a new contributor, a degraded fetch, or an
+  # issue/PR count that
   # actually moved. Cosmetic stars/forks drift alone doesn't justify a daily
   # wake. A 7-day heartbeat forces a wake even on a fully quiet stretch, so
   # the channel never goes silent long enough to look like the task died.
@@ -213,7 +166,6 @@ script: |
       ($p[.key].open_prs // null) as $prevop |
       (.value.open_issues != $prevoi) or (.value.open_prs != $prevop)
     ))')
-  HAS_NUDGES=$(printf '%s' "$ALL_NUDGES" | jq 'length > 0')
   LASTWAKE_F="$DATA/dev-metrics-last-wake"
   DAYS_SINCE_WAKE=999
   if [ -f "$LASTWAKE_F" ]; then
@@ -221,13 +173,13 @@ script: |
     DAYS_SINCE_WAKE=$(( (NOW_EPOCH - LW_EPOCH) / 86400 ))
   fi
   WAKE=false
-  if [ "$NOTABLE" = "true" ] || [ "$HAS_NUDGES" = "true" ] || [ "$HAS_DEGRADED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
+  if [ "$NOTABLE" = "true" ] || [ "$HAS_DEGRADED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
     WAKE=true
     date -u +%Y-%m-%d > "$LASTWAKE_F"
     printf '%s' "$TODAY" > "$LASTREP_F"
   fi
-  printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "return_nudges": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}\n' \
-    "$WAKE" "$TODAY" "$PREV" "$ALL_NUDGES" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_NUDGES" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"
+  printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}\n' \
+    "$WAKE" "$TODAY" "$PREV" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"
 ---
 Write the daily dev metrics section for your lead agent's dev-facing report,
 using `scriptOutput.today` and `scriptOutput.previous` (the prior run's
@@ -276,17 +228,10 @@ or a growing oldest-age is the signal worth flagging, since slow first
 response is the single most evidence-backed predictor of a new contributor
 never coming back.
 
-**`return_nudges`** flags contributors whose first-ever contribution landed
-20-30 days ago with no second one yet — the highest-leverage window for a
-maintainer to personally reach out (research: this is where most one-time
-contributors are lost, and re-engagement is rare after 90 days). Its shape:
-`[{repo, nudges: [{username, first_contribution, days_ago}]}]` — the people
-are inside each entry's `nudges` list. Each name appears exactly once, ever —
-surface it plainly to your lead as a suggested personal outreach, not a
-metric to trend. Only contributors whose first contribution happened *after*
-this system was installed can appear here (the bootstrap ledger has no real
-dates for pre-existing contributors), so expect it empty for the first few
-weeks — that's by design, not a bug.
+**Not yours:** first-contributor re-engagement. The 20–30 day nudge window
+moved to `contributor-nudge` — it is a list of people to follow up with, not a
+metric, and it ran on the one serial network path that could take this whole
+report down with it.
 
 **Not yours either:** contribution concentration, the unmerged-PR ratio, and
 delegation candidates — the Reviewer's `contributor-health-review` owns those,

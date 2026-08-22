@@ -117,7 +117,7 @@ agent's file, and there are three relays to get right:
 | `engineering/community-coding` | `COMMUNITY_REPOS` |
 | `marketing/community-marketing` | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
 
-The local agent's is by far the largest payload — it owns 11 of the 24 tasks in
+The local agent's is by far the largest payload — it owns 12 of the 26 tasks in
 the set — so it's the relay most likely to end up half-done. Note that
 `CONTENT_REPO` is relayed to **both** local (for `draft-cleanup`) and marketing
 (for `content-draft-cycle`); the same value has to exist in two files.

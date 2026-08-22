@@ -150,40 +150,22 @@ Record the verdict as **confirmed**, **downgraded** or **not-applicable**,
 always with the reason. `not-applicable` is a real and valuable answer;
 inflating everything to critical is how a security channel gets muted.
 
-## 2. If it is a true risk — review the fix, or draft one
+## 2. If it is a true risk, make sure a fix exists
 
 **Check `has_fix_pr` first.** Dependabot usually fixes what it reports: with
 security updates enabled it opens the bump PR itself, and the gate has already
 correlated its open PRs to these alerts by package name. Opening your own branch
 for a fix that already exists gives the maintainer two PRs for one CVE.
 
-### 2a. `has_fix_pr: true` — review Dependabot's diff
+### `has_fix_pr: true` — someone else is already fixing it
 
-This is the common path, and reviewing is the more valuable job anyway.
-`dependabot_pr` has the number, url, from/to versions, and `bump` is the semver
-delta. **Make the impact clear** — that is the whole deliverable, because
-Dependabot tells you a version changed and says nothing about what it means
-here:
+Record it and move on. **Do not open a second branch**, and do not review the
+diff here — reviewing Dependabot's proposal is `dependabot-pr-review`'s job,
+which is a separate task precisely so this one stays about "are we affected"
+rather than also becoming "is that bump safe". Note in your report that the
+advisory is covered by PR #N so the owner can see it is handled.
 
-- **`bump: "major"` is the headline.** A major version inside a security PR is
-  a breaking change wearing a security label. Read the release notes between the
-  two versions and say what breaks. `major_bumps` counts these; they are the
-  ones that sit unmerged for weeks because nobody knew what they'd cost.
-- **Do we even call the affected code?** Same reachability question as above.
-  You have no local mirror — read the relevant files via the API, or ask your
-  lead to have the local agent grep its mirror. "We import this package in two
-  places, neither touches the vulnerable API" is the most useful sentence you
-  can write.
-- **Read the actual diff**, not just the title. A lockfile-only change is
-  routine; a bump that also drags in transitive majors is not.
-- **Verdict**: safe to merge / merge but expect breakage in X / do not merge
-  yet, needs a human decision on Y. Say what you checked and what you didn't —
-  you have not run the tests.
-
-You cannot comment on the PR, and that is deliberate: PR conversation is the
-lead's. Hand it your review and let the lead post it.
-
-### 2b. `has_fix_pr: false` — draft it yourself
+### `has_fix_pr: false` — draft it yourself
 
 **You draft a patch PR. This is the one place you write.** Move the advisory
 out of triage and into a reviewable change — a report saying "you should
@@ -226,10 +208,10 @@ losses.
 
 ## Routing
 
-Hand your lead: the verdict per advisory, your review of any Dependabot PR
-(with the merge recommendation), the draft PR links for ones you created, and
-anything you declined to patch with the reason. Lead with `major_bumps` if any —
-those are the ones that stall. A `critical` or `high` with a **confirmed**
+Hand your lead: the verdict per advisory, which ones are already covered by a
+Dependabot PR (number only — the review comes from `dependabot-pr-review`),
+the draft PR links for ones you created, and anything you declined to patch
+with the reason. A `critical` or `high` with a **confirmed**
 verdict and runtime scope is owner-urgent — it bypasses the daily digest.
 Everything downgraded or not-applicable rides the normal digest.
 

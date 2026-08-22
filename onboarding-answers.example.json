@@ -398,6 +398,18 @@
         "no-agent-drafts-instead -> no Dependabot PR exists, so the Reviewer drafts the branch and a draft PR itself for confirmed advisories with a patched version available.",
         "Recommended: enable it. Dependabot's own bump is more reliable than an agent reconstructing one, and it leaves the agent doing the part it is actually good at — judging whether the change is safe and whether we were ever affected."
       ]
+    },
+    "dependabot_review_max": {
+      "value": 8,
+      "_ask": "Max Dependabot PRs to review per run (default 8). Raise it only if the project routinely has more than that open.",
+      "persists_to": "config.env:DEPENDABOT_REVIEW_MAX",
+      "_note": "Reviewer only, dependabot-pr-review. Nothing is dropped — the rest surface next run and the count is reported as `deferred`, so a pile-up of unreviewed bumps is visible rather than silent. The review ledger keys on PR number + head SHA, so a rebased PR comes back for re-review instead of being remembered as done."
+    },
+    "nudge_max_checks": {
+      "value": 4,
+      "_ask": "Max first-time contributors to check per run for the re-engagement window (default 4).",
+      "persists_to": "config.env:NUDGE_MAX_CHECKS",
+      "_note": "Local agent, contributor-nudge. Each check is one serial API call, so the cap bounds the runtime — this loop is why the nudge window was split out of dev-metrics-report, where a slow run took the whole metrics report down with it. Nobody is lost: whoever is skipped is still inside the 20-30 day window tomorrow, and the count is reported as `deferred`."
     }
   }
 }

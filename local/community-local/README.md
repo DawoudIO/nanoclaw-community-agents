@@ -41,6 +41,7 @@ local/community-local/
 │       ├── unanswered-watch.md         # the one the north star depends on
 │       ├── repo-mirror-sync.md
 │       ├── dev-metrics-report.md
+│       ├── contributor-nudge.md          # 20-30 day re-engagement window
 │       ├── ready-to-merge.md           # split out of dev-metrics-report:
 │       │                               # approved-and-open PRs, 2×/day
 │       ├── weekly-analytics-report.md

@@ -37,7 +37,7 @@ Security is the exception in both directions: it goes to the security channel
 
 ## The digest queue — for OWNER-BOUND items only
 
-**Do not relay owner-bound items as they arrive.** Twenty-four tasks fire on
+**Do not relay owner-bound items as they arrive.** Twenty-six tasks fire on
 their own schedules, and forwarding each one turns the owner's DM into a
 notification stream.
 
