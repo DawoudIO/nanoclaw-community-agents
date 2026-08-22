@@ -294,7 +294,14 @@ have different mechanics:
 | **GitHub** | No live wiring in this design, so it polls: `github-first-response` finds new unanswered items | ≤10 min + grace |
 | GitHub triage (duplicates, staleness, labels) | `github-ops-triage` digest | 6h — deliberately slow |
 | Everything else | its own gated schedule, posted to the channel that cares | see the table below |
-| **The owner's DM** | `owner-tldr` digest, plus urgent bypass | daily, or ~4h for "we may be blind" |
+| **The owner's DM** | `owner-tldr` digest, plus urgent bypass | **07:00 the owner's local time**, or ~4h for "we may be blind" while they're awake |
+
+**The digest is the one schedule that is timezone-correct by itself.** Every
+other time in this system is a UTC cron line that you adjust by hand before
+stamping; `owner-tldr` runs every 2 hours and works out whether it is 07:00
+where the owner is, from `OWNER_TZ`. So it follows daylight saving with no
+maintenance, and an unresolvable zone is reported rather than silently becoming
+UTC (`tz_resolved: false`).
 
 The two things worth internalising: **Discord is realtime and GitHub is a
 10-minute poll**, and **most reports never reach the owner at all** — they go to
@@ -327,7 +334,7 @@ public voice:
 | `daily-github-triage` (weekdays) | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip. **This is the lead's standalone-mode fallback** — leave it paused when the Reviewer is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Reviewer |
 | `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the lead's own `plugin-data/community-support/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
 | `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | lead PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
-| `owner-tldr` (daily) | only when the digest queue is non-empty | `jq` only — **no network, no credentials** | safe. This is the ONLY routine path to the owner: sub-agent reports are queued, not relayed, and this turns a day's worth into one TLDR |
+| `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
 | `inbox-check` (2×/day) | **every run** (ungated) | email MCP + read-only mailbox + allowlist | leave paused |
 | `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |

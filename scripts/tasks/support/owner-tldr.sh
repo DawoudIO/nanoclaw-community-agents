@@ -37,13 +37,29 @@ set -uo pipefail
 DATA="/workspace/agent/plugin-data/community-support"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
-# Hour (UTC, 0-23) for the routine daily digest. The gate runs every 2h but
-# only lets the ROUTINE tier through at this hour, so the owner gets a
-# predictable slot instead of one that drifts.
-TLDR_HOUR="${TLDR_HOUR:-18}"
-case "$TLDR_HOUR" in ''|*[!0-9]*) TLDR_HOUR=18;; esac
-[ "$TLDR_HOUR" -gt 23 ] && TLDR_HOUR=18
+# WHEN the owner gets the digest, in THEIR LOCAL TIME — 07:00 by default,
+# because the point is that they are awake and can act on it. A digest that
+# lands at 3am is read at 7am anyway, having spent a wake to arrive early.
+#
+# The kit pins the container to TZ=UTC, so cron lines are UTC and cannot know
+# the owner's zone. This gate is the one place that can: it runs every 2h and
+# decides for itself whether it is 07:00 where the owner is. That means no
+# cron arithmetic at onboarding and no re-editing anything when DST shifts.
+OWNER_TZ="${OWNER_TZ:-UTC}"
+TLDR_LOCAL_HOUR="${TLDR_LOCAL_HOUR:-7}"
+case "$TLDR_LOCAL_HOUR" in ''|*[!0-9]*) TLDR_LOCAL_HOUR=7;; esac
+[ "$TLDR_LOCAL_HOUR" -gt 23 ] && TLDR_LOCAL_HOUR=7
 ESCALATE_GAP_H=4          # min hours between escalated digests
+
+# An unknown TZ makes `date` fall back to UTC SILENTLY — verified, and it is
+# the dangerous case: the owner would be told 07:00 local and quietly get
+# whatever 07:00 UTC happens to be for them. So check the zoneinfo entry
+# exists and say so when it doesn't, rather than being confidently wrong.
+TZ_OK=true
+if [ "$OWNER_TZ" != "UTC" ] && [ ! -f "/usr/share/zoneinfo/$OWNER_TZ" ]; then
+  TZ_OK=false
+  OWNER_TZ=UTC
+fi
 QUEUE="$DATA/digest-queue.jsonl"
 PROC="$DATA/digest-queue.processing.jsonl"
 
@@ -131,16 +147,30 @@ if [ -f "$LAST_F" ]; then
     HOURS_SINCE=$(( ( $(date +%s) - LS ) / 3600 ))
   fi
 fi
-HOUR_NOW=$(date -u +%-H 2>/dev/null || date -u +%H | sed 's/^0//')
+HOUR_NOW=$(TZ="$OWNER_TZ" date +%-H 2>/dev/null || TZ="$OWNER_TZ" date +%H | sed 's/^0//')
 case "$HOUR_NOW" in ''|*[!0-9]*) HOUR_NOW=0;; esac
+# Waking window, derived from the one answer we already have rather than asking
+# for two more: it opens when the digest lands and runs 15 hours. Escalations
+# are held outside it — see the wake rules below.
+WAKE_END=$(( (TLDR_LOCAL_HOUR + 15) % 24 ))
+AWAKE=false
+if [ "$WAKE_END" -gt "$TLDR_LOCAL_HOUR" ]; then
+  [ "$HOUR_NOW" -ge "$TLDR_LOCAL_HOUR" ] && [ "$HOUR_NOW" -lt "$WAKE_END" ] && AWAKE=true
+else
+  # window wraps past midnight
+  { [ "$HOUR_NOW" -ge "$TLDR_LOCAL_HOUR" ] || [ "$HOUR_NOW" -lt "$WAKE_END" ]; } && AWAKE=true
+fi
 
 WAKE=false; REASON=held
-# Escalated: something says we may be blind. Never wait for the evening slot,
-# and never wait on a clock that has never been set.
-if [ "$ATTENTION" -gt 0 ] && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge "$ESCALATE_GAP_H" ]; }; then
+# Escalated: something says we may be blind. Jump the queue — but only while
+# the owner is actually awake. Escalating at 3am spends a wake to deliver
+# something that still is not read until morning, when the routine digest
+# would have carried it for free.
+if [ "$ATTENTION" -gt 0 ] && [ "$AWAKE" = "true" ] \
+   && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge "$ESCALATE_GAP_H" ]; }; then
   WAKE=true; REASON=escalated
 # Routine: the owner's chosen hour, at most once for it.
-elif [ "$HOUR_NOW" -eq "$TLDR_HOUR" ] && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge 20 ]; }; then
+elif [ "$HOUR_NOW" -eq "$TLDR_LOCAL_HOUR" ] && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge 20 ]; }; then
   WAKE=true; REASON=routine
 # Safety net: the routine slot was missed entirely (a spent window, a restart).
 # Only meaningful once a real digest has been sent — otherwise "never sent"
@@ -159,11 +189,11 @@ if [ "$WAKE" = "false" ]; then
     else cp "$PROC" "$QUEUE"; fi
     rm -f "$PROC"
   fi
-  printf '{"wakeAgent": false, "data": {"status": "held", "pending": %s, "attention_pending": %s, "next_routine_hour_utc": %s}}\n' \
-    "$TOTAL" "$ATTENTION" "$TLDR_HOUR"
+  printf '{"wakeAgent": false, "data": {"status": "held", "pending": %s, "attention_pending": %s, "owner_local_hour": %s, "digest_local_hour": %s, "owner_awake": %s, "tz": "%s", "tz_resolved": %s}}\n' \
+    "$TOTAL" "$ATTENTION" "$HOUR_NOW" "$TLDR_LOCAL_HOUR" "$AWAKE" "$OWNER_TZ" "$TZ_OK"
   exit 0
 fi
 printf '%s' "$(date +%s)" > "$LAST_F"
 
-printf '{"wakeAgent": true, "data": {"status": "digest-ready", "trigger": "%s", "total": %s, "attention_pending": %s, "oldest_entry": "%s", "oldest_age_hours": %s, "deferred_runs": %s, "by_source": %s, "misfiled_urgent": %s, "misfiled_present": %s}}\n' \
-  "$REASON" "$TOTAL" "$ATTENTION" "$OLDEST" "$AGE_H" "$DEFERRED" "$BY_SOURCE" "$MISFILED" "$HAS_MISFILED"
+printf '{"wakeAgent": true, "data": {"status": "digest-ready", "trigger": "%s", "total": %s, "attention_pending": %s, "owner_local_hour": %s, "tz": "%s", "tz_resolved": %s, "oldest_entry": "%s", "oldest_age_hours": %s, "deferred_runs": %s, "by_source": %s, "misfiled_urgent": %s, "misfiled_present": %s}}\n' \
+  "$REASON" "$TOTAL" "$ATTENTION" "$HOUR_NOW" "$OWNER_TZ" "$TZ_OK" "$OLDEST" "$AGE_H" "$DEFERRED" "$BY_SOURCE" "$MISFILED" "$HAS_MISFILED"

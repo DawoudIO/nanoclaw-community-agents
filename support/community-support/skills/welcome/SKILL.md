@@ -125,12 +125,21 @@ don't beat a maintainer who is already typing.
 experiences more than any other task here. Sub-agent reports are **queued, not
 relayed**: each one appends a line to a digest queue, and this task turns a
 day's worth into a single TLDR. Ask the owner what time of day they want it and
-set `TLDR_HOUR` accordingly — that one answer decides whether this system feels
-like a colleague or a notification stream. Say plainly what the three tiers
-mean, because owners assume "daily" means slow: routine items wait for their
-hour, anything meaning **we may be blind** (a degraded fetch, a dead
-credential) escalates within about four hours, and genuinely urgent findings
-never touch the queue at all.
+**you do not need to ask what hour** — it is 07:00 their local time, derived
+from the timezone you already collected. Relay `OWNER_TZ` (the IANA zone, e.g.
+`America/New_York`) and leave `TLDR_LOCAL_HOUR` at 7 unless they ask otherwise.
+The digest resolves their local hour at runtime, so it lands at 07:00 for them
+and keeps doing so through daylight saving without anyone editing a cron. Only
+this task can do that — every other schedule is a UTC cron line.
+
+Say why 07:00: they are awake and can act on it. A digest that arrives at 3am
+is read at 7am regardless, having spent a wake to be early. Say plainly what the three tiers
+mean, because owners assume "daily" means slow: routine items wait for the
+07:00 brief; anything meaning **we may be blind** (a degraded fetch, a dead
+credential) escalates within about four hours **while they are awake**, and
+genuinely urgent findings never touch the queue at all, at any hour. The waking
+window is 15 hours from the digest hour — an escalation at 3am would be read at
+7am anyway, so it waits and rides the morning brief instead.
 
 **Also tell them what does NOT come to their DM.** Dev metrics, ready-to-merge,
 GFI health and contributor health go to the developer channel; advisories to the

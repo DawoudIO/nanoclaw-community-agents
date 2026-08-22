@@ -32,8 +32,14 @@
     "_note": "These two shape how tasks get created. Answering them late is expensive — see docs/INSTALL.md step 2.",
     "timezone": {
       "value": "UTC",
-      "_ask": "What timezone should scheduled work land in? Schedules are cron lines in task frontmatter and the kit pins TZ=UTC; changing a time after stamping means cancel-and-recreate per task.",
-      "_action_if_not_utc": "Edit the schedule: lines in your local copy of the 23 task files BEFORE stamping."
+      "_ask": "Your IANA timezone, e.g. America/New_York or Europe/Berlin. Asked before anything else because it decides when you hear from the system.",
+      "_format": "IANA zone name — NOT an offset like UTC-5, which cannot handle daylight saving.",
+      "persists_to": "config.env:OWNER_TZ",
+      "_derives": [
+        "config.env:OWNER_TZ (lead) — owner-tldr resolves your LOCAL hour at runtime, so the daily digest lands at 07:00 your time and follows daylight saving without anyone editing a cron.",
+        "Everything else is a cron line in task frontmatter and the kit pins TZ=UTC, so those DO need adjusting by hand before stamping."
+      ],
+      "_action_if_not_utc": "The daily digest needs no action — it uses OWNER_TZ at runtime. But the other 22 task schedules are UTC cron lines: edit the schedule: lines in your local copy BEFORE stamping if you want them on your working day."
     },
     "agents_to_stamp": {
       "value": [
@@ -352,17 +358,17 @@
         "value": "sonnet-class"
       }
     },
-    "tldr_hour": {
-      "value": 18,
-      "_ask": "What hour (0-23, UTC) do you want your one daily TLDR? Pick your end of day — this is the single answer that decides whether the system feels like a colleague or a notification stream.",
-      "persists_to": "config.env:TLDR_HOUR",
-      "_note": "Lead only. Routine items wait for this hour; anything marked attention (a degraded fetch, a failing credential — i.e. we may be blind) escalates within ~4h regardless, and genuinely urgent findings bypass the queue entirely and arrive immediately."
-    },
     "first_response_grace_minutes": {
       "value": 15,
       "_ask": "How many minutes should a brand-new GitHub issue/PR sit before the lead replies? Default 15.",
       "persists_to": "config.env:FIRST_RESPONSE_GRACE_MINUTES",
       "_note": "Lead only, github-first-response (runs every 10 min). The grace exists so we don't beat a human maintainer who is already typing — replying 40 seconds after someone opens an issue reads as a bot rather than as attention. Lower it for speed, raise it if maintainers are usually first."
+    },
+    "tldr_local_hour": {
+      "value": 7,
+      "_ask": "What hour (0-23) in YOUR LOCAL time do you want the one daily TLDR? Default 07:00 — the start of your day, so you are awake and can act on it.",
+      "persists_to": "config.env:TLDR_LOCAL_HOUR",
+      "_note": "Resolved against OWNER_TZ at runtime, so it survives daylight saving. This hour also opens a 15-hour waking window: findings that mean we may be blind (a degraded fetch, a dead credential) escalate within ~4h DURING that window and otherwise wait for the morning digest, because escalating at 3am spends a wake to deliver something you read at 7am anyway. Genuinely urgent findings bypass all of this and arrive immediately, any hour."
     }
   }
 }

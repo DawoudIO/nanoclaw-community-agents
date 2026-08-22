@@ -549,6 +549,7 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
    and (.data.misfiled_present == false)
    and ([.data.by_source[].source] | sort == ["engineering","local"])' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror synced\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl";
@@ -563,10 +564,33 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
 assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
   '(.data.total == 3) and (.data.deferred_runs == 1)' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"queued before the limit hit\"}" >> "$D/digest-queue.processing.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"also before\"}" >> "$D/digest-queue.processing.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"marketing\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: an `attention` item must be HELD while the owner is asleep. The
+# seed puts local time 6 hours BEFORE the digest hour — i.e. the middle of the
+# night — so the 15-hour waking window is closed. Escalating here would spend a
+# wake to deliver something that is read at 07:00 anyway, which the routine
+# digest would have carried for free.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
+  '(.data.status == "held") and (.data.owner_awake == false) and (.data.attention_pending == 1)' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(( ($(date -u +%-H) + 6) % 24 ))" > "$D/config.env";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"attention\",\"line\":\"we may be blind\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: an unresolvable timezone must be REPORTED, not silently treated
+# as UTC. Verified behaviour: `date` falls back to UTC without complaint, so an
+# owner told "07:00 local" would quietly get 07:00 UTC instead.
+assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures any \
+  '(.data.tz_resolved == false) and (.data.tz == "UTC")' '' 1 \
+  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "OWNER_TZ=\"Not/AZone\"\n" > "$D/config.env";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"x\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr: routine info items must be HELD outside the owner's chosen hour.
 # This is the assertion that keeps the digest at one message a day instead of
@@ -575,7 +599,7 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
 assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
   '(.data.status == "held") and (.data.pending == 2) and (.data.attention_pending == 0)' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
-   printf "TLDR_HOUR=\"%s\"\n" "$(( ($(date -u +%-H) + 5) % 24 ))" > "$D/config.env";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(( ($(date -u +%-H) + 5) % 24 ))" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl"'
@@ -584,7 +608,7 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
 assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
   '(.data.trigger == "routine") and (.data.total == 2)' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
-   printf "TLDR_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl"'
@@ -594,6 +618,7 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
 assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
   '(.data.misfiled_present == true) and (.data.misfiled_urgent | length == 1)' '' 1 \
   'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"urgent\",\"line\":\"should have bypassed\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"attention\",\"line\":\"and something blind\"}" >> "$D/digest-queue.jsonl"'
