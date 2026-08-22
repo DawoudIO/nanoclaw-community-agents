@@ -109,6 +109,51 @@ install runbook already drives), `agent-browser`/`onecli`/`onecli-gateway`
 agent-browser; verify it's enabled in the ready gate if snapshot fetches 502
 with the hosts correctly allowlisted).
 
+## Decided: marketing stays on Claude — and a standing rule on model provenance
+
+Asked whether a content-writing fine-tune (`sachin2505/cw`) or something like
+it should run the marketing agent. **No**, for reasons worth keeping:
+
+**On that model specifically.** Base is **Llama 2** — two generations behind
+the `llama3.2` we picked for local ops, and weakest exactly where drafting
+needs strength (following a brief). **176 downloads, single anonymous
+publisher, no evals.** And it bakes in **Tanglish (Tamil-English blending)** —
+a feature for a different audience, and an active liability for a project
+writing plain English to church administrative staff.
+
+**On the category.** Ollama's own search for "copywriting" returns **no
+models**. There is no established specialised-writing category to pick from;
+the field's actual recommendation for writing is a good *general*
+instruction-following model at size (Qwen3 14B, Phi-4 14B, Llama 3.1 8B),
+because drafting to a brief IS instruction-following. Small specialised
+fine-tunes lose to general models at this.
+
+**On the economics, which settle it.** After the model-tier split, marketing
+holds exactly ONE task: `content-draft-cycle`. It's event-triggered — a new
+release, or a 7-day evergreen floor — so roughly **4–6 wakes a month**.
+Localising it saves almost nothing, while spending that saving on the one
+output humans read as the project's own voice. Marketing's *mechanical* work
+(follower snapshot, GA4 narration, stale-draft cleanup) already moved to the
+local agent, which was the correct half to move. What's left is precisely the
+half that shouldn't.
+
+A bigger local model (Qwen3 14B, ~9–16 GB) could plausibly draft acceptably,
+and if you ever want zero cloud dependency that's the shape it would take —
+one larger local model serving both local ops and drafting, rather than
+`llama3.2` plus a second model. But it roughly triples the local footprint to
+save 4–6 cloud wakes a month, which is the wrong trade today.
+
+### Standing rule: provenance before the public voice
+
+Any model that writes text published under the project's name needs
+provenance — a recognised publisher, a real download count, and a base model
+you can name. A community upload with three digits of downloads and no evals
+does not clear that bar, however well its description reads. This is the same
+principle as the existing brand-assets rule ("never a generated, placeholder,
+or 'close enough' logo") applied to prose instead of images: the project's
+voice is a brand asset. Mechanical narration behind a human reviewer is a
+different risk class and a general local model is fine there.
+
 ## Strong candidate: an Ollama "acknowledger" for when the lead is rate-limited
 
 This is a **different and much better** use of Ollama than the coding-agent
