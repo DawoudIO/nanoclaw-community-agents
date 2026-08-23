@@ -209,6 +209,57 @@ After setup, verify:
 
 **Credentials must be in OneCLI vault** — Never paste raw keys in chat or files. Use the OneCLI dashboard to register all tokens/keys.
 
+### Discord sender approval breaks SLA (after fresh install)
+
+**Symptom**: Every new Discord user triggers a manual approval prompt; agent can't respond without your approval.
+
+**Root cause**: Discord channels created with `unknown_sender_policy='request_approval'` instead of `'public'`.
+
+**Fix**:
+```bash
+# Update all request_approval channels to public (auto-approve)
+sqlite3 /Users/gdawoud/Development/nanoclaw-v2/data/v2.db \
+  "UPDATE messaging_groups SET unknown_sender_policy='public' \
+   WHERE channel_type='discord' AND unknown_sender_policy='request_approval';"
+
+# Restart NanoClaw
+pkill -f "node.*nanoclaw-v2.*dist/index.js"
+sleep 2
+cd /Users/gdawoud/Development/nanoclaw-v2 && node dist/index.js &
+```
+
+**Prevention**: During onboarding, answer YES to "Should new Discord community members get instant replies without waiting for your approval?" This ensures channels are created with `'public'` policy automatically.
+
+### Discord agent selection friction (after fresh install)
+
+**Symptom**: When bot is mentioned in a Discord channel, you're prompted to "Choose an agent" instead of it responding automatically.
+
+**Root cause**: No default routing set for new channels.
+
+**Fix**: Set Community Support (the lead agent) as the default handler. The agent will intelligently route to specialists based on channel tier and question type.
+
+**Prevention**: Document a default-agent policy in the onboarding; the lead agent should always be the initial handler for new channels.
+
+### Discord link formatting renders as dead text
+
+**Symptom**: Agent sends links that look like `[text](url)` but users can't click them in Discord.
+
+**Root cause**: Markdown link syntax doesn't work in Discord bot messages; only Discord embed cards render as clickable.
+
+**Fix**: Tell the Reviewer agent:
+```
+Update Reviewer: never use markdown link syntax [text](url) in Discord. 
+Use Discord embed cards with button actions instead. Reference 
+discord-mechanics.md for the pattern.
+```
+
+Then send a DM to the lead agent:
+```
+@Lead: relay to Reviewer — fix Discord link formatting (use cards not markdown)
+```
+
+**Prevention**: Document in agent skills that Discord requires embed cards for links, not markdown. This is in `references/discord-mechanics.md`.
+
 ## FAQ
 
 **Q: Do I need sbx/Docker?**  
