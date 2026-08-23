@@ -109,6 +109,22 @@ Each agent:
 3. Confirms to lead agent it's ready
 4. Reports back to owner via lead
 
+### Phase 4a: Shared Folder Setup (automatic)
+
+**Agent autonomy**: The lead agent creates the shared folder structure for inter-agent communication:
+
+```
+shared/
+├── reports/     ← analytics, metrics (local-ops writes → lead posts)
+├── drafts/      ← content awaiting approval (marketing writes → lead reviews)
+├── queue/       ← tasks waiting for relay (posts, announcements)
+└── handoff/     ← general inter-agent file passing
+```
+
+Plus `shared/ROUTING.md` documenting where each agent writes and reads.
+
+**Why**: Keeps inter-agent handoffs clean and enforces the single-identity boundary (only lead posts publicly).
+
 ### Phase 4b: Discord Channels Wire Automatically
 
 **Agent autonomy**: The lead agent wires Discord channels directly based on channel IDs you provided during onboarding.
@@ -138,7 +154,7 @@ Once config + credentials verified:
 
 ---
 
-## Configuration Files
+## Configuration Files & Shared Folder
 
 After setup, the agent creates:
 
@@ -153,6 +169,15 @@ After setup, the agent creates:
 - `plugin-data/community-local/config.env` + `project-config.md`
 - `plugin-data/community-coding/config.env` + `project-config.md`
 - `plugin-data/community-marketing/config.env` + `project-config.md`
+
+**Shared folder** (`plugin-data/shared/`) — Inter-agent file routing:
+- `shared/reports/` — Analytics & metrics reports (local-ops writes, lead posts)
+- `shared/drafts/` — Content awaiting approval (marketing writes, lead reviews)
+- `shared/queue/` — Tasks waiting for relay (posts, announcements)
+- `shared/handoff/` — General inter-agent file passing
+- `shared/ROUTING.md` — Documentation of who writes where and rules
+
+The shared folder keeps inter-agent communication clean and maintains the single-identity boundary: only the lead agent posts publicly to Discord channels.
 
 ---
 
