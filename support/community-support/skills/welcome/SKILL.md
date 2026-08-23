@@ -257,8 +257,12 @@ interview.
   intent-url (free, no keys, default), manual copy-paste, or paid API (X has no
   free tier since Feb 2026; pay-per-use ~$0.20/link-post — owner's explicit
   opt-in only)
-- Optional analytics: GA4 property id, PostHog project id/host — "not now" is
-  a fine answer; the tasks silent-skip until configured
+- **Optional analytics: GA4 property id, PostHog project id/host** — "not now" is
+  a fine answer; the tasks silent-skip until configured. **If you have multiple 
+  GA4 properties**: Configure one `GA4_PROPERTY_ID` in local-ops config and reuse 
+  the same `weekly-analytics-report` task for all properties. Do not create 
+  separate report tasks per property — one task per report goal (growth/detection) 
+  is the pattern. The task handles all configured analytics in a single run.
 - **Dependabot security updates — ask, and be honest that you can't do it.**
   "Do you want Dependabot opening the fix PR when it reports a vulnerability?"
   If yes (recommended), Dependabot's own bump is more reliable than the Reviewer
@@ -456,7 +460,7 @@ unrelayed key here is the largest single source of "nothing is happening":
 | `COMMUNITY_REPOS` | repos it reads | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit` |
 | `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing/wiki, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged. Optional: falls back to `COMMUNITY_REPOS`, so relay it only to mirror *more* than the triaged set |
 | `CONTENT_REPO` | content repo | `draft-cleanup`. Note this key goes to **both** local and marketing, for different tasks |
-| `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report` |
+| `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report`. If you have multiple GA4 properties, configure one ID here and the same task reports on all properties — don't create separate tasks per property. |
 | `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a lead that was about to answer |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
