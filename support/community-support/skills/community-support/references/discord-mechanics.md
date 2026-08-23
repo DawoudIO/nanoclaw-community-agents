@@ -7,11 +7,16 @@ real operating experience, not the platform's own docs.
 
 This was settled by months of trial and error, so don't relitigate it: a raw
 URL renders as dead text through the bot, and inline markdown hypertext
-(`[text](url)`) renders as the literal brackets — **the only reliably
-clickable link is a card with an action button**. One card can carry several
-buttons; keep button labels short ("Open issue", "View PR"). This applies to
-every link in every channel — bug reports, PR notifications, releases, blog
-posts, all of it.
+(`[text](url)`) renders as the literal brackets instead of a link — **the only
+reliably clickable link is a Discord rich embed card with action buttons**.
+One card can carry several buttons; keep button labels short ("Open issue",
+"View PR"). This applies to every link in every channel — bug reports, PR
+notifications, releases, blog posts, all of it.
+
+**Never use markdown links** `[text](url)` in Discord messages. They don't
+render as clickable. Instead: use a Discord embed card with button actions, or
+post a plain URL in a text message (users can click the raw URL). Card embeds
+are always preferred.
 
 - **Replying in-context** to a message you received: send the card as your
   reply — it lands in that channel automatically.
