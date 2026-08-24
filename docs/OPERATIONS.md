@@ -491,6 +491,24 @@ stays null with its `_ask` text intact). **It refuses to write the file at all
 if it finds a credential in a `config.env`** — secrets live in the OneCLI vault
 by design, and an answers file is something you diff, edit, and commit.
 
+**`bash scripts/db-health-check.sh <nanoclaw-root> [--checkpoint]`** — run this
+the moment `ncl tasks list`/`ncl tasks run` looks broken, **before** trying
+anything else. A real install hit intermittent task-DB failures repeatedly
+with no way to tell "genuinely corrupted" apart from "just locked" from the
+CLI's error text alone — this script runs SQLite's own `PRAGMA
+integrity_check` (read-only, always safe, even against a DB another process
+still has open) against every `.db` file it finds, and tells you which. If
+it's corrupted, it prints the least-destructive recovery command instead of
+running it — that step can silently drop rows, so it stays a human decision.
+`--checkpoint` additionally runs `PRAGMA wal_checkpoint(TRUNCATE)` on any DB
+that passes — also always safe, and the routine maintenance most likely to
+prevent the corruption in the first place (see UPSTREAM-ISSUES.md #18: the
+central DB is missing hardening this same platform already added to its
+per-session DBs after hitting this exact class of bug there once). For the
+exact step-by-step — getting the script into a running sbx sandbox, finding
+the real data directory, what to capture for the team — see
+[DB-HEALTH-CHECK-RUNBOOK.md](DB-HEALTH-CHECK-RUNBOOK.md).
+
 ## Adding a new external capability — the three-layer recipe
 
 Whenever the system needs to reach something new — a website, a search API,

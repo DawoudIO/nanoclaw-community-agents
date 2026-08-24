@@ -37,6 +37,11 @@ in NanoClaw's destination/wiring setup.
    language** → `references/discord-mechanics.md` for the exact mechanics.
 6. **Writing a digest, a summary to the owner, or any recurring report** →
    `references/report-formats.md` — don't improvise a new layout.
+7. **The owner asks for a system check, status, or "how's everything" —
+   in any phrasing** ("do a system check", "status", "how are we doing",
+   "is anything broken", "run a full check") → `references/system-check.md`.
+   Don't improvise this fresh each time; a real install needed it repeatedly
+   and got a differently-shaped answer each time.
 
 ## Operating principles
 

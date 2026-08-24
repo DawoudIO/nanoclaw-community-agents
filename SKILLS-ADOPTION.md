@@ -472,4 +472,37 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
    local is the only agent holding the GA4 and PostHog credentials at all, so
    an entry on any other agent would be an MCP server with nothing to
    authenticate as. Placeholder credentials, and test whether OneCLI proxy
-   injection satisfies their boot checks.
+   injection satisfies their boot checks. (`posthog-weekly-review` itself is
+   removed for now, 2026-08-24 — see the credential note above if it comes
+   back.)
+
+## Decided: keep all four agents separate — no merges on model-tier match alone
+
+Asked twice, from both directions, whether same-tier agents should merge to
+cut the agent count: Marketing+Reviewer (both real candidates once
+`posthog-weekly-review` was removed and the Reviewer stayed Haiku), and
+Reviewer+Local ops (also both Haiku, for this phase). Declined both. Model
+tier match is necessary but never sufficient — what actually keeps these
+separate is **blast radius and behavioral contract**, not price:
+
+- **Local ops vs. Reviewer** (same Haiku tier): opposite postures. Local ops
+  is bound by a hard "never judge, only narrate" rule and carries the two
+  safety-net tasks (`unanswered-watch` every 10 min, `health-check`) where
+  reliability is the entire point. The Reviewer's whole job is judgment
+  (severity calls, reachability, breaking-change reads) — a heavier, slower
+  kind of wake that would risk crowding the safety-net cadence if bundled
+  onto the same identity. Local ops also holds real write access (backup-repo
+  push, mirror clone); the Reviewer is deliberately near-read-only except two
+  narrow draft-PR paths. Merging hands one identity both.
+- **Reviewer vs. Marketing** (same Sonnet tier, if the Reviewer were ever
+  bumped): the credential problem gets *worse*, not better — combining
+  "drafts security-patch branches" with "drafts public content-repo PRs"
+  under one PAT set is a bigger combined blast radius than either alone.
+  Cadence clashes too (Reviewer's tasks fire every 4–6h; Marketing's is a
+  once-daily content slot), and the voice register is genuinely different —
+  Reviewer's output is technical, Marketing's is written in the *audience's*
+  language, sometimes not even engineer-register at all.
+
+If agent count still needs to come down, Reviewer→Local ops is the
+least-bad merge (same tier, same "draft-only, no public voice" posture) —
+never Reviewer→Marketing. Owner's call as of 2026-08-24: keep all four.
