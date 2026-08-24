@@ -18,8 +18,6 @@ jump to §6's prep sheet below.
 | **Docker Desktop with `sbx`** (Docker Sandboxes) | The micro-VM everything runs in | Required |
 | **A Discord server you admin** (Manage Server permission) | To create/invite the bot and wire channels | Required |
 | **A GitHub account for the bot** — make a dedicated service account (e.g. `yourproject-bot`), not your personal one | All GitHub work appears as this identity; you'll cut 4 scoped tokens from it | Required |
-| **Ollama on the host**, serving `:11434` with `llama3.2` already pulled | The local ops agent's whole model provider — you supply Ollama, the kit doesn't ship it. Wired in with `/add-ollama-provider` (see the platform-skills table below) | Required **if you stamp the local agent** |
-| **PostHog account** | `posthog-weekly-review` task | Optional |
 | **Google Cloud project + GA4 property access** | `weekly-analytics-report` task | Optional |
 | **A shared project inbox** (e.g. Gmail) | the lead's `inbox-check` task | Optional |
 
@@ -29,54 +27,26 @@ script gate exits `not-configured` even if resumed.
 ### Disk and memory — a rough budget, not a measured one
 
 Nobody has published exact numbers for this stack, so treat this as a
-planning budget and verify once it's running. Two parts now: the sandbox, and
-the local model the always-local ops agent runs on.
+planning budget and verify once it's running: **10–15 GB free disk** (the VM
+image, the nested NanoClaw/OneCLI/Postgres images, the agent containers, plus
+your repo clones and mirrors) and **a few GB of RAM** while it's up (Postgres,
+the gateway, and up to four agent containers, though idle/gated agents use
+very little).
 
-**The sandbox**: **10–15 GB free disk** (the VM image, the nested
-NanoClaw/OneCLI/Postgres images, the agent containers, plus your repo clones
-and mirrors) and **a few GB of RAM** while it's up (Postgres, the gateway,
-and up to four agent containers, though idle/gated agents use very little).
-
-**The local model** adds its own footprint on top — and on Apple Silicon
-that's the number that actually binds.
-
-#### On a Mac mini specifically
-
-Apple Silicon uses **unified memory**: the model and Docker draw from the
-*same* pool. There is no separate VRAM to hide in, so a model that "fits in
-16 GB" on paper is competing directly with Docker Desktop, the sbx VM, its
-nested daemon, Postgres, and the agent containers. That's the trap — plan
-against total RAM, not against the model size alone.
-
-| Mac mini RAM | Recommended local model | Reasoning |
-|---|---|---|
-| **16 GB** | **`llama3.2`** (~2 GB) | The sandbox stack wants most of what's left. A 2 GB model leaves the machine usable. This is the default for good reason |
-| **24 GB** | `gemma4:12b` (~8 GB) becomes viable | Google-published with by far the largest install base on Ollama, and 12b follows the longer conditional prompts (like `dev-metrics-report`'s) far more reliably than 2b |
-| **32 GB+** | `gemma4:12b` comfortably | 27–30b models (qwen3, nemotron, muse-glimmer) fit on disk but still crowd unified memory once Docker is up — the gain over 12b isn't worth it for narration work |
-
-The good news: Apple Silicon runs this well. Metal acceleration plus unified
-memory means no PCIe transfer penalty, so a Mac mini is a genuinely sound
-host — the constraint is just how much RAM you bought.
-
-**Which local tasks actually stress the model**: only
-`dev-metrics-report`, whose prompt is ~1,130 words of conditional rules.
-Everything else is listing and short narration that a 2 GB model handles.
-So the honest test after install is: run `dev-metrics-report` once and check
-whether it kept every rule (degraded repos first, `null` ≠ zero, the ratio
-sample floor). If it drops rules on `llama3.2` and you have the RAM, that's
-your reason to move up — not a benchmark.
+(A local-model provider for the local agent — e.g. Ollama — was evaluated and
+set aside for now; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). All four
+agents currently run cloud-side, so there's no separate host-model RAM budget
+to plan against.)
 
 After first boot, get real numbers instead of guessing further:
 
 ```bash
 docker system df                       # actual image/volume disk usage
 docker stats                            # live memory/CPU per container
-ollama ps                               # what the model is actually holding
 ```
 
 If memory is tight, the levers in order: pause optional tasks, run one agent
-container at a time, then drop to a smaller model. Deleting an agent is the
-last resort, not the first.
+container at a time. Deleting an agent is the last resort, not the first.
 
 ### Tokens / keys — how to get each one
 
@@ -141,10 +111,6 @@ also switches every agent to `selective` secret mode.
    agent, so this is the local token's `github.com` counterpart: reuse that
    token, or better, cut a fifth one scoped to just the backup repo so a
    push credential and a read credential aren't the same string.
-
-**PostHog** (optional): PostHog → Settings → Personal API Keys → create with
-**read** access to insights/query. Note whether your org is on
-`us.posthog.com` or `eu.posthog.com`. Note your numeric project id.
 
 **GA4** (optional): In Google Cloud console, enable the **Google Analytics Data
 API** on a project and create OAuth credentials for it. In GA4 Admin, grant the
@@ -249,8 +215,9 @@ task file's frontmatter, the kit pins `TZ=UTC`, and frontmatter is not
 runtime-editable — so after stamping, changing a time means cancel-and-recreate
 per task. The shipped times (see OPERATIONS.md → "Shipped times") are UTC. If
 UTC doesn't suit the owner's working day, edit the `schedule:` lines in your
-local copy of the 26 task files **before** the stamp step below — it's a
-one-minute edit now versus 19 recreates later. Everything else is collected
+local copy of the task files (run `bash scripts/gen-task-table.sh --counts`
+for the current total) **before** the stamp step below — it's a one-minute
+edit now versus one recreate per non-UTC-friendly task later. Everything else is collected
 conversationally after wiring; pre-stamp file fill-ins are optional defaults,
 and personas mount read-only once stamped.
 
@@ -296,7 +263,7 @@ than capability.
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
 | **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, watches releases, reviews docs gaps, and relays the three sub-agents' work | Claude Sonnet | **Yes — the primary, full voice** | Always — nothing works without it |
-| **Local ops** (`local/community-local`) | The always-on tier, on a local Ollama `llama3.2`: narrates script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | **Local** (Ollama `llama3.2`) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It's the only agent with no usage window to exhaust, so it's the only one still working when the shared window closes |
+| **Local ops** (`local/community-local`) | The narration tier: script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | Claude Haiku (cloud; a local-model provider was tried and set aside for now — [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It takes the bulk of the recurring, mechanical work off the lead |
 | **Coding** (`engineering/community-coding`) | Issue/PR triage and security-advisory review — 2 tasks, read-only, drafts everything for the lead. **Not** metrics, telemetry, or docs gaps: metrics/telemetry moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
 | **Marketing** (`marketing/community-marketing`) | Content drafts via PR, in the audience's language — 1 task | Claude | No — headless, no channel wiring at all | Optional, and **not stamped by default.** Skip it until you actually want content drafted |
 
@@ -308,8 +275,8 @@ engineering side it was permanently dead — always zero input, never a finding.
 **You don't have to stamp all four now, and this isn't a one-way door.**
 Stamp just the lead today and add the others later — the lead works standalone.
 If you're adding exactly one, add **local ops**: it takes the bulk of the
-recurring work off the metered tier and it's what keeps the project from going
-silent during an outage. To **disable** an agent later: pause all its tasks
+recurring, mechanical work off the lead so Sonnet-class judgment is spent
+only where it's needed. To **disable** an agent later: pause all its tasks
 (`ncl tasks list --status active` on its group, then `ncl tasks pause` each
 — or just stop resuming new ones) rather than deleting the group, so its
 config and memory stay intact if you re-enable it. To **add** one later:
@@ -362,13 +329,8 @@ goes nowhere at all (this was a real bug in `health-check`,
 `workspace-backup` and `unanswered-watch`, now fixed). Lead-owned tasks may
 address the owner directly; that's correct for them.
 
-If you stamp the local agent, its model provider is a **host** prerequisite,
-not something the stamp sets up: Ollama must be serving `llama3.2` on
-`:11434` and the group must be routed to it with `/add-ollama-provider` (see
-the platform-skills table below). Without that, the group stamps fine and
-looks healthy right up until something actually needs narrating: the bash
-gates keep running as normal, and then every one of its 11 tasks fails at the
-wake, because the group has no model to wake into.
+The local agent stamps on the cloud default (Haiku) same as the others —
+no separate host model provider to wire up for this phase.
 
 (Credential registration is step 4 — the welcome interview below runs before
 it by design, so its verification pass will first report services as unwired;
@@ -496,7 +458,7 @@ marked *modifies install* has to be re-applied after
 | `/add-discord` | **Required** | Step 3, in the sandbox Claude session. Owner DM wiring first, then public channels after the interview | No — config only |
 | `/debug` | Built-in, nothing to install | Any time, from a break-glass session. First move for a container-level problem | No |
 | `/add-clidash` | **Recommended** | Right after step 3 (see the monitoring section above) | Copies `tools/clidash`; no source edit |
-| `/add-ollama-provider` | **Required if you stamp the local agent** — no longer the open question it was | Step 3, right after stamping `local/community-local`: this is what routes that group to your host's Ollama `llama3.2`. It is the group's only model provider, so skipping it leaves all 11 local tasks unable to wake. Still **not** adopted for the coding group — that agent stays on Haiku, reasoning in [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). *Alternative to `/add-ollama`, not a companion*. **Host prerequisites are yours**: Ollama running on `:11434` with the model pulled, and **unverified** whether `host.docker.internal:11434` reaches the host through the sandbox VM's *inner* Docker daemon — two network boundaries where the skill assumes one, so test it before relying on it | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
+| `/add-ollama-provider` | **Not used for this phase** — evaluated and set aside; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) | Would route the local group to a host Ollama model instead of the cloud default. Revisit once the system is verified end-to-end on the cloud default | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
 | `/add-ollama` (the tool) | **Proposed, undecided** | Only if bilingual translation volume proves expensive. Gives an agent a local model to *call* while it stays on Claude — the lead's case, never the coding agent's | **Yes** — copies an MCP server into the source tree and rebuilds the image. Replay on recreate |
 | `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real "which task is burning budget" question | **Yes** — wires a pusher into `src/index.ts`, runs a persistent process, adds `DASHBOARD_SECRET`. Replay on recreate |
 | `/update-skills` | **Break-glass only** | Never in steady state — it's in-place mutation, which the update policy forbids. Acceptable for an urgent upstream channel fix that can't wait for a kit image | **Yes**, and it desyncs you from `platform-baseline.json` — note it and do a digest-pinned recreate as soon as one exists |
@@ -560,7 +522,6 @@ For each credential from step 0, create a vault secret matched to its API host:
 | GitHub coding token | `api.github.com` | `Authorization: Bearer` |
 | GitHub marketing token (only if marketing is stamped) | `api.github.com` | `Authorization: Bearer` |
 | GitHub backup push (optional — the **local** agent's) | `github.com` | `Authorization: Bearer` |
-| PostHog key (optional) | `us.posthog.com` or `eu.posthog.com` | `Authorization: Bearer` |
 | GA4 OAuth (optional) | `analyticsdata.googleapis.com` | OAuth 2.0 Bearer |
 | Gmail (optional) | `gmail.googleapis.com` | OAuth 2.0 Bearer |
 
@@ -634,23 +595,22 @@ formality.
 | Local | `selective` | Local GitHub PAT | `api.github.com` | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup` |
 | Local | `selective` | same PAT, git protocol *(only for private repos)* | `github.com` (git) | `repo-mirror-sync` — public repos need no credential |
 | Local | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
-| Reviewer (coding) | `selective` | PostHog key *(optional)* | `us.`/`eu.posthog.com` | `posthog-weekly-review` |
 | Local | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
 | Local | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
 | Local | — (no secret, no network) | nothing at all | — | `unanswered-watch`, `health-check` — local message/container state only. **This is why they survive the outage they compensate for**: nothing to fail, nothing to expire |
-| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep` — and nothing else; this agent has exactly 2 tasks |
+| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review` — 5 tasks (a 6th, `posthog-weekly-review`, is removed for now) |
 | Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle` — its only task |
 
-Note where the analytics and telemetry rows landed: **on Local, not
-Marketing or Coding.** That's the whole restructure in one table — the
-metered agents kept judgment work, and everything that is "run a script,
-narrate the numbers" moved to the tier that never runs out.
+Note where the analytics/telemetry rows landed: **on Local, not Marketing or
+Coding.** That's the whole restructure in one table — the metered agents kept
+judgment work, and everything that is "run a script, narrate the numbers"
+moved to the tier that never runs out.
 
 **A row that doesn't exist here is a finding, not a formality.** Concretely:
 the reviewer and marketing agents never appear against Discord at all;
-neither of them appears against PostHog, GA4, the social hosts, or
-`github.com` git; and the local agent never appears with a write grant
-outside the single backup repo. `selective` mode (not the default `all`) is
+neither of them appears against GA4, the social hosts, or `github.com` git;
+and the local agent never appears with a write grant outside the single
+backup repo. `selective` mode (not the default `all`) is
 what makes any of this enforceable — in `all` mode every agent gets every
 secret whose host matches, and with four PATs on `api.github.com` that
 collapses this entire table back into one shared token.
@@ -700,7 +660,7 @@ services it actually uses, and it's a second artifact competing with
 plain local git checkout has neither problem — it's just files, reviewed
 the same way as everything else here.
 
-The kit's default allowlist does **not** include GA4, PostHog, Gmail — or the
+The kit's default allowlist does **not** include GA4, Gmail — or the
 **social platform hosts the follower snapshot reads** (`x.com:443`,
 `www.linkedin.com:443`, `www.facebook.com:443`, `www.instagram.com:443`,
 `www.youtube.com:443` — whichever your platform list uses). Those tasks hit
@@ -726,8 +686,8 @@ container at all is **unverified** on this stack; the real fetch is the test.
 
 Clone the kit, edit `nanoclaw/spec.yaml` → `permissions.network.allow`
 (e.g. add your project hosts, `analyticsdata.googleapis.com:443`,
-`us.posthog.com:443`, `gmail.googleapis.com:443`, plus the social hosts),
-and start with `--kit ./nanoclaw`. Verify with:
+`gmail.googleapis.com:443`, plus the social hosts), and start with
+`--kit ./nanoclaw`. Verify with:
 
 ```bash
 sbx policy ls nanoclaw --type network
@@ -797,9 +757,9 @@ local agent reported receiving.
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, all 26 task files) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
+| Task schedules (cron lines, every task file — run `bash scripts/gen-task-table.sh --counts` for the current total) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
 | Workspace backup: `git init` + `remote` + identity + `.gitignore` | The **local** agent's group folder in the sandbox — it owns `workspace-backup` | After stamping, host-side (or ask the lead to relay the request) |
-| Network allowlist additions (GA4/PostHog/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
+| Network allowlist additions (GA4/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
 
 **Pre-stamp file fill-ins remain available as version-controlled defaults** —
 the persona "Your project" blocks, `channel-routing.md` (worked example in
@@ -907,8 +867,8 @@ settled before the stamp step:
 | 6 | Security disclosure contact + who counts as a maintainer | free text | Required if security is a goal |
 | 7 | Social platforms: which exist, which you post to, and per platform the mechanism (intent-URL/manual/paid) | list + choice per platform | Optional — "none" is fine |
 | 8 | Discord invite URL to offer from GitHub replies | URL or "none" | Optional |
-| 9 | GA4 property id / PostHog project id + host | id/host or "not now" | Optional — tasks silent-skip unconfigured |
-| 10 | Model per agent — confirm the plan-tier defaults or override | accept or name a model | Defaults offered, confirm or change |
+| 9 | GA4 property id | id or "not now" | Optional — tasks silent-skip unconfigured |
+| 10 | Model per agent — state the job, the default, and real alternatives (e.g. Reviewer: Haiku default, Sonnet if you want stronger judgment on drafts) | accept a default or name a model | Defaults offered per agent, confirm or change |
 | 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
 | 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
 | 13 | Docs style — current-state only, or is version-history language ("added in 2.1") fine? | either | Enforced on every docs draft — which is the **lead's** work now, since `docs-gap-review` moved there |
@@ -971,12 +931,13 @@ Resume order (safe → side-effect-adjacent):
 4. **Local gates**, once §6's relay has actually landed in the local
    `config.env`: `repo-mirror-sync`, `dev-metrics-report`,
    `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup`,
-   `weekly-analytics-report` (GA4), `posthog-weekly-review`. Each silently
-   exits `not-configured` if its key is missing, so resume them and then
-   check they actually did something.
-5. **Coding**: `github-ops-triage` and `security-advisory-sweep`. That is the
-   reviewer's complete task list — if you're looking for metrics or telemetry
-   here, they're in step 4 now.
+   `weekly-analytics-report` (GA4). Each silently exits `not-configured` if
+   its key is missing, so resume them and then check they actually did
+   something.
+5. **Coding**: `github-ops-triage`, `security-advisory-sweep`,
+   `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review`
+   — the reviewer's current task list (`posthog-weekly-review` is removed for
+   now; see SKILLS-ADOPTION.md if it comes back).
 6. **Ungated tasks last**, because nothing stops them from burning a wake on
    an unconfigured service — there are exactly two:
    `social-metrics-snapshot` (local), only after you've verified a real page

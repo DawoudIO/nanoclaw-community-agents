@@ -37,11 +37,9 @@ cloud window. Items 14–16 close that.
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §4's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | **Which meter the agents bill to — and which are off it** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter, **and that only three of the four agents bill to it.** If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. You also know the corollary that makes an exhaustion survivable: **the local agent's 12 of 21 tasks keep running when that window is gone**, including the two that would tell you about it (`health-check`, `unanswered-watch`) |
-| 14 | **Host Ollama is up and the model is pulled** | `ollama ps` on the host; confirm `llama3.2` is present | The model is loaded and the host has headroom. This is the local tier's foundation — 12 of the 26 tasks are dead without it |
-| 15 | **The local group is actually on the local provider** | Run the local group's `setup-check.sh` | It reports `local_provider_active: ok`. **A stamped local group with `ANTHROPIC_BASE_URL` unset is still silently on the cloud provider** — it works, so nothing looks wrong, but it's now spending the very window it exists to avoid and it defeats its own purpose entirely. This check is the only mechanical way to tell the two states apart |
-| 16 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
-| 17 | You know the death signal | No action — confirm you understand it | A one-line heartbeat reaches you at least weekly — produced by the local agent's `health-check`, relayed by the lead. **More than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
+| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that all four agents currently bill to it** (the local agent's Ollama provider was evaluated and set aside for this phase; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
+| 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
+| 15 | You know the death signal | No action — confirm you understand it | A one-line heartbeat reaches you at least weekly — produced by the local agent's `health-check`, relayed by the lead. **More than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
 
 ## Day 2 — did the first unattended cycle actually run?
 
@@ -84,8 +82,8 @@ Ten minutes, the morning after go-live:
   investigate now — this is your outage detector and it must be known-good.
 - **Weekly reports landed and read sane**: dev report (now the narration half
   only — stars/forks, first-response backlog, new contributors, return nudges),
-  GA4/PostHog if enabled. Numbers carry deltas and windows; `null`s are
-  explained, never silently zero.
+  GA4 if enabled. Numbers carry deltas and windows; `null`s are explained,
+  never silently zero.
 - **`ready-to-merge` is telling the truth, in both directions.** On its first
   runs it must either list approved-and-open PRs you can click through and
   verify on GitHub, or report that there are none — and you should confirm that
@@ -153,8 +151,8 @@ Ten minutes, the morning after go-live:
   the footprint table again. New grants that appeared without a reason are
   findings.
 - **Prune and re-decide**: channels renamed or added? Paused optional tasks
-  (PostHog, GA4, inbox) worth enabling now? Anything in UPSTREAM-ISSUES.md
-  confirmed and ready to file upstream?
+  (GA4, inbox) worth enabling now? Anything in UPSTREAM-ISSUES.md confirmed
+  and ready to file upstream?
 - **Platform currency**: `platform-watch` ran weekly (check the Actions
   tab); if it opened an update issue, schedule the digest-pinned refresh
   per [OPERATIONS.md](OPERATIONS.md) rather than letting it age.

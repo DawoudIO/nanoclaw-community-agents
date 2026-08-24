@@ -50,12 +50,15 @@ the failure looks like silence rather than an error.
 
 The precedent is real and it's this project's own: the v1 deployment
 **exhausted its plan limits running 4 agents** — four *cloud-backed* agents,
-all on the one window. This template set is also four agents, but **only three
-of them draw on that window.** The local agent runs on host Ollama and
-consumes none of it, which is why the count is the same and the exposure
-isn't. Combined with aggressive gating, that's the whole mitigation. Treat the
-shared window as a resource with a hostile-neighbour problem, not an
-abstraction — and count neighbours by meter, not by agent.
+all on the one window. **For this phase, this template set has the same
+exposure**: all four agents, including local ops, currently draw on that one
+window. A local-model provider for the local agent (which would take it off
+the window entirely, the way v1's design should have) was evaluated and set
+aside — too much host setup to get the system working end to end first; see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). Aggressive gating is doing more
+of the mitigation work than it would otherwise need to, until that's
+revisited. Treat the shared window as a resource with a hostile-neighbour
+problem, not an abstraction — and count neighbours by meter, not by agent.
 
 Four defenses, in order of effectiveness:
 
@@ -115,14 +118,16 @@ persona plus whatever skill loads:
 | Lead | ~8.6K tokens | ~18.8K (community-support) · ~15K (welcome) |
 | Coding | ~3.2K | ~6.2K |
 | Marketing | ~3.9K | ~8.5K |
-| Local | **not on this meter** | **not on this meter** |
+| Local | **on this meter for this phase — not yet measured** | — |
 
-The local agent is absent from these numbers on purpose, not by oversight:
-its context is loaded into a model running on your own host, so its wakes are
-billed in RAM and wall-clock, never against the shared window. That's 11 of
-the 26 tasks — the bulk of the recurring work — costing zero here. If you want
-to size it, size it against the host (`ollama ps`, memory headroom), which is
-a different measurement with a different unit; don't add it to this column.
+The local agent now shares the same cloud meter as the others (its own
+persona/instructions file is smaller than Coding's, so expect a lighter floor,
+but don't trust that estimate — measure it the same way the rows above were:
+persona + context on a cold wake). That's most of the local agent's tasks
+(run `bash scripts/gen-task-table.sh` for the current per-agent breakdown)
+now billing to the shared window instead of costing zero, which is the real
+trade-off behind setting Ollama aside for this phase; see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md).
 
 Task prompt bodies add ~400 tokens on average. The lead is the expensive one
 and always will be — it carries the public-facing judgment. Prompt caching
@@ -154,10 +159,13 @@ Code for anything else that day.**
 
 ## Right-sizing the agents
 
-**Four agents, but only three of them can spend your window.** Burn comes from
-model *wakes*, not from agents existing: a stamped agent whose tasks are paused
-costs nothing. 24 of 26 tasks are script-gated, so quiet periods cost near zero
-regardless of agent count. The two highest-frequency gates are also the two
+**All four agents currently draw on your window** (see the trap section
+above — a local-model provider was evaluated and set aside for this phase).
+Burn comes from model *wakes*, not from agents existing: a stamped agent
+whose tasks are paused costs nothing. Nearly all tasks are script-gated (run
+`bash scripts/gen-task-table.sh --counts` for the exact split), so quiet
+periods cost near zero regardless of agent count. The two highest-frequency
+gates are also the two
 cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
 minutes (`*/10`)**, and it is the cheapest thing in the system on every axis at
@@ -207,7 +215,7 @@ the owner can change them there or later via group config):
 | Agent | Default | Why |
 |---|---|---|
 | Lead | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
-| Local ops | **Local** (`llama3.2`) | Narration of pre-computed numbers and one templated acknowledgment — no judgment, and reliability matters more than capability. Never runs out |
+| Local ops | Haiku-class (cloud, for this phase) | Narration of pre-computed numbers and one templated acknowledgment — no judgment, so the cheapest cloud tier fits. A local model was evaluated and set aside; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) |
 | Reviewer (coding) | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the lead before publishing. Upgrade only if draft quality disappoints |
 | Marketing | Sonnet-class | Content quality is its whole job; drafts are the deliverable. Not stamped by default |
 
@@ -360,17 +368,16 @@ Every config key below lives in `plugin-data/community-local/config.env`:
 **Reviewer** (`engineering/community-coding`) — read-only except for drafting
 security patch PRs and docs PRs (branch + draft PR, never merged), never posts
 publicly. Config in `plugin-data/community-coding/config.env`.
-`contributor-health-review` and `posthog-weekly-review` are here rather than on
-the local tier for the same reason: each is the *interpretation* half of a
-metric. The same unmerged-PR ratio means opposite things depending on why it
-moved, naming a delegation candidate is a judgment about a person, and deciding
-whether a telemetry anomaly is a real defect is an assessment. Narration went
-local; judgment stayed cloud.
+`contributor-health-review` is here rather than on the local tier for the
+same reason `posthog-weekly-review` was, before it was removed for never
+getting working end to end (see SKILLS-ADOPTION.md if it comes back): each is
+the *interpretation* half of a metric. The same unmerged-PR ratio means
+opposite things depending on why it moved, and naming a delegation candidate
+is a judgment about a person. Narration went local; judgment stayed cloud.
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
 | `docs-currency-watch` (every 6h) | only on merged PRs not yet assessed | coding PAT (Contents+PRs **write**) + `PRODUCT_REPO`/`COMMUNITY_REPOS` + `DOCS_REPO` | silent skip — no `DOCS_REPO` means the project has no docs site and the task never fires |
-| `posthog-weekly-review` (Mon) | only on an insight-value change, else a 28-day heartbeat | PostHog key + `POSTHOG_PROJECT_ID` (+ optional `POSTHOG_HOST`) + allowlist | silent skip |
 | `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | coding PAT + `COMMUNITY_REPOS` | silent skip |
@@ -414,16 +421,15 @@ the round minutes because it's the task the north star depends on:
 | `dependabot-pr-review` | Reviewer | **every 6h** | every 6h at :11 | yes |
 | `docs-currency-watch` | Reviewer | **every 6h** | every 6h at :29 | yes |
 | `github-ops-triage` | Reviewer | **every 6h** | every 6h at :35 | yes |
-| `posthog-weekly-review` | Reviewer | **weekly** | 15:09, Mon | yes |
 | `security-advisory-sweep` | Reviewer | **every 4h** | every 4h at :45 | yes |
 | `content-draft-cycle` | Marketing | **weekdays** | 13:38, Mon–Fri | yes |
 
-_26 tasks across 4 agents; 24 script-gated (ungated: inbox-check social-metrics-snapshot)_
+_25 tasks across 4 agents; 23 script-gated (ungated: inbox-check social-metrics-snapshot)_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
 
 **This table is generated — do not hand-edit it.** It was hand-maintained
-until a `posthog-weekly-review` move left it claiming the wrong agent and the
-wrong minute, so it now comes straight from the task files:
+until a `posthog-weekly-review` move once left it claiming the wrong agent
+and the wrong minute, so it now comes straight from the task files:
 
 ```bash
 bash scripts/gen-task-table.sh
@@ -600,30 +606,21 @@ refreshes when the issue appears.
    the VM's stored copy died with the VM); re-verify the owner-DM round trip.
    Then **re-apply every platform skill marked "modifies install"** in
    [INSTALL.md → Platform skills](INSTALL.md) — clidash, and anything you
-   adopted since (ollama-provider, dashboard). A fresh VM has none of them,
-   and nothing detects their absence for you.
-5. **Restore the local tier: host Ollama running, and `ollama pull llama3.2`.**
-   Then re-point the local group at it and confirm with its `setup-check.sh`
-   that `local_provider_active` reports `ok`. This is the step most likely to
-   be skipped and the most expensive to skip: **12 of the 26 tasks belong to
-   the local agent**, and if the model isn't there — or the group is stamped
-   but `ANTHROPIC_BASE_URL` is unset — those tasks are dead or silently back on
-   the cloud provider, and **nothing in the system detects it.** A missing
-   local tier takes `unanswered-watch` and `health-check` with it, which are
-   precisely the two things that would otherwise tell you something is wrong.
-   That's the silent-death hole in a recreate: verify it explicitly, every
-   time, rather than waiting for a symptom that by construction never arrives.
-6. Re-enter the 4 GitHub PATs in the fresh vault, selective mode (~5 min) —
+   adopted since (dashboard). A fresh VM has none of them, and nothing
+   detects their absence for you. (If you've since adopted a local-model
+   provider for the local agent — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)
+   — re-apply and re-verify that too; it isn't part of this phase's default.)
+5. Re-enter the 4 GitHub PATs in the fresh vault, selective mode (~5 min) —
    one per agent — plus the `github.com` git secret that `workspace-backup`
    pushes with. No rotation needed — refresh isn't compromise.
-7. Restore `plugin-data/community-local/` from the backup repo into the local
+6. Restore `plugin-data/community-local/` from the backup repo into the local
    agent's workspace, and whatever you preserved by hand for the other three
    (see step 1's known gap). Restoring `project-config.md` skips
    re-interviewing — or hand the lead your filled `onboarding-answers.json`
    instead. If the live install predates that file,
    `bash scripts/export-answers.sh` reconstructs one from it *before* you tear
    the install down.
-8. Smoke tests per INSTALL.md §7, and re-test anything in UPSTREAM-ISSUES.md
+7. Smoke tests per INSTALL.md §7, and re-test anything in UPSTREAM-ISSUES.md
    against the new build before closing the watch issue.
 
 **Template updates** flow the other way: edit this repo, restamp. Personas and

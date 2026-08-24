@@ -102,9 +102,9 @@ pauses tasks in whichever group holds them:
 | Goal | If yes, these tasks become eligible |
 |---|---|
 | **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* · `ready-to-merge` *(local)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` *(marketing)* · `draft-cleanup` *(local)* · `social-metrics-snapshot` *(local)* · `weekly-analytics-report` *(local)* · `good-first-issue-health` *(local)* · `repo-hygiene-audit` *(local)* · `dev-metrics-report`'s new-contributor and return-nudge sections *(local)* · `contributor-health-review` *(Reviewer)* |
-| **Proactive issue detection** — finding problems before users report them | `posthog-weekly-review` *(Reviewer)* · `dev-metrics-report` *(local)* · `repo-mirror-sync` *(local)* |
-| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` *(marketing)* · `draft-cleanup` *(local)* · `social-metrics-snapshot` *(local)* · `weekly-analytics-report` *(local)* · `good-first-issue-health` *(local)* · `repo-hygiene-audit` *(local)* · `dev-metrics-report`'s new-contributor section *(local)* · `contributor-nudge` *(local)* · `contributor-health-review` *(Reviewer)* |
+| **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(local)* · `repo-mirror-sync` *(local)* (`posthog-weekly-review` *(Reviewer)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
+| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · `dependabot-pr-review` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
 
 Two placements in that menu surprise people, so say the reasoning out loud if
 the owner asks. **`ready-to-merge` is a support task**, not a metrics one: an
@@ -257,8 +257,8 @@ interview.
   intent-url (free, no keys, default), manual copy-paste, or paid API (X has no
   free tier since Feb 2026; pay-per-use ~$0.20/link-post — owner's explicit
   opt-in only)
-- **Optional analytics: GA4 property id, PostHog project id/host** — "not now" is
-  a fine answer; the tasks silent-skip until configured. **If you have multiple 
+- **Optional analytics: GA4 property id** — "not now" is
+  a fine answer; the task silent-skips until configured. **If you have multiple 
   GA4 properties**: Configure one `GA4_PROPERTY_ID` in local-ops config and reuse 
   the same `weekly-analytics-report` task for all properties. Do not create 
   separate report tasks per property — one task per report goal (growth/detection) 
@@ -290,17 +290,32 @@ interview.
   `examples/github-discord-notify.yml` in this template set and the two
   webhook secrets it needs; if no, note that bug/security routing stays
   agent-relayed (which drops during your own downtime — say that plainly too).
-- **Models per agent — confirm the defaults.** State each group's current
-  provider/model and the recommended defaults for the owner's plan tier.
-  Standard lineup: **lead** on Sonnet (public-facing judgment), **local ops**
-  on Haiku-4.5 (12 of the 26 tasks run here; off-meter design means local
-  offloading is possible later if desired, but cloud Haiku is the baseline),
-  **Reviewer (coding)** on Haiku (its drafts are reviewed anyway; cheapest
-  model that triages well), **marketing** on Sonnet (when stamped, since content
-  quality is its only job). Never an Opus-class model on a scheduled task.
-  Remind the owner: cost comes from wakes, not agents existing — a paused task
-  burns nothing, so tune budget by activating fewer tasks instead of deleting
-  agents.
+- **Models per agent — state the job, name the default, ask if they want
+  something else, and give real alternatives (not just "confirm the
+  default").** Go through each stamped agent:
+  - **Lead** — the public voice: replies, escalation, tone, security routing.
+    Default **Sonnet**. No cheaper alternative offered; this is the one
+    identity the community sees, and it's where judgment quality matters most.
+  - **Local ops** — narration of numbers a script already computed, mirrors,
+    backups. Default **Haiku** (cloud). No live alternative today — a
+    local-model provider (e.g. Ollama) was evaluated and set aside for setup
+    friction; mention it exists in SKILLS-ADOPTION.md if asked, but don't
+    offer it as a working option yet.
+  - **Reviewer (coding)** — draft-only triage and judgment (severity calls,
+    breaking-change reads); every draft is reviewed by the lead before
+    anything's public. Default **Haiku**. Real alternative: **Sonnet**, if the
+    owner wants stronger judgment on drafts and is willing to spend more of
+    the shared window on it — since the lead reviews everything anyway, this
+    is a quality/cost trade the owner should make consciously, not one we
+    make for them.
+  - **Marketing** (if stamped) — content drafts; voice quality is the whole
+    job. Default **Sonnet**. No cheaper alternative offered — a weak model
+    here produces content nobody wants published.
+
+  Never an Opus-class model on a scheduled task. Remind the owner: cost comes
+  from wakes, not agents existing — a paused task burns nothing, so tune
+  budget by activating fewer tasks instead of deleting agents or downgrading
+  a model that's carrying real judgment.
 
 ## 5. Persist — this is the point
 
@@ -436,13 +451,7 @@ Report when complete.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
-2. **For the local agent**: Auto-detect Ollama configuration:
-   - Probe `http://localhost:11434` to check if Ollama is running
-   - Query the models endpoint to list installed models
-   - **Verify that `llama3.2` is available** in the model list
-   - If llama3.2 is missing, alert the owner: "Ollama is running but llama3.2 is not pulled. Run `ollama pull llama3.2` and try again."
-   - If llama3.2 is available, apply the detected endpoint + model automatically (no user input needed)
-   - If Ollama is unreachable or misconfigured, ask the owner for the endpoint/model
+2. **The local agent stamps on the cloud default (Haiku-4.5), same as the other sub-agents** — no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
 3. Relay the config keys listed below to each agent
 4. Report the stamping result and each agent's status to the owner
 
@@ -473,9 +482,7 @@ actually posts in.
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review` — all three go quiet without it |
-| `POSTHOG_PROJECT_ID` | project id, or omit | `posthog-weekly-review` |
-| `POSTHOG_HOST` | `https://us.posthog.com` or `https://eu.posthog.com` | **relay this whenever the owner is on EU** — the script defaults to US, so an EU project silently queries the wrong region |
+| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch` — all go quiet without it |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 
 Plus in prose: default branch, label policy, and **`docs_style`** — the
@@ -483,8 +490,9 @@ coding agent's `triage-rules.md` enforces it on every docs issue/PR it
 drafts, so an unrelayed answer means an unconfigured assumption.
 
 It gets **no** `MIRROR_REPOS` or `GFI_LABEL` — those belong to the local
-agent with their tasks. It DOES get `POSTHOG_*`: telemetry review asks whether
-an anomaly is a real defect, which is assessment, so it sits on this tier.
+agent with their tasks. (`POSTHOG_PROJECT_ID`/`POSTHOG_HOST` would relay here
+too if `posthog-weekly-review` comes back — removed for now, see
+SKILLS-ADOPTION.md.)
 
 **marketing** → `plugin-data/community-marketing/config.env`:
 
@@ -557,7 +565,6 @@ keys go into the OneCLI vault dashboard only:
 | Backup push + mirror fetches | 1 `github.com` (git) entry, the **local** agent's | `workspace-backup` pushes with it; `repo-mirror-sync` fetches with it |
 | Workspace backup push | `github.com` (git, separate from REST) | step 8 below |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
-| PostHog review | key on `us.` or `eu.posthog.com` | sandbox allowlist entry |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
 | Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the lead's own group** — `inbox-check` is the lead's task. A platform config change, not something you can do from in here; point the owner at the template README |
 

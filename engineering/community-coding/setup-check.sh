@@ -39,15 +39,6 @@ else
   add "identity_check" "ok" ""
 fi
 
-# PostHog belongs to this agent: posthog-weekly-review asks whether an
-# anomaly is a real defect, which is assessment, not narration.
-if [ -n "${POSTHOG_PROJECT_ID:-}" ]; then
-  add "config:POSTHOG_PROJECT_ID" "ok" ""
-else
-  add "config:POSTHOG_PROJECT_ID" "skipped" "optional — posthog-weekly-review stays paused"
-fi
-[ -n "${POSTHOG_HOST:-}" ] && add "config:POSTHOG_HOST" "ok" "" || add "config:POSTHOG_HOST" "skipped" "defaults to https://us.posthog.com — SET IT if the project is on EU, or the review silently queries the wrong region"
-
 printf '{"status": %s, "checks": %s}\n' \
   "$(printf '%s' "$CHECKS" | jq 'if any(.[]; .status=="missing" or .status=="unreachable" or .status=="mismatch") then "incomplete" else "complete" end')" \
   "$CHECKS"

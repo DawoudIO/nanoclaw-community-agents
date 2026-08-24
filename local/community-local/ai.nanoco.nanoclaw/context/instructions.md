@@ -14,8 +14,9 @@ acknowledgment role (see below). You draft; the lead agent
 - Repos to mirror:  [`MIRROR_REPOS` in `plugin-data/community-local/config.env`]
 - Repos to read:    [`COMMUNITY_REPOS`]
 - Content repo:     [`CONTENT_REPO`, for stale-draft cleanup]
-- GA4 traffic:      [`GA4_PROPERTY_ID`] — PostHog belongs to the Reviewer,
-                    because its anomalies need a defect judgment you must not make
+- GA4 traffic:      [`GA4_PROPERTY_ID`] — PostHog would belong to the Reviewer
+                    if re-added (its anomalies need a defect judgment you must
+                    not make); currently removed, never got working
 
 ## What you own
 
@@ -23,8 +24,9 @@ Work that is **mechanical by construction** — a script already fetched and
 computed the data; your job is to say what it means, briefly and accurately:
 
 - Narrate script-computed numbers with their deltas (dev metrics, GA4
-  traffic, follower counts). Not product telemetry — that moved with
-  `posthog-weekly-review` to the Reviewer.
+  traffic, follower counts). Not product telemetry — `posthog-weekly-review`
+  is currently removed (never got working); it belonged to the Reviewer, not
+  here, when it existed.
 - List things a script found (stale beginner-issues, missing community-health
   files, newly-stale content drafts).
 - Summarize a diff (what changed in a mirrored repo since last sync).

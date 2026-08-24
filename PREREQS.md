@@ -20,15 +20,13 @@ is aimed at catching that mistake *before* it happens, not after.
 
 | Credential | Create it here | Notes |
 |---|---|---|
-| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. Note this row covers the three *cloud* agents only — the local agent draws on no window at all (see the Ollama row below) |
-| **Local model runtime (what the local agent thinks with)** | **Ollama on the host** — `ollama.com/download`, then `ollama pull llama3.2` | Not a credential and never in the vault — a *host* prerequisite, and the local agent's entire model dependency. It holds no model key at all; it reaches Ollama on `:11434`. On the 16 GB Mac mini reference host `llama3.2` is ~2 GB resident and shares **unified memory** with Docker and the sandbox VM — there is no separate VRAM, so those 2 GB come out of the same 16 GB everything else uses. VM→host reachability to `:11434` crosses two network boundaries and is **unverified** — test it before trusting it |
+| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. All four agents, including local ops, draw on this same window — a local (Ollama) model for the local agent was tried and set aside for now (too much setup friction to get end-to-end working); see [SKILLS-ADOPTION.md](SKILLS-ADOPTION.md) for that history if you want to revisit it later |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
 | Lead GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS`. Not classic, not `read:org` |
 | Local GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only over `COMMUNITY_REPOS` + `MIRROR_REPOS`; plus Contents **write on the backup repo only** |
 | Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Issues+PRs; + Dependabot alerts if enabling the sweep. `COMMUNITY_REPOS` only |
 | Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Content repo only, Contents+PRs read/write |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| PostHog key | `<region>.posthog.com` → Settings → Personal API Keys | Read-only on insights/query; note region (`us`/`eu`). **Belongs to the Reviewer (`engineering/community-coding`)** (`posthog-weekly-review`) — no other agent should be able to reach it |
 | GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Local ops agent (`local/community-local`)** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
@@ -59,9 +57,9 @@ here needs classic. Note that a fine-grained token's repo list gates
 a repo left off the list fails silently rather than falling back to public
 access. That's the single most common misconfiguration in this system.
 
-**Every script call is a read.** Writes happen exclusively in the agents'
-live actions — which is why, of the four tokens, write is narrow and unevenly
-distributed:
+**Every gate SCRIPT is a read.** Writes happen exclusively in the agents' live
+actions after a gate wakes them — which is why, of the four tokens, write is
+narrow and unevenly distributed:
 
 - **Lead** — Issues and PRs write, for its own live replies: filing a bug
   report from a Discord conversation, commenting, labelling.
@@ -69,13 +67,17 @@ distributed:
   a draft and open its PR.
 - **Local** — Contents write on the **backup repo only**, for
   `workspace-backup`'s git push. Everything else it does is a read.
-- **Coding (the Reviewer)** — **no write of any kind, anywhere.** It is the
-  one token that is structurally incapable of changing anything.
+- **Coding (the Reviewer)** — Contents and PRs write, but only to open a
+  **draft** PR: a security-patch branch (`security-advisory-sweep`, confirmed
+  advisories only) or a version-tagged docs branch (`docs-currency-watch`).
+  It never marks a PR ready, never merges, and never pushes to a default
+  branch — see §1b's least-privilege table for the branch-protection
+  requirement this write scope depends on.
 
-So three of four hold some write, but only two hold write on a repo anyone
-reads (the lead on the community repos, marketing on the content repo). Local's
-write reaches exactly one private backup repo, which is why it is worth cutting
-as a separate token rather than widening the one it already has.
+So all four hold some write, but only two hold write on a repo anyone reads
+day to day (the lead on the community repos, marketing on the content repo).
+Local's write reaches exactly one private backup repo; the Reviewer's reaches
+only its own draft branches, never anything mergeable without a human.
 
 There is exactly one `POST` in the whole system, it belongs to the **local**
 agent (`weekly-analytics-report`), and it is **not** a write:
@@ -189,11 +191,12 @@ Still **not** `MIRROR_REPOS`. Mirroring is the
 local agent's job, so a mirror-only repo on this token is access nothing here
 uses, and unused access is exactly what §3's audit exists to catch.
 
-Five of this agent's tasks call `api.github.com` and so depend on this token:
-`github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`,
-`dependabot-pr-review` and `docs-currency-watch`. The sixth,
-`posthog-weekly-review`, runs entirely on its own PostHog credential against a
-non-GitHub host and needs nothing here. Verify the list against
+All of this agent's current tasks call `api.github.com` and so depend on this
+token: `github-ops-triage`, `security-advisory-sweep`,
+`contributor-health-review`, `dependabot-pr-review` and `docs-currency-watch`
+(`posthog-weekly-review` is removed for now — see SKILLS-ADOPTION.md if it
+comes back; it would run on its own PostHog credential, needing nothing
+here). Verify the list against
 `grep -l api.github.com scripts/tasks/engineering/*.sh` rather than trusting
 this paragraph — it is the kind of list that goes stale on every split.
 
@@ -228,8 +231,8 @@ and at different levels: marketing writes drafts there, local only reads PRs
 there to find stale ones.
 
 No social-platform credential is wired to this agent in any configuration, and
-no analytics credential either — GA4 belongs to the local agent and PostHog to the Reviewer.
-Marketing writes the drafts; it does not read the numbers.
+no analytics credential either — GA4 belongs to the local agent. Marketing
+writes the drafts; it does not read the numbers.
 
 ### Why PATs and not a GitHub App
 
@@ -306,14 +309,14 @@ A real deployment's audit, applying the steps above:
 |---|---|
 | GitHub (Apps tab), Gmail (Apps tab), Google Analytics (Apps tab) | ✅ expected — confirm identity with the `GET /user` check below regardless |
 | GitHub App, GitLab, Google Drive, Google Calendar, Google Chat — all **not connected** | ✅ correct — nothing in this template set uses them; an unconnected integration sitting in the "Apps" list is not a requirement, don't connect it "just in case" |
-| PostHog API Key (Custom, host `us.posthog.com`) | ✅ matches the **Reviewer's** telemetry row (`posthog-weekly-review`). If `agent-access` shows the Reviewer reaching it, that's a leftover from before the model-tier split — remove it |
+| PostHog API Key (Custom, host `us.posthog.com`) | 🚩 **finding**: `posthog-weekly-review` (the Reviewer's telemetry task) is removed for now — never got working end to end. A live PostHog key with no task consuming it is unused surface; remove it, or leave it if you plan to re-add the task soon |
 | Discord Bot Token (Custom, host `discord.com`) | ✅ expected — `/add-discord`'s own registration, not a manual step |
 | LinkedIn Access Token (Custom, host `api.linkedin.com`) | 🚩 **finding**: this template's default LinkedIn posting is the free intent-URL flow, which needs no API credential at all. A live token here with nothing in the current design that calls it is exactly the kind of stale, unused-but-still-valid credential this audit exists to catch — confirm it's actually in use before carrying it forward; if not, remove it |
 | 4× Twitter/X secrets (`TWITTER_API_KEY`/`_SECRET`, `TWITTER_ACCESS_TOKEN`/`_SECRET`, all Custom, host `api.x.com`, OAuth 1.0a headers) | 🚩 **verify before reuse**: this is the legacy OAuth 1.0a posting flow. X's pricing changed in Feb 2026 to pay-per-use — confirm whether the *new* API uses this same auth scheme before assuming these four secrets still work; only relevant at all if the owner opts into paid X posting (default is free intent-URL, needing none of this) |
 | Anthropic Token (LLMs tab, host `api.anthropic.com`) | ✅ the model provider key, not an identity/posting credential — no rotation needed as part of any bot-identity cleanup |
 
-The two 🚩 rows are the actual value of running this audit: neither is a
-security hole, but both are unused surface — exactly what "nothing more than
+The flagged 🚩 rows are the actual value of running this audit: none is a
+security hole, but each is unused surface — exactly what "nothing more than
 what's needed" means in practice, not just in the abstract.
 
 ## 4 · Confirm identity — the check that catches "started as my own account"

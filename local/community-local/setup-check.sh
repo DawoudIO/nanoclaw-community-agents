@@ -15,12 +15,10 @@ DATA="/workspace/agent/plugin-data/community-local"
 CHECKS="[]"
 add() { CHECKS=$(printf '%s' "$CHECKS" | jq -c --arg n "$1" --arg s "$2" --arg h "$3" '. + [{name:$n,status:$s,hint:$h}]'); }
 
-# The defining property of this agent: it must not depend on the cloud window.
-if [ -n "${ANTHROPIC_BASE_URL:-}" ]; then
-  add "local_provider_active" "ok" "routed to $ANTHROPIC_BASE_URL"
-else
-  add "local_provider_active" "missing" "ANTHROPIC_BASE_URL is unset — this group is still on the CLOUD provider, so it shares the usage window and defeats its own purpose. Re-run /add-ollama-provider for this group."
-fi
+# For this phase this agent runs on the cloud default (Haiku), same as the
+# others — a local-model provider was evaluated and set aside; see
+# SKILLS-ADOPTION.md. If you've since adopted one, ANTHROPIC_BASE_URL will be
+# set here; that's expected and not checked either way.
 
 [ -n "${COMMUNITY_REPOS:-}" ] && add "config:COMMUNITY_REPOS" "ok" "" || add "config:COMMUNITY_REPOS" "missing" "relay COMMUNITY_REPOS from the lead"
 # MIRROR_REPOS is OPTIONAL: repo-mirror-sync falls back to COMMUNITY_REPOS

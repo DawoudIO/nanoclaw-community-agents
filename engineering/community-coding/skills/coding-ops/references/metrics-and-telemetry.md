@@ -2,9 +2,11 @@
 
 ## Your scripts fetch; you narrate
 
-The `contributor-health-review` and `posthog-weekly-review` tasks both fetch their data
-in a `script:` gate and hand it to you as `scriptOutput`. Don't re-query what
-you've already been given, and don't invent a number that isn't in there.
+The `contributor-health-review` task fetches its data in a `script:` gate and
+hands it to you as `scriptOutput` (`posthog-weekly-review` used to be the
+other consumer of this reference — removed for now, see SKILLS-ADOPTION.md if
+it returns). Don't re-query what you've already been given, and don't invent
+a number that isn't in there.
 
 ## Every number carries its window and its delta
 

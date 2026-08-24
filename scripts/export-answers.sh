@@ -45,7 +45,7 @@ if [ -z "$NCL_ROOT" ] || [ ! -d "$NCL_ROOT" ]; then
   echo "  <nanoclaw-root> is the dir containing groups/ — the same place you ran ncl from." >&2
   exit 1
 fi
-[ -f "$EXAMPLE" ] || { echo "missing $EXAMPLE"; exit 1; }
+[ -f "$EXAMPLE" ] || { echo "missing $EXAMPLE — onboarding-answers.example.json is deliberately absent for now (owner call, 2026-08-24); recreate it before using this tool"; exit 1; }
 
 # --- 1. collect every live config.env key, tagged with its owning agent ----
 # Layout: <root>/groups/<folder>/plugin-data/<agent-name>/config.env

@@ -56,9 +56,7 @@ community-coding/
 
 **Where the other tasks went.** `dev-metrics-report`,
 `good-first-issue-health`, `repo-hygiene-audit` and `repo-mirror-sync` are now
-`local/community-local` tasks. `posthog-weekly-review` came back here — its
-question is "is this anomaly a real defect users haven't reported yet", which
-is assessment, not narration. `docs-gap-review` and
+`local/community-local` tasks. `docs-gap-review` and
 `daily-github-triage` are the lead's — `docs-gap-review` reads a ledger only
 the lead writes, and since no agent can read another agent's plugin-data, it was
 permanently dead while it lived here.
@@ -104,20 +102,14 @@ stamped agent to write it:
 # groups/<folder>/plugin-data/community-coding/config.env
 COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep, issue/PR triage,
                                                  # contributor-health review
-POSTHOG_PROJECT_ID="12345"                       # optional — posthog-weekly-review
-POSTHOG_HOST="https://us.posthog.com"            # or https://eu.posthog.com
 ```
 
-**If you configured this agent before the restructure, two keys moved out and
-two moved in.** Out: `MIRROR_REPOS` and `GFI_LABEL`, to
-`plugin-data/community-local/config.env`, because `repo-mirror-sync` and
-`good-first-issue-health` are the local agent's now — setting them here has no
-effect. In: `POSTHOG_PROJECT_ID` and `POSTHOG_HOST`, because
-`posthog-weekly-review` is this agent's.
-
-**Set `POSTHOG_HOST` if the project is on EU.** The script defaults to US, so
-an EU project queries the wrong region and reports nothing rather than
-failing loudly.
+**`posthog-weekly-review` is removed for now** — it never got working end to
+end. If it comes back, it belongs here (product-telemetry anomalies need a
+defect judgment, which is assessment, not narration — see
+`skills/coding-ops/references/metrics-and-telemetry.md`), needing
+`POSTHOG_PROJECT_ID` and `POSTHOG_HOST` config keys and a **PostHog key**
+credential in the table below.
 
 Every script exits cleanly with `wakeAgent: false, status: "not-configured"`
 when its key is unset — an unconfigured task costs nothing rather than failing.
@@ -155,10 +147,10 @@ this agent drafts the bump instead. Either is fine; having both produces two PRs
 per CVE, which is why onboarding asks. Nothing here can turn the setting on —
 that needs Administration write, which no agent in this set holds.
 
-This agent needs a **PostHog key** (`posthog-weekly-review`) but **no GA4
-access** — GA4 traffic narration is the local agent's. It no longer touches
-either. Those credentials belong to `local/community-local`; see that
-template's README.
+This agent needs **no GA4 access** — GA4 traffic narration is the local
+agent's; that credential belongs to `local/community-local`, see that
+template's README. (It would also need a PostHog key if
+`posthog-weekly-review` comes back — removed for now, see above.)
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at
@@ -188,7 +180,7 @@ and waking a model to narrate noise is how a useful signal becomes something
 the owner learns to skip. A steady quarter costs one wake.
 
 A short list of gated tasks on Haiku is a small footprint against the shared
-usage window, which is the point of putting the Reviewer on the cheap tier. The costs that
-used to be listed here — dev metrics, GFI health, hygiene audit, PostHog,
-mirror sync — are the local agent's now, and they cost memory rather than
-tokens.
+usage window, which is the point of putting the Reviewer on the cheap tier.
+Dev metrics, GFI health, hygiene audit, and mirror sync moved to the local
+agent (also on the cheap tier, but bearing narration rather than judgment).
+`posthog-weekly-review` is removed for now — see above.

@@ -14,31 +14,39 @@ more than capability.
 | Template | Role | Model | Public voice |
 |---|---|---|---|
 | [`support/community-support`](support/community-support/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes — the primary one** |
-| [`local/community-local`](local/community-local/) | Narrates script-computed data, keeps mirrors fresh, acknowledges messages when the lead is rate-limited | **Local** (Ollama) | Holding replies only |
+| [`local/community-local`](local/community-local/) | Narrates script-computed data, keeps mirrors fresh, acknowledges messages when the lead is rate-limited | Claude Haiku (cloud) | Holding replies only |
 | [`engineering/community-coding`](engineering/community-coding/) | Reviewer — issue/PR triage, duplicates, security advisories, docs gaps. Read-only | Claude Haiku | No |
 | [`marketing/community-marketing`](marketing/community-marketing/) | Content drafts via PR, in the project's audience's language | Claude | No |
 
 The lead works standalone; add sub-agents when you want that work done without
 granting a second identity. Each template's README has per-agent detail.
 
-**Why a local agent is in this set.** The cloud-backed groups share one usage
-window. When it closes, the lead stops replying — and silence is the failure
-mode the north star is about, since response delay is the strongest predictor
-of whether a first-time contributor comes back. The local agent has no window
-to exhaust, so it keeps working: it holds the line with a templated
-acknowledgment (never an answer) and logs the message for the lead to pick up.
-It is deliberately restricted — see its
+**Why a local agent is in this set.** It takes the bulk of the recurring,
+mechanical work — narration, mirrors, backups — off the lead, so Sonnet-class
+judgment is only spent where it's needed. It's also who holds the line with a
+templated acknowledgment (never an answer) when the lead is rate-limited or
+down, logging the message for the lead to pick up. It is deliberately
+restricted — see its
 [never-do list](local/community-local/ai.nanoco.nanoclaw/context/instructions.md),
-which is the load-bearing part of that template.
+which is the load-bearing part of that template. **For this phase, it runs on
+the same cloud tier and shares the same usage window as the lead** — a
+local-model provider (which would put it off-window entirely, immune to a
+shared-window outage) was evaluated and set aside as too much setup friction
+to get the system working end to end first; see
+[SKILLS-ADOPTION.md](SKILLS-ADOPTION.md) for that history and
+[docs/OPERATIONS.md](docs/OPERATIONS.md) for what a shared-window outage
+means with all four agents on it.
 
 ## Design principles
 
-- **Scripts do the work; agents do the judgment.** 24 of 26 recurring tasks
+- **Scripts do the work; agents do the judgment.** Nearly all recurring tasks
   are script-gated: deterministic fetching, diffing, and thresholds run as
   bash with no model involved, and the agent wakes only when there's
   something to judge. Run `bash scripts/gen-task-table.sh` for the current
-  task/agent/schedule table — it is generated from the task files, so it
-  can't drift from what actually ships. The gates live as testable code in
+  task/agent/schedule table (add `--counts` for just the headline numbers) —
+  it is generated from the task files, so it can't drift from what actually
+  ships; don't trust a task count in prose, including this file's. The gates
+  live as testable code in
   [`scripts/tasks/`](scripts/tasks/) — run [`scripts/test/run.sh`](scripts/test/run.sh)
   to exercise all of them without any agent, and
   `bash scripts/sync-tasks.sh --check` to verify the templates match their

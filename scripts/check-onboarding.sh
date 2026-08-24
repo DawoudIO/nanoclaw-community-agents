@@ -22,6 +22,14 @@ note() { echo "FAIL: $1"; FAIL=$((FAIL+1)); }
 
 command -v jq >/dev/null 2>&1 || { echo "jq required"; exit 1; }
 
+# onboarding-answers.example.json is deliberately absent until we're closer to
+# a real test pass (owner call, 2026-08-24) — build it then if it's still
+# wanted. A missing file here is "deferred," not a coverage failure.
+if [ ! -f "$EXAMPLE" ] && [ -z "$EXTRA" ]; then
+  echo "onboarding check SKIPPED: onboarding-answers.example.json deliberately absent for now"
+  exit 0
+fi
+
 for f in "$EXAMPLE" ${EXTRA:+"$EXTRA"}; do
   [ -f "$f" ] || { note "missing file: $f"; continue; }
 

@@ -88,24 +88,27 @@ else
   fail "onboarding-answers.example.json is out of sync with the code (run: bash scripts/check-onboarding.sh)"
 fi
 
-# --- 1d2. every task must declare name + status: paused -------------------
-# The whole design is "stamp everything, then enable only what onboarding
-# selected". That depends on `status: paused` being in the file — and 19 of 26
-# task files were relying on an undocumented platform default instead, because
-# newer files were written to a different shape than the originals. If the
-# runtime honours the key, those tasks would have gone LIVE on stamp; if it
-# ignores the key, declaring it costs nothing. Only one of those outcomes is
-# survivable, so the invariant is now explicit and checked.
-#
-# `name` must match the filename: it is what `ncl tasks` shows, and a mismatch
-# means the thing you pause is not the thing you meant to pause.
-TASKMETA=0
+# --- 1d2. task frontmatter must NOT carry unrecognized keys ----------------
+# History here, because the wrong direction was shipped once already: a prior
+# pass added `name:`/`status: paused` to every task file on the theory that
+# the platform needed them to create tasks paused. That was never verified
+# against the real platform, and a real install on 2026-08-22 confirmed it
+# was wrong — those exact keys caused validator errors that blocked template
+# stamping entirely, and had to be removed (commit 4a978e5) before anything
+# would stamp. Tasks are apparently paused/enabled by a mechanism outside
+# this frontmatter; `schedule` and `script` are the only keys a task file
+# should declare. This check now guards the OPPOSITE regression — don't
+# reintroduce `name`/`status` (or any other unrecognized key) without first
+# confirming against a real stamp attempt that the platform accepts it.
+BADKEY=0
 for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
-  n=$(basename "$md" .md)
-  grep -q "^name: $n\$" "$md" || { echo "  missing or mismatched 'name: $n' in ${md#"$ROOT"/}"; TASKMETA=1; }
-  grep -q '^status: paused$' "$md" || { echo "  missing 'status: paused' in ${md#"$ROOT"/}"; TASKMETA=1; }
+  if awk '/^---$/{c++; next} c==1 && /^[a-zA-Z_]+:/ && $1 !~ /^(schedule:|script:)/ {print; bad=1} END{exit !bad}' "$md" >/tmp/badkeys.$$ 2>/dev/null; then
+    echo "  unrecognized frontmatter key(s) in ${md#"$ROOT"/}: $(cat /tmp/badkeys.$$ | tr '\n' ' ')"
+    BADKEY=1
+  fi
+  rm -f /tmp/badkeys.$$
 done
-[ "$TASKMETA" -eq 0 ] && pass || fail "task file(s) missing name/status — every task must be stamped PAUSED and enabled only by onboarding"
+[ "$BADKEY" -eq 0 ] && pass || fail "task file(s) declare a frontmatter key other than schedule/script — verify against a real stamp attempt before adding one"
 
 # --- 1e. docs must not contradict the real topology ------------------------
 # Prose that hand-restates counts ("18 tasks", "three agents") goes stale
@@ -533,15 +536,11 @@ assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" c
 assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-quiet false \
   '.data.quiet_heartbeat == true' 'COMMUNITY_REPOS="acme/demo"' 2
 
-# posthog: byte-identical insight results across two runs must suppress, and
-# previous_result must be populated from history on run 2. This is the exact
-# bug the 28-day heartbeat fix addressed — a 7-day heartbeat on a weekly cron
-# made this assertion impossible to satisfy.
-assert_scenario "$ROOT/scripts/tasks/engineering/posthog-weekly-review.sh" posthog-static false \
-  '(.data.quiet_heartbeat == true)
-   and (.data.insights[0].result == .data.insights[0].previous_result)
-   and (.data.insights[0].name == "Weekly signups")' \
-  'POSTHOG_PROJECT_ID="123"' 2
+# posthog-weekly-review is removed for now (never got working end to end).
+# If it comes back, restore this scenario: byte-identical insight results
+# across two runs must suppress, and previous_result must be populated from
+# history on run 2 — the exact bug the 28-day heartbeat fix addressed, since a
+# 7-day heartbeat on a weekly cron made this assertion impossible to satisfy.
 
 # good-first-issue-health: only the unassigned AND stale issue is listed;
 # truncated must be true because total_count (150) > items returned (3).
