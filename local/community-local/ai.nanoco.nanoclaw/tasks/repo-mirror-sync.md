@@ -17,12 +17,23 @@ script: |
   # GitHub API and still need a live call; this mirror only ever holds the
   # current tree of tracked branches.
   #
+  # WHERE THIS WRITES: /workspace/shared-repos, NOT this agent's own
+  # plugin-data. That path is a host directory mounted read-write here and
+  # read-only into the Reviewer/Lead/Marketing containers (`ncl groups config
+  # add-mount`, owner-run, one time — see local/community-local/README.md,
+  # "Shared repo mirror"). This is the single source of truth for "what does
+  # the code actually look like right now" across every agent, updated by
+  # exactly one credentialed writer instead of each agent re-fetching or
+  # re-cloning its own copy independently. If the mount isn't set up yet, this
+  # still works — it just writes to a path only this agent can see, same as
+  # before.
+  #
   # Wakes on a real content change (so the agent can read what changed and
   # flag anything worth a human's attention — a wiki page contradicting
   # current code, a docs edit that needs review) OR on failure. Silent only
   # when literally nothing moved since the last run.
   DATA="/workspace/agent/plugin-data/community-local"
-  MIRRORS="$DATA/repo-mirror"
+  MIRRORS="/workspace/shared-repos"
   mkdir -p "$MIRRORS"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPOS="${MIRROR_REPOS:-${COMMUNITY_REPOS:-}}"
@@ -64,6 +75,12 @@ script: |
         '. + [{repo: $r, files_changed: $f, commits: $s}]')
     fi
   done
+  # Freshness marker other agents can check before trusting the mirror for a
+  # judgment call — see docs-currency-watch/security-advisory-sweep/
+  # dependabot-pr-review, which all read this path directly now. Written after
+  # the sync attempt (not before), so a stamp always means "a sync actually
+  # ran," not just "the gate started."
+  date -u +%s > "$MIRRORS/.last-sync-epoch" 2>/dev/null || true
   if [ "$(printf '%s' "$FAILED" | jq 'length')" -eq 0 ] && [ "$(printf '%s' "$CHANGED" | jq 'length')" -eq 0 ]; then
     echo '{"wakeAgent": false, "data": {"status": "ok"}}'
   else
@@ -86,11 +103,15 @@ it; let the Reviewer do that. Most syncs are ordinary and deserve a one-line
 "nothing notable" at most, never a padded readout of every commit message.
 
 **`dirty-tree`**: something modified a mirror directly. Nothing — no task,
-no skill, no live session — should ever write into `repo-mirror/`; it's a
-read-only local view of the tracked branch, rebuilt by this gate alone.
-Report it to your lead as a real anomaly, don't try to clean it up
-yourself (the gate will just report it dirty again next run — that's
-correct until someone investigates why a write happened at all).
+no skill, no live session — should ever write into `/workspace/shared-repos`;
+it's a read-only tracked-branch view, rebuilt by this gate alone. **Every
+other agent mounts this path read-only** (`ncl groups config add-mount`, set
+up once by the owner — see `local/community-local/README.md`, "Shared repo
+mirror"), so a dirty tree there is either this gate racing itself or a
+misconfigured mount granting write access somewhere it shouldn't. Report it
+to your lead as a real anomaly, don't try to clean it up yourself (the gate
+will just report it dirty again next run — that's correct until someone
+investigates why a write happened at all).
 
 **`clone-failed`/`pull-failed`**: report the repo and symptom. `github.com`
 (not `api.github.com`) needs its own sandbox allowlist entry for git's HTTPS
@@ -98,14 +119,19 @@ protocol — that's the most likely cause on a fresh install. A private repo
 also needs a `github.com` (git) vault credential, the same class
 workspace-backup uses; public repos need none.
 
-**What this buys you, and what it doesn't.** `repo-mirror/<repo>/` (one
-directory per entry in `MIRROR_REPOS` — the project's full repo map:
-product/docs/site/marketing/wiki, not just the repos triaged for
-issues/PRs) is a shallow, current-branch checkout — grep it directly
-instead of a live API call for file-contents questions ("does this bug
-still reproduce in current main", an exact file:line). Refreshed at most
-every 15 minutes, not instantly — say "as of the last sync," never imply
-real-time. It does **not** help with issues, PRs, releases, or
+**What this buys you, and what it doesn't.** `/workspace/shared-repos/<repo>/`
+(one directory per entry in `MIRROR_REPOS` — the project's full repo map:
+product/docs/site/marketing/wiki, not just the repos triaged for issues/PRs)
+is a shallow, current-branch checkout — **any agent with the mount** (not
+just this one) should grep it directly instead of a live API call for
+file-contents questions ("does this bug still reproduce in current main", an
+exact file:line). This is the system's single source of truth for repo
+content — one credentialed writer here, everyone else reads the same
+checkout instead of re-fetching or re-cloning their own copy. Refreshed at
+most every 15 minutes, not instantly — a `.last-sync-epoch` file in the same
+directory (Unix seconds, UTC) lets a reader confirm how fresh it actually is
+before trusting it for anything time-sensitive; say "as of the last sync,"
+never imply real-time. It does **not** help with issues, PRs, releases, or
 discussions — those only exist via the GitHub API and still need a live
 call every time; a repo mirror is content, not project metadata. A GitHub
 wiki is just a repo named `owner/repo.wiki` — it mirrors identically to

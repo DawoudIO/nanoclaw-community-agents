@@ -331,6 +331,7 @@ one per line, quoted:
 | Key | From | Read by |
 |---|---|---|
 | `COMMUNITY_REPOS` | repo map (space-separated) | `daily-github-triage`, `release-announcement-watch`, own setup-check |
+| `RELEASE_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `release-announcement-watch` — ask if the owner wants release announcements scoped to just the main product repo rather than the whole map (docs/content repos rarely cut releases, and without this they wake this gate every 3h for nothing). Falls back to `COMMUNITY_REPOS` if unset |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
 **`plugin-data/community-support/project-config.md`** — prose, with a dated
@@ -483,6 +484,7 @@ actually posts in.
 | Key | Value | Why it matters |
 |---|---|---|
 | `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch` — all go quiet without it |
+| `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 
 Plus in prose: default branch, label policy, and **`docs_style`** — the
@@ -602,15 +604,49 @@ workspace** — `git init`, `git remote add origin …`, `git config` identity, 
 `.gitignore` (exclude `conversations/`), then run the backup task once
 (`ncl tasks run`) and report the commit landing or the exact failure.
 
-## 9. Activation plan — resume only on an explicit "go"
+## 9. Activation — one agent at a time, one task at a time, verified as you go
 
-Present the split: which tasks are ready to resume (goal chosen in step 3 AND
-config + credentials verified in step 7) and which stay paused, each with its
-one-line reason — "goal not chosen" is a reason, same as "credential missing". On
-the owner's explicit go — a clear yes in this DM, per instruction — resume the
-ready ones, re-list to confirm, and state the first time each will fire.
-Never resume anything the verification step didn't clear, and never resume
-`daily-github-triage` if the coding sub-agent is stamped (redundant).
+**This replaces "resume everything on one final go."** A real install did
+exactly that — batch-resumed every task across all agents in one shot on an
+explicit "go" — and then nothing ran for the next ~18 hours anyway, because
+the owner moved on to other setup work and the resume step got lost in the
+noise of everything else happening that evening. Nobody found out until the
+next morning, asking "why didn't anything run overnight." **Never let
+activation depend on a single moment that's easy for the owner (or you) to
+lose track of.** Instead, activation is incremental and self-verifying:
+
+For **each agent** in this order — **you (the lead) first, then local ops,
+then the Reviewer, then marketing** (skip any not stamped):
+
+1. **State what this agent is and does**, one line, if you haven't already
+   in this conversation (you likely have, back in step 6 — don't repeat
+   yourself, just make sure the owner knows which agent you're now
+   activating).
+2. **Confirm its config is relayed and its own `setup-check.sh` is clean.**
+   If it isn't, stop here for this agent and surface exactly what's missing
+   — don't activate a task on top of a known gap.
+3. **For each of that agent's tasks that's eligible** (goal chosen, config +
+   credentials verified) — one at a time, not as a batch:
+   - Resume it (`ncl tasks resume <id>`).
+   - **Trigger it immediately** (`ncl tasks run <id>`) — don't wait for its
+     schedule. Waiting means you won't know it's broken until its next
+     natural fire, which for a daily/weekly task could be tomorrow or next
+     week.
+   - **Read the actual result** (`ncl tasks get <id>`) and report it to the
+     owner **verbatim, not summarized as "resumed successfully."** A task
+     can resume cleanly and still fail on its first real run — that's
+     exactly what the outcome check is for.
+   - Only move to this agent's next task once the current one's real result
+     looks healthy (or the owner has seen a real failure and told you how
+     to proceed).
+4. **State plainly when this agent is fully healthy** — every eligible task
+   resumed, triggered, and its actual result checked — before moving to the
+   next agent. Tasks whose goal wasn't chosen stay paused; say so as part of
+   "healthy," not as a gap.
+
+Never resume `daily-github-triage` if the coding sub-agent is stamped
+(redundant). If the owner wants to skip straight to activating everything at
+once anyway, that's their call to make explicitly — don't default to it.
 
 ## 10. Close the loop
 

@@ -151,6 +151,64 @@ other task in the whole set is staggered onto its own minute; verify with:
 grep -h '^schedule:' */*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d
 ```
 
+## Shared repo mirror — one checkout, every agent can read it
+
+`repo-mirror-sync` writes to `/workspace/shared-repos`, not this agent's own
+`plugin-data/` — a host directory the owner mounts **read-write here and
+read-only into every other stamped agent** (Lead, Reviewer, Marketing), via
+NanoClaw's own mount mechanism (`ncl groups config add-mount`, gated by an
+owner-controlled allowlist — neither this nor any other agent can grant
+itself this access). One credentialed writer, everyone else reads the same
+checkout instead of independently re-fetching or re-cloning their own copy —
+this is what makes the Reviewer's `dependabot-pr-review`/`docs-currency-watch`/
+`security-advisory-sweep` able to grep real file contents instead of relaying
+through this agent or the lead for every question.
+
+**One-time owner setup, after all agents are stamped:**
+
+```bash
+# 1. Authorize the host directory (owner-only, outside any container's reach)
+#    — run wherever NanoClaw itself runs, typically inside the sandbox.
+mkdir -p shared-repos
+pnpm exec tsx setup/index.ts --step mounts --force -- \
+  --json '{"allowedRoots":[{"path":"'"$(pwd)"'/shared-repos","allowReadWrite":true}],"blockedPatterns":[]}'
+
+# 2. Grant THIS agent (local ops) read-write — it's the only writer
+ncl groups config add-mount --id <local-ops-group-id> \
+  --host "$(pwd)/shared-repos" --container /workspace/shared-repos
+
+# 3. Grant every other stamped agent read-only
+ncl groups config add-mount --id <lead-group-id> \
+  --host "$(pwd)/shared-repos" --container /workspace/shared-repos --ro
+ncl groups config add-mount --id <coding-group-id> \
+  --host "$(pwd)/shared-repos" --container /workspace/shared-repos --ro
+ncl groups config add-mount --id <marketing-group-id> \
+  --host "$(pwd)/shared-repos" --container /workspace/shared-repos --ro
+
+# 4. Apply — mounts only take effect after a restart
+ncl groups restart --id <local-ops-group-id>
+ncl groups restart --id <lead-group-id>
+ncl groups restart --id <coding-group-id>
+ncl groups restart --id <marketing-group-id>
+```
+
+**Freshness, not real-time.** `repo-mirror-sync` runs every 15 minutes
+(`:7/22/37/52`), and stamps `/workspace/shared-repos/.last-sync-epoch` (Unix
+seconds, UTC) after each attempt — any agent reading the mirror for a
+judgment call should check that file's age first and say "as of the last
+sync" rather than implying the code is current to the second. This is a
+deliberate trade: tight enough that staleness is a non-issue for triage and
+security-reachability judgment, without adding a live sync-then-act round
+trip through the lead (which would burn the Lead's cycles on every Reviewer
+question — see PREREQS.md's model-budget trap).
+
+**Optional, not required.** Without the mount, every agent falls back to what
+it did before: fetching file contents via the GitHub API directly, or asking
+the lead to relay a grep from this agent. Nothing breaks if the owner skips
+this setup — it's strictly an efficiency and resilience improvement (a real
+install hit an hour-plus OneCLI gateway outage that blocked every GitHub API
+call at once; a filesystem mount doesn't depend on that gateway being up).
+
 ## Credentials: via OneCLI, not env vars
 
 No API keys live in this template, and this agent needs **no write access

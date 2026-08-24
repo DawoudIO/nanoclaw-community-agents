@@ -14,9 +14,14 @@ script: |
   DATA="/workspace/agent/plugin-data/community-coding"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
-  REPOS="${COMMUNITY_REPOS:-}"
+  # SECURITY_WATCH_REPOS is an OPTIONAL narrower override, falling back to
+  # COMMUNITY_REPOS. A docs site or content repo rarely has dependencies worth
+  # a security sweep, and the Dependabot alerts (read) permission has to be
+  # granted per-repo on the token — set this to just the repos that actually
+  # ship code, e.g. the primary product repo, if you don't want the rest.
+  REPOS="${SECURITY_WATCH_REPOS:-${COMMUNITY_REPOS:-}}"
   if [ -z "$REPOS" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set SECURITY_WATCH_REPOS (or COMMUNITY_REPOS) in plugin-data/community-coding/config.env"}}'
     exit 0
   fi
   SEEN="$DATA/seen-advisories.txt"
@@ -136,7 +141,10 @@ reasons, and say which you did:
 - **`scope: "development"`** is the biggest discount. A build-time dependency
   is not in the shipped attack surface. It still gets patched eventually, but
   it is not an incident.
-- **Reachability.** Is the vulnerable function actually called? Grep the repo.
+- **Reachability.** Is the vulnerable function actually called? **Grep
+  `/workspace/shared-repos/<repo>/` if it exists** (the shared mirror local
+  ops keeps in sync — check `.last-sync-epoch`'s age and note it if you use
+  this) rather than fetching individual files via the API one at a time.
   "Vulnerable version present but the affected API is never invoked" is a
   legitimate, defensible downgrade — write down the path you checked so a
   human can disagree with a specific claim rather than a vibe.

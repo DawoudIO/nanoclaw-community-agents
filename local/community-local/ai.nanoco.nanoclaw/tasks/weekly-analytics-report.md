@@ -58,6 +58,14 @@ Write the weekly traffic report from `scriptOutput.week` and
 `scriptOutput.previous` (the prior week — already fetched, don't re-query). If
 `status` is `fetch-failed`, report that plainly and stop.
 
+**If `previous` is `{}` (empty)**: this is the first week ever recorded —
+there is no prior week to compare against. Report this week's numbers as a
+baseline and say plainly "first week tracked, no week-over-week comparison
+yet." **Never report a 0% (or any) delta from an empty `previous`** — a real
+install had this default to "0% change" on three metrics simultaneously right
+after a run of failures, which read as suspicious/fabricated data rather than
+what it actually was (nothing to compare against yet).
+
 Every number carries its window and its week-over-week delta. Explain a sharp
 move only if you actually verified the cause; otherwise report the move and mark
 the cause unverified.

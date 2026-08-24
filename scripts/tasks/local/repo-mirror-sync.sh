@@ -14,12 +14,23 @@ set -euo pipefail
 # GitHub API and still need a live call; this mirror only ever holds the
 # current tree of tracked branches.
 #
+# WHERE THIS WRITES: /workspace/shared-repos, NOT this agent's own
+# plugin-data. That path is a host directory mounted read-write here and
+# read-only into the Reviewer/Lead/Marketing containers (`ncl groups config
+# add-mount`, owner-run, one time — see local/community-local/README.md,
+# "Shared repo mirror"). This is the single source of truth for "what does
+# the code actually look like right now" across every agent, updated by
+# exactly one credentialed writer instead of each agent re-fetching or
+# re-cloning its own copy independently. If the mount isn't set up yet, this
+# still works — it just writes to a path only this agent can see, same as
+# before.
+#
 # Wakes on a real content change (so the agent can read what changed and
 # flag anything worth a human's attention — a wiki page contradicting
 # current code, a docs edit that needs review) OR on failure. Silent only
 # when literally nothing moved since the last run.
 DATA="/workspace/agent/plugin-data/community-local"
-MIRRORS="$DATA/repo-mirror"
+MIRRORS="/workspace/shared-repos"
 mkdir -p "$MIRRORS"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${MIRROR_REPOS:-${COMMUNITY_REPOS:-}}"
@@ -61,6 +72,12 @@ for REPO in $REPOS; do
       '. + [{repo: $r, files_changed: $f, commits: $s}]')
   fi
 done
+# Freshness marker other agents can check before trusting the mirror for a
+# judgment call — see docs-currency-watch/security-advisory-sweep/
+# dependabot-pr-review, which all read this path directly now. Written after
+# the sync attempt (not before), so a stamp always means "a sync actually
+# ran," not just "the gate started."
+date -u +%s > "$MIRRORS/.last-sync-epoch" 2>/dev/null || true
 if [ "$(printf '%s' "$FAILED" | jq 'length')" -eq 0 ] && [ "$(printf '%s' "$CHANGED" | jq 'length')" -eq 0 ]; then
   echo '{"wakeAgent": false, "data": {"status": "ok"}}'
 else

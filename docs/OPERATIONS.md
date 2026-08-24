@@ -18,10 +18,13 @@ symptom is pure silence. Two defenses:
   persists, so agents, config, and ledgers come back as they were.
 - **Watch for the weekly heartbeat.** `health-check` is the **local agent's**
   task, not the lead's. It wakes at least every 7 days even when everything is
-  fine and sends a one-line "all checks passed" to **its lead** — sub-agents
-  are headless and have exactly one outbound path — and the lead relays that
-  line to you. If more than ~8 days pass without it, the system is down —
-  restart the sandbox on the host. Silence is the alarm.
+  fine and sends a one-line "environment heartbeat: no issues found" to **its
+  lead** (deliberately not "all checks passed" — it only checks its own
+  environment, and a real install once had this heartbeat land the same
+  minute as a real task failure elsewhere, reading as a contradiction) —
+  sub-agents are headless and have exactly one outbound path — and the lead
+  relays that line to you. If more than ~8 days pass without it, the system
+  is down — restart the sandbox on the host. Silence is the alarm.
   Two consequences of that chain worth knowing: the *detection* half runs on
   the local model and so keeps working when the Claude window is gone, but the
   *delivery* half goes through the lead. A missing heartbeat therefore means

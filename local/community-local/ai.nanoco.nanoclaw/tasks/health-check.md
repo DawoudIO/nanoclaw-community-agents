@@ -73,7 +73,7 @@ script: |
   if [ -z "$ISSUES" ]; then
     if [ "$HB_DUE" = "true" ]; then
       echo "$NOW_S" > "$HB_F"
-      echo '{"wakeAgent": true, "data": {"status": "heartbeat", "note": "weekly proof-of-life - all checks passed"}}'
+      echo '{"wakeAgent": true, "data": {"status": "heartbeat", "note": "weekly proof-of-life - environment checks passed"}}'
     else
       echo '{"wakeAgent": false, "data": {"status": "ok"}}'
     fi
@@ -88,12 +88,19 @@ script: |
 Only invoked when the health-check script found something — or for the weekly
 proof-of-life heartbeat.
 
-**If `status` is `heartbeat`**: all checks passed; send your lead exactly one
-line — "Weekly health heartbeat: all checks passed as of <date/time>." This
-line's *absence* is the outage signal: the owner knows that if more than ~8
-days pass without it, the sandbox process itself has died (nothing inside a
-dead system can report its own death) and needs restarting on the host.
-Don't pad it into a report.
+**If `status` is `heartbeat`**: this gate's own environment checks passed
+(jq/ncl present, state.json fresh, no unexpected paused-task drift, no stuck
+owner-instruction threads) — send your lead exactly one line, scoped
+honestly: "Weekly environment heartbeat: no issues found as of <date/time>."
+**Never say "all checks passed" or anything implying system-wide health** —
+this task only checks its own environment, not other tasks' run outcomes. A
+real install had this heartbeat land the same minute as a real
+`repo-mirror-sync` failure, reading as a contradiction; the fix is scoping
+the words, not widening what this gate checks (that would just duplicate
+every other task's own failure reporting). This line's *absence* is the
+outage signal: the owner knows that if more than ~8 days pass without it,
+the sandbox process itself has died (nothing inside a dead system can report
+its own death) and needs restarting on the host. Don't pad it into a report.
 
 **If `status` is `attention`**: summarize `scriptOutput.issues` for your lead
 in one short message — what's stale, newly paused, or missing from the

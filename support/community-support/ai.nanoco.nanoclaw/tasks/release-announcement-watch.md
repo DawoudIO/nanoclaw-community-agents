@@ -16,9 +16,17 @@ script: |
   DATA="/workspace/agent/plugin-data/community-support"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
-  REPOS="${COMMUNITY_REPOS:-}"
+  # RELEASE_WATCH_REPOS is an OPTIONAL narrower override, falling back to
+  # COMMUNITY_REPOS. Announcing every merge-worthy repo's releases is often
+  # wrong: a docs site or a content repo never cuts a GitHub Release, and
+  # without this override they wake this gate every 3h for nothing (fixed
+  # separately, see the 404-handling note below) — but the *right* fix for a
+  # project that genuinely only wants its main product repo announced is to
+  # not watch the others in the first place. Set it to a subset of
+  # COMMUNITY_REPOS, e.g. just the primary product repo.
+  REPOS="${RELEASE_WATCH_REPOS:-${COMMUNITY_REPOS:-}}"
   if [ -z "$REPOS" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-support/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set RELEASE_WATCH_REPOS (or COMMUNITY_REPOS) in plugin-data/community-support/config.env"}}'
     exit 0
   fi
   TMP=$(mktemp -d)
@@ -27,16 +35,27 @@ script: |
     (
       SAFEREPO=$(printf '%s' "$REPO" | tr '/' '_')
       BASE_F="$DATA/last-announced-release-$SAFEREPO.txt"
-      RESP=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
-        "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null) || RESP=""
-      if [ -z "$RESP" ]; then
+      # No -f: it discards the response body on ANY HTTP error status, which
+      # made a legitimate 404 (repo has never published a release — normal for
+      # a docs site or content repo) indistinguishable from a real auth/network
+      # failure. Capture the status code alongside the body instead, so 404
+      # reaches "no-releases" and everything else still reaches "fetch-failed".
+      RAW=$(curl -sS --max-time 8 -w '\n%{http_code}' -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$REPO/releases/latest" 2>/dev/null) || RAW=""
+      HTTP_CODE=$(printf '%s' "$RAW" | tail -n1)
+      RESP=$(printf '%s' "$RAW" | sed '$d')
+      if [ "$HTTP_CODE" = "404" ]; then
+        # No releases yet - not a failure, just nothing to announce.
+        printf '{"repo": "%s", "status": "no-releases"}\n' "$REPO" > "$TMP/$i.json"
+        exit 0
+      fi
+      if [ "$HTTP_CODE" != "200" ] || [ -z "$RESP" ]; then
         printf '{"repo": "%s", "status": "fetch-failed"}\n' "$REPO" > "$TMP/$i.json"
         exit 0
       fi
       TAG=$(printf '%s' "$RESP" | jq -r '.tag_name // empty' 2>/dev/null)
       if [ -z "$TAG" ]; then
-        # 404 (no releases yet) is not a failure - just nothing to announce.
-        printf '{"repo": "%s", "status": "no-releases"}\n' "$REPO" > "$TMP/$i.json"
+        printf '{"repo": "%s", "status": "fetch-failed"}\n' "$REPO" > "$TMP/$i.json"
         exit 0
       fi
       OLD=$(cat "$BASE_F" 2>/dev/null || echo "")

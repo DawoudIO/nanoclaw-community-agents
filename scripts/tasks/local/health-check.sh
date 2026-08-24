@@ -70,7 +70,7 @@ if [ $(( NOW_S - HB_LAST )) -ge 604800 ]; then HB_DUE=true; fi
 if [ -z "$ISSUES" ]; then
   if [ "$HB_DUE" = "true" ]; then
     echo "$NOW_S" > "$HB_F"
-    echo '{"wakeAgent": true, "data": {"status": "heartbeat", "note": "weekly proof-of-life - all checks passed"}}'
+    echo '{"wakeAgent": true, "data": {"status": "heartbeat", "note": "weekly proof-of-life - environment checks passed"}}'
   else
     echo '{"wakeAgent": false, "data": {"status": "ok"}}'
   fi

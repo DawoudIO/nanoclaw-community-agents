@@ -324,13 +324,28 @@ assert_gate() {
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
-for a in "\$@"; do case "\$a" in https://*) url="\$a";; esac; done
+wants_code=false
+for a in "\$@"; do
+  case "\$a" in https://*) url="\$a";; esac
+  case "\$a" in *%{http_code}*) wants_code=true;; esac
+done
 if [ -d "$fixdir" ]; then
   while IFS='|' read -r pat file; do
     [ -z "\$pat" ] && continue
-    case "\$url" in *"\$pat"*) cat "$fixdir/\$file"; exit 0;; esac
+    case "\$url" in *"\$pat"*)
+      cat "$fixdir/\$file"
+      # -w '%{http_code}' callers read the trailing status line themselves
+      # and don't rely on curl's exit code (unlike -f callers) — append it
+      # on a match, and on no-match too (rather than the -f-style exit 22),
+      # so a script testing for a real HTTP status (e.g. 404 vs 200) can be
+      # exercised here.
+      \$wants_code && printf '\n200'
+      exit 0
+    ;;
+    esac
   done < "$fixdir/routes.txt"
 fi
+if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
@@ -339,7 +354,8 @@ MOCK
   done
   local out
   out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
-        bash <(sed "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") 2>/dev/null | tail -1)
+        bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" \
+                   -e "s#/workspace/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
   rm -rf "$sandbox"
   if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
     fail "$sname/$name: last line is not valid JSON: ${out:0:120}"
@@ -381,13 +397,23 @@ assert_scenario() {
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
-for a in "\$@"; do case "\$a" in https://*) url="\$a";; esac; done
+wants_code=false
+for a in "\$@"; do
+  case "\$a" in https://*) url="\$a";; esac
+  case "\$a" in *%{http_code}*) wants_code=true;; esac
+done
 if [ -f "$fixdir/routes.txt" ]; then
-  while IFS='|' read -r pat file; do
+  while IFS='|' read -r pat file code; do
     [ -z "\$pat" ] && continue
-    case "\$url" in *"\$pat"*) cat "$fixdir/\$file"; exit 0;; esac
+    case "\$url" in *"\$pat"*)
+      [ -n "\$file" ] && [ -f "$fixdir/\$file" ] && cat "$fixdir/\$file"
+      \$wants_code && printf '\n%s' "\${code:-200}"
+      exit 0
+    ;;
+    esac
   done < "$fixdir/routes.txt"
 fi
+if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
@@ -398,7 +424,8 @@ MOCK
   local out i
   for i in $(seq 1 "$runs"); do
     out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
-          bash <(sed "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") 2>/dev/null | tail -1)
+          bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" \
+                   -e "s#/workspace/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
   done
   rm -rf "$sandbox"
   local label="$sname/$fixture"
@@ -560,6 +587,14 @@ assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" rele
 # silently vanish. Same fixture, so the tag is unchanged: still no wake.
 assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" release-new false \
   '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"' 2
+
+# release-announcement-watch: a repo with zero releases ever (a docs site,
+# a content repo) returns 404 on /releases/latest — must read as "quiet",
+# NEVER as "fetch-failed". This is the exact bug a real install hit: curl -f
+# discarded the body on any HTTP error, so a legitimate 404 was
+# indistinguishable from a real auth/network failure.
+assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" release-no-releases false \
+  '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"'
 
 # content-draft-cycle: on a fresh sandbox run 1 seeds the release baseline and
 # the weekly floor is immediately due, so it wakes with trigger "weekly"...
