@@ -1,9 +1,13 @@
 # Community Local Ops Agent Template
 
-An always-available agent that runs on a **local model** instead of the cloud
-one. It narrates numbers a script already computed, keeps repo mirrors fresh,
-and — the reason it exists — keeps the community from hearing silence when the
-cloud-backed lead agent runs out of its usage window.
+The narration tier: it runs the cheapest cloud-capable model (Haiku), same as
+the Reviewer, and its job is to narrate numbers a script already computed,
+keep repo mirrors fresh, and post a templated holding acknowledgment when the
+lead is rate-limited or down. **For this phase it shares the same usage
+window as every other agent** — a local-model provider (e.g. Ollama) was
+evaluated and set aside as too much host setup friction to get the system
+working end to end first; see `SKILLS-ADOPTION.md` if you want to revisit
+that later.
 
 It owns the largest share of the recurring work in this set, because most of
 that work is mechanical by construction: a gate script fetched and computed the
@@ -11,15 +15,13 @@ data, and the agent's only job is to say what it means in a sentence or two.
 
 ## Why local
 
-The lead agent (`support/community-support`) answers people. It runs on a
-capable cloud model and shares one usage window with every other cloud-backed
-group here. When that window closes, the lead stops replying — and an
-unanswered question reads as an abandoned project. Response delay is the
-strongest single predictor of whether a first-time contributor comes back.
-
-This agent has no window to run out of. That single property is worth more than
-the quality difference on the work it's given, because all of that work is
-either narration of pre-computed data or a fixed-template acknowledgment.
+The lead agent (`support/community-support`) answers people, and everything
+it's given needs public-facing judgment. This tier's work never does — it's
+narration of pre-computed data or a fixed-template acknowledgment — so it
+runs on the cheapest capable model instead, keeping Sonnet-class spend where
+judgment actually matters. It's also who holds the line with a templated
+acknowledgment (never an answer) when the lead is rate-limited or down,
+logging the message for the lead to pick up later.
 
 **It is not a smaller version of the lead.** Read
 `ai.nanoco.nanoclaw/context/instructions.md` — the "What you must NEVER do"
@@ -37,7 +39,7 @@ local/community-local/
 ├── ai.nanoco.nanoclaw/
 │   ├── context/
 │   │   └── instructions.md             # persona + the never-do list
-│   └── tasks/                          # 11 tasks, all created paused
+│   └── tasks/                          # 12 tasks, all created paused
 │       ├── unanswered-watch.md         # the one the north star depends on
 │       ├── repo-mirror-sync.md
 │       ├── dev-metrics-report.md
@@ -70,18 +72,11 @@ Gate scripts are **not** authored here. They live in `scripts/tasks/local/*.sh`
 ncl groups create --template local/community-local --name "Community Local Ops"
 ```
 
-Then point it at a local model — **this step is what makes the template work at
-all.** Stamped without it, the group runs on the cloud provider, shares the
-usage window, and defeats its own purpose:
-
-```bash
-ollama pull llama3.2                    # 2 GB; sized for a 16 GB Mac mini
-/add-ollama-provider                    # per-group provider override
-```
-
-`setup-check.sh` fails with `local_provider_active: missing` if
-`ANTHROPIC_BASE_URL` is unset for the group, which is the mechanical way to
-catch a stamp that skipped this.
+It stamps on the cloud default (Haiku), same as the other sub-agents — no
+local model runtime to detect or wire for this phase. (A local-model
+provider, e.g. Ollama, is a possible later optimization if you want this
+agent off the shared window — see `SKILLS-ADOPTION.md` for why it was set
+aside and how it would be wired back in.)
 
 ### Wiring — the one sub-agent that needs a channel
 
@@ -211,13 +206,16 @@ call at once; a filesystem mount doesn't depend on that gateway being up).
 
 ## Credentials: via OneCLI, not env vars
 
-No API keys live in this template, and this agent needs **no write access
-anywhere**. Everything it does is read, compute, narrate, or post one templated
-acknowledgment. OneCLI's vault holds the credentials and injects them at the
-proxy boundary, outside the agent container.
+No API keys live in this template, and its write access is narrow and
+single-purpose: `workspace-backup` pushes to one backup repo, and that's the
+only write scope this agent has. Everything else it does is read, compute,
+narrate, or post one templated acknowledgment. OneCLI's vault holds the
+credentials and injects them at the proxy boundary, outside the agent
+container.
 
-If a task here appears to need a write token, that is a signal the task belongs
-to a different agent — not a reason to widen this one's access.
+If a task here appears to need a write token beyond the backup repo, that is
+a signal the task belongs to a different agent — not a reason to widen this
+one's access.
 
 Two of its tasks need no network at all, which is why they keep working when
 everything else is rate-limited or down:
@@ -259,11 +257,12 @@ decided who owns each half:
 
 What's left is pure narration: stars and forks, open issues and PRs, releases,
 `awaiting_first_response`, `new_contributors_7d`, `return_nudges`,
-`degraded_repos`, `quiet_heartbeat`. The prompt is ~740 words, down from
+`degraded_repos`, `quiet_heartbeat`. The prompt is ~660 words, down from
 ~1,130.
 
-**It is still the largest prompt on this tier** — roughly 1.8× the next largest
-(`repo-mirror-sync`, ~400 words) against a median near 300 — so it still earns
+**It is still the largest prompt on this tier** — roughly 1.3× the next
+largest (`repo-mirror-sync`, ~510 words, grown since the shared-mirror
+addition) against a median near 300 — so it still earns
 week-one attention, just less of it. The standing mitigations are unchanged and
 still load-bearing: the gate computes every number, so the model only narrates,
 and `null` means "unavailable, never zero". One new one worth knowing: the
@@ -295,13 +294,16 @@ the weekly evergreen floor) and produces exactly one draft per wake.
 
 ## Costs
 
-**Zero tokens against your subscription.** Every wake here runs against the
-local model, so the 11 tasks in this template are free in the sense that
-matters: they don't consume the window the lead agent needs to answer people.
+**Cheapest cloud tier, but not free.** This agent runs on Haiku for this
+phase, sharing the same subscription window as the Reviewer and (in bursts)
+the lead — its 12 tasks are low-judgment narration, not zero-cost. Most are
+script-gated, so a quiet week costs near nothing regardless; see
+`docs/OPERATIONS.md` → Model budget for the real per-agent token floors and
+the shared-window trade-off behind running this tier on cloud instead of a
+local model.
 
-The real cost is **memory**. On a 16 GB Mac mini the model (~2 GB resident)
-shares unified memory with Docker, the sandbox VM, and Postgres — there is no
-separate VRAM. Watch `ollama ps` and `docker stats` during a busy period in
-week one. If it's strained, the levers in order are: pause optional tasks →
-leave the marketing agent unstamped → drop to a smaller model
-(`gemma3:1b`, ~1 GB).
+If you later adopt a local-model provider for this agent (see
+`SKILLS-ADOPTION.md`), the real cost becomes host memory instead of tokens —
+watch `docker stats` during a busy period and, if it's strained, pause
+optional tasks or leave the marketing agent unstamped before dropping to a
+smaller model.

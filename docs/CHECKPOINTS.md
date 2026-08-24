@@ -13,15 +13,16 @@ it](OPERATIONS.md) for what the install actually costs and which meter pays for
 it; the short version is that volume won't threaten a 5-hour window but a
 credential debugging loop will.
 
-## The ready gate — 17 points, do not call it live until every box is checked
+## The ready gate — 15 points, do not call it live until every box is checked
 
 Work through these in order after INSTALL.md §7's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
 
-It grew from 14 to 17 when the local agent joined: nothing in the original gate
-touched it, which meant an install could pass every check while the tier that
-owns 12 of the 26 tasks was absent, misconfigured, or quietly billing to the
-cloud window. Items 14–16 close that.
+It grew when the local agent joined: nothing in the original gate touched it,
+which meant an install could pass every check while the tier that owns the
+largest single share of tasks (run `bash scripts/gen-task-table.sh --counts`
+for the current split) was absent, misconfigured, or silently billing to the
+shared window without anyone noticing. Items 13–15 close that.
 
 | # | Test | How | Pass looks like |
 |---|---|---|---|
@@ -66,7 +67,7 @@ Ten minutes, the morning after go-live:
     channel?** Still unverified. If the platform refuses the second wiring, or
     the local agent's channel silently resolves to nothing, `unanswered-watch`
     will do all its work and then have nowhere to put the acknowledgment. Ready
-    gate item 16 is the test; if you skipped it, do it now.
+    gate item 14 is the test; if you skipped it, do it now.
   - **Is `ncl messages list --json` the shape the gate expects?** Also
     unverified — the output shape varies by NanoClaw version. The gate is
     written to fail safe rather than fail quiet: an unrecognized shape makes it

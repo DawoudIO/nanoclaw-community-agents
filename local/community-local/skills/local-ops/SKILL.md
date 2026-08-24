@@ -5,9 +5,11 @@ description: Local-model operations for a community project — narrating script
 
 # Local ops
 
-You run on a local model that never runs out of budget. That reliability is
-your value — not depth. Everything here is about staying accurate inside a
-narrow lane.
+You run on the cheapest cloud tier (Haiku) — for this phase, the same shared
+usage window as the lead. Reliability and low cost per wake are your value —
+not depth, and not being off-window (that would need a local-model provider,
+evaluated and set aside for now; see SKILLS-ADOPTION.md). Everything here is
+about staying accurate inside a narrow lane.
 
 ## The lane
 

@@ -163,9 +163,12 @@ past `ACK_GRACE_MINUTES`, and if one has, it posts a holding acknowledgment.
 It exists because response delay is the strongest predictor of whether a
 first-time contributor comes back, and because *this* is what happens when
 the shared usage window runs out: the lead stops replying and the community
-hears nothing. It runs on the local model with no network and no credentials,
-so it survives the exact outage it compensates for — and it costs nothing on
-the meter. Offer it as protection for the north star, not as a feature.
+hears nothing. Its gate has no network and no credentials, so *detecting* the need costs
+nothing regardless of the shared window's state — but for this phase, posting
+the acknowledgment is still a model wake on local ops, which shares the same
+cloud window as you. If the window is fully exhausted, both of you go quiet
+together; it's a cheap, high-value safety net, not an off-window guarantee.
+Offer it as protection for the north star, not as a feature.
 
 **Not goal-scoped**: `inbox-check` — the lead's own task. An inbox is a
 support channel on a different transport, so the same escalation rules apply;
@@ -376,19 +379,29 @@ Understood. Now I'm going to set up the system based on your config:
    - Developer (mention-only): [list channels]
    - Security (mention-only): [channels]
 
-I'll handle all of this without asking for approval on each step. This usually
-takes 30–60 seconds. Sit tight.
+I won't ask you to confirm each step in this conversation — but every stamp,
+channel creation, and wiring call is still its own real platform approval
+card (there's no way to combine them; confirmed against the platform's own
+guard code). Expect a run of individual cards to click through, not silence
+followed by one done message. This usually takes 30–60 seconds of you
+clicking cards. Sit tight.
 ```
 
-Then proceed immediately to stamping and wiring — no approval requests.
+Then proceed immediately to stamping and wiring.
 
-## 5c. Wire Discord channels (agent autonomy, batch approvals)
+## 5c. Wire Discord channels (agent autonomy, one ask in chat, many real approval cards)
 
 **Agent autonomy**: Once channel IDs and tier mapping are recorded in
 `project-config.md`, you now have permission to wire the Discord channels
 directly. Do not ask the owner to do this manually. Instead:
 
-**Batch approval requests** — don't ask for approval per-channel:
+**One combined ask in chat, not one question per channel — but be accurate
+about the cards.** `messaging-groups create` and `wirings create` are each
+independently `access: 'approval'`-gated on the platform, same as stamping
+(section 6) — there is no batch-approval mechanism. Ask once in conversation
+so the owner isn't interrogated channel-by-channel, but say plainly that
+wiring N channels means roughly 2N real approval cards (one per
+messaging-group create, one per wiring create), not one combined approval:
 
 1. List all channels by tier:
    ```
@@ -399,16 +412,18 @@ directly. Do not ask the owner to do this manually. Instead:
    Security (mention-only): security
    Announcements & General (mention-only): announcements, general, marketing
    
-   Approve all? [yes/no]
+   Approve all? [yes/no] — heads up: this surfaces one approval card per
+   channel creation and one more per wiring, not a single combined approval —
+   the platform has no batch-approval mechanism for these.
    ```
 
-2. Once approved, execute all messaging-groups-create commands in batch
+2. Once approved, execute all messaging-groups-create commands in sequence
    **with `unknown_sender_policy='public'`** — this auto-approves all Discord
    server members so the community can message without waiting for approval,
    protecting your support SLA. (Owner DM uses 'request_approval' for
    permission controls; community channels use 'public'.)
 
-3. Then execute all wirings-create commands in batch:
+3. Then execute all wirings-create commands in sequence:
    ```
    Wiring 11 channels to the agent group... [executing]
    ```
@@ -532,6 +547,19 @@ A sub-agent whose goals were all declined in step 3 gets a dormancy note
 instead of config: "your goals aren't active for this project — stay idle,
 your tasks stay paused." Wait for confirmations from the active ones; chase
 what doesn't confirm.
+
+**Optional, mention once all stamping is confirmed: the shared repo mirror.**
+Local ops' `repo-mirror-sync` can write to a host directory
+(`/workspace/shared-repos`) that the other stamped agents read directly
+instead of hitting the GitHub API or relaying through you — it's what lets
+the Reviewer grep real file contents for reachability/breaking-change
+judgment. It needs group IDs for every stamped agent, so it can only happen
+now, after stamping, not earlier. It's a real owner-run setup step (mount
+allowlist + `ncl groups config add-mount` per agent + a restart each), not
+something you can do autonomously — point the owner at
+`local/community-local/README.md`'s "Shared repo mirror" section for the
+exact commands, and say plainly it's optional: nothing breaks without it,
+each agent just falls back to the API or a relay through you.
 
 ## 7. Walk the credential setup — then verify it, don't assume it
 

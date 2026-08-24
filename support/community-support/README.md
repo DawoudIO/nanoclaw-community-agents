@@ -49,7 +49,7 @@ community-support/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 5 tasks, all created paused
+│   └── tasks/                                         # 7 tasks, all created paused
 │       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
 │       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
@@ -114,11 +114,17 @@ agent's file, and there are three relays to get right:
 | Sub-agent | Keys the lead relays |
 |---|---|
 | `local/community-local` | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
-| `engineering/community-coding` | `COMMUNITY_REPOS` |
+| `engineering/community-coding` | `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS`) |
 | `marketing/community-marketing` | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
 
-The local agent's is by far the largest payload — it owns 12 of the 26 tasks in
-the set — so it's the relay most likely to end up half-done. Note that
+This agent also owns its own optional `RELEASE_WATCH_REPOS` (narrows
+`release-announcement-watch` to a subset of `COMMUNITY_REPOS`, distinct from
+marketing's singular `RELEASE_WATCH_REPO` above — easy to confuse, unrelated
+keys).
+
+The local agent's is by far the largest payload — it owns the largest single
+share of the tasks in the set (run `bash scripts/gen-task-table.sh --counts`
+for the current split) — so it's the relay most likely to end up half-done. Note that
 `CONTENT_REPO` is relayed to **both** local (for `draft-cleanup`) and marketing
 (for `content-draft-cycle`); the same value has to exist in two files.
 `GITHUB_BOT_USERNAME` is set in all four agents.

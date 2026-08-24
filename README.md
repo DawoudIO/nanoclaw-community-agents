@@ -8,15 +8,15 @@ before users report them (proactive detection), and it stays secure.
 **North star: community support at low cost and high engagement, before people
 give up on GitHub or Discord.** Every design choice below follows from that
 sentence, and the agents are split by **model tier** to serve it — capable
-models where judgment is needed, a free local model where reliability matters
-more than capability.
+models where judgment is needed, the cheapest cloud tier where reliability
+matters more than capability.
 
 | Template | Role | Model | Public voice |
 |---|---|---|---|
 | [`support/community-support`](support/community-support/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes — the primary one** |
 | [`local/community-local`](local/community-local/) | Narrates script-computed data, keeps mirrors fresh, acknowledges messages when the lead is rate-limited | Claude Haiku (cloud) | Holding replies only |
 | [`engineering/community-coding`](engineering/community-coding/) | Reviewer — issue/PR triage, duplicates, security advisories, docs gaps. Read-only | Claude Haiku | No |
-| [`marketing/community-marketing`](marketing/community-marketing/) | Content drafts via PR, in the project's audience's language | Claude | No |
+| [`marketing/community-marketing`](marketing/community-marketing/) | **Optional, not stamped by default.** Content drafts via PR, in the project's audience's language | Claude | No |
 
 The lead works standalone; add sub-agents when you want that work done without
 granting a second identity. Each template's README has per-agent detail.
@@ -90,7 +90,7 @@ means with all four agents on it.
    the complete question prep-sheet, the least-privilege scope tables, and
    the break-glass admin doctrine.
 3. **[docs/CHECKPOINTS.md](docs/CHECKPOINTS.md)** — the acceptance side:
-   the 17-point ready gate to pass before calling it live, then the day-2,
+   the 15-point ready gate to pass before calling it live, then the day-2,
    week-1, and month-1 verification checkpoints.
 4. **[docs/OPERATIONS.md](docs/OPERATIONS.md)** — day 2 and beyond: models
    and token budget, the full task reference, the **update policy** (SHA-

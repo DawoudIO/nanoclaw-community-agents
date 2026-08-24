@@ -257,14 +257,14 @@ tar -C /path/to/nanoclaw-templates -cf - support local engineering marketing \
 **What each one actually does — read this before naming or skipping any:**
 
 The four agents are split by **model tier**, not by subject: capable models
-where judgment is needed, a free local model where reliability matters more
-than capability.
+where judgment is needed, the cheapest cloud tier where reliability matters
+more than capability.
 
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
 | **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, watches releases, reviews docs gaps, and relays the three sub-agents' work | Claude Sonnet | **Yes — the primary, full voice** | Always — nothing works without it |
 | **Local ops** (`local/community-local`) | The narration tier: script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | Claude Haiku (cloud; a local-model provider was tried and set aside for now — [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It takes the bulk of the recurring, mechanical work off the lead |
-| **Coding** (`engineering/community-coding`) | Issue/PR triage and security-advisory review — 2 tasks, read-only, drafts everything for the lead. **Not** metrics, telemetry, or docs gaps: metrics/telemetry moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
+| **Coding** (`engineering/community-coding`) | Issue/PR triage, security-advisory review, Dependabot PR review, docs-currency checks, and maintainer-load assessment — 5 tasks, read-only except two narrow draft-PR paths, drafts everything for the lead. **Not** metrics or telemetry: those moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
 | **Marketing** (`marketing/community-marketing`) | Content drafts via PR, in the audience's language — 1 task | Claude | No — headless, no channel wiring at all | Optional, and **not stamped by default.** Skip it until you actually want content drafted |
 
 Why `docs-gap-review` sits with the lead and not the reviewer, since it reads
@@ -605,14 +605,15 @@ formality.
 | Local | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
 | Local | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
 | Local | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
-| Local | — (no secret, no network) | nothing at all | — | `unanswered-watch`, `health-check` — local message/container state only. **This is why they survive the outage they compensate for**: nothing to fail, nothing to expire |
+| Local | — (no secret, no network) | nothing at all | — | `unanswered-watch`, `health-check` — local message/container state only. **Their gates have nothing to fail, nothing to expire**; the model wake they trigger still shares the cloud window for this phase (see OPERATIONS.md → Model budget), so detection is free but the response isn't |
 | Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review` — 5 tasks (a 6th, `posthog-weekly-review`, is removed for now) |
 | Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle` — its only task |
 
 Note where the analytics/telemetry rows landed: **on Local, not Marketing or
 Coding.** That's the whole restructure in one table — the metered agents kept
 judgment work, and everything that is "run a script, narrate the numbers"
-moved to the tier that never runs out.
+moved to the cheapest tier (still metered, for this phase — see OPERATIONS.md
+→ Model budget).
 
 **A row that doesn't exist here is a finding, not a formality.** Concretely:
 the reviewer and marketing agents never appear against Discord at all;
@@ -744,15 +745,17 @@ three separate relays now, not one, and they are very unequal in size:
 | Sub-agent | Keys the lead relays into its `config.env` |
 |---|---|
 | **Local ops** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
-| **Reviewer** (coding) | `COMMUNITY_REPOS` |
+| **Reviewer** (coding) | `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope `security-advisory-sweep` narrower) |
 | **Marketing** | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
+| **Lead** (its own, not relayed) | (+ optional `RELEASE_WATCH_REPOS` to scope `release-announcement-watch` narrower — distinct key from Marketing's singular `RELEASE_WATCH_REPO` above, easy to confuse) |
 
 Plus `GITHUB_BOT_USERNAME`, which all four agents hold — it's what every
 token's identity check is compared against.
 
 **Check the local relay specifically, because it fails quietly.** It's by far
-the largest payload, it feeds the 11 tasks that do the bulk of the recurring
-work, and a missing key isn't an error — the gate script exits
+the largest payload — it feeds most of the recurring work in this set (run
+`bash scripts/gen-task-table.sh` for the current per-agent split) — and a
+missing key isn't an error — the gate script exits
 `not-configured` and the task goes back to sleep. The symptom is "the local
 agent was stamped and never does anything," which reads like a broken agent
 and is actually an unrelayed key. `ACK_GRACE_MINUTES` is the one with a
@@ -786,13 +789,19 @@ then just talk to the agent.
 
 ### Prefer filling in a file over answering live? (the repeatable path)
 
-Copy [`onboarding-answers.example.json`](../onboarding-answers.example.json),
-fill in what you know, and the lead reads it instead of interviewing you —
-asking only about what's still `null`. Keep the filled file and you can tear
-the whole system down and rebuild it identically, which is what makes
-onboarding testable rather than a one-shot conversation.
+**`onboarding-answers.example.json` is deliberately absent from the repo right
+now** — removed until closer to a real test pass; see `SKILLS-ADOPTION.md`.
+If it's back by the time you read this, copy it, fill in what you know, and
+the lead reads it instead of interviewing you — asking only about what's
+still `null`. If it's still absent: either build one from scratch in this
+shape (see `scripts/check-onboarding.sh` for the exact key-coverage rules it
+must satisfy), or do the conversational interview and run
+`bash scripts/export-answers.sh` afterward to get an equivalent file from your
+live install. Keep the filled file and you can tear the whole system down and
+rebuild it identically, which is what makes onboarding testable rather than a
+one-shot conversation.
 
-**1. Fill it in, on your own machine:**
+**1. Fill it in, on your own machine (once you have a copy):**
 
 ```bash
 cp onboarding-answers.example.json onboarding-answers.json
@@ -860,8 +869,8 @@ settled before the stamp step:
 
 | Asked | Format | Why it can't wait |
 |---|---|---|
-| **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. 19 recreates later — see step 2 |
-| **Which agents do you want at all?** — lead only, or lead + local ops and/or coding and/or marketing | pick | Determines what you stamp. If you add exactly one, add **local ops** — it's the tier that keeps working when the shared window closes, and it carries 12 of the 21 tasks. Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
+| **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. one recreate per task later — see step 2 |
+| **Which agents do you want at all?** — lead only, or lead + local ops and/or coding and/or marketing | pick | Determines what you stamp. If you add exactly one, add **local ops** — it takes the largest single share of the recurring, mechanical work off the lead (run `bash scripts/gen-task-table.sh --counts` for the current split). Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
 
 ### Then the interview asks these
 
@@ -906,14 +915,15 @@ CLI-driven equivalent:
 Everything ships **paused**. Verify, test, then resume in this order:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all 21 (5 support, 12 local, 3 engineering, 1 marketing)
+./bin/ncl tasks list --status paused          # expect all of them (run gen-task-table.sh --counts for the exact number)
 ./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
 ./bin/ncl tasks get <task-id>                 #   …and inspect its result
 ```
 
-Marketing's 1 task won't be in that list unless you actually stamped that
-template — it isn't stamped by default (step 3), so **18 paused tasks is the
-expected result for a default install**, not a missing task. For the
+Marketing's task(s) won't be in that list unless you actually stamped that
+template — it isn't stamped by default (step 3), so a lower count than the
+generator's full total is the **expected** result for a default install, not
+a missing task. For the
 authoritative per-task list, with owners and schedules, run
 `bash scripts/gen-task-table.sh` from your local copy of this repo rather
 than trusting any table typed into a doc.
@@ -928,20 +938,28 @@ Resume order (safe → side-effect-adjacent):
    state only and posts a template-only holding acknowledgment after
    `ACK_GRACE_MINUTES`. Resume it early — deferring it means deferring
    exactly the coverage you installed the local agent for. Alongside it:
-   `health-check` (local) and `weekly-identity-integrity-check` (lead) —
-   both wake only on problems.
+   `health-check` (local), `weekly-identity-integrity-check` (lead), and
+   `owner-tldr` (lead — `jq` only, no network or credentials) — all three
+   wake only on a problem or the owner's own daily digest hour.
 2. **Local backup** (`workspace-backup`) — the local agent's task; only after
    the git setup in step 6.
-3. **Lead announcements** (`release-announcement-watch`) — safe as soon as
-   `COMMUNITY_REPOS` is set; it only ever posts already-public release info.
-   The lead's `docs-gap-review` is safe from day one too — it stays quiet
-   until normal support work has filled its question ledger.
+3. **Lead's live response**: `github-first-response` (every 10 minutes,
+   needs `COMMUNITY_REPOS`) and `release-announcement-watch` — both safe as
+   soon as `COMMUNITY_REPOS` is set; the latter only ever posts already-public
+   release info. The lead's `docs-gap-review` is safe from day one too — it
+   stays quiet until normal support work has filled its question ledger.
 4. **Local gates**, once §6's relay has actually landed in the local
    `config.env`: `repo-mirror-sync`, `dev-metrics-report`,
    `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup`,
-   `weekly-analytics-report` (GA4). Each silently exits `not-configured` if
-   its key is missing, so resume them and then check they actually did
-   something.
+   `ready-to-merge`, `weekly-analytics-report` (GA4). `contributor-nudge`
+   depends on `dev-metrics-report`'s contributor ledger — resume it alongside
+   the others, but its first useful report needs that ledger to have run at
+   least twice. Each silently exits `not-configured` if its key is missing,
+   so resume them and then check they actually did something. If you want the
+   other agents to read `repo-mirror-sync`'s output directly instead of
+   relaying through the lead, this is also when to do the one-time shared
+   repo mirror setup — see the `ncl groups config add-mount` row in the
+   platform-skills table below.
 5. **Coding**: `github-ops-triage`, `security-advisory-sweep`,
    `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review`
    — the reviewer's current task list (`posthog-weekly-review` is removed for
@@ -974,7 +992,7 @@ Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
 `sbx rm nanoclaw` (teardown — the whole system, gone).
 
 **Not so fast — "resumed" is not "ready."** Before you call it live, walk
-the 17-point ready gate in [CHECKPOINTS.md](CHECKPOINTS.md) — it also gives
+the 15-point ready gate in [CHECKPOINTS.md](CHECKPOINTS.md) — it also gives
 you the day-2, week-1, and month-1 verification checkpoints. Everything else
 — token budget, the full task reference, keeping the session alive, and the
 SHA-pinned update policy — is in [OPERATIONS.md](OPERATIONS.md).

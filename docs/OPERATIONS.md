@@ -82,13 +82,18 @@ Four defenses, in order of effectiveness:
 **And know what hitting it looks like**: the lead stops answering Discord
 altogether — the community gets silence, which for a public-facing support
 agent is the worst failure mode there is. The safety net for exactly this now
-ships: the local agent's `unanswered-watch` runs every 10 minutes, sees only
-local message state (no network, no credentials), and posts a template-only
-holding acknowledgment once a support-tier message has gone unanswered past
-`ACK_GRACE_MINUTES`. Because it neither calls an API nor draws on the window,
-it survives the outage it compensates for. It does not remove the need for the
+ships: the local agent's `unanswered-watch` **gate** runs every 10 minutes,
+sees only local message state (no network, no credentials), and costs
+nothing regardless of the shared window's state — so the *detection* survives
+a window exhaustion. **The acknowledgment itself does not**, for this phase:
+posting it is still a model wake on local ops, which now shares the same
+cloud window as the lead. If the window is fully exhausted, both the lead and
+the acknowledger go quiet together. This is a real, reduced version of the
+safety net compared to an off-window local model — see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) for why Ollama was set aside and
+what adopting it later would restore. It does not remove the need for the
 four defenses above — a receipt is not a resolution — it just makes the
-failure visible and polite instead of silent. Two pieces of its wiring are
+failure visible and polite instead of silent, when the window allows it. Two pieces of its wiring are
 still **unverified** until a real install (whether two groups can share one
 Discord channel, and the `ncl messages list --json` output shape); see
 [CHECKPOINTS.md](CHECKPOINTS.md) for how to prove both.
@@ -150,8 +155,9 @@ scoped to the wrong repo list. Four things that protect the window:
 2. **Use the answers file.** `onboarding-answers.json` collapses an 8–15 turn
    interview into ~2 — on a shared window this is the single largest saving
    available, and it makes a retry nearly free.
-3. **Don't interactively test all 24 gates.** Run the ones you configured;
-   the rest are provably free and the harness covers their logic.
+3. **Don't interactively test every gate script.** Run the ones you configured
+   (`bash scripts/gen-task-table.sh` for the current count and which are
+   gated); the rest are provably free and the harness covers their logic.
 4. **Read the docs yourself rather than through the session** — `docs/` +
    PREREQS + README is ~22K tokens of context you don't need to spend.
 
@@ -185,23 +191,25 @@ the channel never goes silent long enough to look dead. That makes the team
 elastic: stamp what you need, then tune budget by which tasks you activate —
 never by deleting agents.
 
-**The fourth agent is free, and that is the entire reason it exists.**
-`community-local` runs on a local model, so its 11 tasks — the bulk of the
-recurring work in this set — consume none of the shared window. Moving that
-work off the cloud tier is what makes the remaining cloud budget go to the
-thing the north star cares about: answering people.
+**The fourth agent is cheap, not free — an important distinction for this
+phase.** `community-local` runs on Haiku, the cheapest capable cloud tier, and
+its 12 tasks — the bulk of the recurring work in this set — are pure
+narration with no judgment, so they cost little per wake. But **they do
+consume the same shared window** as the lead, Reviewer, and marketing. A
+local-model provider (e.g. Ollama) was evaluated and set aside for this
+phase — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) — which is the thing
+that would actually make this agent free against the window, not just cheap.
 
-This is a real reversal of earlier guidance in this file, so it's worth being
-explicit about *why* it isn't the mistake it looks like. The original rule was
-**"don't add a fourth agent for responsiveness"**, learned the expensive way on
-a real deployment that exhausted its **subscription** limits with four
-cloud-backed agents. That rule was right, and it still is: a fourth *cloud*
-agent buys responsiveness by duplicating context loads against the very window
-it's trying to protect, which is self-defeating. The local agent isn't subject
-to it because it isn't drawing on that window at all — it trades tokens for
-memory, which on this host is a resource we have and a currency the ceiling
-isn't denominated in. **The rule is "don't add a fourth agent on the same
-meter," not "never four agents."**
+The original rule in this project's history was **"don't add a fourth agent
+for responsiveness,"** learned the expensive way on a real deployment that
+exhausted its **subscription** limits with four cloud-backed agents. That
+rule is still fully in force right now: all four agents here share one meter,
+same as that earlier deployment did. What's different is the split by
+*capability* — narration work moved to the cheapest tier instead of running
+everything on Sonnet — which reduces exposure without eliminating it. **Until
+a local-model provider is adopted, treat this as four agents on one meter,
+budget accordingly, and read local ops' tasks as candidates for the
+pause-order list below like anything else, not as exempt from it.**
 
 Still true, and unchanged:
 
@@ -240,17 +248,17 @@ degrading the tier itself — that's the move that generalizes.
 Wakes are frequent; premium models belong in interactive sessions, not cron.
 
 **If you hit the window ceiling** (on a shared subscription this also
-restores your own Claude Code access), the first thing to get right is *which
-tasks are even on that meter*. **Only the cloud-tier tasks can spend it** —
-the lead's 7, everything the Reviewer owns, Marketing's 1. The local agent's 11
-tasks bill to RAM, so **pausing them saves nothing on the meter you're trying
-to relieve.**
-This corrects earlier advice in this file that opened with `repo-mirror-sync`
-and `dev-metrics-report`: both are local, both are now the wrong lever, and
-pausing them buys you host headroom rather than window headroom. Pause them
-only if the *host* is the constraint.
+restores your own Claude Code access): for this phase, **all four agents,
+including local ops, draw on that meter** — there is no off-meter tier to
+lean on right now. Local ops' tasks cost less per-wake than the lead's or
+marketing's (cheapest cloud tier, aggressively gated, pure narration), so
+they're lower priority to pause than genuinely expensive tasks, but pausing
+them is a real lever now, unlike when local ops ran on a local model. If a
+local-model provider is adopted later (see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)), this section's advice reverts:
+local-ops tasks would go back to costing host memory, not window budget.
 
-Pause in this order — lowest value first, cloud tier only:
+Pause in this order — lowest value first, across all four agents:
 
 1. `daily-github-triage` — if the Reviewer is stamped it's already redundant
    with `github-ops-triage`; it should be paused anyway.
@@ -273,19 +281,24 @@ Pause in this order — lowest value first, cloud tier only:
 `docs-gap-review` and `weekly-identity-integrity-check` are weekly and gated to
 near-silence, so pausing them is effort without savings.
 
-**Never pause, at any ceiling:**
+**Never pause, at any ceiling — cheap and irreplaceable, even though they now
+share the meter:**
 
-- **`unanswered-watch`.** It is the north star's safety net and it is free on
-  this meter — it has no network call, no credentials, and wakes the local
-  model. Pausing it costs you nothing *and* removes the one thing that keeps a
-  window exhaustion from reading to the community as silence. There is no
-  budget argument for it, in either direction.
-- **`health-check`.** Local, therefore off-meter, and it's your outage
-  detector. Pausing it saves nothing and blinds you.
-- **`workspace-backup`.** Also local and off-meter; pausing it trades zero
-  savings for real data risk.
-- **`ready-to-merge`.** Local, so off-meter, and the best value-per-token in
-  the set on either meter: it produces a *list* rather than an assessment, runs
+- **`unanswered-watch`.** It is the north star's safety net. Its *gate* has no
+  network call, no credentials, and costs nothing regardless of window state
+  — only the acknowledgment wake itself is a (cheap, gated) model call. For
+  this phase that wake shares the window with everything else, so it is not
+  literally free, but it's one of the cheapest wakes in the set (Haiku,
+  templated, only fires when something's actually unanswered) and pausing it
+  removes the one thing that keeps a window exhaustion from reading to the
+  community as silence. There is no budget argument for pausing it.
+- **`health-check`.** Cheap (mostly a weekly heartbeat, occasional gated
+  wakes) and it's your outage detector. Pausing it saves almost nothing and
+  blinds you.
+- **`workspace-backup`.** Cheap (daily, only wakes on failure); pausing it
+  trades near-zero savings for real data risk.
+- **`ready-to-merge`.** Cheap and the best value-per-token in the set: it
+  produces a *list* rather than an assessment, runs
   twice a day, and only wakes when the set of approved PRs actually changes (an
   unchanged set resurfaces once a week, not every run). What it costs you is a
   few API calls; what it prevents is a contributor's already-approved work
@@ -301,7 +314,7 @@ have different mechanics:
 | Surface | Path | Speed |
 |---|---|---|
 | **Discord** | **Live.** The lead is wired to the channels and answers events as they arrive — no cron involved | realtime |
-| Discord, when the lead is down | `unanswered-watch` on the local agent posts a holding ack | ≤10 min, off-meter |
+| Discord, when the lead is down | `unanswered-watch` on the local agent posts a holding ack | ≤10 min; detection is free, the ack itself is a cheap Haiku wake sharing the window for this phase |
 | **GitHub** | No live wiring in this design, so it polls: `github-first-response` finds new unanswered items | ≤10 min + grace |
 | GitHub triage (duplicates, staleness, labels) | `github-ops-triage` digest | 6h — deliberately slow |
 | Everything else | its own gated schedule, posted to the channel that cares | see the table below |
@@ -347,10 +360,11 @@ public voice:
 | `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | lead PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
 | `inbox-check` (2×/day) | **every run** (ungated) | email MCP + read-only mailbox + allowlist | leave paused |
-| `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip |
+| `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS` to scope announcements to a subset) in `plugin-data/community-support/config.env` | silent skip |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 
-**Local ops** (`local/community-local`) — 12 tasks, all off the shared window.
+**Local ops** (`local/community-local`) — 12 tasks, cheapest cloud tier
+(Haiku) but sharing the same window as everything else for this phase.
 Every config key below lives in `plugin-data/community-local/config.env`:
 
 | Task | Wakes model | Needs | Unconfigured |
@@ -384,7 +398,7 @@ is a judgment about a person. Narration went local; judgment stayed cloud.
 | `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | coding PAT + `COMMUNITY_REPOS` | silent skip |
-| `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` | silent skip |
+| `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
 
 **Marketing** (`marketing/community-marketing`) — 1 task, not stamped by
 default. Config in `plugin-data/community-marketing/config.env`:
@@ -477,8 +491,11 @@ went stale the moment the topology changed, and nothing caught it — prose isn'
 testable, so the generator makes it testable.
 
 **`bash scripts/export-answers.sh <nanoclaw-root> [out.json]`** — walks a live
-install and writes its configuration back out in the same shape as
-`onboarding-answers.example.json`. This closes the round trip: onboarding can
+install and writes its configuration back out in the shape
+`onboarding-answers.example.json` used to document (that file is deliberately
+absent for now, deferred until closer to a real test pass — see
+SKILLS-ADOPTION.md; the script fails with a clear message if you run it
+before recreating one). This closes the round trip: onboarding can
 be done conversationally, which is friendlier but scatters the answers across
 four agents' `config.env` files with no single editable record. Export gives
 you that record, so **changing one value means editing one line and rebuilding

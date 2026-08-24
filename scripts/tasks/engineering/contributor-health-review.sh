@@ -7,10 +7,10 @@ set -uo pipefail
 # sustained merged work to be worth a bigger role.
 #
 # WHY THIS IS THE REVIEWER'S TASK, NOT THE LOCAL AGENT'S.
-# Split out of dev-metrics-report, which runs on a local model. The numbers
-# below are arithmetic and the script computes them — but every one of them
-# is useless without a judgment the local agent is explicitly forbidden to
-# make:
+# Split out of dev-metrics-report, which lives on the local (narration-only)
+# agent. The numbers below are arithmetic and the script computes them — but
+# every one of them is useless without a judgment the local agent is
+# explicitly forbidden to make:
 #   * a rising unmerged ratio means EITHER more low-quality submissions OR a
 #     maintainer backlog. Opposite problems, opposite responses, same number.
 #   * high top-author share means "one person deep" only in context — a

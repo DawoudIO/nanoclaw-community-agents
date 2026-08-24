@@ -265,27 +265,34 @@ workload rather than against Sonnet. The comparison kills the idea, and it's
 worth writing down so it isn't re-proposed on vibes.
 
 **1. The volume it would save is already tiny.** The gates did that work, and
-the model-tier split then took most of the volume away as well: the Reviewer
-owns **two** tasks, not seven. Realistic wakes per week:
+the model-tier split then took most of the volume away as well: at the time
+this was written, the Reviewer owned **four** tasks, not seven. Realistic
+wakes per week:
 
 | Task | Cron | Wakes only when | Est. wakes/wk |
 |---|---|---|---|
 | `github-ops-triage` | 4×/day | new or updated issues/PRs | ~10–20 |
 | `security-advisory-sweep` | 6×/day | a NEW advisory | ~0–1 |
+| `posthog-weekly-review` | weekly | an insight value changed | ~1 |
+| `contributor-health-review` | weekly | a 10-point metric move, or quarterly | ~1 |
 
-That is ~10–21 wakes/week at ~6.2K context each, with a byte-identical persona
+That is ~13–23 wakes/week at ~6.2K context each, with a byte-identical persona
 prefix that caches. On the cheapest model tier it isn't close to noise — it
 *is* noise. Four of the tasks that used to pad this table
 (`dev-metrics-report`, `repo-mirror-sync`, `good-first-issue-health`,
 `repo-hygiene-audit`) belong to the local agent now, and the two that went to
 the lead (`daily-github-triage`, `docs-gap-review`) are Sonnet-tier by design.
 Neither set is coding's to save, so neither belongs in a table about coding's
-spend.
+spend. (**Current state, 2026-08-24**: `posthog-weekly-review` is removed —
+never got working end to end — and `dependabot-pr-review`/`docs-currency-watch`
+have since been added, so the Reviewer now owns 5 tasks, not 4. The reasoning
+below is unaffected — every task on this tier, then and now, is judgment, not
+narration.)
 
-`posthog-weekly-review` and `contributor-health-review` DO belong to it, and
-they are the sharpest argument against a local model here: both exist to
-decide *why* a number moved (a defect vs. normal variance; low-quality PRs
-vs. maintainer burnout), which is precisely the reasoning a smaller model does
+`contributor-health-review` (and `posthog-weekly-review`, while it existed)
+are the sharpest argument against a local model here: both exist to decide
+*why* a number moved (a defect vs. normal variance; low-quality PRs vs.
+maintainer burnout), which is precisely the reasoning a smaller model does
 worst. They were placed on this tier deliberately, so moving this tier down
 would undo that decision.
 

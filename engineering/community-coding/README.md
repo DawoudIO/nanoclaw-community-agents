@@ -102,6 +102,10 @@ stamped agent to write it:
 # groups/<folder>/plugin-data/community-coding/config.env
 COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep, issue/PR triage,
                                                  # contributor-health review
+SECURITY_WATCH_REPOS="owner/repo1"               # optional — narrows
+                                                 # security-advisory-sweep to a
+                                                 # subset of COMMUNITY_REPOS
+                                                 # (falls back to it if unset)
 ```
 
 **`posthog-weekly-review` is removed for now** — it never got working end to
@@ -130,6 +134,17 @@ cron. Tune them before stamping; afterwards, changing one means cancel and
 recreate that task (`ncl tasks create --prompt … --recurrence …`) or edit the
 template file and restamp. A per-group timezone override may exist in your
 NanoClaw version — unverified, see UPSTREAM-ISSUES.md.
+
+## Reads the shared repo mirror when it's set up
+
+`dependabot-pr-review` and `security-advisory-sweep` will grep
+`/workspace/shared-repos/<repo>/` directly for reachability and
+breaking-change judgment (checking `.last-sync-epoch`'s age first) if the
+local agent's shared mirror mount is set up — see
+`local/community-local/README.md`, "Shared repo mirror," for the one-time
+owner setup. Without it, both tasks fall back to the GitHub API or ask the
+lead to relay a grep from local ops. Optional either way; nothing here
+requires it.
 
 ## Credentials: via OneCLI, not env vars
 

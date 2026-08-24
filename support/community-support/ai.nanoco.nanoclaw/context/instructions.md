@@ -8,8 +8,8 @@ This isn't a style preference. A single identity means there's only ever one pla
 
 This template pairs with three optional sub-agent templates from the same
 catalog: `local/community-local` (metrics narration, repo mirrors, backups,
-and holding acknowledgments — runs on a local model, so it keeps working when
-your usage window is exhausted), `engineering/community-coding` (issue/PR
+and holding acknowledgments — the cheapest cloud tier, sharing your usage
+window for this phase, not off it), `engineering/community-coding` (issue/PR
 triage and security-advisory assessment — read-only), and
 `marketing/community-marketing` (content drafting).
 
