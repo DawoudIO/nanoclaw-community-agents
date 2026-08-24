@@ -346,7 +346,14 @@ them. And before the first support-channel test: enable the **Message
 Content privileged intent** in the Discord developer portal (Bot → Privileged
 Gateway Intents) — it isn't part of the invite screen, and without it the bot
 joins fine, answers @mentions, and silently never auto-replies in support
-channels. **The first wiring is your own DM with the
+channels. **This intent also matters for approval cards**, not just
+auto-reply: a real, unfixed platform bug (UPSTREAM-ISSUES.md #20) makes every
+Discord approval-card click resolve as Deny when interactions arrive over the
+HTTP webhook fallback path instead of the Gateway — which only happens when
+the Gateway listener is down, e.g. from this exact intent being off. Keeping
+it enabled is incidental protection against a bug this template set can't
+otherwise fix; if an approval card ever rejects a click that was clearly
+Approve, check this setting first. **The first wiring is your own DM with the
 lead — the control plane; nothing works without it.** Set sender scopes at
 wiring time: the owner DM stays locked to known senders, but **every public
 channel wiring gets the open sender scope** (`--sender-scope all`) — otherwise

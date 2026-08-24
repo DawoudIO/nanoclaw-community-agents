@@ -422,9 +422,18 @@ owner to verify rather than silently failing.
 community Discord channels. If 'request_approval' is used instead, every new
 sender triggers a manual approval prompt that breaks your response-time SLA.
 
-## 6. Stamp sub-agents and relay their config (autonomous, batch approvals)
+## 6. Stamp sub-agents and relay their config (one conversational ask, several real approval cards)
 
-**Batch stamping requests** — don't ask approval for each agent separately:
+**Ask once in this conversation, not once per agent** — but be accurate about
+what happens next. `ncl groups create` (each stamp) and `install_packages`
+(the `jq` installs) are each independently gated by the platform's own
+approval system (`access: 'approval'` in NanoClaw's CLI resources) — there is
+**no way to pre-authorize or batch these**, confirmed against the platform's
+own guard/grant code: a "grant" only exists after a human has already clicked
+Approve on that exact request, and is consumed once. So a single "yes" here
+does not turn into a single platform approval — **the owner should expect
+one real approval card per stamp, plus one more per `jq` install**, not one
+card total. Don't imply otherwise:
 
 ```
 I'm about to stamp the three sub-agents based on your goals:
@@ -433,13 +442,16 @@ I'm about to stamp the three sub-agents based on your goals:
 - Engineering Agent: issue/PR triage, security assessments
 - Marketing Agent: content drafting
 
-Approve all? [yes/no]
+Approve all? [yes/no] — heads up: this surfaces one approval card per stamp
+(and one more for each agent that needs `jq` installed), not a single combined
+approval — the platform has no batch-approval mechanism for these.
 ```
 
 Once approved, **give a heads-up before starting long-running operations**:
 
 ```
-Stamping sub-agents now (this takes about 30–60 seconds, no further messages until done)…
+Stamping sub-agents now (this takes about 30–60 seconds, no further messages
+until done) — you'll see a few separate approval cards land as it goes.
 ```
 
 Then stamp all three in sequence:
