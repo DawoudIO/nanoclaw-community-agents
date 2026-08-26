@@ -2,10 +2,13 @@
 set -uo pipefail
 # jq is required by this script itself (every check below is built with it) —
 # fail loud and jq-free rather than crashing cryptically on the first `add`
-# call. Baseline requirement across all four community templates; request via
-# the install_packages self-mod tool if missing (apt: jq).
+# call. Baseline requirement across all four community templates. Unlike the
+# headless sub-agents, the LEAD must NOT self-install via install_packages:
+# that rebuilds the image and restarts the container, killing any live owner
+# conversation (e.g. a welcome interview) and losing its answers. This is
+# meant to be installed host-side at stamp time — docs/INSTALL.md step 3.
 if ! command -v jq >/dev/null 2>&1; then
-  printf '{"status": "incomplete", "checks": [{"name": "jq", "status": "missing", "hint": "jq is required to run this script and by task scripts that parse JSON API responses. Request it via the install_packages tool: apt package \"jq\"."}]}\n'
+  printf '{"status": "incomplete", "checks": [{"name": "jq", "status": "missing", "hint": "jq is required to run this script and by the owner-tldr and weekly-identity-integrity-check tasks. Do NOT self-install with install_packages — it restarts this container mid-conversation. Ask the owner to run, host-side: ncl groups config add-package --id <this-group-id> --apt jq && ncl groups restart --id <this-group-id> --rebuild"}]}\n'
   exit 1
 fi
 # On-demand, mechanical setup status check for the LEAD's own config — run

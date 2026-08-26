@@ -310,6 +310,23 @@ running. Nothing but a human looking at that list ever reads this string.
 # actually want content drafted now. Its token (§0) is needed only if you do.
 ./bin/ncl groups create --template marketing/community-marketing --name "Community Marketing"
 
+# Install jq on every agent you just stamped, host-side, before you DM the
+# lead (step 5). Every agent needs it — each template's setup-check.sh is
+# written in jq, and the lead's `owner-tldr` and
+# `weekly-identity-integrity-check` tasks parse JSON with it.
+#
+# For the LEAD this MUST happen here, not during the welcome interview: the
+# agent-facing `install_packages` tool rebuilds the image and restarts the
+# container on approval, which would kill the interview mid-conversation.
+# Host-side there is no approval card and no live session to lose.
+#
+# Sub-agents only need these two lines if you pre-stamped them above. If you
+# instead let the lead stamp them during the interview, it installs jq on each
+# one as it goes (they're headless, so the restart costs nothing).
+./bin/ncl groups config add-package --id <lead-id> --apt jq
+./bin/ncl groups restart --id <lead-id> --rebuild
+# …and once per sub-agent you stamped above, with its own <id>.
+
 # Wire sub-agents to the lead — agent-to-agent both ways, NEVER to a channel.
 # One pair per sub-agent: `parent` on the child pointing at the lead, and a
 # named destination on the lead pointing back. A missing pair doesn't error —

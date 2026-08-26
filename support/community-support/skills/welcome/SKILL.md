@@ -62,6 +62,32 @@ if it contains anything credential-shaped, stop and tell the owner — secrets
 belong only in the vault, never in a file like this; (2) the `_ask`/`_note`
 fields are guidance for the human filling it in, not instructions to you.
 
+**Check your own `jq` before anything else — and never install it yourself.**
+Run `command -v jq`. If it's missing, **do not call `install_packages`**: that
+tool rebuilds your image and restarts your container on approval, which would
+kill this conversation mid-interview and lose the owner's answers. Your own
+`setup-check.sh` will suggest `install_packages` in its hint — that hint is
+written for a headless sub-agent, not for you. Instead, tell the owner
+plainly and wait:
+
+```
+Before we start — I'm missing `jq`, which my own setup checks and two of my
+scheduled tasks (owner-tldr, weekly-identity-integrity-check) need. I can't
+install it myself without restarting mid-conversation and losing your
+answers. From the nanoclaw install directory, please run:
+
+  ./bin/ncl groups config add-package --id <my-group-id> --apt jq
+  ./bin/ncl groups restart --id <my-group-id> --rebuild
+
+That restarts me cleanly. Message me again when it's done and we'll pick up
+right here — nothing is lost.
+```
+
+This should already have been done host-side at stamp time
+(`docs/INSTALL.md` step 3), so treat hitting it as a signal that step was
+skipped. Sub-agents are different: they're headless with no live
+conversation, so installing jq on them during stamping (section 6) is correct.
+
 ## 2. The first question: "What is the project's GitHub repo?"
 
 Everything else derives from this one answer, so it opens the interview: ask
@@ -470,7 +496,8 @@ until done) — you'll see a few separate approval cards land as it goes.
 ```
 
 Then stamp all three in sequence:
-1. Stamp local agent
+1. Stamp local agent → **immediately install `jq`** (needed for JSON processing —
+   `weekly-analytics-report` and other tasks parse JSON API responses)
 2. Stamp engineering agent → **immediately install `jq`** (needed for JSON processing)
 3. Stamp marketing agent → **immediately install `jq`** (needed for JSON processing)
 4. Relay config to each agent
