@@ -59,8 +59,8 @@ ncl groups create --template marketing/community-marketing --name "Community Mar
 Wire it **to the lead agent only**:
 
 ```bash
-ncl destinations add --agent-group-id <this-agent-id> --name parent --target <lead-agent-id>
-ncl destinations add --agent-group-id <lead-agent-id> --name marketing --target <this-agent-id>
+ncl destinations add --agent-group-id <this-agent-id> --local-name parent --target-type agent --target-id <lead-agent-id>
+ncl destinations add --agent-group-id <lead-agent-id> --local-name marketing-agent --target-type agent --target-id <this-agent-id>
 ```
 
 No channel wiring for this group.

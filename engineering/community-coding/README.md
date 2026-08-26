@@ -83,8 +83,8 @@ Then wire it **to the lead agent only** — an agent-to-agent destination, not a
 channel:
 
 ```bash
-ncl destinations add --agent-group-id <this-agent-id> --name parent --target <lead-agent-id>
-ncl destinations add --agent-group-id <lead-agent-id> --name coding --target <this-agent-id>
+ncl destinations add --agent-group-id <this-agent-id> --local-name parent --target-type agent --target-id <lead-agent-id>
+ncl destinations add --agent-group-id <lead-agent-id> --local-name coding --target-type agent --target-id <this-agent-id>
 ```
 
 Do not give this group a Discord/GitHub-channel wiring. That's the whole design.

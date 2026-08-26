@@ -418,8 +418,46 @@ Then proceed immediately to stamping and wiring.
 ## 5c. Wire Discord channels (agent autonomy, one ask in chat, many real approval cards)
 
 **Agent autonomy**: Once channel IDs and tier mapping are recorded in
-`project-config.md`, you now have permission to wire the Discord channels
-directly. Do not ask the owner to do this manually. Instead:
+`project-config.md`, you have permission to wire the Discord channels
+directly.
+
+**Offer the host-side block first — it is the same work with zero cards.**
+Wiring N channels agent-side costs ~2N approval cards (one per
+messaging-group create, one per wiring). For 11 channels that is ~22 clicks.
+Run by the owner from a terminal, all of it is free: host callers bypass the
+approval gate entirely, by design. So lead with that offer, and only fall
+back to doing it yourself if they'd rather click:
+
+```
+I have all 11 channels and their tiers. Two ways to wire them:
+
+(a) You paste one block from your nanoclaw install directory — takes a few
+    seconds, no approval cards at all. I'll generate it for you now.
+(b) I wire them myself — same result, but ~22 approval cards to click
+    through, because each create and each wiring is gated separately.
+
+(a) is what I'd suggest. Which do you want?
+```
+
+If they pick (a), generate one line per channel from the recorded tier map,
+substituting real snowflake IDs and the lead's group id:
+
+```bash
+# per channel: create the messaging group, then wire it to the lead
+./bin/ncl messaging-groups create --channel-type discord --platform-id <channel-snowflake> \
+    --name "<channel-name>" --is-group 1 --unknown-sender-policy public
+./bin/ncl wirings create --channel-type discord --platform-id <channel-snowflake> \
+    --agent-group-id <lead-id> --engage-mode <mention-sticky|pattern>
+```
+
+Support-tier channels take `--engage-mode pattern --engage-pattern '.'`
+(auto-reply to everything); developer, security, and team-lead tiers take
+`--engage-mode mention-sticky` (mention-only). Keep
+`--unknown-sender-policy public` on community channels so the support SLA
+doesn't wait on per-sender approval — the owner DM is the one that stays
+locked to known senders.
+
+If they pick (b), then proceed as below.
 
 **One combined ask in chat, not one question per channel — but be accurate
 about the cards.** `messaging-groups create` and `wirings create` are each
@@ -496,19 +534,101 @@ until done) — you'll see a few separate approval cards land as it goes.
 ```
 
 Then stamp all three in sequence:
-1. Stamp local agent → **immediately install `jq`** (needed for JSON processing —
-   `weekly-analytics-report` and other tasks parse JSON API responses)
-2. Stamp engineering agent → **immediately install `jq`** (needed for JSON processing)
-3. Stamp marketing agent → **immediately install `jq`** (needed for JSON processing)
+1. Stamp local agent → install `jq`
+2. Stamp engineering agent → install `jq`
+3. Stamp marketing agent → install `jq`
 4. Relay config to each agent
 
 Report when complete.
+
+**`jq` is an APT package — never an npm one.** Every one of these installs is
+`apt: ["jq"]` (or `--apt jq` via the CLI).
+
+This is not a harmless typo. Asking for `jq` as an **npm** package does not
+fail cleanly — npm *has* a package by that name, and it installs a wrapper
+that lands earlier on `PATH` than the real binary. The result is worse than
+having no jq: `command -v jq` succeeds, your setup-check looks satisfied, and
+every actual `jq` call fails at runtime. This has happened on a real install.
+
+If it does happen: request removal of the **npm** `jq` package (leaving the
+apt one), then rebuild. Recovery is one `install_packages` removal plus the
+rebuild you were already going to do — but only if you notice, which is why
+the package *type* is the first thing to check when a jq call fails
+unexpectedly, before you start debugging the filter expression.
+
+Each install is its own approval card (the platform has no batch mechanism —
+see section 6's framing), so getting the type right the first time is the
+difference between three cards and six. Every sub-agent needs jq: each one's
+`setup-check.sh` is written in it, and their tasks parse JSON API responses
+with it.
+
+Sub-agents are headless, so the rebuild-and-restart that `install_packages`
+triggers costs them nothing. That is *not* true of you — see section 1.
+
+**Get every gated call right the first time — a failed one still costs a
+click.** An `access: 'approval'` command is approved *before* it runs, so a
+malformed invocation comes back approved-but-failed and you have to ask for
+another card to retry. The owner pays for your typo twice. Use these exact
+forms:
+
+```bash
+# Stamp a sub-agent. NEVER pass --folder together with --template: the two are
+# mutually exclusive and the platform rejects the whole call ("--folder applies
+# only to bare creates"). A templated group's folder derives from --name.
+ncl groups create --template local/community-local        --name "<agent name>"
+ncl groups create --template engineering/community-coding --name "<agent name>"
+ncl groups create --template marketing/community-marketing --name "<agent name>"
+
+# Install jq on a stamped sub-agent. APT, never npm.
+ncl groups config add-package --id <sub-agent-id> --apt jq
+ncl groups restart --id <sub-agent-id> --rebuild
+```
+
+If a gated call fails, read the error and fix the *invocation* before
+re-requesting — never re-submit the same form hoping for a different result,
+and never try a variant flag speculatively. When you genuinely don't know the
+right form, run `ncl <resource> --help` first: help is ungated and free, and
+one help call is cheaper than one wasted approval.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`local/community-local`, `engineering/community-coding`, `marketing/community-marketing`)
 2. **The local agent stamps on the cloud default (Haiku-4.5), same as the other sub-agents** — no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
 3. Relay the config keys listed below to each agent
 4. Report the stamping result and each agent's status to the owner
+
+**Wiring the destination pairs: hand the owner one block, don't issue six
+gated calls.** Relaying config needs a `parent` destination on each sub-agent
+pointing at you, and a named one on you pointing back — two per sub-agent, so
+six for three sub-agents. Each `destinations add` you issue yourself is its
+own approval card. Run host-side by the owner they cost **zero** cards, and
+the operator sees the whole agent topology in one place instead of
+approving six fragments. Ask once, with the block ready to paste:
+
+```
+Stamped. To let me talk to them, paste this from your nanoclaw install
+directory — one block, no approval cards:
+
+  ./bin/ncl destinations add --agent-group-id <local-id>     --local-name parent --target-type agent --target-id <lead-id>
+  ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name local --target-type agent --target-id <local-id>
+  ./bin/ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
+  ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
+  ./bin/ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
+  ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name marketing-agent --target-type agent --target-id <marketing-id>
+
+(Skip the pair for any sub-agent you didn't stamp.) Tell me when it's done
+and I'll relay each one's config.
+```
+
+**A destination's `--local-name` must not collide with one you already have.**
+Your own group already holds a destination per wired channel, so the obvious
+name for a sub-agent is often taken — `marketing` collides with a `#marketing`
+channel, and the add fails. Hence `marketing-agent` above. If a name collides,
+suffix `-agent` rather than reusing or renaming the channel destination.
+
+Substitute the real group ids from each stamp response before sending. If the
+owner would rather you just did it, issue them yourself and warn that it's six
+separate cards. A missing pair doesn't error — the sub-agent's reports simply
+reach nobody — so confirm the block actually ran before relaying.
 
 Sub-agents never talk to the owner, so their config arrives through you. Send the
 keys listed below **by name** over agent-to-agent destinations once stamped; each

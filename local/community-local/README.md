@@ -83,8 +83,8 @@ aside and how it would be wired back in.)
 Like the other sub-agents, it reports upward:
 
 ```bash
-ncl destinations add --agent-group-id <this-agent-id> --name parent --target <lead-agent-id>
-ncl destinations add --agent-group-id <lead-agent-id> --name local --target <this-agent-id>
+ncl destinations add --agent-group-id <this-agent-id> --local-name parent --target-type agent --target-id <lead-agent-id>
+ncl destinations add --agent-group-id <lead-agent-id> --local-name local --target-type agent --target-id <this-agent-id>
 ```
 
 Unlike them, it **also** needs to reach the community channel, because the

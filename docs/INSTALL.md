@@ -331,12 +331,12 @@ running. Nothing but a human looking at that list ever reads this string.
 # One pair per sub-agent: `parent` on the child pointing at the lead, and a
 # named destination on the lead pointing back. A missing pair doesn't error —
 # the sub-agent's reports just reach nobody.
-./bin/ncl destinations add --agent-group-id <local-id>     --name parent    --target <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>      --name local     --target <local-id>
-./bin/ncl destinations add --agent-group-id <coding-id>    --name parent    --target <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>      --name coding    --target <coding-id>
-./bin/ncl destinations add --agent-group-id <marketing-id> --name parent    --target <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>      --name marketing --target <marketing-id>
+./bin/ncl destinations add --agent-group-id <local-id>     --local-name parent --target-type agent --target-id <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>      --local-name local --target-type agent --target-id <local-id>
+./bin/ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
+./bin/ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>      --local-name marketing-agent --target-type agent --target-id <marketing-id>
 ```
 
 Sub-agents are headless and this `parent` destination is their **only**

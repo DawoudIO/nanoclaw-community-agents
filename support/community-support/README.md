@@ -155,12 +155,12 @@ ncl groups create --template engineering/community-coding --name "Community Codi
 ncl groups create --template marketing/community-marketing --name "Community Marketing"
 
 # 3. Wire sub-agents to the lead — agent-to-agent
-ncl destinations add --agent-group-id <local-id>     --name parent    --target <lead-id>
-ncl destinations add --agent-group-id <lead-id>      --name local     --target <local-id>
-ncl destinations add --agent-group-id <coding-id>    --name parent    --target <lead-id>
-ncl destinations add --agent-group-id <lead-id>      --name coding    --target <coding-id>
-ncl destinations add --agent-group-id <marketing-id> --name parent    --target <lead-id>
-ncl destinations add --agent-group-id <lead-id>      --name marketing --target <marketing-id>
+ncl destinations add --agent-group-id <local-id>     --local-name parent --target-type agent --target-id <lead-id>
+ncl destinations add --agent-group-id <lead-id>      --local-name local --target-type agent --target-id <local-id>
+ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
+ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
+ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
+ncl destinations add --agent-group-id <lead-id>      --local-name marketing-agent --target-type agent --target-id <marketing-id>
 
 # 4. Wire the LEAD to your Discord channels and GitHub repos, per your
 #    platform's channel management. The local ops agent additionally needs
