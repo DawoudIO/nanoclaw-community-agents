@@ -434,8 +434,46 @@ agent stuck in a verification deadlock, task/wiring surgery, log forensics.
 - A CLI session is itself an agent with tools — its conclusions deserve the
   same verify-don't-vibe discipline as anything else.
 
+**Hard rule: never restart or rebuild a container from this session while an
+agent is mid-conversation.** `ncl groups restart` (with or without
+`--rebuild`) kills the container under whatever turn is in flight. On a real
+install, a restart issued from a break-glass CLI session while the lead was
+mid-reply coincided with the owner receiving the same status message twice.
+Restarting an agent that is talking to someone is not a neutral operation —
+it interrupts a turn the agent believes it is still completing.
+
+**NanoClaw will not stop you.** The guard allows any host-socket caller
+unconditionally (`ALLOW('host caller (trusted socket)')` in
+`src/cli/guard.ts`) — that trusted socket *is* the auth model, and there is
+no caller identity to distinguish "the owner in a terminal" from "a Claude
+CLI agent deciding to restart something." No approval card is raised for
+either. The gate that exists for agents inside NanoClaw does not exist here.
+
+So enforce it on the CLI side instead. In the sandbox checkout, add a deny
+rule to `.claude/settings.local.json` (local override — do **not** edit the
+tracked `.claude/settings.json`, which is upstream's):
+
+```json
+{
+  "permissions": {
+    "deny": [
+      "Bash(ncl groups restart:*)",
+      "Bash(./bin/ncl groups restart:*)"
+    ]
+  }
+}
+```
+
+That stops the CLI *agent* from restarting on its own initiative while
+leaving you free to run the same command yourself when you've decided it's
+safe. When a restart genuinely is needed — applying a package, clearing a
+stuck container — say so in the owner DM first, confirm nothing is in
+flight, then do it.
+
 Note this doctrine applies to **operations after go-live**. During initial
-setup (steps 1–7 above), CLI-driving is the intended path, not an exception.
+setup (steps 1–7 above), CLI-driving is the intended path, not an exception —
+including the `groups restart --rebuild` the jq install needs in step 3,
+which runs before any agent is holding a conversation.
 
 **FYI — `/debug` is your first move in this session, not a separate
 install.** It's a built-in NanoClaw skill (nothing to add, nothing to
