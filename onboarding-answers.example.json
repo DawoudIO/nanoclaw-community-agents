@@ -1,0 +1,267 @@
+{
+  "_README": [
+    "Every question the welcome interview asks, in one machine-readable file.",
+    "",
+    "WHY THIS EXISTS: onboarding is a conversation, but a conversation isn't",
+    "repeatable. Fill this in once and you can rebuild the whole system from",
+    "scratch — stamp, hand the lead this file, done — then tear it down and do",
+    "it again identically. That makes onboarding testable instead of a",
+    "one-shot interview you hope went right.",
+    "",
+    "HOW TO USE IT (three ways, all valid):",
+    "  1. Ignore it. DM the lead and answer conversationally. This file is",
+    "     never required.",
+    "  2. Fill it in first, then tell the lead: 'my answers are in",
+    "     /workspace/agent/onboarding-answers.json'. It reads, echoes back a",
+    "     summary, asks only about what's still null, and persists.",
+    "  3. Fill in part of it. The lead uses what's here and asks only about",
+    "     what's missing or null.",
+    "",
+    "This copy is filled in with ChurchCRM's real, verified answers — from",
+    "actual installs, not invented — because a worked example beats an empty",
+    "template. Replace every value for your own project before using it.",
+    "",
+    "NEVER PUT A SECRET IN THIS FILE. No API keys, tokens, passwords, or",
+    "webhook URLs — ever. Secrets live only in the OneCLI vault; this file is",
+    "config (repo names, channel ids, preferences). It is safe to commit to a",
+    "private repo, and scripts/check-onboarding.sh fails if anything in it",
+    "looks like a credential.",
+    "",
+    "'persists_to' tells you where each answer ends up. config.env keys are",
+    "read by bash gate scripts; project_config keys are prose the agent reads,",
+    "four of which setup-check.sh greps literally. Getting these two",
+    "namespaces backwards is the #1 cause of 'I answered that but nothing",
+    "happened'.",
+    "",
+    "AUTO-DETECTED FIELDS (marked below): the welcome interview checks these",
+    "against the repo itself before asking — has_wiki, README-linked social",
+    "URLs, .github/dependabot.yml, SECURITY.md, a Discord invite badge. Filled",
+    "in here with what was actually found and confirmed on a real install, not",
+    "guessed — a wrong guess (e.g. a constructed social URL slug) fails",
+    "silently where a real extracted link doesn't."
+  ],
+
+  "agents_to_stamp": {
+    "value": ["manager", "secretary", "coding", "marketing"],
+    "_ask": "Which agents do you want? 'manager' (the lead, opensource/community-manager) is required — it's the only agent with a public voice, and it stamps the others itself once it knows which jobs you want. 'secretary' is the recommended second: it owns unanswered-watch, the task that keeps the community from hearing silence when the lead is rate-limited. 'coding' and 'marketing' are optional.",
+    "_options": ["manager", "secretary", "coding", "marketing"],
+    "_note": "Not a one-way door — add or pause any of these later without redoing this file. This real install stamped all four."
+  },
+
+  "timezone": {
+    "value": "America/Los_Angeles",
+    "_ask": "Your IANA timezone, e.g. America/New_York or Europe/Berlin.",
+    "_format": "IANA zone name — not an offset like UTC-5, which cannot handle daylight saving.",
+    "persists_to": "config.env:OWNER_TZ",
+    "_note": "This is NOT a stamp-time decision anymore — `ncl groups config update --timezone <id>` changes it live, no restart, no recreate (see docs/INSTALL.md). OWNER_TZ specifically drives owner-tldr's 'is it the owner's morning yet' check; it's separate from each group's own container timezone."
+  },
+  "daily_digest_local_hour": {
+    "value": "07:00",
+    "_ask": "What local hour should the daily owner-tldr digest land at? Real answer here: 'up by 7 AM'.",
+    "persists_to": "config.env:TLDR_LOCAL_HOUR"
+  },
+
+  "project": {
+    "name": { "value": "ChurchCRM" },
+    "primary_github_repo": {
+      "value": "ChurchCRM/CRM",
+      "_ask": "The project's main GitHub repo — everything else is inferred from this. Format owner/repo.",
+      "persists_to": "project_config",
+      "_required": true
+    },
+    "repo_map": {
+      "_ask": "Per function: which repo, and a subpath if it isn't the repo root. Functions often SHARE one repo — don't assume separate repos. This project doesn't: all five are genuinely separate.",
+      "_derives": [
+        "config.env:COMMUNITY_REPOS — repos to triage (issues/PRs/advisories/metrics), set on manager, secretary, and coding.",
+        "config.env:MIRROR_REPOS — the full repo map (including wiki) for repo-mirror-sync to keep checked out. secretary only.",
+        "config.env:CONTENT_REPO — where content drafts get committed and PR'd. Needed by marketing (writes) and secretary (reads, for draft-cleanup).",
+        "config.env:PRODUCT_REPO — the main repo. coding's docs-currency-watch watches its merged PRs.",
+        "config.env:DOCS_REPO / DOCS_PATH — where docs-currency-watch opens its PR; DOCS_PATH only if docs are a subdirectory rather than their own repo."
+      ],
+      "product": { "repo": "ChurchCRM/CRM", "subpath": null },
+      "docs": {
+        "repo": "ChurchCRM/docs.churchcrm.io",
+        "subpath": null,
+        "_note": "docs is its own repo here, not a subpath — subpath's value persists to config.env:DOCS_PATH only when docs live inside the product repo instead."
+      },
+      "site": { "repo": "ChurchCRM/ChurchCRM.io", "subpath": null },
+      "marketing": { "repo": "ChurchCRM/marketing", "subpath": null },
+      "wiki": {
+        "repo": "ChurchCRM/CRM.wiki",
+        "subpath": null,
+        "_note": "Auto-detected via has_wiki:true on the GET /repos/ChurchCRM/CRM call — never probe {repo}.wiki as its own API resource, that gives a false negative even when the wiki exists (confirmed bug, see UPSTREAM-ISSUES.md)."
+      }
+    },
+    "docs_site_url": { "value": "https://docs.churchcrm.io/", "persists_to": "project_config" },
+    "primary_language": { "value": "English", "persists_to": "project_config" },
+    "target_audience_and_tone": {
+      "value": "Church administrative and IT staff running the software day to day — not developers, not general consumers. Warm, practical, plain-language register; no engineering jargon, no growth-hacker marketing voice.",
+      "_ask": "Who's the primary reader of your content, and what tone follows from it? Don't infer this from the README — ask plainly.",
+      "persists_to": "project_config"
+    },
+    "docs_style": {
+      "value": "current behavior only, no version-history language",
+      "_ask": "Should docs describe current behavior only, or is version-history language ('added in 4.5') fine? Real answer here: current-only, because users are pushed to stay upgraded.",
+      "persists_to": "project_config:docs_style"
+    }
+  },
+
+  "channels": {
+    "_note": "Discord. Auto-approve unknown senders on every community channel (unknown_sender_policy=public) — the owner DM stays locked to known senders regardless.",
+    "auto_approve_new_members": { "value": true },
+    "discord_invite_url": {
+      "value": "https://discord.gg/tuWyFzj3Nj",
+      "_ask": "Auto-detected from the README/site — verify it's live against Discord's API before trusting it. This project's SECURITY.md ALSO references a second, dead invite code (discord.gg/XGppbeTw) — the auto-detection caught that discrepancy and flagged it rather than silently picking one.",
+      "persists_to": "project_config"
+    },
+    "tiers": {
+      "support_auto_reply": {
+        "channels": {
+          "support-chat": "1482439607202086953",
+          "support-questions": "1482438091884204054",
+          "support-install": "1538690028161732639",
+          "support-localization": "1489300322139766784"
+        },
+        "engage_mode": "pattern",
+        "engage_pattern": "."
+      },
+      "developer_mention_only": {
+        "channels": {
+          "dev-chat": "1482438243449573398",
+          "dev-plugins": "1499420238771392694",
+          "dev-bugs": "1494873631107453018"
+        },
+        "engage_mode": "mention"
+      },
+      "security_mention_only": {
+        "channels": { "security": "1489770902269857813" },
+        "engage_mode": "mention"
+      },
+      "team_lead_mention_only": {
+        "channels": {
+          "announcements": "1482437977903857754",
+          "general": "1540792938827616347",
+          "marketing": "1498441653860434083"
+        },
+        "engage_mode": "mention",
+        "_note": "announcements is the release-announcement-watch target — confirm this explicitly if more than one channel is in this tier."
+      }
+    },
+    "holding_ack": {
+      "channel": "support-chat",
+      "grace_minutes": 0,
+      "_ask": "Which channel should the secretary's holding acknowledgment post to when the lead is rate-limited, and how long a message can sit unanswered first? Real answer here: support-chat (busiest support channel), 0 minutes — 'do it real time', no delay, not the 20-minute skill default.",
+      "persists_to": "config.env:ACK_GRACE_MINUTES"
+    }
+  },
+
+  "security": {
+    "disclosure_path": {
+      "value": "GitHub private security advisories",
+      "_ask": "Auto-detected from SECURITY.md before asking — confirm what it says rather than asking from scratch.",
+      "persists_to": "project_config:security_contact"
+    },
+    "maintainers": { "value": ["George (sole active maintainer)"] },
+    "escalation_backstop": {
+      "value": "none — sole maintainer, recorded as an open risk",
+      "_ask": "Who is the second human — a moderator or co-maintainer with a name and contact — that abuse reports and urgent escalations should reach when you aren't reachable? Asked always; 'no one yet' is a complete answer, recorded as an open risk, not silently accepted.",
+      "persists_to": "project_config:escalation_backstop"
+    },
+    "watch_scope": {
+      "value": "ChurchCRM/CRM",
+      "_ask": "Optional narrower subset of COMMUNITY_REPOS for security-advisory-sweep — docs/content repos rarely have dependencies worth a sweep.",
+      "persists_to": "config.env:SECURITY_WATCH_REPOS"
+    },
+    "dependabot": {
+      "value": "already configured — Dependabot opens its own version-update PRs (npm, composer, github-actions); the Reviewer reviews the diff, doesn't draft the bump",
+      "_ask": "Auto-detected from .github/dependabot.yml before asking — if a version-updates config already exists, that answers the question.",
+      "persists_to": "config.env:DEPENDABOT_REVIEW_MAX",
+      "_note": "DEPENDABOT_REVIEW_MAX itself is an optional tuning cap, not this decision — leave at task default unless you have a reason to change it."
+    }
+  },
+
+  "social": {
+    "_note": "Auto-detected from the README as literal URLs, not constructed from a display name — a display name and a URL slug are often different strings (this project's own accounts are @getChurchCRM / linkedin.com/company/getchurchcrm, not a guess from 'ChurchCRM').",
+    "profiles": {
+      "x": "https://x.com/getChurchCRM",
+      "facebook": "https://www.facebook.com/getChurchCRM",
+      "instagram": "https://www.instagram.com/getchurchcrm/",
+      "linkedin": "https://www.linkedin.com/company/getchurchcrm/"
+    },
+    "posting_mechanism": {
+      "value": "manual — marketing drafts content as PRs to ChurchCRM/marketing; owner reviews, approves, and posts by hand",
+      "_ask": "Per platform: which exist, which the project actually posts to, and the mechanism — intent-URL (free, default), manual copy-paste, or paid API (owner's explicit opt-in only; X has no free tier since Feb 2026).",
+      "persists_to": "config.env:CONTENT_REPO"
+    },
+    "release_watch_repo": {
+      "value": null,
+      "_ask": "Only if the release-watch repo (marketing's content-draft-cycle) differs from CONTENT_REPO.",
+      "persists_to": "config.env:RELEASE_WATCH_REPO"
+    },
+    "release_watch_repos_lead": {
+      "value": null,
+      "_ask": "Optional narrower subset of COMMUNITY_REPOS to scope the LEAD's release-announcement-watch (plural key — distinct from marketing's singular RELEASE_WATCH_REPO above). Falls back to COMMUNITY_REPOS if unset.",
+      "persists_to": "config.env:RELEASE_WATCH_REPOS"
+    },
+    "brand_source_repo": {
+      "value": null,
+      "_ask": "Only if the brand/strategy source repo differs from CONTENT_REPO.",
+      "persists_to": "config.env:BRAND_SOURCE_REPO"
+    },
+    "github_actions_discord_notify": {
+      "value": true,
+      "_ask": "Want a ready-made GitHub Actions workflow that posts bug/security-labeled issues straight to Discord, independent of the lead's own uptime? Needs two webhook secrets added to the repo. See examples/github-discord-notify.yml.",
+      "persists_to": "project_config"
+    }
+  },
+
+  "analytics": {
+    "ga4_property_ids": {
+      "value": "253632751,362323228",
+      "_ask": "GA4 property id — 'not now' is a fine answer, the task silent-skips until configured. This project has two (www.churchcrm.io, Demo Installs) — one weekly-analytics-report task covers both in a single run; don't create a separate task per property.",
+      "persists_to": "config.env:GA4_PROPERTY_ID"
+    },
+    "good_first_issue_label": {
+      "value": "good first issue",
+      "_ask": "Which label marks a good-first-issue on this repo?",
+      "persists_to": "config.env:GFI_LABEL"
+    }
+  },
+
+  "models": {
+    "_note": "Defaults offered per agent; confirm or name a different model. Real answer here: defaults across the board.",
+    "manager": { "value": "claude-sonnet-5", "_note": "no cheaper option offered — this is the one identity the community sees" },
+    "secretary": { "value": "claude-haiku-4-5", "_note": "cloud default; a local-model provider was evaluated and set aside, see SKILLS-ADOPTION.md" },
+    "coding": { "value": "claude-haiku-4-5", "_note": "or Sonnet for stronger judgment on drafts, at more cost" },
+    "marketing": { "value": "claude-sonnet-5", "_note": "no cheaper option — weak drafts nobody wants published" }
+  },
+
+  "identity": {
+    "github_bot_username": {
+      "value": "churchcrm-hazel",
+      "_ask": "The dedicated bot account's GitHub username — never the owner's own. Every GitHub token's identity gets checked against this mechanically (a real GET /user call), not just recorded.",
+      "persists_to": "config.env:GITHUB_BOT_USERNAME",
+      "_required": true
+    },
+    "onecli_dashboard_url": {
+      "value": null,
+      "_ask": "Same machine as this conversation, or a reachable remote address (e.g. a Tailscale IP) for checking in from elsewhere? Left null here deliberately — network addresses are host-specific and shouldn't be copied between installs.",
+      "persists_to": "project_config"
+    }
+  },
+
+  "backup": {
+    "workspace_backup_repo": {
+      "value": "https://github.com/ChurchCRM/community-support-backup",
+      "_ask": "A private repo the config/ledgers get pushed to (secretary does the pushing). 'skip' is a complete answer, but it's the only thing that survives a recreate.",
+      "persists_to": "project_config"
+    }
+  },
+
+  "_tuning_defaults_not_asked_conversationally": {
+    "_note": "Internal gate-script tuning caps with sane built-in defaults. Only override if a real problem shows up — not part of the interview.",
+    "docs_watch_max": { "value": null, "persists_to": "config.env:DOCS_WATCH_MAX" },
+    "nudge_max_checks": { "value": null, "persists_to": "config.env:NUDGE_MAX_CHECKS" },
+    "first_response_grace_minutes": { "value": null, "persists_to": "config.env:FIRST_RESPONSE_GRACE_MINUTES" }
+  }
+}
