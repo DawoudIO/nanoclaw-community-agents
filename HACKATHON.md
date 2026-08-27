@@ -19,7 +19,7 @@ Source: https://nanoclaw.dev/hackathon (checked 2026-08-20)
    template built during the 67h — informed by everything here (the lessons,
    the gate patterns, skill-creator tooling) — aimed at whatever sealed
    category fits. If pre-work is allowed, submit the strongest single
-   template from this set (likely `support/community-support`).
+   template from this set (likely `opensource/community-manager`).
 2. **Repo visibility timing** — decide public flip relative to the rules
    (pre-publishing might matter either way; don't flip reflexively).
 

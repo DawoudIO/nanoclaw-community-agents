@@ -160,7 +160,7 @@ different risk class and a general local model is fine there.
 ## Shipped: the Ollama "acknowledger" for when the lead is rate-limited
 
 **This one is built, not proposed.** It lives at
-`local/community-local/ai.nanoco.nanoclaw/tasks/unanswered-watch.md`, runs every
+`opensource/community-secretary/ai.nanoco.nanoclaw/tasks/unanswered-watch.md`, runs every
 10 minutes, and holds no network access and no credentials of any kind. It was
 a **different and much better** use of Ollama than the coding-agent idea below,
 and it targets a real failure this deployment has already lived through: **when
@@ -207,7 +207,7 @@ get wrong.
   line with none of its detail repeated, then goes to the lead flagged
   owner-DM-urgent. It never triages.
 - **Handoff**: every acknowledged id is appended to
-  `plugin-data/community-local/acknowledged.txt` and reported to the lead, so
+  `plugin-data/community-secretary/acknowledged.txt` and reported to the lead, so
   the lead picks the message up when its window returns. The acknowledgment is
   a receipt, not a resolution — an acknowledged message nobody ever answers is
   a worse outcome than the silence it replaced.
@@ -336,12 +336,12 @@ true — it changed owner, and keeping it honest means recording it as the local
 agent's headline risk rather than deleting it. Two mitigations shipped with it:
 
 - **The gate computes every number.**
-  `scripts/tasks/local/dev-metrics-report.sh` does the fetching, the deltas and
+  `scripts/tasks/secretary/dev-metrics-report.sh` does the fetching, the deltas and
   the `null`-on-failure handling before any model wakes, so the model narrates
   a computed result instead of deriving one. A dropped rule can make the prose
   worse; it cannot make the numbers wrong.
 - **The local persona's explicit never-do list**
-  (`local/community-local/ai.nanoco.nanoclaw/context/instructions.md`) hard-codes
+  (`opensource/community-secretary/ai.nanoco.nanoclaw/context/instructions.md`) hard-codes
   the rules least safe to drop: never invent a number, `null` means
   "unavailable" and never zero, never assess security, never write anything
   readable as the project's voice.

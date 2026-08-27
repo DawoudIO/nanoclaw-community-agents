@@ -19,8 +19,8 @@ MODE="${1:-table}"
 # group dir -> (label, model tier). Keep in sync with scripts/sync-tasks.sh.
 group_label() {
   case "$1" in
-    support)     echo "Lead|Claude Sonnet";;
-    local)       echo "Local ops|local model";;
+    manager)     echo "Lead|Claude Sonnet";;
+    secretary)   echo "Secretary|Claude Haiku";;
     engineering) echo "Reviewer|Claude Haiku";;
     marketing)   echo "Marketing|Claude";;
     *)           echo "?|?";;
@@ -28,10 +28,10 @@ group_label() {
 }
 group_dir() {
   case "$1" in
-    support)     echo "support/community-support";;
-    engineering) echo "engineering/community-coding";;
-    marketing)   echo "marketing/community-marketing";;
-    local)       echo "local/community-local";;
+    manager)     echo "opensource/community-manager";;
+    engineering) echo "opensource/community-coding";;
+    marketing)   echo "opensource/community-marketing";;
+    secretary)   echo "opensource/community-secretary";;
   esac
 }
 
@@ -95,7 +95,7 @@ when() {
 
 TOTAL=0; GATED=0; UNGATED=""
 ROWS=""
-for group in support local engineering marketing; do
+for group in manager secretary engineering marketing; do
   gdir=$(group_dir "$group")
   label=$(group_label "$group"); agent="${label%%|*}"
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
@@ -134,7 +134,7 @@ case "$MODE" in
     #            permanent data loss, so these are what backup exists for.
     echo "| Task | Agent | Writes | Class |"
     echo "|------|-------|--------|-------|"
-    for group in support local engineering marketing; do
+    for group in manager secretary engineering marketing; do
       gdir=$(group_dir "$group")
       label=$(group_label "$group"); agent="${label%%|*}"
       for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do

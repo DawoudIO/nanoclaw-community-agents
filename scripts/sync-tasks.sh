@@ -19,11 +19,24 @@ FAIL=0
 
 group_dir() {
   case "$1" in
-    support)     echo "support/community-support";;
-    engineering) echo "engineering/community-coding";;
-    marketing)   echo "marketing/community-marketing";;
-    local)       echo "local/community-local";;
+    manager)     echo "opensource/community-manager";;
+    engineering) echo "opensource/community-coding";;
+    marketing)   echo "opensource/community-marketing";;
+    secretary)   echo "opensource/community-secretary";;
     *)           echo "";;
+  esac
+}
+
+# Reverse of group_dir: template directory name -> scripts/tasks/<group> key.
+# All four templates now share the opensource/ category, so the category dir no
+# longer identifies the group — the template name does.
+group_key() {
+  case "$1" in
+    community-manager)   echo "manager";;
+    community-coding)    echo "engineering";;
+    community-marketing) echo "marketing";;
+    community-secretary)     echo "secretary";;
+    *)                   echo "";;
   esac
 }
 
@@ -100,12 +113,10 @@ done
 # Flag any task .md with an embedded script but no canonical .sh source.
 for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md; do
   grep -q '^script: |$' "$md" || continue
-  tdir=$(basename "$(dirname "$(dirname "$(dirname "$(dirname "$md")")")")")
+  tdir=$(basename "$(dirname "$(dirname "$(dirname "$md")")")")
   name=$(basename "$md" .md)
-  case "$tdir" in
-    support|engineering|marketing|local) sh="$ROOT/scripts/tasks/$tdir/$name.sh";;
-    *) sh="";;
-  esac
+  key=$(group_key "$tdir")
+  if [ -n "$key" ]; then sh="$ROOT/scripts/tasks/$key/$name.sh"; else sh=""; fi
   if [ -z "$sh" ] || [ ! -f "$sh" ]; then
     echo "ORPHAN embedded script (no .sh source): ${md#"$ROOT"/}"
     FAIL=$((FAIL+1))

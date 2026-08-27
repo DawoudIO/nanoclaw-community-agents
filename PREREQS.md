@@ -27,7 +27,7 @@ is aimed at catching that mistake *before* it happens, not after.
 | Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only: Issues+PRs; + Dependabot alerts if enabling the sweep. `COMMUNITY_REPOS` only |
 | Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Content repo only, Contents+PRs read/write. **Skip this if you won't stamp marketing yet** — it's optional and not stamped by default |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Local ops agent (`local/community-local`)** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
+| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Local ops agent (`opensource/community-secretary`)** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
 
@@ -91,7 +91,7 @@ enable it in the Cloud project.** If you set up an OneCLI request-hold
 anywhere, match on host+path rather than HTTP method, or this harmless report
 gets gated.
 
-### Lead — `support/community-support`
+### Lead — `opensource/community-manager`
 
 | Permission | Level | Justified by |
 |---|---|---|
@@ -112,7 +112,7 @@ covers the same ground at higher cadence. Pausing that task does *not* let you
 drop the write permission — the lead needs Issues and PRs write for its live
 replies regardless, which is the larger justification of the two.
 
-### Local — `local/community-local`
+### Local — `opensource/community-secretary`
 
 Eleven of the nineteen tasks, and the only agent holding credentials that
 aren't GitHub at all. Almost entirely read-only: its single write is a git
@@ -142,7 +142,7 @@ no credential — it reads local message state only. That is exactly why it keep
 working during the outage it exists to cover; a token problem cannot silence it,
 because it never had a token.
 
-### Coding — `engineering/community-coding`
+### Coding — `opensource/community-coding`
 
 **Read everywhere; write in exactly one place — security patch PRs.** This
 agent drafts a dependency-bump PR when it confirms an advisory genuinely
@@ -204,7 +204,7 @@ If you are re-cutting this token against an older copy of this doc that said
 "read-only, no write of any kind", that changed deliberately: the Reviewer
 drafts security patches now.
 
-### Marketing — `marketing/community-marketing`
+### Marketing — `opensource/community-marketing`
 
 This agent holds exactly **one** task, `content-draft-cycle`, and every
 permission below traces to it.

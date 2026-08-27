@@ -100,7 +100,7 @@ Ten minutes, the morning after go-live:
   checking on both ends, because it's the only genuinely un-re-scrapable
   series in the system and it crosses an agent boundary to get durable.
   `social-metrics-snapshot` is the **local** agent's task: it appends its line
-  to `plugin-data/community-local/social-metrics-history.jsonl` (its own
+  to `plugin-data/community-secretary/social-metrics-history.jsonl` (its own
   working copy, and the one the backup captures) and relays the exact same
   JSON line plus both deltas to the lead, which appends it to the lead's
   durable ledger. Confirm the line exists on the local side *and* that the
@@ -127,7 +127,7 @@ Ten minutes, the morning after go-live:
   window, and the trap in it). Over budget → pause in the documented order,
   which is cloud-tier only; pausing local tasks saves nothing on that meter.
   Never delete agents.
-- **Question ledger is accumulating**: `plugin-data/community-support/question-ledger.jsonl`
+- **Question ledger is accumulating**: `plugin-data/community-manager/question-ledger.jsonl`
   has one line per resolved support conversation. If it's empty after a
   month of real support traffic, the lead isn't logging — correct it. If
   `docs-gap-review` fired, its first docs proposal is the system's

@@ -13,12 +13,12 @@ cd ../nanoclaw
 ./nanoclaw.sh
 ```
 
-At the prompts: **"From local templates"**, then **`support/community-support`**.
+At the prompts: **"From local templates"**, then **`opensource/community-manager`**.
 
 That's the whole mechanical install. `nanoclaw.sh` does the rest of it for
 you, and then you DM the agent and it interviews you.
 
-**Which template to pick.** The lead (`support/community-support`) — always,
+**Which template to pick.** The lead (`opensource/community-manager`) — always,
 and only. It's the one agent that is never optional, the only one with a
 public voice, and it stamps the other three itself during the welcome
 interview once it knows which jobs you want. The picker will list all four
@@ -345,8 +345,8 @@ Whichever method you use, copy the **four template directories**
 (`support`, `local`, `engineering`, `marketing`) — not this repo's root. The
 template picker offers any directory containing a `plugin.json` at any depth,
 so copying the whole repo works but nests every ref a level deeper
-(`nanoclaw-community-agents/support/community-support` instead of
-`support/community-support`) and fills `templates/` with `docs/` and
+(`nanoclaw-community-agents/opensource/community-manager` instead of
+`opensource/community-manager`) and fills `templates/` with `docs/` and
 `scripts/` that aren't templates.
 
 The install's templates directory is `/home/agent/nanoclaw/templates/` inside
@@ -405,10 +405,10 @@ more than capability.
 
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
-| **Lead** (`support/community-support`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, watches releases, reviews docs gaps, and relays the three sub-agents' work | Claude Sonnet | **Yes — the primary, full voice** | Always — nothing works without it |
-| **Local ops** (`local/community-local`) | The narration tier: script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | Claude Haiku (cloud; a local-model provider was tried and set aside for now — [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It takes the bulk of the recurring, mechanical work off the lead |
-| **Coding** (`engineering/community-coding`) | Issue/PR triage, security-advisory review, Dependabot PR review, docs-currency checks, and maintainer-load assessment — 5 tasks, read-only except two narrow draft-PR paths, drafts everything for the lead. **Not** metrics or telemetry: those moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
-| **Marketing** (`marketing/community-marketing`) | Content drafts via PR, in the audience's language — 1 task | Claude | No — headless, no channel wiring at all | Optional, and **not stamped by default.** Skip it until you actually want content drafted |
+| **Lead** (`opensource/community-manager`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, watches releases, reviews docs gaps, and relays the three sub-agents' work | Claude Sonnet | **Yes — the primary, full voice** | Always — nothing works without it |
+| **Local ops** (`opensource/community-secretary`) | The narration tier: script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | Claude Haiku (cloud; a local-model provider was tried and set aside for now — [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It takes the bulk of the recurring, mechanical work off the lead |
+| **Coding** (`opensource/community-coding`) | Issue/PR triage, security-advisory review, Dependabot PR review, docs-currency checks, and maintainer-load assessment — 5 tasks, read-only except two narrow draft-PR paths, drafts everything for the lead. **Not** metrics or telemetry: those moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
+| **Marketing** (`opensource/community-marketing`) | Content drafts via PR, in the audience's language — 1 task | Claude | No — headless, no channel wiring at all | Optional, and **not stamped by default.** Skip it until you actually want content drafted |
 
 Why `docs-gap-review` sits with the lead and not the reviewer, since it reads
 like reviewer work: it consumes `question-ledger.jsonl`, which only the lead
@@ -436,7 +436,7 @@ and only here matters where.** It's purely an internal `ncl`/dashboard label
 (what you see in `ncl groups list`), unrelated to the Discord bot's display
 name (set when you create the bot application) and unrelated to the
 project name the welcome interview infers from the GitHub repo. **Pick a
-name for each one now** — the examples below (`"Community Support"` etc.)
+name for each one now** — the examples below (`"Community Manager"` etc.)
 are placeholders, not requirements; something like `"AcmeCRM Support"` /
 `"AcmeCRM Local Ops"` / `"AcmeCRM Coding"` / `"AcmeCRM Marketing"` makes
 `ncl groups list` readable once you have more than one project's agents
@@ -446,12 +446,12 @@ running. Nothing but a human looking at that list ever reads this string.
 # Stamp — check each create response's templateReport for skipped parts,
 # and note each group's id from the response: the destination wiring below
 # and the OneCLI selective-mode step need them.
-./bin/ncl groups create --template support/community-support     --name "Community Support"
-./bin/ncl groups create --template local/community-local         --name "Community Local Ops"
-./bin/ncl groups create --template engineering/community-coding  --name "Community Coding"
+./bin/ncl groups create --template opensource/community-manager     --name "Community Manager"
+./bin/ncl groups create --template opensource/community-secretary         --name "Community Secretary"
+./bin/ncl groups create --template opensource/community-coding  --name "Community Coding"
 # Marketing is OPTIONAL and not stamped by default — run this line only if you
 # actually want content drafted now. Its token (§0) is needed only if you do.
-./bin/ncl groups create --template marketing/community-marketing --name "Community Marketing"
+./bin/ncl groups create --template opensource/community-marketing --name "Community Marketing"
 
 # Install jq on every agent you just stamped, host-side, before you DM the
 # lead (step 5). Every agent needs it — each template's setup-check.sh is
@@ -666,7 +666,7 @@ marked *modifies install* has to be re-applied after
 | `/add-ollama-provider` | **Not used for this phase** — evaluated and set aside; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) | Would route the local group to a host Ollama model instead of the cloud default. Revisit once the system is verified end-to-end on the cloud default | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
 | `/add-ollama` (the tool) | **Proposed, undecided** | Only if bilingual translation volume proves expensive. Gives an agent a local model to *call* while it stays on Claude — the lead's case, never the coding agent's | **Yes** — copies an MCP server into the source tree and rebuilds the image. Replay on recreate |
 | `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real "which task is burning budget" question | **Yes** — wires a pusher into `src/index.ts`, runs a persistent process, adds `DASHBOARD_SECRET`. Replay on recreate |
-| `ncl groups config add-mount` (raw CLI, not a `/`-skill) | **Recommended, once all four agents are stamped** | Sets up the shared repo mirror — one `/workspace/shared-repos` host directory, read-write for local ops, read-only for the rest. See `local/community-local/README.md`, "Shared repo mirror," for the exact commands. Owner-only (`hostOnly: true` in the platform CLI) — no agent can grant this to itself | Config only (per-group `additionalMounts`), plus the operator-side mount allowlist (`~/.config/nanoclaw/mount-allowlist.json`, outside any container's reach). `ncl groups restart` needed per group, not a full recreate |
+| `ncl groups config add-mount` (raw CLI, not a `/`-skill) | **Recommended, once all four agents are stamped** | Sets up the shared repo mirror — one `/workspace/shared-repos` host directory, read-write for local ops, read-only for the rest. See `opensource/community-secretary/README.md`, "Shared repo mirror," for the exact commands. Owner-only (`hostOnly: true` in the platform CLI) — no agent can grant this to itself | Config only (per-group `additionalMounts`), plus the operator-side mount allowlist (`~/.config/nanoclaw/mount-allowlist.json`, outside any container's reach). `ncl groups restart` needed per group, not a full recreate |
 | `/update-skills` | **Break-glass only** | Never in steady state — it's in-place mutation, which the update policy forbids. Acceptable for an urgent upstream channel fix that can't wait for a kit image | **Yes**, and it desyncs you from `platform-baseline.json` — note it and do a digest-pinned recreate as soon as one exists |
 
 Everything else in NanoClaw's 52-skill catalog was reviewed and is either

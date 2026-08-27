@@ -203,18 +203,18 @@ fi
 # prompt is what tells the agent where to write.
 agent_of() {
   case "$1" in
-    support)     echo "community-support";;
-    local)       echo "community-local";;
+    support)     echo "community-manager";;
+    local)       echo "community-secretary";;
     engineering) echo "community-coding";;
     marketing)   echo "community-marketing";;
   esac
 }
 dir_of() {
   case "$1" in
-    support)     echo "support/community-support";;
-    local)       echo "local/community-local";;
-    engineering) echo "engineering/community-coding";;
-    marketing)   echo "marketing/community-marketing";;
+    support)     echo "opensource/community-manager";;
+    local)       echo "opensource/community-secretary";;
+    engineering) echo "opensource/community-coding";;
+    marketing)   echo "opensource/community-marketing";;
   esac
 }
 CROSS=0
@@ -223,7 +223,7 @@ for group in support local engineering marketing; do
   gdir=$(dir_of "$group")
   for f in "$ROOT/scripts/tasks/$group"/*.sh "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$f" ] || continue
-    for other in community-support community-local community-coding community-marketing; do
+    for other in community-manager community-secretary community-coding community-marketing; do
       [ "$other" = "$own" ] && continue
       if grep -q "plugin-data/$other" "$f" 2>/dev/null; then
         echo "  cross-agent path: ${f#"$ROOT"/} (owned by $own) references plugin-data/$other"
@@ -317,9 +317,9 @@ assert_gate() {
   local sandbox; sandbox=$(mktemp -d)
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$ROOT/scripts/test/fixtures/$sname"
-  mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-support" \
+  mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
            "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing" \
-           "$sandbox/plugin-data/community-local"
+           "$sandbox/plugin-data/community-secretary"
   # fake curl: first URL-ish arg is matched against fixture patterns
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
@@ -349,7 +349,7 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-support community-coding community-marketing community-local; do
+  for g in community-manager community-coding community-marketing community-secretary; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   local out
@@ -391,9 +391,9 @@ assert_scenario() {
   local sandbox; sandbox=$(mktemp -d)
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$ROOT/scripts/test/fixtures/$fixture"
-  mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-support" \
+  mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
            "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing" \
-           "$sandbox/plugin-data/community-local"
+           "$sandbox/plugin-data/community-secretary"
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
@@ -417,7 +417,7 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-support community-coding community-marketing community-local; do
+  for g in community-manager community-coding community-marketing community-secretary; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   [ -n "$seed" ] && ( cd "$sandbox" && SANDBOX="$sandbox" bash -c "$seed" )
@@ -453,8 +453,8 @@ MOCK
 # workspace-backup requires a real /workspace/agent git checkout rather than
 # a config key, so "unconfigured" isn't a meaningful state for it.
 for sh in "$ROOT"/scripts/tasks/engineering/*.sh "$ROOT"/scripts/tasks/marketing/*.sh \
-          "$ROOT"/scripts/tasks/local/*.sh \
-          "$ROOT"/scripts/tasks/support/release-announcement-watch.sh; do
+          "$ROOT"/scripts/tasks/secretary/*.sh \
+          "$ROOT"/scripts/tasks/manager/release-announcement-watch.sh; do
   case "$(basename "$sh")" in
     health-check.sh|workspace-backup.sh) continue;;
   esac
@@ -466,26 +466,26 @@ done
 # for every URL because no fixtures matched.
 assert_gate "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/local/dev-metrics-report.sh" \
+assert_gate "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/local/good-first-issue-health.sh" \
+assert_gate "$ROOT/scripts/tasks/secretary/good-first-issue-health.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/support/release-announcement-watch.sh" \
+assert_gate "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/local/draft-cleanup.sh" \
+assert_gate "$ROOT/scripts/tasks/secretary/draft-cleanup.sh" \
   "fetch-fails-must-wake" "true" 'CONTENT_REPO="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/engineering/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/support/daily-github-triage.sh" \
+assert_gate "$ROOT/scripts/tasks/manager/daily-github-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 
 # health-check: no config needed; on a healthy fresh box the only wake
 # reason is the first-run weekly heartbeat.
-assert_gate "$ROOT/scripts/tasks/local/health-check.sh" "first-run-heartbeat" "true" ""
+assert_gate "$ROOT/scripts/tasks/secretary/health-check.sh" "first-run-heartbeat" "true" ""
 
 # repo-mirror-sync: a nonexistent repo is a real clone failure (no mock
 # needed — git's own error against a real host is the test).
-assert_gate "$ROOT/scripts/tasks/local/repo-mirror-sync.sh" \
+assert_gate "$ROOT/scripts/tasks/secretary/repo-mirror-sync.sh" \
   "nonexistent-repo-clone-must-wake" "true" 'MIRROR_REPOS="acme/this-repo-does-not-exist-xyz-12345"'
 
 # --- 2c. success-path assertions -------------------------------------------
@@ -496,7 +496,7 @@ assert_gate "$ROOT/scripts/tasks/local/repo-mirror-sync.sh" \
 # dev-metrics-report: every field its prompt references, in the nesting the
 # prompt describes. `count` (14) deliberately exceeds the listed prs (2) so
 # the "N approved PRs waiting, oldest 10 listed" truncation path is covered.
-assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-full true \
+assert_scenario "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" dev-metrics-full true \
   '.data.today["acme/demo"] as $t
    | ($t.stars == 937) and ($t.forks == 558)
      and ($t.open_issues == 42) and ($t.open_prs == 7)
@@ -516,7 +516,7 @@ assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-fu
 # ready-to-merge: 14 approved PRs waiting with only the 2 oldest listed, so
 # the truncation path is covered. First run has no prior set, so every PR is
 # "newly ready" and the gate must wake.
-assert_scenario "$ROOT/scripts/tasks/local/ready-to-merge.sh" ready-to-merge-waiting true \
+assert_scenario "$ROOT/scripts/tasks/secretary/ready-to-merge.sh" ready-to-merge-waiting true \
   '(.data.status == "ready")
    and (.data.total == 14)
    and (.data.repos[0].truncated == true)
@@ -530,7 +530,7 @@ assert_scenario "$ROOT/scripts/tasks/local/ready-to-merge.sh" ready-to-merge-wai
 # ready-to-merge, run 2: identical approved set, so the "changed" gate must
 # SUPPRESS rather than re-report the same PRs the next morning. This is the
 # difference between useful and nagging, and it only exists from run 2 on.
-assert_scenario "$ROOT/scripts/tasks/local/ready-to-merge.sh" ready-to-merge-waiting false \
+assert_scenario "$ROOT/scripts/tasks/secretary/ready-to-merge.sh" ready-to-merge-waiting false \
   '(.data.resurfaced == true) and (.data.newly_ready | length == 0)' \
   'COMMUNITY_REPOS="acme/demo"' 2
 
@@ -560,7 +560,7 @@ assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" c
 
 # dev-metrics-report, run 2: nothing changed between runs, and no approved PRs
 # this time, so the wake gate must SUPPRESS. Untestable without multi-run.
-assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-quiet false \
+assert_scenario "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" dev-metrics-quiet false \
   '.data.quiet_heartbeat == true' 'COMMUNITY_REPOS="acme/demo"' 2
 
 # posthog-weekly-review is removed for now (never got working end to end).
@@ -571,7 +571,7 @@ assert_scenario "$ROOT/scripts/tasks/local/dev-metrics-report.sh" dev-metrics-qu
 
 # good-first-issue-health: only the unassigned AND stale issue is listed;
 # truncated must be true because total_count (150) > items returned (3).
-assert_scenario "$ROOT/scripts/tasks/local/good-first-issue-health.sh" gfi-stale true \
+assert_scenario "$ROOT/scripts/tasks/secretary/good-first-issue-health.sh" gfi-stale true \
   '.data.results[0] as $r
    | ($r.open_count == 150) and ($r.truncated == true)
      and ($r.unassigned_stale | length == 1)
@@ -580,12 +580,12 @@ assert_scenario "$ROOT/scripts/tasks/local/good-first-issue-health.sh" gfi-stale
 
 # release-announcement-watch: run 1 seeds the baseline WITHOUT announcing (a
 # fresh install must not retroactively announce shipped releases)...
-assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" release-new false \
+assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-new false \
   '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"'
 # ...and stays quiet on run 2 because the AGENT, not the script, advances the
 # baseline — so the same release must keep re-surfacing as un-acked, never
 # silently vanish. Same fixture, so the tag is unchanged: still no wake.
-assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" release-new false \
+assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-new false \
   '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"' 2
 
 # release-announcement-watch: a repo with zero releases ever (a docs site,
@@ -593,7 +593,7 @@ assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" rele
 # NEVER as "fetch-failed". This is the exact bug a real install hit: curl -f
 # discarded the body on any HTTP error, so a legitimate 404 was
 # indistinguishable from a real auth/network failure.
-assert_scenario "$ROOT/scripts/tasks/support/release-announcement-watch.sh" release-no-releases false \
+assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-no-releases false \
   '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"'
 
 # content-draft-cycle: on a fresh sandbox run 1 seeds the release baseline and
@@ -612,39 +612,39 @@ RELEASE_WATCH_REPO="acme/demo"' 2
 # docs-gap-review: pure local-file logic, previously the ONLY gate with no
 # behavioral coverage at all. Ledger seeded with one topic 4× inside the
 # 60-day window and one 2× — only the 3+ topic may surface.
-assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures true \
   '(.data.status == "hot-topics")
    and (.data.topics | length == 1)
    and (.data.topics[0].topic == "csv-import-fails")
    and (.data.topics[0].count == 4)' \
   '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    for i in 1 2; do echo "{\"date\":\"$NOW\",\"topic\":\"how-to-backup\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done'
 
 # docs-gap-review: a topic already proposed must not re-surface (the ack
 # ledger is what stops the same docs page being proposed every week).
-assert_scenario "$ROOT/scripts/tasks/support/docs-gap-review.sh" no-fixtures false \
+assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures false \
   '.data.status == "quiet"' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'
 
 # owner-tldr: the digest gate. Empty queue must NOT wake — a quiet day is the
 # common case and must cost nothing.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures false \
   '.data.status == "nothing-queued"' '' 1
 
 # owner-tldr: three queued entries produce one digest, grouped by source.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
   '(.data.status == "digest-ready")
    and (.data.total == 3)
    and (.data.deferred_runs == 0)
    and (.data.misfiled_present == false)
    and ([.data.by_source[].source] | sort == ["engineering","local"])' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror synced\"}" >> "$D/digest-queue.jsonl";
@@ -657,9 +657,9 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
 # while it was blocked. The gate must FOLD them together (2 + 1 = 3) and
 # report the delay, never drop either side. A usage limit must delay the
 # digest, not lose it.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
   '(.data.total == 3) and (.data.deferred_runs == 1)' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"queued before the limit hit\"}" >> "$D/digest-queue.processing.jsonl";
@@ -671,9 +671,9 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
 # night — so the 15-hour waking window is closed. Escalating here would spend a
 # wake to deliver something that is read at 07:00 anyway, which the routine
 # digest would have carried for free.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures false \
   '(.data.status == "held") and (.data.owner_awake == false) and (.data.attention_pending == 1)' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(( ($(date -u +%-H) + 6) % 24 ))" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"attention\",\"line\":\"we may be blind\"}" >> "$D/digest-queue.jsonl"'
@@ -681,9 +681,9 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
 # owner-tldr: an unresolvable timezone must be REPORTED, not silently treated
 # as UTC. Verified behaviour: `date` falls back to UTC without complaint, so an
 # owner told "07:00 local" would quietly get 07:00 UTC instead.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures any \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures any \
   '(.data.tz_resolved == false) and (.data.tz == "UTC")' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"Not/AZone\"\n" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"x\"}" >> "$D/digest-queue.jsonl"'
@@ -692,18 +692,18 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures any \
 # This is the assertion that keeps the digest at one message a day instead of
 # one per two-hour gate run. TLDR_HOUR is set 5 hours away in the seed so the
 # routine tier cannot fire, and nothing is `attention`, so nothing escalates.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures false \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures false \
   '(.data.status == "held") and (.data.pending == 2) and (.data.attention_pending == 0)' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(( ($(date -u +%-H) + 5) % 24 ))" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr: ...and the same items DO go out at the chosen hour.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
   '(.data.trigger == "routine") and (.data.total == 2)' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
@@ -711,24 +711,24 @@ assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
 
 # owner-tldr: an entry marked urgent should never be in the queue at all —
 # urgent bypasses it. The gate flags it as a process failure.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
   '(.data.misfiled_present == true) and (.data.misfiled_urgent | length == 1)' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"urgent\",\"line\":\"should have bypassed\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"attention\",\"line\":\"and something blind\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr: a malformed line must not lose the batch or break the contract.
-assert_scenario "$ROOT/scripts/tasks/support/owner-tldr.sh" no-fixtures true \
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
   '.data.status == "queue-unparseable"' '' 1 \
-  'D="$SANDBOX/plugin-data/community-support"; mkdir -p "$D";
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "not json at all\n" >> "$D/digest-queue.jsonl"'
 # github-first-response: two brand-new unanswered items, but only ONE is past
 # the 15-minute grace. The fresh one must NOT surface — replying 2 minutes
 # after someone opens a PR reads as a bot, which is the whole reason the grace
 # exists. Asserts the filter, not just the fetch.
-assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-response-new true \
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new true \
   '(.data.status == "needs-first-response")
    and (.data.count == 1)
    and (.data.items[0].number == 501)
@@ -740,7 +740,7 @@ assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-res
 # github-first-response, run 2: the same item must not surface again. At six
 # runs an hour, a gate that re-reports the same issue would wake the lead 144
 # times a day for one unanswered issue.
-assert_scenario "$ROOT/scripts/tasks/support/github-first-response.sh" first-response-new false \
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
   'COMMUNITY_REPOS="acme/crm"' 2
 # security-advisory-sweep: three alerts of mixed severity and scope. Asserts

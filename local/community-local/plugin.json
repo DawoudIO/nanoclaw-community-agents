@@ -1,9 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "community-local",
-  "version": "1.0.0",
-  "description": "Always-available local-model agent: narrates script-computed data, keeps mirrors fresh, and acknowledges community messages when the cloud-backed lead is rate-limited",
-  "extensions": {
-    "ai.nanoco.nanoclaw": { "agentName": "Community Local Ops" }
-  }
-}

@@ -1,5 +1,5 @@
 #!/bin/bash
-# Copy the four agent templates into a NanoClaw checkout's templates/ folder.
+# Copy the opensource/ agent templates into a NanoClaw checkout's templates/ folder.
 #
 #   bash scripts/install-templates.sh                  # target ../nanoclaw
 #   bash scripts/install-templates.sh /path/to/nanoclaw
@@ -11,8 +11,8 @@
 # Copying by hand went wrong twice in practice:
 #
 #   1. Copying this repo's ROOT into templates/ nests everything one level
-#      deeper, so refs become `nanoclaw-community-agents/support/community-support`
-#      instead of `support/community-support`, and templates/ fills up with
+#      deeper, so refs become `nanoclaw-community-agents/opensource/community-manager`
+#      instead of `opensource/community-manager`, and templates/ fills up with
 #      docs/ and scripts/ that aren't templates at all.
 #   2. Copying once and forgetting means the copy silently drifts from this
 #      repo. A stale copy still stamps — it just stamps the old bugs, and the
@@ -22,7 +22,7 @@
 set -uo pipefail
 
 SRC="$(cd "$(dirname "$0")/.." && pwd)"
-TEMPLATES=(support local engineering marketing)
+CATEGORY=opensource
 
 CHECK=0
 TARGET=""
@@ -70,20 +70,19 @@ mkdir -p "$DEST"
 if [ -d "$DEST/nanoclaw-community-agents" ]; then
   echo "warning: found $DEST/nanoclaw-community-agents/" >&2
   echo "         That's this repo's root copied in whole, which nests every ref one" >&2
-  echo "         level deeper. Remove it so refs read 'support/community-support':" >&2
+  echo "         level deeper. Remove it so refs read 'opensource/community-manager':" >&2
   echo "           rm -rf '$DEST/nanoclaw-community-agents'" >&2
   echo "" >&2
 fi
 
 if [ "$CHECK" = "1" ]; then
   drift=0
-  for t in "${TEMPLATES[@]}"; do
+  for d in "$SRC/$CATEGORY"/*/; do
+    t="$CATEGORY/$(basename "$d")"
     if [ ! -d "$DEST/$t" ]; then
       echo "MISSING  $t"
       drift=$((drift + 1))
-      continue
-    fi
-    if ! diff -qr "$SRC/$t" "$DEST/$t" >/dev/null 2>&1; then
+    elif ! diff -qr "$SRC/$t" "$DEST/$t" >/dev/null 2>&1; then
       echo "DRIFTED  $t"
       drift=$((drift + 1))
     else
@@ -101,23 +100,17 @@ if [ "$CHECK" = "1" ]; then
   exit 0
 fi
 
-for t in "${TEMPLATES[@]}"; do
-  [ -d "$SRC/$t" ] || { echo "error: missing source template $SRC/$t" >&2; exit 1; }
-  rm -rf "${DEST:?}/$t"
-  cp -R "$SRC/$t" "$DEST/$t"
-done
+[ -d "$SRC/$CATEGORY" ] || { echo "error: missing $SRC/$CATEGORY" >&2; exit 1; }
+rm -rf "${DEST:?}/$CATEGORY"
+cp -R "$SRC/$CATEGORY" "$DEST/$CATEGORY"
 
-files=0
-for t in "${TEMPLATES[@]}"; do
-  files=$((files + $(find "$DEST/$t" -type f | wc -l | tr -d ' ')))
-done
-echo "Installed ${#TEMPLATES[@]} templates ($files files) into $DEST"
+files=$(find "$DEST/$CATEGORY" -type f | wc -l | tr -d ' ')
+count=$(find "$DEST/$CATEGORY" -mindepth 1 -maxdepth 1 -type d | wc -l | tr -d ' ')
+echo "Installed $count templates ($files files) into $DEST/$CATEGORY"
 echo ""
 echo "Stamp refs (what the template picker will show, and what --template takes):"
-for t in "${TEMPLATES[@]}"; do
-  for d in "$SRC/$t"/*/; do
-    [ -d "$d" ] && echo "  $t/$(basename "$d")"
-  done
+for d in "$SRC/$CATEGORY"/*/; do
+  [ -d "$d" ] && echo "  $CATEGORY/$(basename "$d")"
 done
 echo ""
 echo "Next: cd $TARGET && ./nanoclaw.sh"

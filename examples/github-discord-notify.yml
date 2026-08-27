@@ -16,7 +16,7 @@
 # The agent handles everything this workflow does NOT: the reply to the
 # reporter, duplicate detection, triage judgment, escalation. This workflow
 # only relays a label event to a channel — see
-# support/community-support/skills/community-support/references/github-bug-workflow.md
+# opensource/community-manager/skills/community-manager/references/github-bug-workflow.md
 name: discord-notify
 on:
   issues:

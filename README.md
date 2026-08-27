@@ -13,10 +13,10 @@ matters more than capability.
 
 | Template | Role | Model | Public voice |
 |---|---|---|---|
-| [`support/community-support`](support/community-support/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes — the primary one** |
-| [`local/community-local`](local/community-local/) | Narrates script-computed data, keeps mirrors fresh, acknowledges messages when the lead is rate-limited | Claude Haiku (cloud) | Holding replies only |
-| [`engineering/community-coding`](engineering/community-coding/) | Reviewer — issue/PR triage, duplicates, security advisories, docs gaps. Read-only | Claude Haiku | No |
-| [`marketing/community-marketing`](marketing/community-marketing/) | **Optional, not stamped by default.** Content drafts via PR, in the project's audience's language | Claude | No |
+| [`opensource/community-manager`](opensource/community-manager/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes — the primary one** |
+| [`opensource/community-secretary`](opensource/community-secretary/) | Narrates script-computed data, keeps mirrors fresh, acknowledges messages when the lead is rate-limited | Claude Haiku (cloud) | Holding replies only |
+| [`opensource/community-coding`](opensource/community-coding/) | Reviewer — issue/PR triage, duplicates, security advisories, docs gaps. Read-only | Claude Haiku | No |
+| [`opensource/community-marketing`](opensource/community-marketing/) | **Optional, not stamped by default.** Content drafts via PR, in the project's audience's language | Claude | No |
 
 The lead works standalone; add sub-agents when you want that work done without
 granting a second identity. Each template's README has per-agent detail.
@@ -27,7 +27,7 @@ judgment is only spent where it's needed. It's also who holds the line with a
 templated acknowledgment (never an answer) when the lead is rate-limited or
 down, logging the message for the lead to pick up. It is deliberately
 restricted — see its
-[never-do list](local/community-local/ai.nanoco.nanoclaw/context/instructions.md),
+[never-do list](opensource/community-secretary/ai.nanoco.nanoclaw/context/instructions.md),
 which is the load-bearing part of that template. **For this phase, it runs on
 the same cloud tier and shares the same usage window as the lead** — a
 local-model provider (which would put it off-window entirely, immune to a
@@ -100,7 +100,7 @@ cd ../nanoclaw
 `nanoclaw.sh` handles the container image, the OneCLI vault, the agent
 runtime, your first agent and connecting Discord.
 
-**At the template prompt, pick `support/community-support`.** It's the lead —
+**At the template prompt, pick `opensource/community-manager`.** It's the lead —
 the only agent with a public voice, and the only one that is never optional.
 It works standalone, and it stamps the other three itself during the welcome
 interview once it knows which jobs you want. You don't pick sub-agents here,

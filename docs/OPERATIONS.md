@@ -123,7 +123,7 @@ persona plus whatever skill loads:
 
 | Agent | Persona + context | With its main skill |
 |---|---|---|
-| Lead | ~8.6K tokens | ~18.8K (community-support) · ~15K (welcome) |
+| Lead | ~8.6K tokens | ~18.8K (community-manager) · ~15K (welcome) |
 | Coding | ~3.2K | ~6.2K |
 | Marketing | ~3.9K | ~8.5K |
 | Local | **on this meter for this phase — not yet measured** | — |
@@ -192,7 +192,7 @@ elastic: stamp what you need, then tune budget by which tasks you activate —
 never by deleting agents.
 
 **The fourth agent is cheap, not free — an important distinction for this
-phase.** `community-local` runs on Haiku, the cheapest capable cloud tier, and
+phase.** `community-secretary` runs on Haiku, the cheapest capable cloud tier, and
 its 12 tasks — the bulk of the recurring work in this set — are pure
 narration with no judgment, so they cost little per wake. But **they do
 consume the same shared window** as the lead, Reviewer, and marketing. A
@@ -350,22 +350,22 @@ unconfigured burns turns on every fire. And **"wakes model" means a different
 meter depending on the agent** — a Local-ops wake spends host RAM, never the
 shared Claude window.
 
-**Lead** (`support/community-support`) — 7 tasks, the only agent with a full
+**Lead** (`opensource/community-manager`) — 7 tasks, the only agent with a full
 public voice:
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
-| `daily-github-triage` (weekdays) | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-support/config.env` | silent skip. **This is the lead's standalone-mode fallback** — leave it paused when the Reviewer is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Reviewer |
-| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the lead's own `plugin-data/community-support/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
+| `daily-github-triage` (weekdays) | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-manager/config.env` | silent skip. **This is the lead's standalone-mode fallback** — leave it paused when the Reviewer is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Reviewer |
+| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the lead's own `plugin-data/community-manager/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
 | `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | lead PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
 | `inbox-check` (2×/day) | **every run** (ungated) | email MCP + read-only mailbox + allowlist | leave paused |
-| `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS` to scope announcements to a subset) in `plugin-data/community-support/config.env` | silent skip |
+| `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS` to scope announcements to a subset) in `plugin-data/community-manager/config.env` | silent skip |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 
-**Local ops** (`local/community-local`) — 12 tasks, cheapest cloud tier
+**Local ops** (`opensource/community-secretary`) — 12 tasks, cheapest cloud tier
 (Haiku) but sharing the same window as everything else for this phase.
-Every config key below lives in `plugin-data/community-local/config.env`:
+Every config key below lives in `plugin-data/community-secretary/config.env`:
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
@@ -382,7 +382,7 @@ Every config key below lives in `plugin-data/community-local/config.env`:
 | `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTY_ID` + allowlist | silent skip |
 | `workspace-backup` (daily) | on failure | git repo + remote + git identity + a `github.com` (git) vault secret | silent skip |
 
-**Reviewer** (`engineering/community-coding`) — read-only except for drafting
+**Reviewer** (`opensource/community-coding`) — read-only except for drafting
 security patch PRs and docs PRs (branch + draft PR, never merged), never posts
 publicly. Config in `plugin-data/community-coding/config.env`.
 `contributor-health-review` is here rather than on the local tier for the
@@ -400,7 +400,7 @@ is a judgment about a person. Narration went local; judgment stayed cloud.
 | `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
 
-**Marketing** (`marketing/community-marketing`) — 1 task, not stamped by
+**Marketing** (`opensource/community-marketing`) — 1 task, not stamped by
 default. Config in `plugin-data/community-marketing/config.env`:
 
 | Task | Wakes model | Needs | Unconfigured |
@@ -595,7 +595,7 @@ refreshes when the issue appears.
 1. Confirm the last workspace backup ran — and **know exactly whose workspace
    it is.** `workspace-backup` is a **local-agent** task, and a task can only
    see its own agent's workspace, so the `git add -A` captures
-   `plugin-data/community-local/` and nothing else. Restore that directory
+   `plugin-data/community-secretary/` and nothing else. Restore that directory
    wholesale, not a hand-picked file or two. What it does cover, and what
    can't be reconstructed from the web:
    - `project-config.md` (the local agent's copy) — its runtime config
@@ -610,18 +610,18 @@ refreshes when the issue appears.
    `plugin-data/` directory of every *other* agent — lead, Reviewer,
    Marketing — is **not** backed up by anything in this template set. That includes the lead's append-only
    ledgers, which are the most valuable state here:
-   - `plugin-data/community-support/question-ledger.jsonl` — every resolved
+   - `plugin-data/community-manager/question-ledger.jsonl` — every resolved
      support topic; `docs-gap-review`'s only input, and it needs weeks of
      accumulation before it fires at all
-   - `plugin-data/community-support/owner-instructions.jsonl` — the numbered
+   - `plugin-data/community-manager/owner-instructions.jsonl` — the numbered
      ack ledger for owner corrections
-   - `plugin-data/community-support/public-actions.log` — what a session
+   - `plugin-data/community-manager/public-actions.log` — what a session
      actually did publicly; the record that turns "unrecognized public
      action" into a lookup instead of an incident
-   - `plugin-data/community-support/social-metrics-history.jsonl` — the lead's
+   - `plugin-data/community-manager/social-metrics-history.jsonl` — the lead's
      durable copy of the follower series (the local agent relays each line to
      it; that relay is the handoff, not a backup)
-   - `plugin-data/community-support/docs-proposals-sent.txt`,
+   - `plugin-data/community-manager/docs-proposals-sent.txt`,
      `plugin-data/community-coding/seen-advisories.txt` — the other dedup
      ledgers
 
@@ -651,7 +651,7 @@ refreshes when the issue appears.
 5. Re-enter the 4 GitHub PATs in the fresh vault, selective mode (~5 min) —
    one per agent — plus the `github.com` git secret that `workspace-backup`
    pushes with. No rotation needed — refresh isn't compromise.
-6. Restore `plugin-data/community-local/` from the backup repo into the local
+6. Restore `plugin-data/community-secretary/` from the backup repo into the local
    agent's workspace, and whatever you preserved by hand for the other three
    (see step 1's known gap). Restoring `project-config.md` skips
    re-interviewing — or hand the lead your filled `onboarding-answers.json`
