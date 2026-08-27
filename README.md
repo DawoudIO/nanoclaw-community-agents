@@ -18,7 +18,7 @@ once it knows which jobs you want. Each template's own README has the detail.
 ## Install
 
 ```bash
-git clone https://github.com/DawoudIO/nanoclaw.git
+git clone -b community-fixes-2026-08-24 https://github.com/DawoudIO/nanoclaw.git
 git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
 
 cd nanoclaw-community-agents

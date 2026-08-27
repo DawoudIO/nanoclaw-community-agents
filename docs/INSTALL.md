@@ -8,7 +8,7 @@ the lead agent asks you for, one at a time, only when a task actually needs
 it. There's no upfront checklist to collect first.
 
 ```bash
-git clone https://github.com/DawoudIO/nanoclaw.git
+git clone -b community-fixes-2026-08-24 https://github.com/DawoudIO/nanoclaw.git
 git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
 
 cd nanoclaw-community-agents
