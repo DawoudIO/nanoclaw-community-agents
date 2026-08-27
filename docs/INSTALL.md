@@ -1,6 +1,90 @@
 # Install runbook
 
-The full path from nothing to a live system: prerequisites → keys → sandbox →
+## Quick start
+
+```bash
+git clone https://github.com/DawoudIO/nanoclaw.git
+git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
+
+cd nanoclaw-community-agents
+bash scripts/install-templates.sh     # → ../nanoclaw/templates/
+
+cd ../nanoclaw
+./nanoclaw.sh
+```
+
+At the prompts: **"From local templates"**, then **`support/community-support`**.
+
+That's the whole mechanical install. `nanoclaw.sh` does the rest of it for
+you, and then you DM the agent and it interviews you.
+
+**Which template to pick.** The lead (`support/community-support`) — always,
+and only. It's the one agent that is never optional, the only one with a
+public voice, and it stamps the other three itself during the welcome
+interview once it knows which jobs you want. The picker will list all four
+because it offers any directory containing a `plugin.json`; the other three
+are headless sub-agents, and stamping one first leaves you with an agent that
+has nobody to talk to.
+
+**Re-run `bash scripts/install-templates.sh` after every `git pull` in this
+repo**, and `--check` to see whether the copy has drifted. A stale copy still
+stamps — it stamps the old version, which presents as "the fix didn't work"
+rather than as a stale copy. This is the single most common way an install
+goes subtly wrong.
+
+## What the installer does, and what this runbook is for
+
+`nanoclaw.sh` is a real installer, not a wrapper — most of what used to be
+manual here now happens inside it:
+
+| Done by `nanoclaw.sh` | Still yours to do |
+|---|---|
+| Container image (hardened pull or local build) | Per-agent GitHub tokens + vault entries (§0, §4) |
+| OneCLI vault detection//reuse | The other three agents — the lead stamps them (§6) |
+| Agent runtime + provider auth | Agent-to-agent destinations (§3) |
+| Service start, mounts, access rules | Wiring guild channels to tiers (§3) |
+| **One** agent, stamped from your chosen template | Network allowlist for optional services (§5) |
+| Timezone detection | Resuming the scheduled tasks (§7) |
+| **One** channel — your owner DM — with owner role | |
+
+Two things worth knowing about that split:
+
+- The installer wires **only your owner DM**. Every other Discord channel is
+  manual, and the lead offers to generate the commands during the interview.
+- Discord's bot token lands in `.env`, **not** the OneCLI vault. The vault
+  holds provider auth and the per-agent GitHub/GA4 credentials you create in
+  §4.
+
+**Re-running `./nanoclaw.sh` is safe.** It detects an existing install and
+skips what's done — auth when the secret exists, the vault when one is
+running, the ping test once real agents exist — and the template step turns
+into add-or-update rather than a duplicate stamp.
+
+### Known snag: the "Terminal Agent" may not clean up
+
+Setup creates a scratch agent (`ping_test`, shown as **Terminal Agent**) to
+prove the sandbox answers, then deletes it. That delete opens the central DB
+directly while the service you just started holds it, so it can lose the
+race:
+
+```
+▲ Couldn't clean up the test agent — it may still appear in your agent list.
+```
+
+Harmless but not cosmetic-only: it stays in `ncl groups list` and answers on
+the CLI channel, so `pnpm run chat` traffic can land there instead of your
+real agent. Remove it once setup is done:
+
+```bash
+pnpm exec tsx scripts/delete-cli-agent.ts --folder ping_test
+```
+
+Stop the service first if it fails again. The CLI messaging group and the
+synthetic `cli:local` user are left behind by design.
+
+---
+
+The sections below are the full path: prerequisites → keys → sandbox →
 stamp/wire → configuration → go-live. Read [PREREQS.md](../PREREQS.md) first
 for the credential story; [OPERATIONS.md](OPERATIONS.md) covers everything
 after go-live.
@@ -205,6 +289,19 @@ register credentials; gateway is `10255`; webhook is `3000`. Keep this session
 open; NanoClaw stops when it closes.
 
 ## 2 · Load the templates into the sandbox
+
+**For a local (non-sandbox) install, skip to the timezone note below —
+`bash scripts/install-templates.sh` from the Quick start already did this.**
+The copy methods here are for getting the templates *inside a `sbx` VM*,
+where the sibling-directory default doesn't apply.
+
+Whichever method you use, copy the **four template directories**
+(`support`, `local`, `engineering`, `marketing`) — not this repo's root. The
+template picker offers any directory containing a `plugin.json` at any depth,
+so copying the whole repo works but nests every ref a level deeper
+(`nanoclaw-community-agents/support/community-support` instead of
+`support/community-support`) and fills `templates/` with `docs/` and
+`scripts/` that aren't templates.
 
 The install's templates directory is `/home/agent/nanoclaw/templates/` inside
 the VM.
