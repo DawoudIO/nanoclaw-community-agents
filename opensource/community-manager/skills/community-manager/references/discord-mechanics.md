@@ -13,29 +13,29 @@ One card can carry several buttons; keep button labels short ("Open issue",
 "View PR"). This applies to every link in every channel — bug reports, PR
 notifications, releases, blog posts, all of it.
 
-**Never use markdown links** `[text](url)` in Discord messages. They don't
-render as clickable. Instead: use a Discord embed card with button actions, or
-post a plain URL in a text message (users can click the raw URL). Card embeds
-are always preferred.
+**Never use markdown links** `[text](url)` in Discord messages, and never
+fall back to a plain bare URL either. **Every link gets a card — no
+exceptions, and there is no "too many links, write plain text instead"
+threshold.** Card embeds are the only acceptable form for a link, full stop.
 
 - **Replying in-context** to a message you received: send the card as your
   reply — it lands in that channel automatically.
 - **Posting proactively** (nothing prompted you — you're pushing a scheduled
   report or an announcement): a plain message to the channel first, then the
-  card, in that order. Some platforms only let you attach a rich card in a
+  card(s), in that order. Some platforms only let you attach a rich card in a
   follow-up turn once the channel context is established from the first post.
-- **Summarizing several reference links inline** (e.g. a repo-map confirmation
-  listing product/docs/site/wiki/social URLs at once) — a card per link would
-  be disproportionate noise for a message that's mostly text. Write each URL
-  as **plain bare text** (`https://example.com/thing`, no brackets, no
-  markdown syntax at all) so it's at least copy-pasteable, and don't imply
-  it's clickable. This is a real, observed failure mode: markdown syntax
-  (`[text](url)`) written into this kind of summary message rendered as
-  broken, doubled brackets in practice — worse than a plain URL, which at
-  least reads cleanly even though neither is clickable through the bot. If
-  one specific link in the summary genuinely needs to be a click target
-  (the Discord invite, the docs homepage), pull just that one out into its
-  own card, separate from the summary text.
+- **Summarizing several reference links at once** (e.g. a repo-map
+  confirmation listing product/docs/site/wiki/social URLs, or several GHSA
+  advisory links in one triage summary) — **it is fine to send many cards in
+  a single message.** One card per link, stacked together, beats any amount
+  of plain text: every link stays a real click target, and there is no
+  meaningful limit on how many cards can ride in one message. Do not degrade
+  to plain bare URLs or markdown syntax to avoid "too many cards" — that
+  tradeoff doesn't exist; the flood to avoid is repeated *separate messages*,
+  not multiple cards within one. (Historical note: an earlier version of this
+  doc recommended plain bare URLs for multi-link summaries specifically to
+  dodge a markdown-link rendering bug — corrected 2026-08-27, since the fix
+  for that bug is simply "use a card," not "give up on making it clickable.")
 
 ## Approval requests — real buttons over chat replies, wherever one exists
 

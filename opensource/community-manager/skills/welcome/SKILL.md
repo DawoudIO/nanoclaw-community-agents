@@ -484,14 +484,29 @@ I have all 11 channels and their tiers. Two ways to wire them:
 (a) is what I'd suggest. Which do you want?
 ```
 
-If they pick (a), generate one line per channel from the recorded tier map,
-substituting real snowflake IDs and the lead's group id:
+**Discord `--platform-id` is a composite value, not the bare channel
+snowflake**: `discord:<guild_id>:<channel_id>`. A bare channel ID looks
+plausible and the create/wire calls succeed either way — but it silently
+matches no real incoming message, so the channel is wired dead until
+someone notices nothing ever auto-replies there. This bit a real install:
+all 11 channels were wired with the bare channel snowflake, went undetected
+until manual testing, and had to be torn down and recreated. Get the guild
+ID once, from either source:
+- An existing messaging-group the platform already auto-created from a real
+  inbound message/mention (its `platform_id` carries the correct
+  `discord:<guild_id>:<channel_id>` shape — read the guild ID off of it).
+- Ask the owner directly: Discord's "Copy Server ID" (Developer Mode →
+  right-click the server icon) — one ask, reused for every channel in that
+  server.
+
+Generate one line per channel from the recorded tier map, substituting the
+real guild ID, channel snowflake IDs, and the lead's group id:
 
 ```bash
 # per channel: create the messaging group, then wire it to the lead
-./bin/ncl messaging-groups create --channel-type discord --platform-id <channel-snowflake> \
+./bin/ncl messaging-groups create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
     --name "<channel-name>" --is-group 1 --unknown-sender-policy public
-./bin/ncl wirings create --channel-type discord --platform-id <channel-snowflake> \
+./bin/ncl wirings create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
     --agent-group-id <lead-id> --engage-mode <mention-sticky|pattern>
 ```
 
