@@ -93,16 +93,32 @@ conversation, so installing jq on them during stamping (section 6) is correct.
 Everything else derives from this one answer, so it opens the interview: ask
 for the project's GitHub repo (or org) — this becomes `product`. From it,
 pull the README, releases, and homepage, then **draft a proposed config**:
-the likely docs URL and primary language. **Only ask about the repos needed
-for this template** (docs, site, marketing, wiki) — don't enumerate all repos
-in the org; that's noise. Cross-check against what you're already wired to
-(channels look support-shaped vs developer-shaped vs team-lead-shaped).
+the likely docs URL, primary language, **and every social profile URL you
+can find in the README or linked site — the full URL, not just a handle or
+display name.** Extract literal links (`https://x.com/...`,
+`https://www.linkedin.com/company/...`, etc.) rather than constructing one
+from a name — a display name and a URL slug are often different strings
+(e.g. a project called "AcmeCRM" whose actual accounts are `@getAcmeCRM` /
+`linkedin.com/company/getacmecrm`), and a guessed slug fails silently (404)
+rather than erring loudly. Only ask the owner for a
+platform's URL if the README doesn't have one and they've said that
+platform matters. **Only ask about the repos needed for this template**
+(docs, site, marketing, wiki) — don't enumerate all repos in the org;
+that's noise. Cross-check against what you're already wired to (channels
+look support-shaped vs developer-shaped vs team-lead-shaped).
 
-**Auto-detect the wiki repo**: GitHub wiki repos follow the pattern
-`{owner}/{repo}.wiki`. Test whether `{owner}/{repo}.wiki` is reachable; if
-it is, propose it as the wiki. If the owner replies "yes" or confirms, save
-it. If not (wiki doesn't exist or is elsewhere), ask explicitly. This avoids
-an extra question in the common case.
+**Auto-detect the wiki repo — via `has_wiki`, never by probing `.wiki` as
+its own repo.** `GET /repos/{owner}/{repo}` (the same call you already made
+for the README) returns a `has_wiki` boolean on the main repo — check that
+field. **Do not** call `GET /repos/{owner}/{repo}.wiki` or otherwise treat
+`{repo}.wiki` as an independently addressable API resource — GitHub's wiki
+storage isn't exposed that way over the REST API, so that check reports
+"not found" even when the wiki genuinely exists and has content. This was a
+real, repeatable false negative on a real install, not a one-off glitch.
+If `has_wiki` is true, propose `{owner}/{repo}.wiki` as the wiki repo and
+confirm with the owner; if false, ask explicitly rather than assuming
+absence. This avoids an extra question in the common case without risking
+a wrong one.
 
 **For docs, site, marketing, and wiki, ask specifically whether each is the
 same repo as product or a different one** — don't assume separate repos.
@@ -254,7 +270,12 @@ interview.
   step: `unknown_sender_policy='public'` (auto-approve) or
   `unknown_sender_policy='request_approval'` (manual gates). Most projects
   should pick 'public' — it protects your support commitments.
-- Security disclosure path + who counts as a maintainer
+- **Security disclosure path — check for `SECURITY.md` before asking.** If
+  the repo has one, read it and confirm what it says (GitHub private
+  advisories, a security@ address, something else) rather than asking from
+  scratch. If absent, ask directly: GitHub private security advisories, a
+  security@ email, or something else.
+- Who counts as a maintainer
 - **A named human backstop — required before go-live, not optional.** Ask:
   "Who is the second human — a moderator or co-maintainer with a name and a
   contact — that abuse reports and urgent escalations should reach when you
@@ -275,8 +296,9 @@ interview.
   tone that follows from it.** Don't infer this from the README; ask
   plainly, e.g. "Who's the primary reader of your content — end users
   running the software day to day, developers deciding whether to adopt it,
-  or something else?" ChurchCRM's answer is "church administrative staff and
-  volunteer teams," not general consumers or a developer audience — that
+  or something else?" A vertical-specific tool's answer might be "the
+  non-technical staff who actually run the software day to day," not
+  general consumers or a developer audience — that
   changes the register from typical dev-tool marketing (no engineering
   jargon, no growth-hacker voice, warm and practical instead). Persist the
   answer verbatim in project-config as `target_audience` + `tone`; content
@@ -292,25 +314,31 @@ interview.
   the same `weekly-analytics-report` task for all properties. Do not create 
   separate report tasks per property — one task per report goal (growth/detection) 
   is the pattern. The task handles all configured analytics in a single run.
-- **Dependabot security updates — ask, and be honest that you can't do it.**
-  "Do you want Dependabot opening the fix PR when it reports a vulnerability?"
-  If yes (recommended), Dependabot's own bump is more reliable than the Reviewer
-  reconstructing one, and the Reviewer's job becomes reviewing that diff — is it
-  a major bump, does our code touch the affected API, is it safe to merge. If
-  no, the Reviewer drafts the bump itself. Pick one, or the project gets two
-  PRs per CVE.
+- **Dependabot — check `.github/dependabot.yml` before asking.** If it
+  already has an active `version-updates` config, that answers the question:
+  Dependabot opens its own fix PRs, and the Reviewer's job is reviewing that
+  diff (major bump? does our code touch the affected API? safe to merge?).
+  State what you found and confirm rather than asking from scratch — "I see
+  Dependabot is already configured for npm/pip/etc. — I'll have the Reviewer
+  review its PRs rather than draft its own bumps, unless you want it
+  otherwise." If the file is absent or has no `version-updates` block, then
+  ask: "Do you want Dependabot opening the fix PR when it reports a
+  vulnerability (recommended), or should the Reviewer draft the bump itself?"
+  Pick one, or the project gets two PRs per CVE.
 
-  **You cannot enable it.** It is a repository setting (Settings → Code security)
-  and no agent here holds Administration write, on purpose — that permission
-  would let an agent reconfigure the repo. So point the owner at the checkbox
-  and record their answer. The Reviewer detects reality anyway by correlating
+  **You cannot enable it yourself.** It's a repository setting (Settings →
+  Code security) and no agent here holds Administration write, on purpose.
+  If it's off and the owner wants it, point them at the checkbox — don't
+  offer to do it. The Reviewer also re-detects reality later by correlating
   open Dependabot PRs against alerts, so a stale answer degrades rather than
   breaks.
-- **Discord invite URL** (e.g. `discord.gg/yourcode`) — used when a GitHub
-  reply points someone toward real-time chat instead of async back-and-forth
-  on the issue. If the project has no public Discord, or doesn't want GitHub
-  traffic routed there, "none" is a complete answer and you simply never
-  offer it.
+- **Discord invite URL — check the README/site for one before asking.**
+  READMEs commonly carry a badge or link (`discord.gg/...`); extract the
+  literal URL if it's there and confirm it rather than asking blind. Used
+  when a GitHub reply points someone toward real-time chat instead of async
+  back-and-forth on the issue. If nothing's found and the project has no
+  public Discord, or doesn't want GitHub traffic routed there, "none" is a
+  complete answer and you simply never offer it.
 - **Deterministic GitHub→Discord notifications via CI** — ask plainly: "want a
   ready-made GitHub Actions workflow that posts bug/security-labeled issues
   straight to Discord, independent of me being up?" (recommended, but genuinely
