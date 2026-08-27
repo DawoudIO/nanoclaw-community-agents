@@ -117,6 +117,11 @@ fix didn't work."
 The documents below cover what the installer doesn't do: credentials, the
 per-agent least-privilege scopes, channel-tier wiring, and go-live.
 
+Tearing down instead? **[docs/UNINSTALL.md](docs/UNINSTALL.md)** — what
+`nanoclaw.sh --uninstall` removes, the longer list of what it leaves (your
+`.env.bak` keys, the registry token, the base image), and the external
+accounts no uninstaller can reach.
+
 1. **[PREREQS.md](PREREQS.md)** — create/audit/rotate every credential
    (exact URLs, real `onecli` commands). Read first.
 2. **[docs/INSTALL.md](docs/INSTALL.md)** — the full runbook: prerequisites →

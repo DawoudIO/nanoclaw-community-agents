@@ -32,28 +32,74 @@ stamps — it stamps the old version, which presents as "the fix didn't work"
 rather than as a stale copy. This is the single most common way an install
 goes subtly wrong.
 
+<details>
+<summary>Why a copy step at all — NanoClaw has a template library built in</summary>
+
+Everything else here uses NanoClaw's own machinery: `nanoclaw.sh` installs,
+"From local templates" discovers, `ncl groups create --template` stamps,
+`nanoclaw.sh --uninstall` removes. The copy is the one gap, for two reasons
+that are both worth knowing before you try to route around it.
+
+**The built-in library fetch can't reach this repo.** The wizard's other
+option, "From a template library", git-clones a fixed URL —
+`DEFAULT_TEMPLATES_SOURCE` in `setup/templates.ts` is a hardcoded constant
+pointing at `nanocoai/nanoclaw-templates`, with no environment variable or
+flag to change it. It will never see a fork.
+
+**Pointing `NANOCLAW_TEMPLATES_DIR` at this repo doesn't work either**, even
+though `config.ts` calls it the sanctioned override — it would look like the
+obvious zero-copy answer, and it breaks in a way that's hard to diagnose. The
+variable is read from `process.env` only; it is not in `readEnvFile`'s
+allowlist, so putting it in `.env` does nothing, and the launchd plist
+templates a fixed variable set that omits it. Export it in your shell and the
+wizard picks it up — but the **background service doesn't**, and the service
+is what runs `ncl groups create --template` when the lead stamps your
+sub-agents mid-interview. Those stamps would look in an empty `templates/`
+and fail, long after the step that appeared to work.
+
+The clean upstream fix is making `DEFAULT_TEMPLATES_SOURCE` configurable;
+then the built-in covers forks and this script goes away.
+
+</details>
+
 ## What the installer does, and what this runbook is for
 
 `nanoclaw.sh` is a real installer, not a wrapper — most of what used to be
 manual here now happens inside it:
 
-| Done by `nanoclaw.sh` | Still yours to do |
-|---|---|
-| Container image (hardened pull or local build) | Per-agent GitHub tokens + vault entries (§0, §4) |
-| OneCLI vault detection//reuse | The other three agents — the lead stamps them (§6) |
-| Agent runtime + provider auth | Agent-to-agent destinations (§3) |
-| Service start, mounts, access rules | Wiring guild channels to tiers (§3) |
-| **One** agent, stamped from your chosen template | Network allowlist for optional services (§5) |
-| Timezone detection | Resuming the scheduled tasks (§7) |
-| **One** channel — your owner DM — with owner role | |
+There are **three** actors here, not two, and most of the runbook belongs to
+the middle one — the lead agent, working through the welcome interview:
 
-Two things worth knowing about that split:
+| `nanoclaw.sh` does | The lead does, in the interview | Only you can do |
+|---|---|---|
+| Container image (hardened pull or local build) | Stamps the other three agents (§6) | Create the GitHub tokens |
+| OneCLI vault detection / reuse | Wires their agent-to-agent destinations (§6) | Enter them in the OneCLI vault |
+| Agent runtime + provider auth | Wires guild channels to tiers (§5c) | Click through Discord bot creation |
+| Service start, mounts, access rules | Relays each sub-agent's config (§6) | Extend the sandbox network allowlist |
+| **One** agent, from your chosen template | Walks + **verifies** every credential (§7) | Create the backup repo |
+| Timezone detection | Sets up workspace backup itself (§8) | |
+| **One** channel — your owner DM — with owner role | Resumes and test-fires every task (§9) | |
+
+So the honest answer to "do I have to do all this?" is mostly no. The lead
+drives it and reports back. The right-hand column is small and specific: it's
+the things that need a human at a browser — creating credentials, storing
+them in the vault, and clicking through Discord's Developer Portal. The agent
+can't create a token or write to the vault; it *can* test-call every service
+afterwards and tell you exactly which one is wrong, which it does in §7
+rather than assuming success.
+
+Two more things worth knowing:
 
 - The installer wires **only your owner DM**. Every other Discord channel is
-  manual, and the lead offers to generate the commands during the interview.
+  the lead's job in §5c — it will offer you a paste-ready block that costs no
+  approval cards, or wire them itself at ~2 cards per channel.
 - Discord's bot token lands in `.env`, **not** the OneCLI vault. The vault
-  holds provider auth and the per-agent GitHub/GA4 credentials you create in
-  §4.
+  holds provider auth and the per-agent GitHub/GA4 credentials from §4.
+
+Activation is deliberately **not** a single "go" at the end — the lead
+resumes and immediately test-fires each task one at a time (§9), because a
+real install batch-resumed everything, lost the step in the evening's noise,
+and nothing ran for ~18 hours before anyone noticed.
 
 **Re-running `./nanoclaw.sh` is safe.** It detects an existing install and
 skips what's done — auth when the secret exists, the vault when one is
