@@ -83,6 +83,40 @@ means with all four agents on it.
 
 ## Install and operate
 
+**Quick start.** Clone both repos into the same parent directory, copy the
+templates across, and run NanoClaw's own installer:
+
+```bash
+git clone https://github.com/DawoudIO/nanoclaw.git
+git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
+
+cd nanoclaw-community-agents
+bash scripts/install-templates.sh     # copies the 4 templates into ../nanoclaw/templates/
+
+cd ../nanoclaw
+./nanoclaw.sh                         # choose "From local templates"
+```
+
+`nanoclaw.sh` handles the container image, the OneCLI vault, the agent
+runtime, your first agent and connecting Discord.
+
+**At the template prompt, pick `support/community-support`.** It's the lead —
+the only agent with a public voice, and the only one that is never optional.
+It works standalone, and it stamps the other three itself during the welcome
+interview once it knows which jobs you want. You don't pick sub-agents here,
+and stamping one first leaves you with a headless agent that can't talk to
+anyone.
+
+Then DM the agent; it interviews you for the rest.
+
+`bash scripts/install-templates.sh --check` reports whether that copy has
+drifted from this repo. Re-run the script after every `git pull` here — a
+stale copy still stamps, it just stamps the old version, which reads as "the
+fix didn't work."
+
+The documents below cover what the installer doesn't do: credentials, the
+per-agent least-privilege scopes, channel-tier wiring, and go-live.
+
 1. **[PREREQS.md](PREREQS.md)** — create/audit/rotate every credential
    (exact URLs, real `onecli` commands). Read first.
 2. **[docs/INSTALL.md](docs/INSTALL.md)** — the full runbook: prerequisites →
