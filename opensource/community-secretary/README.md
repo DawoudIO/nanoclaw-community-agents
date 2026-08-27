@@ -137,10 +137,13 @@ ncl tasks get <task-id>        # inspect the result
 ncl tasks resume <task-id>
 ```
 
-**Schedules run in UTC** (the kit pins `TZ=UTC`). `unanswered-watch` owns the
-round ten-minute marks (`*/10`) deliberately — it is the task the north star
-depends on, so it should never queue behind another container's startup. Every
-other task in the whole set is staggered onto its own minute; verify with:
+**Cron lines are written UTC-relative; the group's actual timezone decides
+the wall-clock fire time** — `ncl groups config update --timezone <IANA id>`
+sets it live, no recreate needed; unset, it defaults to the host machine's
+own timezone, not UTC. `unanswered-watch` owns the round ten-minute marks
+(`*/10`) deliberately — it is the task the north star depends on, so it
+should never queue behind another container's startup. Every other task in
+the whole set is staggered onto its own minute; verify with:
 
 ```bash
 grep -h '^schedule:' */*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d

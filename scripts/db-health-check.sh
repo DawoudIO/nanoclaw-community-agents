@@ -31,7 +31,7 @@ CHECKPOINT=false
 
 if [ -z "$ROOT" ] || [ ! -d "$ROOT" ]; then
   echo "usage: bash scripts/db-health-check.sh <nanoclaw-root> [--checkpoint]" >&2
-  echo "  <nanoclaw-root> is the dir containing data/ (and groups/) -- wherever you run ncl/sbx from." >&2
+  echo "  <nanoclaw-root> is the dir containing data/ (and groups/) -- the nanoclaw checkout you run ncl from." >&2
   exit 1
 fi
 

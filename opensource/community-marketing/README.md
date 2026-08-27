@@ -99,9 +99,11 @@ source) — the agent-owned task reads its targets from the live
 bracketed defaults are placeholders, never real config.
 
 **Script dependencies:** `bash`, `curl`, `jq` in the container image — verify
-with `ncl tasks run <task-id>` before resuming. **Schedules run in UTC** (the kit pins `TZ=UTC`); tune the `schedule:` cron
-lines before stamping — see the lead template's README for why afterwards is
-expensive.
+with `ncl tasks run <task-id>` before resuming. **Cron lines are written
+UTC-relative; the group's actual timezone decides the wall-clock fire
+time** — `ncl groups config update --timezone <IANA id>` sets it live, no
+recreate needed; unset, it defaults to the host machine's own timezone,
+not UTC.
 
 ## Credentials: via OneCLI, not env vars
 

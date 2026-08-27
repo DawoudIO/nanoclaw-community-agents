@@ -199,12 +199,14 @@ nothing in the system will notice.
 **Script dependencies:** `bash`, `curl`, `jq`, and `ncl`
 (`weekly-identity-integrity-check` reads `ncl tasks list --json`; without `ncl`
 its gate wakes the agent for a manual check instead of failing). Verify with
-`ncl tasks run <task-id>` before resuming. **Schedules run in UTC** (the kit pins `TZ=UTC`) from the `schedule:` cron in
-each task's frontmatter. Tune those lines to your day **before stamping** —
-frontmatter isn't runtime-editable, so afterwards it's cancel-and-recreate per
-task. A per-group timezone override may exist in your NanoClaw version; treat
-it as unverified until you've confirmed a task actually fired at the local
-time you expected (see UPSTREAM-ISSUES.md).
+`ncl tasks run <task-id>` before resuming. **Cron lines are written
+UTC-relative; the group's actual timezone decides the wall-clock fire
+time.** `ncl groups config update --timezone <IANA id>` sets it and takes
+effect immediately (confirmed against
+`src/modules/scheduling/recurrence.ts` and its test) — no
+cancel-and-recreate needed, before or after stamping. Unset, the group
+defaults to the install-wide default, which is your host machine's own
+detected timezone, not UTC.
 
 ## Credentials: via OneCLI, not env vars
 

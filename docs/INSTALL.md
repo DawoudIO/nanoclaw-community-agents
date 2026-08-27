@@ -2,6 +2,11 @@
 
 ## Quick start
 
+**You need two things before you start: Docker Desktop running, and a
+Discord server you admin.** Everything else — GitHub tokens, GA4, Gmail —
+the lead agent asks you for, one at a time, only when a task actually needs
+it. There's no upfront checklist to collect first.
+
 ```bash
 git clone https://github.com/DawoudIO/nanoclaw.git
 git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
@@ -13,993 +18,478 @@ cd ../nanoclaw
 ./nanoclaw.sh
 ```
 
-At the prompts: **"From local templates"**, then **`opensource/community-manager`**.
+At the prompts: **"From local templates"**, then **`opensource/community-manager`** —
+always, and only. It's the one agent that's never optional and the only one
+with a public voice; it stamps the other three itself during the welcome
+interview, once it knows which jobs you want. Stamping a sub-agent first
+leaves you with an agent nobody can talk to.
 
-That's the whole mechanical install. `nanoclaw.sh` does the rest of it for
-you, and then you DM the agent and it interviews you.
-
-**Which template to pick.** The lead (`opensource/community-manager`) — always,
-and only. It's the one agent that is never optional, the only one with a
-public voice, and it stamps the other three itself during the welcome
-interview once it knows which jobs you want. The picker will list all four
-because it offers any directory containing a `plugin.json`; the other three
-are headless sub-agents, and stamping one first leaves you with an agent that
-has nobody to talk to.
+`nanoclaw.sh` builds or pulls the agent container, brings up the OneCLI
+vault, and starts the service — directly, on your machine. There's no
+sandbox VM to provision separately. Then DM the agent; it interviews you
+for the rest, and tells you exactly what to add to OneCLI as each need
+comes up.
 
 **Re-run `bash scripts/install-templates.sh` after every `git pull` in this
-repo**, and `--check` to see whether the copy has drifted. A stale copy still
-stamps — it stamps the old version, which presents as "the fix didn't work"
-rather than as a stale copy. This is the single most common way an install
-goes subtly wrong.
+repo**, and `--check` to see if the copy has drifted. A stale copy still
+stamps — the old version, which reads as "the fix didn't work" rather than
+as a stale copy. This is the most common way an install goes subtly wrong.
 
 <details>
 <summary>Why a copy step at all — NanoClaw has a template library built in</summary>
 
 Everything else here uses NanoClaw's own machinery: `nanoclaw.sh` installs,
-"From local templates" discovers, `ncl groups create --template` stamps,
-`nanoclaw.sh --uninstall` removes. The copy is the one gap, for two reasons
-that are both worth knowing before you try to route around it.
+"From local templates" discovers, `ncl groups create --template` stamps.
+The copy is the one gap.
 
-**The built-in library fetch can't reach this repo.** The wizard's other
-option, "From a template library", git-clones a fixed URL —
-`DEFAULT_TEMPLATES_SOURCE` in `setup/templates.ts` is a hardcoded constant
-pointing at `nanocoai/nanoclaw-templates`, with no environment variable or
-flag to change it. It will never see a fork.
+The built-in library fetch can't reach this repo — `DEFAULT_TEMPLATES_SOURCE`
+in `setup/templates.ts` is hardcoded to `nanocoai/nanoclaw-templates`, no
+override. And pointing `NANOCLAW_TEMPLATES_DIR` at this repo — which looks
+like the zero-copy answer — silently doesn't work: it's read from
+`process.env` only, not from `.env`, and the launchd plist omits it. The
+wizard would pick it up; the **background service wouldn't**, and the
+service is what stamps sub-agents mid-interview. Those stamps would look in
+an empty `templates/` and fail, long after the step that appeared to work.
 
-**Pointing `NANOCLAW_TEMPLATES_DIR` at this repo doesn't work either**, even
-though `config.ts` calls it the sanctioned override — it would look like the
-obvious zero-copy answer, and it breaks in a way that's hard to diagnose. The
-variable is read from `process.env` only; it is not in `readEnvFile`'s
-allowlist, so putting it in `.env` does nothing, and the launchd plist
-templates a fixed variable set that omits it. Export it in your shell and the
-wizard picks it up — but the **background service doesn't**, and the service
-is what runs `ncl groups create --template` when the lead stamps your
-sub-agents mid-interview. Those stamps would look in an empty `templates/`
-and fail, long after the step that appeared to work.
-
-The clean upstream fix is making `DEFAULT_TEMPLATES_SOURCE` configurable;
-then the built-in covers forks and this script goes away.
+The clean fix is upstream making `DEFAULT_TEMPLATES_SOURCE` configurable;
+then this script goes away.
 
 </details>
 
 ## What the installer does, and what this runbook is for
 
-`nanoclaw.sh` is a real installer, not a wrapper — most of what used to be
-manual here now happens inside it:
-
-There are **three** actors here, not two, and most of the runbook belongs to
-the middle one — the lead agent, working through the welcome interview:
+Three actors do the work, and most of what follows belongs to the middle
+one:
 
 | `nanoclaw.sh` does | The lead does, in the interview | Only you can do |
 |---|---|---|
-| Container image (hardened pull or local build) | Stamps the other three agents (§6) | Create the GitHub tokens |
-| OneCLI vault detection / reuse | Wires their agent-to-agent destinations (§6) | Enter them in the OneCLI vault |
-| Agent runtime + provider auth | Wires guild channels to tiers (§5c) | Click through Discord bot creation |
-| Service start, mounts, access rules | Relays each sub-agent's config (§6) | Extend the sandbox network allowlist |
-| **One** agent, from your chosen template | Walks + **verifies** every credential (§7) | Create the backup repo |
-| Timezone detection | Sets up workspace backup itself (§8) | |
-| **One** channel — your owner DM — with owner role | Resumes and test-fires every task (§9) | |
+| Container image, OneCLI vault, agent runtime | Stamps the other three agents (§1) | Click through Discord bot creation |
+| Service start, mounts, access rules | Wires their destinations + guild channels (§1) | Add each credential to OneCLI, when asked |
+| One agent, from your chosen template | Relays each sub-agent's config (§3) | |
+| One channel — your owner DM | Verifies every credential; sets up its own backup (§2, §3) | |
+| Timezone detection | Resumes + test-fires every task, one at a time (§4) | |
 
-So the honest answer to "do I have to do all this?" is mostly no. The lead
-drives it and reports back. The right-hand column is small and specific: it's
-the things that need a human at a browser — creating credentials, storing
-them in the vault, and clicking through Discord's Developer Portal. The agent
-can't create a token or write to the vault; it *can* test-call every service
-afterwards and tell you exactly which one is wrong, which it does in §7
-rather than assuming success.
+So "do I have to do all this?" is mostly no. The lead does most of it and
+reports back — you're needed for Discord's own portal (nothing else can
+click through that for you) and for approving each credential as OneCLI
+asks for it.
 
-Two more things worth knowing:
+Two things worth knowing: the installer wires **only your owner DM** — every
+other Discord channel is the lead's job in §1a. And Discord's bot token
+lands in `.env`, **not** the vault — the vault holds provider auth and the
+per-agent tokens the lead asks for as it goes.
 
-- The installer wires **only your owner DM**. Every other Discord channel is
-  the lead's job in §5c — it will offer you a paste-ready block that costs no
-  approval cards, or wire them itself at ~2 cards per channel.
-- Discord's bot token lands in `.env`, **not** the OneCLI vault. The vault
-  holds provider auth and the per-agent GitHub/GA4 credentials from §4.
+Activation is deliberately not one "go" at the end (§4): a real install
+batch-resumed everything, lost the step in the evening's noise, and nothing
+ran for ~18 hours before anyone noticed.
 
-Activation is deliberately **not** a single "go" at the end — the lead
-resumes and immediately test-fires each task one at a time (§9), because a
-real install batch-resumed everything, lost the step in the evening's noise,
-and nothing ran for ~18 hours before anyone noticed.
-
-**Re-running `./nanoclaw.sh` is safe.** It detects an existing install and
-skips what's done — auth when the secret exists, the vault when one is
-running, the ping test once real agents exist — and the template step turns
-into add-or-update rather than a duplicate stamp.
+**Re-running `./nanoclaw.sh` is safe** — it detects an existing install and
+skips what's done; the template step becomes add-or-update, not a duplicate.
 
 ### Known snag: the "Terminal Agent" may not clean up
 
 Setup creates a scratch agent (`ping_test`, shown as **Terminal Agent**) to
-prove the sandbox answers, then deletes it. That delete opens the central DB
-directly while the service you just started holds it, so it can lose the
+prove the install answers, then deletes it. That delete opens the central
+DB directly while the service you just started holds it, so it can lose the
 race:
 
 ```
 ▲ Couldn't clean up the test agent — it may still appear in your agent list.
 ```
 
-Harmless but not cosmetic-only: it stays in `ncl groups list` and answers on
-the CLI channel, so `pnpm run chat` traffic can land there instead of your
-real agent. Remove it once setup is done:
+Not just cosmetic: it stays in `ncl groups list` and answers on the CLI
+channel, so `pnpm run chat` can land there instead of your real agent.
+Remove it once setup is done:
 
 ```bash
 pnpm exec tsx scripts/delete-cli-agent.ts --folder ping_test
 ```
 
-Stop the service first if it fails again. The CLI messaging group and the
-synthetic `cli:local` user are left behind by design.
+Stop the service first if it fails again.
 
 ---
 
-The sections below are the full path: prerequisites → keys → sandbox →
-stamp/wire → configuration → go-live. Read [PREREQS.md](../PREREQS.md) first
-for the credential story; [OPERATIONS.md](OPERATIONS.md) covers everything
-after go-live.
+Below: stamp/wire the agents → connect Discord → configuration → go-live.
+[OPERATIONS.md](OPERATIONS.md) covers everything after go-live.
+[PREREQS.md](../PREREQS.md) has the credential-scope reference for when the
+lead asks you for one.
 
-Setup is a conversation, not a form — you'll DM the stamped agent and it
-interviews you. If you'd rather see the whole question set before you start,
-jump to §6's prep sheet below.
+## 1 · Stamp the agents and wire them
 
-## 0 · Prerequisites — what you need before starting
-
-### Apps / accounts
-
-| You need | Why | Required? |
-|---|---|---|
-| **Docker Desktop with `sbx`** (Docker Sandboxes) | The micro-VM everything runs in | Required |
-| **A Discord server you admin** (Manage Server permission) | To create/invite the bot and wire channels | Required |
-| **A GitHub account for the bot** — make a dedicated service account (e.g. `yourproject-bot`), not your personal one | All GitHub work appears as this identity; you'll cut 4 scoped tokens from it | Required |
-| **Google Cloud project + GA4 property access** | `weekly-analytics-report` task | Optional |
-| **A shared project inbox** (e.g. Gmail) | the lead's `inbox-check` task | Optional |
-
-Skipping an optional service costs nothing: its task ships paused and its
-script gate exits `not-configured` even if resumed.
-
-### Disk and memory — a rough budget, not a measured one
-
-Nobody has published exact numbers for this stack, so treat this as a
-planning budget and verify once it's running: **10–15 GB free disk** (the VM
-image, the nested NanoClaw/OneCLI/Postgres images, the agent containers, plus
-your repo clones and mirrors) and **a few GB of RAM** while it's up (Postgres,
-the gateway, and up to four agent containers, though idle/gated agents use
-very little).
-
-(A local-model provider for the local agent — e.g. Ollama — was evaluated and
-set aside for now; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). All four
-agents currently run cloud-side, so there's no separate host-model RAM budget
-to plan against.)
-
-After first boot, get real numbers instead of guessing further:
-
-```bash
-docker system df                       # actual image/volume disk usage
-docker stats                            # live memory/CPU per container
-```
-
-If memory is tight, the levers in order: pause optional tasks, run one agent
-container at a time. Deleting an agent is the last resort, not the first.
-
-### Tokens / keys — how to get each one
-
-Collect these before setup; you'll register them in OneCLI in step 4. **Never
-paste any of them into the sandbox, a template file, or a chat with an agent** —
-they go into the OneCLI vault through its dashboard, and the proxy injects them
-into outbound requests. **[PREREQS.md](../PREREQS.md)** has the exact URL for
-each one, the CLI alternative to the dashboard, and — just as important — how
-to audit and rotate them later without guessing whether a change "took".
-
-**There is no `.env` file in this system — deliberately.** If you're coming
-from a bare-metal NanoClaw install that kept keys in one: don't carry it
-forward. Secrets go in the vault (above); platform settings belong to the
-kit's `spec.yaml` and first-boot wizard; task parameters (repo names,
-project IDs, label text — never secrets) live in each agent's
-`plugin-data/<agent>/config.env`. Anything — a doc, a tool, an agent — that
-asks you to create a `.env` containing a key is violating this system's own
-rules; refuse it.
-
-**GitHub — four tokens from the bot account, one per agent** (github.com →
-Settings → Developer settings → Personal access tokens). One token per agent
-is the point: four tokens are what make the per-agent least-privilege table in
-§4 enforceable at all, and they all match the same API host, which is why §4
-also switches every agent to `selective` secret mode.
-
-1. **Lead token** (classic): scope `repo` (or `public_repo` for public-only
-   projects) — this one comments on issues, so it needs write on issues/PRs.
-   **Not `read:org`**: nothing here reads org membership or teams (listing an
-   org's repos, which the welcome interview does, needs no such scope) —
-   dropped as an unjustified grant. Never `admin:*`, never `delete_repo`.
-2. **Local token** (fine-grained): the widest *repo list* of the fine-grained
-   three, and close to the narrowest *permissions* — it covers
-   `COMMUNITY_REPOS` **plus**
-   `MIRROR_REPOS` (mirroring is this agent's job, not the reviewer's) with
-   Contents/Issues **read**, Pull requests **read** (`draft-cleanup` only
-   looks at stale drafts, it doesn't touch them), and **Contents write on the
-   backup repo and nothing else** (`workspace-backup`). A fine-grained
-   token's repo list gates everything the token does, including reads of
-   public data, so a mirror repo left off the list shows up as
-   `repo-mirror-sync` quietly never syncing that one.
-3. **Coding token** (fine-grained): `COMMUNITY_REPOS` only, **read-only**
-   (Contents/Issues/PRs read; add Dependabot alerts read for the advisory
-   sweep). **No `MIRROR_REPOS`** — mirroring moved to the local agent, so
-   listing the mirror set here is now surplus access with no task behind it.
-   A classic `repo`-scope PAT is inherently read/write — don't use one
-   here; this agent never posts, so give it a token that *can't*.
-4. **Marketing token** (fine-grained): Fine-grained tokens → limit to the
-   **content repo** → Contents + Pull requests read/write. It opens draft
-   PRs and nothing else. **If the brand/strategy source or the release-watch
-   repo (content-draft-cycle's `RELEASE_WATCH_REPO`) is a *different* repo
-   from the content repo, add that repo too** — a fine-grained PAT's repo
-   scope is an allowlist covering everything that token does, including
-   reads of otherwise-public data. Leaving a second repo off the list is the
-   #1 cause of "why did this silently never trigger" — `setup-check.sh`
-   (§3's monitoring step, or run anytime) catches it as
-   `brand_source_access`/`release_watch_repo_access: unreachable`.
-   Marketing is not stamped by default (see step 3), so skip this token
-   entirely until you actually stamp it.
-5. If you enable workspace backup, the push goes to `github.com` (git) — a
-   **separate vault host match** from `api.github.com` (REST), so it's one
-   more vault entry regardless. `workspace-backup` belongs to the **local**
-   agent, so this is the local token's `github.com` counterpart: reuse that
-   token, or better, cut a fifth one scoped to just the backup repo so a
-   push credential and a read credential aren't the same string.
-
-**GA4** (optional): In Google Cloud console, enable the **Google Analytics Data
-API** on a project and create OAuth credentials for it. In GA4 Admin, grant the
-account **Viewer** on the property. Note the numeric **property ID** (Admin →
-Property settings). You do *not* need the Admin API — don't enable it.
-
-**Gmail** (optional): enable the Gmail API, OAuth consent with the
-**`gmail.readonly`** scope only — this agent never sends. You'll also need a
-Gmail/IMAP MCP server of your choice (not bundled; provider-dependent).
-
-**Discord**: no key to collect up front — the kit ships an `/add-discord` skill
-that walks bot creation and invite during setup (step 3). **Invite with
-least-privilege permissions** (Send Messages, Embed Links, Attach Files, Read
-Message History — not Administrator, not broad moderation scopes); add more
-later only if a real need appears. This is a Discord policy expectation, not
-just good hygiene — see `discord-mechanics.md`'s platform-rules section.
-**Name the Discord application to visibly match the GitHub bot account**
-(e.g. `acmecrm-bot` on GitHub ↔ "AcmeCRM Bot" as the Discord display name) —
-this is the only agent with a public voice on both platforms, and a
-mismatched pair of names reads as two different bots to your community.
-
----
-
-## 1 · Start the sandbox
-
-Pin the image by **digest**, taken from
-[`platform-baseline.json`](../platform-baseline.json) — the exact `sha256`
-this template set was last verified against:
-
-```bash
-DIGEST=$(jq -r .image_digest ../platform-baseline.json 2>/dev/null || jq -r .image_digest platform-baseline.json)
-sbx run --name nanoclaw --kit "docker.io/sbx/nanoclaw-kit@${DIGEST}" nanoclaw
-```
-
-(The trailing `nanoclaw` is the kit's app argument — keep it as-is. This is
-the **prebuilt image**, pulled directly — not the git-kit-source form.)
-
-A digest pull is content-addressed: the same `sha256` is byte-for-byte the
-same tested package everywhere, so what you run is exactly what was verified
-— not whatever a floating tag points at today. The full update policy
-(including the hard rule: **never `git pull` NanoClaw inside a running
-sandbox** — there is no in-place upgrade path and it corrupts the deployment)
-is in [OPERATIONS.md → Staying up to date](OPERATIONS.md).
-
-**Why this tag, not the git-kit-source path** (`--kit
-"git+https://github.com/docker/sbx-kits-contrib.git#dir=nanoclaw"`, which is
-the OTHER alternative — also still available, see below): that git-sourced
-kit's own `spec.yaml` pins `nanoco/nanoclaw:sbx-claude-alpha`, and checking
-the registry directly, **every tag `nanoco/nanoclaw` has ever published is
-`alpha.N`** (through `alpha.10` as of this check) — there is no non-alpha
-release of that image at all yet. `sbx/nanoclaw-kit:latest` — a Docker Hub
-namespace distinct from `nanoco`, date-tagged (`20260820-<sha>`, pushed the
-same day as this check) rather than alpha-labeled — is the one path that
-avoids the "alpha" tag string, so that's now the default here.
-
-**The honest limit of this check**: a tag name without "alpha" in it is not
-the same claim as "the underlying NanoClaw software has graduated past
-pre-1.0." I could not confirm from the registry alone what `sbx/nanoclaw-kit`
-builds from internally, and since `nanoco/nanoclaw` — the actual upstream
-project — has no non-alpha release at all, treat this whole stack as pre-1.0
-regardless of which kit path you use. If that maturity level matters for your
-deployment, that's worth confirming directly with the maintainers rather than
-inferring further from tag names.
-
-**Alternatives, both still valid**: the git-kit-source form above (same
-underlying alpha image, resolved via the kit's own spec instead of a direct
-pull), or a local clone `--kit ./nanoclaw` — the local route is also how you
-edit the network allowlist, see step 5.
-
-What this buys you, security-wise — and why it's the recommended host:
-
-- **Micro-VM boundary.** NanoClaw's host process, OneCLI (dashboard + gateway +
-  Postgres), and every nested per-session agent container run inside one VM
-  with its own inner Docker daemon — nothing touches your host's daemon.
-- **Default-deny egress.** Only hosts on the kit's allowlist are reachable
-  (Docker registries, OneCLI, Anthropic, GitHub, npm, the chat platforms).
-  Everything else gets `502 Bad Gateway` from the sandbox itself — enforcement
-  lives *outside* anything an agent can influence.
-- **No raw keys inside.** Credentials live in the OneCLI vault and are injected
-  into outbound HTTPS at the proxy; the kit's own instructions forbid pasting
-  keys.
-
-First boot asks before pulling nested images (a few minutes), then runs
-NanoClaw setup. **At the provider prompt, Claude accepts a subscription, an
-OAuth token, or an Anthropic API key.** A subscription avoids per-token cost
-but shares ONE usage window with your own Claude Code sessions — including the
-break-glass session you would need to repair a broken deployment. This is the
-most consequential choice in the install; read
-[OPERATIONS.md → Model budget](OPERATIONS.md) first. **Note the port
-mappings `sbx run` prints**: OneCLI dashboard (`10254`) is where you'll
-register credentials; gateway is `10255`; webhook is `3000`. Keep this session
-open; NanoClaw stops when it closes.
-
-## 2 · Load the templates into the sandbox
-
-**For a local (non-sandbox) install, skip to the timezone note below —
-`bash scripts/install-templates.sh` from the Quick start already did this.**
-The copy methods here are for getting the templates *inside a `sbx` VM*,
-where the sibling-directory default doesn't apply.
-
-Whichever method you use, copy the **four template directories**
-(`support`, `local`, `engineering`, `marketing`) — not this repo's root. The
-template picker offers any directory containing a `plugin.json` at any depth,
-so copying the whole repo works but nests every ref a level deeper
-(`nanoclaw-community-agents/opensource/community-manager` instead of
-`opensource/community-manager`) and fills `templates/` with `docs/` and
-`scripts/` that aren't templates.
-
-The install's templates directory is `/home/agent/nanoclaw/templates/` inside
-the VM.
-
-**Decide your schedule timezone NOW — this is the one thing that is
-genuinely expensive to change later.** Task schedules are cron lines in each
-task file's frontmatter, the kit pins `TZ=UTC`, and frontmatter is not
-runtime-editable — so after stamping, changing a time means cancel-and-recreate
-per task. The shipped times (see OPERATIONS.md → "Shipped times") are UTC. If
-UTC doesn't suit the owner's working day, edit the `schedule:` lines in your
-local copy of the task files (run `bash scripts/gen-task-table.sh --counts`
-for the current total) **before** the stamp step below — it's a one-minute
-edit now versus one recreate per non-UTC-friendly task later. Everything else is collected
-conversationally after wiring; pre-stamp file fill-ins are optional defaults,
-and personas mount read-only once stamped.
-
-(The welcome interview asks about timezone too, but only to record and confirm
-it — by then this cheap window has closed, which is exactly why the decision
-belongs here.)
-
-Don't count or transcribe those crons by hand. From your local copy of this
-repo, `bash scripts/gen-task-table.sh` prints the authoritative
-task/agent/schedule table straight from the task files' frontmatter — so
-what you're editing against is what actually ships, not a table someone
-retyped. `--counts` gives just the headline numbers, and `--check` fails if
-these docs have drifted from the files. **One rule when you retime anything:
-no two tasks may share a cron minute** — a 16 GB host can't absorb two
-simultaneous wakes, and `unanswered-watch` owns the round `*/10` minutes
-deliberately, so retime around it rather than into it.
-
-**A — from a git staging repo** (github.com is already allowlisted):
-
-```bash
-sbx exec nanoclaw bash -lc '
-  git clone --depth 1 https://github.com/<you>/<staging-repo>.git /tmp/tpl &&
-  mkdir -p /home/agent/nanoclaw/templates &&
-  cp -R /tmp/tpl/support /tmp/tpl/local /tmp/tpl/engineering /tmp/tpl/marketing /home/agent/nanoclaw/templates/'
-```
-
-**B — stream your local copy over exec stdin** (no repo needed):
-
-```bash
-sbx exec nanoclaw mkdir -p /home/agent/nanoclaw/templates
-tar -C /path/to/nanoclaw-templates -cf - support local engineering marketing \
-  | sbx exec -i nanoclaw tar -C /home/agent/nanoclaw/templates -xf -
-```
-
-## 3 · Stamp the agents and wire them
-
-**What each one actually does — read this before naming or skipping any:**
-
-The four agents are split by **model tier**, not by subject: capable models
-where judgment is needed, the cheapest cloud tier where reliability matters
-more than capability.
+Four agents, split by **model tier**, not subject — capable models where
+judgment is needed, cheapest tier where reliability matters more than
+capability:
 
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
-| **Lead** (`opensource/community-manager`) | Talks to your community on Discord and GitHub: answers questions, triages bugs, escalates security/abuse, watches releases, reviews docs gaps, and relays the three sub-agents' work | Claude Sonnet | **Yes — the primary, full voice** | Always — nothing works without it |
-| **Local ops** (`opensource/community-secretary`) | The narration tier: script-computed metrics/analytics/telemetry, keeps the repo mirrors fresh, runs the workspace backup, and posts holding acknowledgments when the lead is rate-limited or down | Claude Haiku (cloud; a local-model provider was tried and set aside for now — [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)) | Holding acknowledgments only — a receipt, never a resolution | Optional but **strongly recommended, and the one to add second.** It takes the bulk of the recurring, mechanical work off the lead |
-| **Coding** (`opensource/community-coding`) | Issue/PR triage, security-advisory review, Dependabot PR review, docs-currency checks, and maintainer-load assessment — 5 tasks, read-only except two narrow draft-PR paths, drafts everything for the lead. **Not** metrics or telemetry: those moved to local ops, and `docs-gap-review` moved to the lead | Claude Haiku | No — headless, no channel wiring at all | Optional. The lead does its own lighter-weight triage standalone if this isn't stamped |
-| **Marketing** (`opensource/community-marketing`) | Content drafts via PR, in the audience's language — 1 task | Claude | No — headless, no channel wiring at all | Optional, and **not stamped by default.** Skip it until you actually want content drafted |
+| **Lead** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only one** | Always |
+| **Secretary** (`opensource/community-secretary`) | Script-computed metrics, mirror sync, workspace backup, holding acknowledgments when the lead is rate-limited | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional, **add second** — takes the bulk of recurring work off the lead |
+| **Coding** (`opensource/community-coding`) | Issue/PR triage, security advisories, Dependabot review, docs-currency, maintainer load. Read-only + two narrow draft-PR paths | Claude Haiku | No — headless | Optional; lead does lighter triage standalone otherwise |
+| **Marketing** (`opensource/community-marketing`) | Content drafts via PR | Claude | No — headless | Optional, **not stamped by default** |
 
-Why `docs-gap-review` sits with the lead and not the reviewer, since it reads
-like reviewer work: it consumes `question-ledger.jsonl`, which only the lead
-writes, and an agent cannot read another agent's `plugin-data/`. On the
-engineering side it was permanently dead — always zero input, never a finding.
+(`docs-gap-review` sits with the lead, not coding, because it reads the
+lead's own `question-ledger.jsonl` — an agent can't read another's
+`plugin-data/`.)
 
-**You don't have to stamp all four now, and this isn't a one-way door.**
-Stamp just the lead today and add the others later — the lead works standalone.
-If you're adding exactly one, add **local ops**: it takes the bulk of the
-recurring, mechanical work off the lead so Sonnet-class judgment is spent
-only where it's needed. To **disable** an agent later: pause all its tasks
-(`ncl tasks list --status active` on its group, then `ncl tasks pause` each
-— or just stop resuming new ones) rather than deleting the group, so its
-config and memory stay intact if you re-enable it. To **add** one later:
-stamp it fresh, wire its destination to the lead exactly as below, and DM
-the lead to relay config (see §6's relay table for which keys each one
-needs) — same process, whether done at hour one or month six.
+**Not a one-way door.** Stamp just the lead today; add others later. To
+disable an agent, pause its tasks (`ncl tasks pause`) rather than deleting
+the group, so config/memory survive. To add one later: stamp, wire its
+destination pair (below), DM the lead to relay config (§3) — same process
+at hour one or month six.
 
-Run inside the sandbox (`sbx exec -it -w /home/agent/nanoclaw nanoclaw bash`,
-or drive it conversationally via `sbx exec -it -w /home/agent/nanoclaw
-nanoclaw claude`):
-
-**`--name` is never asked in the welcome interview — it's yours to set here,
-and only here matters where.** It's purely an internal `ncl`/dashboard label
-(what you see in `ncl groups list`), unrelated to the Discord bot's display
-name (set when you create the bot application) and unrelated to the
-project name the welcome interview infers from the GitHub repo. **Pick a
-name for each one now** — the examples below (`"Community Manager"` etc.)
-are placeholders, not requirements; something like `"AcmeCRM Support"` /
-`"AcmeCRM Local Ops"` / `"AcmeCRM Coding"` / `"AcmeCRM Marketing"` makes
-`ncl groups list` readable once you have more than one project's agents
-running. Nothing but a human looking at that list ever reads this string.
+Run from the nanoclaw checkout (`cd nanoclaw`, or conversationally via
+`claude` in the same directory). `--name` is an internal `ncl`/dashboard
+label only — unrelated to the Discord display name or the project name —
+pick anything readable, e.g. `"AcmeCRM Manager"`.
 
 ```bash
-# Stamp — check each create response's templateReport for skipped parts,
-# and note each group's id from the response: the destination wiring below
-# and the OneCLI selective-mode step need them.
-./bin/ncl groups create --template opensource/community-manager     --name "Community Manager"
-./bin/ncl groups create --template opensource/community-secretary         --name "Community Secretary"
-./bin/ncl groups create --template opensource/community-coding  --name "Community Coding"
-# Marketing is OPTIONAL and not stamped by default — run this line only if you
-# actually want content drafted now. Its token (§0) is needed only if you do.
-./bin/ncl groups create --template opensource/community-marketing --name "Community Marketing"
+# Stamp — check each response's templateReport for skipped parts, and note
+# each group's id: the wiring and vault steps below need them.
+./bin/ncl groups create --template opensource/community-manager    --name "Community Manager"
+./bin/ncl groups create --template opensource/community-secretary  --name "Community Secretary"
+./bin/ncl groups create --template opensource/community-coding     --name "Community Coding"
+# Marketing is optional and not stamped by default:
+./bin/ncl groups create --template opensource/community-marketing  --name "Community Marketing"
 
-# Install jq on every agent you just stamped, host-side, before you DM the
-# lead (step 5). Every agent needs it — each template's setup-check.sh is
-# written in jq, and the lead's `owner-tldr` and
-# `weekly-identity-integrity-check` tasks parse JSON with it.
-#
-# For the LEAD this MUST happen here, not during the welcome interview: the
-# agent-facing `install_packages` tool rebuilds the image and restarts the
-# container on approval, which would kill the interview mid-conversation.
-# Host-side there is no approval card and no live session to lose.
-#
-# Sub-agents only need these two lines if you pre-stamped them above. If you
-# instead let the lead stamp them during the interview, it installs jq on each
-# one as it goes (they're headless, so the restart costs nothing).
+# Install jq on every agent, host-side, before you DM the lead. Every
+# template's setup-check.sh needs it, and the lead's own tasks parse JSON
+# with it. For the LEAD this must happen here: install_packages rebuilds
+# the image and restarts the container on approval, which would kill the
+# welcome interview mid-conversation. Sub-agents are headless, so the lead
+# can install jq on them itself while stamping — these two lines are only
+# needed if you pre-stamped a sub-agent above.
 ./bin/ncl groups config add-package --id <lead-id> --apt jq
 ./bin/ncl groups restart --id <lead-id> --rebuild
 # …and once per sub-agent you stamped above, with its own <id>.
 
-# Wire sub-agents to the lead — agent-to-agent both ways, NEVER to a channel.
-# One pair per sub-agent: `parent` on the child pointing at the lead, and a
-# named destination on the lead pointing back. A missing pair doesn't error —
-# the sub-agent's reports just reach nobody.
-./bin/ncl destinations add --agent-group-id <local-id>     --local-name parent --target-type agent --target-id <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>      --local-name local --target-type agent --target-id <local-id>
-./bin/ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
-./bin/ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>      --local-name marketing-agent --target-type agent --target-id <marketing-id>
+# Wire sub-agents to the lead — agent-to-agent, NEVER to a channel. One pair
+# per sub-agent: `parent` on the child pointing at the lead, a named
+# destination on the lead pointing back. A missing pair doesn't error — the
+# sub-agent's reports just reach nobody.
+./bin/ncl destinations add --agent-group-id <secretary-id>  --local-name parent           --target-type agent --target-id <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>       --local-name secretary        --target-type agent --target-id <secretary-id>
+./bin/ncl destinations add --agent-group-id <coding-id>     --local-name parent           --target-type agent --target-id <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>       --local-name coding           --target-type agent --target-id <coding-id>
+./bin/ncl destinations add --agent-group-id <marketing-id>  --local-name parent           --target-type agent --target-id <lead-id>
+./bin/ncl destinations add --agent-group-id <lead-id>       --local-name marketing-agent  --target-type agent --target-id <marketing-id>
 ```
 
-Sub-agents are headless and this `parent` destination is their **only**
-outbound path — which is why every sub-agent task addresses the *lead*, never
-the owner. A sub-agent has no owner DM, so a report addressed to the owner
-goes nowhere at all (this was a real bug in `health-check`,
-`workspace-backup` and `unanswered-watch`, now fixed). Lead-owned tasks may
-address the owner directly; that's correct for them.
+Sub-agents are headless — `parent` is their **only** outbound path, which is
+why every sub-agent task addresses the lead, never the owner (a report
+addressed to the owner from a sub-agent goes nowhere; this was a real bug in
+three tasks, now fixed).
 
-The local agent stamps on the cloud default (Haiku) same as the others —
-no separate host model provider to wire up for this phase.
+### 2a. Connect Discord
 
-(Credential registration is step 4 — the welcome interview below runs before
-it by design, so its verification pass will first report services as unwired;
-it walks you through the vault entries and re-verifies. That's expected, not
-broken.)
+`/add-discord`, run the same way as the stamping commands above (bot
+creation, invite, channel wiring). Invite with least-privilege permissions:
+Send Messages, Embed Links, Attach Files, Read Message History — not
+Administrator. **Before the first support-channel test, enable Message
+Content privileged intent** (Bot → Privileged Gateway Intents) — without it
+the bot answers @mentions but never auto-replies. This intent also affects
+approval cards: a real, unfixed platform bug (UPSTREAM-ISSUES.md #20) makes
+a Discord approval click resolve as Deny when interactions fall back to the
+HTTP webhook path instead of the Gateway — which happens when the Gateway
+listener is down, e.g. from this exact intent being off. If an approval
+card ever rejects an obvious Approve click, check this setting first.
 
-Then connect Discord: in the sandbox's Claude Code session, run
-`/add-discord` and follow it (bot creation, invite, channel wiring). Invite
-the bot with the **least-privilege permission set from §4's table** (Send
-Messages, Embed Links, Attach Files, Read Message History) — *you* need
-Manage Server rights on the guild to do the inviting; the *bot* never gets
-them. And before the first support-channel test: enable the **Message
-Content privileged intent** in the Discord developer portal (Bot → Privileged
-Gateway Intents) — it isn't part of the invite screen, and without it the bot
-joins fine, answers @mentions, and silently never auto-replies in support
-channels. **This intent also matters for approval cards**, not just
-auto-reply: a real, unfixed platform bug (UPSTREAM-ISSUES.md #20) makes every
-Discord approval-card click resolve as Deny when interactions arrive over the
-HTTP webhook fallback path instead of the Gateway — which only happens when
-the Gateway listener is down, e.g. from this exact intent being off. Keeping
-it enabled is incidental protection against a bug this template set can't
-otherwise fix; if an approval card ever rejects a click that was clearly
-Approve, check this setting first. **The first wiring is your own DM with the
-lead — the control plane; nothing works without it.** Set sender scopes at
-wiring time: the owner DM stays locked to known senders, but **every public
-channel wiring gets the open sender scope** (`--sender-scope all`) — otherwise
-each new community member triggers a "new sender — allow?" approval prompt,
-which defeats the point of a public support channel. Verify the round trip in
-both directions, then DM the lead: its `welcome` skill runs the onboarding —
-first question is the project's GitHub repo, from which it infers a proposed
-config, confirms with you, persists it as runtime config in `plugin-data/`,
-and relays the sub-agents' values over their destinations. (Pre-stamp file
-fill-ins still work as defaults; the conversational config wins.) Only then
-wire the public channels + guild catch-all — **the lead gets all of them, and
-the reviewer and marketing get none**: they have no channel wiring at all and
-cannot post publicly even if instructed to, which is single-voice enforced by
-absence.
+**Your own DM with the lead is the control plane — wire it first.** Set
+sender scopes at wiring time: owner DM stays locked to known senders, but
+every public channel gets `--sender-scope all` — otherwise each new
+community member triggers a "new sender — allow?" prompt, defeating the
+point of a public channel. Verify the round trip both ways, then DM the
+lead — its `welcome` skill runs the interview (first question: your
+GitHub repo), persists config, and relays sub-agent values. Only then wire
+the public channels: the lead gets all of them; the reviewer and marketing
+get none, by design.
 
-**The local agent is the one deliberate exception, and it's worth stating
-precisely** — the older blanket claim that no sub-agent has any channel
-identity is no longer true. Holding acknowledgments only work if something
-can actually speak while the lead can't, so the local agent gets **one**
-channel wiring and posts through the *same* Discord bot — one public identity
-still, not a second bot. Its restriction is enforced by *scope* rather than
-absence: one channel, read-only credentials everywhere else, no write access,
-and a template-only reply it is forbidden to compose freely. It is a receipt
-("we've seen this, a human/the lead will follow up"), never a resolution.
-**Unverified**: whether two groups can both wire to the same Discord channel
-in your NanoClaw version — test it on the real install rather than assuming
-it, and fall back to a dedicated acknowledgment channel if not.
+**The secretary is the one exception to "no sub-agent has channel
+identity."** It gets one channel wiring, through the *same* Discord bot —
+one public identity, two agents allowed to speak, very different scopes:
+one channel, read-only elsewhere, no write access, a template-only reply
+it's forbidden to compose freely. A receipt, never a resolution.
+**Unverified**: whether two groups can wire to the same Discord channel in
+your NanoClaw version — test it; fall back to a dedicated channel if not.
 
-After setup, everything runs through Discord; the sandbox Claude CLI is
-break-glass admin only (see below).
+**Name the Discord app to visibly match the GitHub bot account** you'll set
+up when the lead asks for one (`acmecrm-bot` ↔ "AcmeCRM Bot") — this is the
+only agent with a public voice on both platforms, and a mismatch reads as
+two different bots.
 
-## Break-glass admin: the Claude CLI — how it helps, how it hurts
+After Discord is wired, everything runs through it — direct CLI access is
+break-glass admin only, see below.
 
-`sbx exec -it -w /home/agent/nanoclaw nanoclaw claude` opens a Claude Code
-session inside the sandbox with direct access to the install — files, `ncl`,
-the group workspaces. Reserve it for a **bad state**: the owner DM broken, an
-agent stuck in a verification deadlock, task/wiring surgery, log forensics.
+## Break-glass admin: driving the checkout directly
 
-**How it helps:**
-- It operates on the *system* instead of negotiating with an *agent* — when
-  an agent can't verify you, stop arguing in-channel and act at the layer you
-  control.
-- It works when Discord doesn't: wiring repair, `/add-discord`, reading
-  journals and task tables directly.
-- It stays inside the sandbox boundary — same egress allowlist, no new trust
-  domain, no credentials exposed (the vault still injects at the proxy).
+Running `claude` (or a plain shell) from the `nanoclaw` checkout gives
+direct access to the install — files, `ncl`, the group workspaces. Reserve
+it for a bad state: the owner DM broken, an agent stuck, wiring surgery, log
+forensics. **This runs on your host, not inside any isolation boundary** —
+full filesystem and Docker access, same as anything else you run locally.
 
-**How it hurts:**
-- Every CLI change is an out-of-framework edit — exactly what drift detection
-  flags. Pair each intervention with a one-line DM to the lead afterward ("I
-  changed X via CLI at Y"), or expect (and calmly answer) an ask-don't-lock
-  question from the integrity gate.
-- It bypasses every gate: no OneCLI request-holds, no single-voice review, no
-  public-action ledger entry. Nothing stops a typo'd `ncl tasks` command or a
-  bad file edit. Its power is unaudited unless you narrate it.
-- Habit decay is the real risk: if routine config drifts into CLI edits, the
-  owner DM stops being the single authoritative thread, config becomes
-  untracked again, and you've rebuilt the exact "who changed this?" ambiguity
-  the single-voice design exists to prevent. **Discord for operations, CLI
-  for surgery.**
-- A CLI session is itself an agent with tools — its conclusions deserve the
-  same verify-don't-vibe discipline as anything else.
+**Helps:** operates on the system instead of negotiating with an agent;
+works when Discord doesn't.
 
-**Hard rule: never restart or rebuild a container from this session while an
-agent is mid-conversation.** `ncl groups restart` (with or without
-`--rebuild`) kills the container under whatever turn is in flight. On a real
-install, a restart issued from a break-glass CLI session while the lead was
-mid-reply coincided with the owner receiving the same status message twice.
-Restarting an agent that is talking to someone is not a neutral operation —
-it interrupts a turn the agent believes it is still completing.
+**Hurts:** every change is out-of-framework — pair it with a DM to the lead
+afterward, or expect an ask-don't-lock question from the integrity gate. It
+bypasses every gate (no request-holds, no ledger entry) — nothing stops a
+typo. Habit decay is the real risk: routine config drifting into CLI edits
+rebuilds the "who changed this?" problem single-voice exists to prevent.
+**Discord for operations, CLI for surgery.**
 
-**NanoClaw will not stop you.** The guard allows any host-socket caller
-unconditionally (`ALLOW('host caller (trusted socket)')` in
-`src/cli/guard.ts`) — that trusted socket *is* the auth model, and there is
-no caller identity to distinguish "the owner in a terminal" from "a Claude
-CLI agent deciding to restart something." No approval card is raised for
-either. The gate that exists for agents inside NanoClaw does not exist here.
-
-So enforce it on the CLI side instead. In the sandbox checkout, add a deny
-rule to `.claude/settings.local.json` (local override — do **not** edit the
-tracked `.claude/settings.json`, which is upstream's):
+**Hard rule: never restart or rebuild a container while an agent is
+mid-conversation.** `ncl groups restart` kills the container under whatever
+turn is in flight — on a real install, a restart issued mid-reply coincided
+with the owner receiving the same message twice. **NanoClaw will not stop
+you**: the guard `ALLOW`s any host-socket caller unconditionally
+(`src/cli/guard.ts`) — there's no caller identity distinguishing you from a
+CLI agent doing the same thing. Enforce it on the CLI side instead, in
+`.claude/settings.local.json` (the local override — not the tracked
+`settings.json`):
 
 ```json
 {
   "permissions": {
-    "deny": [
-      "Bash(ncl groups restart:*)",
-      "Bash(./bin/ncl groups restart:*)"
-    ]
+    "deny": ["Bash(ncl groups restart:*)", "Bash(./bin/ncl groups restart:*)"]
   }
 }
 ```
 
-That stops the CLI *agent* from restarting on its own initiative while
-leaving you free to run the same command yourself when you've decided it's
-safe. When a restart genuinely is needed — applying a package, clearing a
-stuck container — say so in the owner DM first, confirm nothing is in
-flight, then do it.
+This stops a CLI *agent* from restarting on its own initiative; you can
+still run it deliberately once you've confirmed nothing's in flight. This
+doctrine is for **after go-live** — during setup (§1 above), CLI-driving is
+the intended path, including the `--rebuild` the jq install needs.
 
-Note this doctrine applies to **operations after go-live**. During initial
-setup (steps 1–7 above), CLI-driving is the intended path, not an exception —
-including the `groups restart --rebuild` the jq install needs in step 3,
-which runs before any agent is holding a conversation.
-
-**FYI — `/debug` is your first move in this session, not a separate
-install.** It's a built-in NanoClaw skill (nothing to add, nothing to
-configure): run `/debug` inside this same break-glass Claude Code session
-and it walks logs, env vars, mounts, and MCP connectivity for you instead of
-you doing it by hand. Reach for it before manual log archaeology.
+**`/debug` is your first move**, not a separate install — built-in, walks
+logs/env/mounts/MCP connectivity for you.
 
 ## Monitoring: clidash (do this once, here)
 
-While you're in this same sandbox Claude Code session, also set up
-[`clidash`](https://nanoclaw.dev/skills/clidash) — a read-only web dashboard
-(groups/sessions/channels/users, message-activity charts, log tails) built
-from `ncl`'s own JSON output. Zero dependencies, no build step, doesn't touch
-NanoClaw's source, and needs no vault entry (its own local secret, if any,
-never leaves this machine):
+Also set up [`clidash`](https://nanoclaw.dev/skills/clidash) — a read-only
+dashboard (groups/sessions/channels/users, message charts, log tails) from
+`ncl`'s own output. No dependencies, no vault entry:
 
 ```bash
 /add-clidash
 cd tools/clidash && cp clidash.config.example.json clidash.config.json
-node server.js   # binds 127.0.0.1:4690 by default
+node server.js   # binds 127.0.0.1:4690
 ```
 
-Reach it the same way as the OneCLI dashboard — locally, or over Tailscale
-for remote checks (§4 below has the exact `serve` command; point it at
-clidash's port instead of 10254). It's the default monitoring surface for
-this deployment. The heavier `dashboard` skill (live push, token-usage and
-context-window numbers) is a deliberate non-default — see
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) for why, and add it later only
-if you hit a real "which task is burning budget" question clidash can't
-answer.
+Reach it the same way as the OneCLI dashboard (§3 has the Tailscale
+command). The heavier `dashboard` skill (live push, token-usage numbers) is
+a deliberate non-default — see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) — add it only if clidash can't
+answer a real "which task is burning budget" question.
 
 ## Platform skills — the one authoritative list
 
-**The template format can't declare these.** Agent Plugins 1.0.0 has no
-dependency field, so a template ships its own *agent* skills
-(`skills/<name>/SKILL.md` — those install with the template, nothing to do)
-but cannot declare **platform** skills. Those are operator actions, and this
-is the single list. It's also the replay checklist for a recreate: anything
-marked *modifies install* has to be re-applied after
-[OPERATIONS.md](OPERATIONS.md)'s refresh, or you lose it silently.
+Templates ship their own *agent* skills; **platform** skills are operator
+actions and can't be declared by a template. This is the replay checklist
+for a recreate — anything marked *modifies install* needs re-applying after
+[OPERATIONS.md](OPERATIONS.md)'s refresh.
 
 | Skill | Status | When | Modifies install? |
 |---|---|---|---|
-| `/add-discord` | **Required** | Step 3, in the sandbox Claude session. Owner DM wiring first, then public channels after the interview | No — config only |
-| `/debug` | Built-in, nothing to install | Any time, from a break-glass session. First move for a container-level problem | No |
-| `/add-clidash` | **Recommended** | Right after step 3 (see the monitoring section above) | Copies `tools/clidash`; no source edit |
-| `/add-ollama-provider` | **Not used for this phase** — evaluated and set aside; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) | Would route the local group to a host Ollama model instead of the cloud default. Revisit once the system is verified end-to-end on the cloud default | **Yes** — extends `ContainerConfig`, edits the Dockerfile (chmod 777), writes per-group `container.json`. Replay on recreate |
-| `/add-ollama` (the tool) | **Proposed, undecided** | Only if bilingual translation volume proves expensive. Gives an agent a local model to *call* while it stays on Claude — the lead's case, never the coding agent's | **Yes** — copies an MCP server into the source tree and rebuilds the image. Replay on recreate |
-| `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real "which task is burning budget" question | **Yes** — wires a pusher into `src/index.ts`, runs a persistent process, adds `DASHBOARD_SECRET`. Replay on recreate |
-| `ncl groups config add-mount` (raw CLI, not a `/`-skill) | **Recommended, once all four agents are stamped** | Sets up the shared repo mirror — one `/workspace/shared-repos` host directory, read-write for local ops, read-only for the rest. See `opensource/community-secretary/README.md`, "Shared repo mirror," for the exact commands. Owner-only (`hostOnly: true` in the platform CLI) — no agent can grant this to itself | Config only (per-group `additionalMounts`), plus the operator-side mount allowlist (`~/.config/nanoclaw/mount-allowlist.json`, outside any container's reach). `ncl groups restart` needed per group, not a full recreate |
-| `/update-skills` | **Break-glass only** | Never in steady state — it's in-place mutation, which the update policy forbids. Acceptable for an urgent upstream channel fix that can't wait for a kit image | **Yes**, and it desyncs you from `platform-baseline.json` — note it and do a digest-pinned recreate as soon as one exists |
+| `/add-discord` | **Required** | §1a | No |
+| `/debug` | Built-in | Any time | No |
+| `/add-clidash` | **Recommended** | Right after §1 | Copies `tools/clidash` |
+| `/add-ollama-provider` | **Not used this phase** — see SKILLS-ADOPTION.md | Would route the secretary to a host Ollama model | **Yes** — Dockerfile + `container.json` edits |
+| `/add-ollama` (tool) | **Proposed, undecided** | Only if translation volume proves expensive | **Yes** — copies an MCP server, rebuilds image |
+| `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real budget question | **Yes** — persistent process, `DASHBOARD_SECRET` |
+| `ncl groups config add-mount` | **Recommended once all four are stamped** | Shared repo mirror — see `community-secretary/README.md` | Config + operator-side mount allowlist |
+| `/update-skills` | **Break-glass only** | Never in steady state | **Yes**, desyncs from `platform-baseline.json` |
 
-Everything else in NanoClaw's 52-skill catalog was reviewed and is either
-not applicable to a sandbox-kit deployment or rejected with reasons — see
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) rather than re-litigating.
+Everything else in NanoClaw's skill catalog was reviewed and is either N/A
+for this deployment or rejected with reasons — see
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md).
 
-## 4 · Register credentials in OneCLI
+## 2 · Credentials — added when the lead asks, not upfront
 
-### Reaching the dashboard from wherever you actually are
+**There is no `.env` file in this system, deliberately.** Secrets go in the
+OneCLI vault; platform settings belong to the kit's `spec.yaml`; task
+parameters (repo names, label text — never secrets) live in each agent's
+`plugin-data/<agent>/config.env`. Anything that asks you to put a key in
+`.env` is violating this system's own rules — refuse it.
 
-`sbx run` publishes the OneCLI dashboard on port `10254` — but that port is
-bound to **the sandbox host machine's own loopback**. `http://127.0.0.1:10254`
-only resolves on that machine; open it from your phone or another laptop and
-there's nothing there. This is a documented OneCLI gotcha, not a sandbox quirk
-— the gateway itself distinguishes **host access** (`127.0.0.1`, or your own
-LAN/Tailscale IP) from **container access** (`host.docker.internal`, how
-agent containers reach it over the docker bridge) as two different addresses
-for two different callers.
-
-**If you only ever open the dashboard from the host machine, `localhost:10254`
-is fine — skip this.** If you check in from elsewhere, give the sandbox host a
-stable address reachable from anywhere without opening the port to the public
-internet: **[Tailscale](https://tailscale.com)** (free for personal use) is
-the recommended way — install it on the host and on whatever device you check
-in from (`tailscale up` on each), then route the port onto your tailnet as
-**raw TCP** (not HTTPS termination — this keeps the exact plain-`http://`,
-same-port URL shape the dashboard already uses):
+OneCLI's dashboard runs on port `10254`, bound to **your machine's own
+loopback** — `http://127.0.0.1:10254` only resolves there. If you only ever
+manage it from the same machine, that's it, skip the rest of this section.
+Checking in from elsewhere: [Tailscale](https://tailscale.com) is the
+recommended path — install on host and device, then route the port as raw
+TCP (not HTTPS, to keep the plain-`http://` shape the dashboard expects):
 
 ```bash
 tailscale serve --tcp=10254 tcp://localhost:10254 --bg
 ```
 
-Verify with `tailscale serve status`, then open
-`http://<host's-tailscale-ip>:10254` from any device on the tailnet — that's
-the URL the welcome interview should be given (never `funnel`, which exposes
-to the public internet; this dashboard holds credentials). To undo:
-`tailscale serve --tcp=10254 off`. The welcome interview asks for this address
-once and persists it — whatever you give it, the lead uses that exact one for
-every future dashboard link, instead of assuming localhost.
+Verify with `tailscale serve status`, open `http://<tailscale-ip>:10254`
+(never `funnel` — this dashboard holds credentials). The welcome interview
+asks for this address once and reuses it for every future link. The model
+credential lives in the same dashboard's **LLMs** tab.
 
-The model credential (what NanoClaw uses to run Claude — subscription, OAuth
-token, or API key) lives in the same dashboard's **LLMs** tab, separate from
-the **Apps**/**Custom** tabs above — one more reason a working remote address
-is worth setting up once.
+**Version note**: OneCLI has its own release line. Transient 404s that
+never clear may mean your gateway predates the API the SDK expects — see
+`docs/onecli-upgrades.md` before assuming it's a template problem.
 
-**Version note**: OneCLI has its own release line independent of NanoClaw
-(`versions.json` pins a specific gateway version; there's deliberately no
-automatic compatibility check). If credential calls fail with what look like
-transient 404s that never clear, your gateway may predate the `/v1` API the
-current SDK expects — run the detect steps NanoClaw's own
-`docs/onecli-upgrades.md` gives before assuming it's a template problem.
+**When the lead asks for a GitHub token** (one per agent it needs — never
+one shared token), [PREREQS.md](../PREREQS.md) has the exact URL. The scope
+to give each one, so you don't have to work it out live:
 
-For each credential from step 0, create a vault secret matched to its API host:
-
-| Secret | Host match | Auth style |
+| Token | Needs | Never |
 |---|---|---|
-| GitHub lead token | `api.github.com` | `Authorization: Bearer` |
-| GitHub local token | `api.github.com` | `Authorization: Bearer` |
-| GitHub coding token | `api.github.com` | `Authorization: Bearer` |
-| GitHub marketing token (only if marketing is stamped) | `api.github.com` | `Authorization: Bearer` |
-| GitHub backup push (optional — the **local** agent's) | `github.com` | `Authorization: Bearer` |
-| GA4 OAuth (optional) | `analyticsdata.googleapis.com` | OAuth 2.0 Bearer |
-| Gmail (optional) | `gmail.googleapis.com` | OAuth 2.0 Bearer |
+| Lead | `repo`/`public_repo` — comments, labels, issues | `read:org`, `admin:*`, `delete_repo` |
+| Secretary | `COMMUNITY_REPOS` + `MIRROR_REPOS`: Contents/Issues read, PRs read, Contents write on backup repo only | Write anywhere else; issue/PR comment rights |
+| Coding | `COMMUNITY_REPOS` only, read-only (+ Dependabot alerts) | Any write scope; `MIRROR_REPOS` |
+| Marketing | Content repo only, Contents + PRs read/write | Write on any other repo |
+| Backup (optional) | Push to the one backup repo | Nothing beyond it |
 
-**Then set every stamped agent to `selective` secret mode and assign each its
-own GitHub secret** — all four tokens match the same host, and in the default
-`all` mode every agent would get whichever matches first, collapsing your
-scoped tokens back into shared access. With four tokens on one host this
-matters more than it did with three, not less:
+If a future feature seems to need broader access, the fix is almost never
+"widen this token" — it's a new, narrower, single-purpose credential.
+
+**Set every agent to `selective` secret mode and assign each its own
+secret**, as they're added. All four GitHub tokens match the same host — in
+the default `all` mode, every agent gets whichever secret matches first,
+collapsing your scoped tokens back into one shared token:
 
 ```bash
 onecli agents list
 onecli agents set-secret-mode --id <agent-id> --mode selective   # ×4
-# assign each agent its own secret in the dashboard
 ```
 
-Optionally add **request-hold approval rules** in the dashboard for anything
-you can never allow unattended (publishing, sending mail, closing/merging) —
-gating the outbound request at the proxy is enforcement no prompt can bypass.
+Optionally add **request-hold approval rules** for anything you can never
+allow unattended (publishing, sending mail) — gating at the proxy is
+enforcement no prompt can bypass.
 
-### Least privilege — exactly what each bot does, and nothing more
+**Discord bot** needs, beyond the invite in §1a: nothing further in the
+vault — its token lives in `.env`, not here.
 
-One canonical list, so "does it need that?" always has a checkable answer
-instead of a guess. Anything not listed under **Needs** is deliberately
-**never granted**, not an oversight.
+**GA4** (only if you want `weekly-analytics-report`): enable the Google
+Analytics Data API, OAuth credentials, grant **Viewer** on the property,
+note the numeric property ID. Don't enable the Admin API.
 
-**Discord bot** (exactly one, for the whole system). It's the lead's voice, and
-the **local agent posts its holding acknowledgments through this same bot** —
-one bot application, one public identity, two agents allowed to speak through
-it with very different scopes. The **reviewer and marketing have no Discord
-identity at all** and cannot post even if instructed to. The local agent's
-limit isn't absence, it's scope: one channel, template-only text, no write
-credentials anywhere else. Permissions below are the bot's, so they're the
-union of both — and they're already minimal, which is why sharing one bot
-doesn't widen anything:
+**Gmail** (only if you want `inbox-check`): Gmail API, OAuth with
+`gmail.readonly` only — this agent never sends. Bring your own Gmail/IMAP
+MCP server.
 
-| | |
-|---|---|
-| Needs | Send Messages, Embed Links, Attach Files, Read Message History, and the **Message Content privileged intent** (justified: auto-reply in support channels means reading messages the bot wasn't @mentioned in — this is the one privileged grant this system needs, and it's why 100+ guild deployments trigger Discord's own bot verification, see `discord-mechanics.md`) |
-| Never | Administrator, Manage Server, Manage Roles, Manage Channels, Manage Messages (deleting others' messages), Kick/Ban/Timeout Members, View Audit Log — none of this is moderation, and it never will be from this bot |
+**Optional egress lockdown**: `NANOCLAW_EGRESS_LOCKDOWN=true` forces all
+agent traffic through the OneCLI gateway on a Docker `--internal` network
+with no direct route out — off by default. See `src/egress-lockdown.ts` if
+you want that hardening; nothing here requires it.
 
-**GitHub tokens** (four, one per agent, least-privilege split — never one
-shared token):
+### Per-agent OneCLI footprint
 
-| Token | Needs | Never |
-|---|---|---|
-| Lead | `repo` (or `public_repo`) — comments, labels, opens issues | `read:org`, `admin:*`, `delete_repo`, org/team scopes |
-| Local | Fine-grained over `COMMUNITY_REPOS` **+ `MIRROR_REPOS`**: Contents + Issues read, PRs read (`draft-cleanup`), and Contents **write on the backup repo only** | Write on anything but the backup repo; issue/PR comment rights — it never replies on GitHub, only on its one Discord channel |
-| Coding | Fine-grained over `COMMUNITY_REPOS` only, **read-only**: Contents + Issues + PRs read; + Dependabot alerts read if the security sweep is enabled | Any write scope at all — this agent never posts, so its token literally cannot. Also **not** `MIRROR_REPOS`: mirroring is the local agent's task now, so those repos would be access with no task behind it |
-| Marketing | Fine-grained, **content repo only**: Contents + PRs read/write (add `RELEASE_WATCH_REPO` if it's a different repo) | Write on any repo but the content one; org-wide scopes |
-| Backup (optional) | Push to one backup repo (`github.com` host match) — assigned to the **local** agent, which owns `workspace-backup` | Nothing beyond that repo |
+Organized by agent instead of by credential — the exact list `onecli apps
+connections agent-access` (PREREQS.md §3) should show once everything's
+added, and nothing more.
 
-**The instinct to check, always**: if a future feature seems to need broader
-access, the fix is almost never "widen this token" — it's "does this actually
-need a new, narrower, single-purpose credential instead." Ask before granting;
-see "Default to free tools"' sibling rule in each persona for the same
-discipline applied to scope, not just cost.
+| Agent | Granted | Host | Used by |
+|---|---|---|---|
+| Lead | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
+| Lead | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
+| Secretary | GitHub PAT | `api.github.com` | metrics, GFI health, hygiene audit, draft cleanup |
+| Secretary | same PAT, git protocol *(private repos only)* | `github.com` | `repo-mirror-sync` |
+| Secretary | Backup push secret *(optional)* | `github.com` | `workspace-backup` |
+| Secretary | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Secretary | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
+| Secretary | — (nothing) | — | `unanswered-watch`, `health-check` — local state only |
+| Coding | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health |
+| Marketing | GitHub PAT | `api.github.com` | `content-draft-cycle` |
 
-### Per agent: the complete OneCLI footprint, in one place
+Note where analytics landed: on the **secretary**, not marketing or coding
+— judgment work stayed on the metered agents, narration moved to the
+cheapest tier. A row that doesn't exist here is a finding: the reviewer and
+marketing never appear against Discord, GA4, or social hosts, and the
+secretary never appears with a write grant outside its one backup repo.
 
-The tables above are organized by credential; this one is organized by
-**agent**, across every service, not just GitHub — it's the exact list
-`onecli apps connections agent-access` (PREREQS.md §3) should show for each
-one, and nothing more. Every row exists because a specific task reads it;
-anything else the live command shows for an agent is a finding, not a
-formality.
+### Confirm identity, don't assume it
 
-| Agent | Secret mode | Granted | Host | Used by |
-|---|---|---|---|---|
-| Lead | `selective` | Lead GitHub PAT | `api.github.com` | `daily-github-triage`, `docs-gap-review`, `release-announcement-watch`, `weekly-identity-integrity-check`, live issue/PR replies |
-| Lead | `selective` | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` — an inbox is a support channel, so it belongs to the agent that owns support escalation |
-| Local | `selective` | Local GitHub PAT | `api.github.com` | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup` |
-| Local | `selective` | same PAT, git protocol *(only for private repos)* | `github.com` (git) | `repo-mirror-sync` — public repos need no credential |
-| Local | `selective` | Backup push secret *(optional)* | `github.com` (git) | `workspace-backup` |
-| Local | `selective` | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
-| Local | — (no vault secret) | Sandbox allowlist entries only, public pages | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` — reads public profiles, no credential exists to grant |
-| Local | — (no secret, no network) | nothing at all | — | `unanswered-watch`, `health-check` — local message/container state only. **Their gates have nothing to fail, nothing to expire**; the model wake they trigger still shares the cloud window for this phase (see OPERATIONS.md → Model budget), so detection is free but the response isn't |
-| Coding | `selective` | Coding GitHub PAT | `api.github.com` | `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review` — 5 tasks (a 6th, `posthog-weekly-review`, is removed for now) |
-| Marketing | `selective` | Marketing GitHub PAT | `api.github.com` | `content-draft-cycle` — its only task |
+A scoped token isn't the same guarantee as the *right account* holding it —
+paste a personal token by mistake and every action appears to come from the
+owner. The welcome interview asks for the expected bot username up front
+and **verifies it mechanically**: a real `GET /user` call after each token
+registration confirms the login matches. Discord needs no equivalent check
+— a bot token structurally can't resolve to a personal identity.
 
-Note where the analytics/telemetry rows landed: **on Local, not Marketing or
-Coding.** That's the whole restructure in one table — the metered agents kept
-judgment work, and everything that is "run a script, narrate the numbers"
-moved to the cheapest tier (still metered, for this phase — see OPERATIONS.md
-→ Model budget).
-
-**A row that doesn't exist here is a finding, not a formality.** Concretely:
-the reviewer and marketing agents never appear against Discord at all;
-neither of them appears against GA4, the social hosts, or `github.com` git;
-and the local agent never appears with a write grant outside the single
-backup repo. `selective` mode (not the default `all`) is
-what makes any of this enforceable — in `all` mode every agent gets every
-secret whose host matches, and with four PATs on `api.github.com` that
-collapses this entire table back into one shared token.
-
-### Confirm identity, don't assume it (and audit what's already connected)
-
-**[PREREQS.md](../PREREQS.md)** has the full audit and rotation runbook using
-`onecli`'s real CLI — `secrets list`, `apps connections agent-access` (the
-direct, verifiable answer to "does this agent have more access than it
-needs"), and `secrets update` for safe in-place rotation with no downtime.
-Run it once after any setup, and again after any credential change.
-
-A scoped token is not the same guarantee as the *right account* holding it —
-it's easy to paste a personal access token by mistake and have every public
-GitHub action quietly appear to come from the owner, not the bot. The welcome
-interview asks for the expected bot username up front and **verifies it
-mechanically**: after registering each GitHub token, a `GET /user` call
-confirms the authenticated login actually matches the declared bot account —
-not a check-the-box, an actual API call whose answer can only be wrong if
-something is misconfigured. If it resolves to the owner's own account instead,
-that's surfaced immediately, not discovered later from a confused community
-member asking why the owner personally labeled their issue.
-
-Discord doesn't need the equivalent check: a bot token structurally cannot
-ever resolve to a personal user identity (that's what makes self-botting a
-Terms violation rather than just a bad idea — see `discord-mechanics.md`'s
-platform-rules section) — the account-confusion failure mode this section
-guards against is GitHub-specific.
-
-## 5 · Extend the network allowlist (only if you use the optional services)
-
-**Recommended: keep a thin local overlay on top of the upstream kit, not a
-copy-paste-per-install edit and not a pre-built forked image.** Clone the
-kit once (`git clone https://github.com/docker/sbx-kits-contrib.git kit &&
-cd kit && git sparse-checkout set nanoclaw`), apply the relevant blocks from
-[`spec.yaml.allowlist-snippet`](../spec.yaml.allowlist-snippet) in this repo
-to `kit/nanoclaw/spec.yaml` (uncomment only what your enabled tasks need),
-and commit that `kit/` directory alongside this staging repo. Every `sbx
-run`/recreate then uses `--kit ./kit/nanoclaw` — your allowlist edit is made
-exactly once, survives every recreate, and is diffable/reviewable like any
-other config, without ever becoming a second built image to version-pin.
-
-Deliberately **not** a pre-built kit image with these hosts baked in: that
-would widen every install's attack surface by default regardless of which
-services it actually uses, and it's a second artifact competing with
-`platform-baseline.json`'s digest for "what did we actually verify." A
-plain local git checkout has neither problem — it's just files, reviewed
-the same way as everything else here.
-
-The kit's default allowlist does **not** include GA4, Gmail — or the
-**social platform hosts the follower snapshot reads** (`x.com:443`,
-`www.linkedin.com:443`, `www.facebook.com:443`, `www.instagram.com:443`,
-`www.youtube.com:443` — whichever your platform list uses). Those tasks hit
-`502 Bad Gateway` until you add them.
-
-**One addition is NOT optional: your project's own web hosts.** The lead
-reads the project's docs site to answer support questions, verify docs
-currency, and check whether a repeat question already has a page — add the
-docs site and project website hosts (e.g. `docs.yourproject.org:443`,
-`yourproject.org:443`) or that whole class of work silently degrades to
-"couldn't check."
-
-**Also required for the follower snapshot: a page-reading tool.** An open
-allowlist host alone isn't enough — something inside the agent needs to
-actually fetch and read the page. Confirm the container has either Claude's
-own built-in web fetch or NanoClaw's [`agent-browser`](https://nanoclaw.dev/skills/agent-browser)
-skill installed **for the local group** — `social-metrics-snapshot` is the
-local agent's task, so the marketing container is the wrong place to check —
-before resuming it. This isn't curl-testable (that's why `setup-check.sh`
-marks it `unknown`, not `ok`/`missing`) — verify it once with a real fetch of
-one configured profile URL. Whether `agent-browser` is present in that
-container at all is **unverified** on this stack; the real fetch is the test.
-
-Clone the kit, edit `nanoclaw/spec.yaml` → `permissions.network.allow`
-(e.g. add your project hosts, `analyticsdata.googleapis.com:443`,
-`gmail.googleapis.com:443`, plus the social hosts), and start with
-`--kit ./nanoclaw`. Verify with:
-
-```bash
-sbx policy ls nanoclaw --type network
-```
-
-This friction is the point: every egress hole is opened deliberately, per host,
-in a file agents can't write. When any request 502s, suspect policy before the
-target service.
+[PREREQS.md](../PREREQS.md) has the full audit/rotation runbook. Run it
+once after setup and after any credential change.
 
 ### Optional: paid X auto-posting
 
-Off by default. The welcome interview's social-platforms question offers it
-explicitly — a plain yes/no with the real cost stated ("X has no free tier
-since Feb 2026; pay-per-use, roughly $0.20 per link post"), never assumed.
-Say no (or don't mention it) and nothing changes: the free intent-URL flow
-stays the mechanism — the agent drafts, hands a pre-filled compose link to a
-human, who clicks Post. That's the default because it needs zero credentials
-and zero publishing risk on this agent.
+Off by default — the welcome interview asks plainly, with real cost stated
+("no free tier since Feb 2026, ~$0.20/post"). Default is a free intent-URL:
+the agent drafts, a human clicks Post. If you opt in, put an **OneCLI
+request-hold** on `api.x.com` so every post still needs a button-press —
+never wire auto-posting as a silent capability.
 
-If you opt in: create an X API credential, vault it in OneCLI scoped to
-`api.x.com`, add that host to the allowlist (§5's snippet has the line), and
-— this is the part that matters — put an **OneCLI request-hold** on that
-host so every actual post still needs your button-press approval, at least
-until the volume has earned trust. Never wire auto-posting as a silent
-capability; the request-hold is what keeps "the agent can draft a tweet"
-from quietly becoming "the agent can publish one."
+## 3 · Configuration — one conversation, three files
 
-## 6 · Configuration — one conversation, three files
+**The default path is the conversation, not file edits.** After the owner
+DM is wired (§1a), the lead's `welcome` skill interviews you and persists
+everything as runtime config. You edit zero files for any of it.
 
-**The default path is the conversation, not file edits.** After the owner DM
-is wired (step 3), the lead's `welcome` skill interviews you — first question:
-the project's GitHub repo — infers and confirms the rest, persists everything
-as runtime config (`plugin-data/*/project-config.md` + the `config.env` script
-keys), and relays each sub-agent's values so they write their own. That covers
-the project identity, repo map, docs site, language, channel tiers, security
-contact, social platforms, and optional analytics ids. **You edit zero files
-for any of that.**
+### The relay
 
-### The relay — you talk to the lead, the lead configures the others
+You answer once, in the owner DM; the lead pushes each sub-agent's
+parameters over the destination pairs from §1:
 
-You only ever answer questions once, in the owner DM. The lead then pushes
-each sub-agent's parameters over the destination pair you wired in step 3,
-and each sub-agent writes its own `plugin-data/<agent>/config.env`. That's
-three separate relays now, not one, and they are very unequal in size:
-
-| Sub-agent | Keys the lead relays into its `config.env` |
+| Sub-agent | Keys relayed into `config.env` |
 |---|---|
-| **Local ops** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
-| **Reviewer** (coding) | `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope `security-advisory-sweep` narrower) |
+| **Secretary** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
+| **Coding** | `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS`) |
 | **Marketing** | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
-| **Lead** (its own, not relayed) | (+ optional `RELEASE_WATCH_REPOS` to scope `release-announcement-watch` narrower — distinct key from Marketing's singular `RELEASE_WATCH_REPO` above, easy to confuse) |
+| **Lead** (own) | (+ optional `RELEASE_WATCH_REPOS` — plural, distinct from Marketing's singular key) |
 
-Plus `GITHUB_BOT_USERNAME`, which all four agents hold — it's what every
-token's identity check is compared against.
+Plus `GITHUB_BOT_USERNAME`, held by all four.
 
-**Check the local relay specifically, because it fails quietly.** It's by far
-the largest payload — it feeds most of the recurring work in this set (run
-`bash scripts/gen-task-table.sh` for the current per-agent split) — and a
-missing key isn't an error — the gate script exits
-`not-configured` and the task goes back to sleep. The symptom is "the local
-agent was stamped and never does anything," which reads like a broken agent
-and is actually an unrelayed key. `ACK_GRACE_MINUTES` is the one with a
-built-in default (20 minutes before a holding acknowledgment goes out), so
-`unanswered-watch` still works unrelayed; nothing else does. Confirm by
-reading that file in the group folder, or ask the lead to echo back what the
-local agent reported receiving.
+**Check the secretary relay specifically — it fails quietly.** It's the
+largest payload, and a missing key isn't an error: the gate exits
+`not-configured` and goes back to sleep. Symptom: "stamped and never does
+anything," which reads like a broken agent and is an unrelayed key.
+`ACK_GRACE_MINUTES` alone has a built-in default (20 min); nothing else
+does.
 
-**Only three things live outside the conversation:**
+**One thing lives outside the conversation:**
 
 | What | Where | When |
 |---|---|---|
-| Task schedules (cron lines, every task file — run `bash scripts/gen-task-table.sh --counts` for the current total) — **the kit pins `TZ=UTC`**, so adjust the crons to your working day | Template files | **Before stamping** (frontmatter isn't runtime-editable; after stamping it's cancel-and-recreate per task). A per-group timezone override may exist in your NanoClaw version — unverified, don't rely on it |
-| Workspace backup: `git init` + `remote` + identity + `.gitignore` | The **local** agent's group folder in the sandbox — it owns `workspace-backup` | After stamping, host-side (or ask the lead to relay the request) |
-| Network allowlist additions (GA4/Gmail hosts) | Kit `spec.yaml`, local copy | Before `sbx run` — see step 5 |
+| Workspace backup git init/remote/identity | Secretary's group folder | After stamping, host-side |
 
-**Pre-stamp file fill-ins remain available as version-controlled defaults** —
-the persona "Your project" blocks, `channel-routing.md` (worked example in
-`example-mapping.md`), and `escalation-paths.md`. Useful when stamping many
-identical deployments, or when you want config reviewable in git before it
-exists anywhere else. At runtime the conversational config in `plugin-data/`
-always wins; the `additional_context` and skill files are read-only reference
-once stamped.
+### The full question list
 
-### New project? Here's every question, before you're asked
+Nothing blocks you from starting — the interview infers what it can, and
+"not now" is a complete answer to anything optional. Skim once, then talk
+to the agent.
 
-Nothing below blocks you from starting — the interview infers what it can and
-"not now" / "none" are complete answers to anything marked optional. This
-table exists so nothing catches you off guard mid-conversation; skim it once,
-then just talk to the agent.
+| # | Asked | Optional? |
+|---|---|---|
+| 1 | GitHub repo or org | **No** |
+| 2 | Which of the four jobs are goals | **No** |
+| 3 | Repo map: product/docs/site/marketing | Inferred + confirmed |
+| 4 | Docs site URL, language, topic scope | Inferred where possible |
+| 5 | Discord channels by tier | Required if using Discord |
+| 6 | Security disclosure contact + maintainer list | Required if security is a goal |
+| 7 | Social platforms + posting mechanism per one | Optional |
+| 8 | Discord invite URL | Optional |
+| 9 | GA4 property id | Optional |
+| 10 | Model per agent | Defaults offered |
+| 11 | GitHub Actions → Discord notifications | Optional |
+| 12 | OneCLI dashboard address | Asked once |
+| 13 | Docs style (current-state vs version-history) | Enforced on every draft |
+| 14 | Audience + tone, in your words | **No** — marketing needs this |
+| 15 | Workspace backup repo | Optional but survives a recreate |
+| 16 | Bot's GitHub username | **No** |
+| 17 | Human backstop for when you're unreachable | **Asked always** — recorded as open risk if none |
 
-### Prefer filling in a file over answering live? (the repeatable path)
+After this, the agent walks credential setup, verifies each with a real
+call, offers to set up backup itself, and asks one explicit "go" before
+activating anything.
 
-**`onboarding-answers.example.json` is deliberately absent from the repo right
-now** — removed until closer to a real test pass; see `SKILLS-ADOPTION.md`.
-If it's back by the time you read this, copy it, fill in what you know, and
-the lead reads it instead of interviewing you — asking only about what's
-still `null`. If it's still absent: either build one from scratch in this
-shape (see `scripts/check-onboarding.sh` for the exact key-coverage rules it
-must satisfy), or do the conversational interview and run
-`bash scripts/export-answers.sh` afterward to get an equivalent file from your
-live install. Keep the filled file and you can tear the whole system down and
-rebuild it identically, which is what makes onboarding testable rather than a
-one-shot conversation.
+### Prefer a file over the live interview?
 
-**1. Fill it in, on your own machine (once you have a copy):**
+`onboarding-answers.example.json` is currently absent from the repo (see
+SKILLS-ADOPTION.md); if present, copy it, fill in what you know, and the
+lead reads it instead of interviewing — asking only about `null`s. Validate
+first — it also refuses anything credential-shaped:
 
 ```bash
 cp onboarding-answers.example.json onboarding-answers.json
@@ -1007,190 +497,82 @@ $EDITOR onboarding-answers.json
 bash scripts/check-onboarding.sh onboarding-answers.json
 ```
 
-That last command is worth running before you hand it over: it validates the
-JSON, verifies every key the scripts read is present, and **refuses anything
-credential-shaped**. Never put a secret in this file — no tokens, no webhook
-URLs. It's config, and it's safe to keep in a private repo.
-
-**2. Put it where the agent can actually read it.** This is the step people
-miss: the lead runs in a container and can only see its own workspace. The
-group folder on your host **is** that workspace:
-
-| On your host | What the agent sees |
-|---|---|
-| `groups/<lead-folder>/onboarding-answers.json` | `/workspace/agent/onboarding-answers.json` |
+Then put it where the agent can see it (the container only sees its own
+workspace):
 
 ```bash
-# after stamping (step 3), from the nanoclaw install directory:
 cp /path/to/onboarding-answers.json groups/<lead-folder>/
 ```
 
-If you'd rather not touch the host filesystem, paste the JSON straight into
-the owner DM instead — it's a config file, so there's nothing sensitive in it
-by construction. The file is just more convenient for anything you'll rebuild.
+DM the lead: *"my answers are in `/workspace/agent/onboarding-answers.json`"*
+— it reads, echoes a summary back (check that it matches), asks about what's
+missing, persists. Rebuilding later: this file + your `plugin-data/` backup
+is the complete recovery set.
 
-**3. Point the lead at it.** DM: *"my answers are in
-`/workspace/agent/onboarding-answers.json`"*. It reads the file, echoes back
-a summary of what it got, asks about anything still missing, and persists —
-same destination as the interview, so everything downstream is identical.
-**Check that echo-back**: it's how you confirm the file was actually read
-rather than silently missed.
-
-**Rebuilding later**: the answers file plus your `plugin-data/` backup is the
-complete recovery set. Stamp fresh, drop both in, and you're where you were —
-no interview, no reconstruction from memory.
-
-**Already installed conversationally and wish you had the file?** You don't
-have to redo the interview to get one:
+**Already installed conversationally?** Export the equivalent file instead
+of redoing the interview:
 
 ```bash
-bash scripts/export-answers.sh <nanoclaw-root> [out.json]   # e.g. ~/nanoclaw
+bash scripts/export-answers.sh <nanoclaw-root> [out.json]
 ```
 
-It walks the live install, reads every `config.env` key the templates
-consume across all four agents, and writes them back into the same shape as
-`onboarding-answers.example.json` — so a conversational install becomes an
-editable, diffable record after the fact. That closes the loop: change one
-value in the file and rebuild, instead of talking the agent through a
-correction. Two limits worth knowing before you trust the output: each
-agent's `project-config.md` is copied in verbatim as `_project_config_raw`
-rather than parsed (it's prose an agent wrote), and anything that never lands
-in a `config.env` — free-text tone/audience guidance, and every credential —
-comes back `null` with its `_ask` prompt intact. Credentials live only in the
-vault and the export **fails** rather than writing a file containing one.
+Two limits: each agent's `project-config.md` comes back verbatim as
+`_project_config_raw` rather than parsed, and anything that's a credential
+comes back `null` — the export fails rather than writing one out.
 
-### Answer these two before you stamp anything
+## 4 · Start it — the go-live sequence
 
-Everything else in this section is safe to answer live, mid-conversation.
-These two are not — they decide how tasks are created, so they have to be
-settled before the stamp step:
-
-| Asked | Format | Why it can't wait |
-|---|---|---|
-| **Timezone — what hours should scheduled work land in?** | your timezone, or "UTC is fine" | Schedules are cron lines in task frontmatter and the kit pins `TZ=UTC`. Not runtime-editable: changing a time after stamping means cancel-and-recreate, per task. One edit to your local task files now vs. one recreate per task later — see step 2 |
-| **Which agents do you want at all?** — lead only, or lead + local ops and/or coding and/or marketing | pick | Determines what you stamp. If you add exactly one, add **local ops** — it takes the largest single share of the recurring, mechanical work off the lead (run `bash scripts/gen-task-table.sh --counts` for the current split). Not a one-way door (you can add or pause an agent later, see step 3) but it's the first command you run |
-
-### Then the interview asks these
-
-| # | Asked | Format | Optional? |
-|---|---|---|---|
-| 1 | Your project's GitHub repo or org | `owner/repo` | **No** — everything else derives from this |
-| 2 | Which of the four jobs are goals: support, growth (and if so, users/contributors priority), proactive detection, security | yes/no per job | **No** — scopes everything asked after |
-| 3 | Repo map: product / docs / site / marketing | repo per function, any may share one or be absent — inferred from #1, you confirm | Inferred + confirmed |
-| 4 | Docs site URL, primary language, topic scope | free text | Inferred where possible |
-| 5 | Discord channels: which are support (auto-reply) vs developer/team-lead (mention-only) | channel names per tier | Required if using Discord |
-| 6 | Security disclosure contact + who counts as a maintainer | free text | Required if security is a goal |
-| 7 | Social platforms: which exist, which you post to, and per platform the mechanism (intent-URL/manual/paid) | list + choice per platform | Optional — "none" is fine |
-| 8 | Discord invite URL to offer from GitHub replies | URL or "none" | Optional |
-| 9 | GA4 property id | id or "not now" | Optional — tasks silent-skip unconfigured |
-| 10 | Model per agent — state the job, the default, and real alternatives (e.g. Reviewer: Haiku default, Sonnet if you want stronger judgment on drafts) | accept a default or name a model | Defaults offered per agent, confirm or change |
-| 11 | Set up deterministic GitHub Actions notifications for bug/security labels? | yes/no | Optional, asked plainly — see `examples/github-discord-notify.yml` |
-| 12 | OneCLI dashboard address — host machine only, or a reachable remote address (e.g. Tailscale IP) for checking in from elsewhere | URL or "same machine" | Asked once, used for every future dashboard link |
-| 13 | Docs style — current-state only, or is version-history language ("added in 2.1") fine? | either | Enforced on every docs draft — which is the **lead's** work now, since `docs-gap-review` moved there |
-| 14 | Who your content is actually for, in your own words, and the tone that follows | free text | **No** — marketing writes for this; without it, drafts default to generic copy |
-| 15 | Workspace backup — a private repo the config/ledgers get pushed to (the **local** agent does the pushing) | `owner/repo` or "skip" | Optional, but it's the only thing that survives a sandbox recreate |
-| 16 | The dedicated bot account's GitHub username (never the owner's own) | username | **No** — every GitHub token is checked against it |
-| 17 | A named human backstop: who takes abuse reports and urgent escalations when you're unreachable | name + contact | **Asked always** — going live without one is recorded as an open risk, not silently accepted |
-
-After this, the agent walks you through exactly which credentials to add
-(step 4 below) and verifies each with a real call, offers to set up the
-workspace backup itself, and asks for one explicit "go" before activating
-anything. This is the only onboarding path — there's no separate migration
-runbook to fill in beforehand; every answer above is meant to be given live,
-in the conversation. See `example-mapping.md` (in the lead template's
-`additional_context/`) for what a filled-in channel-routing answer looks like
-from a real deployment, if a worked example helps.
-
-## 7 · Start it — the go-live sequence
-
-**The conversational path**: the lead's `welcome` flow ends with a credential
-verification pass (it test-calls each enabled service and reports
-working/not), a backup setup it performs itself, and an activation plan — it
-resumes the verified tasks on your explicit "go" in the DM. If you use that
-path, this section is your reference for what it's doing. The manual
-CLI-driven equivalent:
-
-Everything ships **paused**. Verify, test, then resume in this order:
+The conversational path ends with credential verification, backup setup,
+and one explicit "go" that resumes the verified tasks. The manual
+equivalent:
 
 ```bash
-./bin/ncl tasks list --status paused          # expect all of them (run gen-task-table.sh --counts for the exact number)
-./bin/ncl tasks run <task-id>                 # dry-run each SCRIPTED gate you configured
-./bin/ncl tasks get <task-id>                 #   …and inspect its result
+./bin/ncl tasks list --status paused
+./bin/ncl tasks run <task-id>     # dry-run each gate
+./bin/ncl tasks get <task-id>     # inspect the result
 ```
 
-Marketing's task(s) won't be in that list unless you actually stamped that
-template — it isn't stamped by default (step 3), so a lower count than the
-generator's full total is the **expected** result for a default install, not
-a missing task. For the
-authoritative per-task list, with owners and schedules, run
-`bash scripts/gen-task-table.sh` from your local copy of this repo rather
-than trusting any table typed into a doc.
+(Marketing's tasks won't appear unless you stamped that template — a lower
+count than `gen-task-table.sh`'s total is expected, not missing.)
 
-Resume order (safe → side-effect-adjacent):
+Resume order, safe → side-effect-adjacent:
 
-1. **The outage safety net, first** — these need no credentials and no
-   network, so nothing about them can be misconfigured yet:
-   `unanswered-watch` (local) is the highest-frequency task in the system
-   (every 10 minutes) and the one thing that keeps the project from going
-   silent when the lead is rate-limited or down; it reads local message
-   state only and posts a template-only holding acknowledgment after
-   `ACK_GRACE_MINUTES`. Resume it early — deferring it means deferring
-   exactly the coverage you installed the local agent for. Alongside it:
-   `health-check` (local), `weekly-identity-integrity-check` (lead), and
-   `owner-tldr` (lead — `jq` only, no network or credentials) — all three
-   wake only on a problem or the owner's own daily digest hour.
-2. **Local backup** (`workspace-backup`) — the local agent's task; only after
-   the git setup in step 6.
-3. **Lead's live response**: `github-first-response` (every 10 minutes,
-   needs `COMMUNITY_REPOS`) and `release-announcement-watch` — both safe as
-   soon as `COMMUNITY_REPOS` is set; the latter only ever posts already-public
-   release info. The lead's `docs-gap-review` is safe from day one too — it
-   stays quiet until normal support work has filled its question ledger.
-4. **Local gates**, once §6's relay has actually landed in the local
-   `config.env`: `repo-mirror-sync`, `dev-metrics-report`,
-   `good-first-issue-health`, `repo-hygiene-audit`, `draft-cleanup`,
-   `ready-to-merge`, `weekly-analytics-report` (GA4). `contributor-nudge`
-   depends on `dev-metrics-report`'s contributor ledger — resume it alongside
-   the others, but its first useful report needs that ledger to have run at
-   least twice. Each silently exits `not-configured` if its key is missing,
-   so resume them and then check they actually did something. If you want the
-   other agents to read `repo-mirror-sync`'s output directly instead of
-   relaying through the lead, this is also when to do the one-time shared
-   repo mirror setup — see the `ncl groups config add-mount` row in the
-   platform-skills table below.
+1. **Outage safety net first** — no credentials, no network: `unanswered-watch`
+   (secretary, every 10 min — the reason the secretary exists), `health-check`
+   (secretary), `weekly-identity-integrity-check` and `owner-tldr` (lead —
+   jq only).
+2. **Backup** (`workspace-backup`) — after §3's git setup.
+3. **Lead's live response**: `github-first-response`, `release-announcement-watch`
+   — safe once `COMMUNITY_REPOS` is set. `docs-gap-review` is safe from day
+   one; it stays quiet until support work fills its ledger.
+4. **Secretary's gates**, once §3's relay has landed: `repo-mirror-sync`,
+   `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit`,
+   `draft-cleanup`, `ready-to-merge`, `weekly-analytics-report`.
+   `contributor-nudge` needs `dev-metrics-report`'s ledger to run twice
+   first. Each exits `not-configured` silently if its key is missing —
+   resume, then check they did something.
 5. **Coding**: `github-ops-triage`, `security-advisory-sweep`,
-   `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review`
-   — the reviewer's current task list (`posthog-weekly-review` is removed for
-   now; see SKILLS-ADOPTION.md if it comes back).
-6. **Ungated tasks last**, because nothing stops them from burning a wake on
-   an unconfigured service — there are exactly two:
-   `social-metrics-snapshot` (local), only after you've verified a real page
-   fetch works (§5), and the lead's `inbox-check`, only after an email MCP is
-   actually connected.
-7. **Marketing** (only if stamped): `content-draft-cycle`, once the content
-   fill-ins are done and reviewed. It's the marketing agent's only task.
-8. **Never resume** the lead's `daily-github-triage` while the coding agent is
-   stamped. It's the lead's own standalone-mode fallback — the same ground at
-   a lower cadence, kept so a lead-only install still triages — and
-   `github-ops-triage` supersedes it. Running both double-reports every issue.
-   Stamp the reviewer later? Pause this one at the same time.
+   `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review`.
+6. **Ungated tasks last** — nothing stops them burning a wake on an
+   unconfigured service: `social-metrics-snapshot` (only once a
+   page-reading tool is confirmed in the secretary's container — Claude's
+   built-in web fetch or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser))
+   and the lead's `inbox-check` (only once an email MCP is connected).
+7. **Marketing** (if stamped): `content-draft-cycle`.
+8. **Never run both** the lead's `daily-github-triage` and the coding
+   agent's `github-ops-triage` — the former is the lead's standalone
+   fallback; running both double-reports every issue. Pause it when you
+   stamp coding.
 
-Smoke-test before walking away: post a question in a support-tier channel
-(expect an unprompted reply), @mention the lead in a dev-tier channel (expect a
-reply *only* because you tagged it), and DM the lead asking it to ping every
-sub-agent you stamped and relay their answers — that exercises all three
-destination pairs at once, and a silent sub-agent here is a missing
-destination, not a broken agent. If you stamped local ops, also confirm the
-holding-acknowledgment path once: it's the one behaviour that only shows up
-when the lead *can't* answer, so it's the easiest thing to leave untested
-until the day you need it.
+Smoke-test: post in a support-tier channel (expect an unprompted reply),
+@mention the lead in a dev-tier channel (expect a reply only because you
+tagged it), DM the lead to ping every sub-agent (exercises all three
+destination pairs — a silent sub-agent means a missing destination, not a
+broken agent). If you stamped the secretary, test the holding
+acknowledgment path once — it's the one behavior that only shows up when
+the lead can't answer.
 
-Day-2 commands: `sbx policy ls nanoclaw` · `sbx exec -it -w
-/home/agent/nanoclaw nanoclaw claude` (break-glass admin, see above) ·
-`sbx rm nanoclaw` (teardown — the whole system, gone).
-
-**Not so fast — "resumed" is not "ready."** Before you call it live, walk
-the 15-point ready gate in [CHECKPOINTS.md](CHECKPOINTS.md) — it also gives
-you the day-2, week-1, and month-1 verification checkpoints. Everything else
-— token budget, the full task reference, keeping the session alive, and the
-SHA-pinned update policy — is in [OPERATIONS.md](OPERATIONS.md).
+**"Resumed" is not "ready."** Walk the 15-point ready gate in
+[CHECKPOINTS.md](CHECKPOINTS.md) before calling it live. Everything after
+— token budget, the task reference, the update policy, teardown — is in
+[OPERATIONS.md](OPERATIONS.md) and [UNINSTALL.md](UNINSTALL.md).

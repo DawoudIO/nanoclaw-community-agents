@@ -6,8 +6,7 @@ One document for three jobs: **create** each credential with the exact URL
 a key needs to change. Everything below uses the real `onecli` CLI (verified
 against [`onecli/onecli-cli`](https://github.com/onecli/onecli-cli)'s actual
 command definitions, not guessed) — run it wherever the CLI reaches your
-gateway; for the sbx deployment that's inside the sandbox
-(`sbx exec -it -w /home/agent/nanoclaw nanoclaw onecli ...`).
+gateway: from the `nanoclaw` checkout directory on your host.
 
 This exists because of a real failure mode: **v1 of this system started with
 everything authenticated as the owner's own personal account, and had to be
@@ -29,7 +28,7 @@ is aimed at catching that mistake *before* it happens, not after.
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
 | GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Local ops agent (`opensource/community-secretary`)** (`weekly-analytics-report`) — marketing does not get analytics access; it writes drafts, it doesn't read numbers |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
-| Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §4 for the exact `serve` command |
+| Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §2 for the exact `serve` command |
 
 **Never give any agent a key — everything goes through OneCLI.** Never paste
 a raw value into a chat with an agent, a template file, an env var, or
@@ -254,7 +253,7 @@ owner did it by hand.
 
 ## 2 · Register — dashboard UI or CLI, your choice
 
-The dashboard (docs/INSTALL.md §4) is the visual path. The CLI is scriptable and
+The dashboard (docs/INSTALL.md §2) is the visual path. The CLI is scriptable and
 exactly as capable — real commands, not a paraphrase:
 
 ```bash
@@ -294,7 +293,7 @@ security so that agents don't have too much access for things outside what
 they need." If it shows an agent reaching a connection nothing in that
 agent's config or tasks explains, that's a finding, not a formality.
 
-**Diff its output against docs/INSTALL.md §4's "Per agent: the complete OneCLI
+**Diff its output against docs/INSTALL.md §2's "Per agent: the complete OneCLI
 footprint" table** — that table *is* the expected state, one row per grant,
 each tied to the task that uses it. Every connection `agent-access` reports
 for an agent should match a row there exactly; a connection with no matching
@@ -330,7 +329,7 @@ curl -s -H "Authorization: Bearer <same-value-as-the-vault-entry>" https://api.g
 
 Compare the printed `login` against the dedicated bot account's username —
 never the owner's own. This is exactly the check the welcome interview and
-every agent's setup self-check now run automatically (see docs/INSTALL.md §4,
+every agent's setup self-check now run automatically (see docs/INSTALL.md §2,
 "Confirm identity, don't assume it") — running it yourself here is the
 manual version, useful before you've even stamped an agent.
 
@@ -353,7 +352,7 @@ onecli secrets update --id <secret-id> --value "<new-value>" --dry-run
 **Does the system pick it up automatically? Yes — no restart needed.** The
 gateway looks up the vault value **per outbound request**, not once at
 container boot (the same reason `set-secret-mode` changes need no restart,
-per docs/INSTALL.md §4) — an updated value is live on the very next credentialed call
+per docs/INSTALL.md §2) — an updated value is live on the very next credentialed call
 an agent makes. Confirm it rather than just trust it:
 
 1. Run the update.

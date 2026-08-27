@@ -15,7 +15,7 @@ credential debugging loop will.
 
 ## The ready gate — 15 points, do not call it live until every box is checked
 
-Work through these in order after INSTALL.md §7's resume sequence. Each has
+Work through these in order after INSTALL.md §4's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
 
 It grew when the local agent joined: nothing in the original gate touched it,
@@ -36,7 +36,7 @@ shared window without anyone noticing. Items 13–15 close that.
 | 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
 | 9 | Backup actually pushed | Check the backup repo on GitHub after the first `workspace-backup` run | A commit from the bot exists; `tasks get` shows `pushed` |
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
-| 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §4's per-agent footprint table; nothing extra |
+| 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
 | 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that all four agents currently bill to it** (the local agent's Ollama provider was evaluated and set aside for this phase; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
 | 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
@@ -154,12 +154,12 @@ Ten minutes, the morning after go-live:
 - **Prune and re-decide**: channels renamed or added? Paused optional tasks
   (GA4, inbox) worth enabling now? Anything in UPSTREAM-ISSUES.md confirmed
   and ready to file upstream?
-- **Platform currency**: `platform-watch` ran weekly (check the Actions
-  tab); if it opened an update issue, schedule the digest-pinned refresh
+- **Platform currency**: check
+  [`nanocoai/nanoclaw`'s releases](https://github.com/nanocoai/nanoclaw/releases)
+  and `versions.json`'s `agent-image` digest by hand — there's no automated
+  watcher for this. If either has moved, schedule the digest-pinned refresh
   per [OPERATIONS.md](OPERATIONS.md) rather than letting it age.
-- **Disk check on the host**: `docker system df` for the outer VM footprint
-  — the inner daemon's usage shows up inside the sandbox
-  (`sbx exec nanoclaw docker system df`), not on the host.
+- **Disk check**: `docker system df` for image/volume footprint.
 
 ## After month 1
 

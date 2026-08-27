@@ -129,11 +129,12 @@ ncl tasks get <task-id>       # inspect the run result
 ncl tasks resume <task-id>
 ```
 
-**Schedules run in UTC** (the kit pins `TZ=UTC`) from each task's `schedule:`
-cron. Tune them before stamping; afterwards, changing one means cancel and
-recreate that task (`ncl tasks create --prompt … --recurrence …`) or edit the
-template file and restamp. A per-group timezone override may exist in your
-NanoClaw version — unverified, see UPSTREAM-ISSUES.md.
+**Cron lines are written UTC-relative; the group's actual timezone decides
+the wall-clock fire time.** `ncl groups config update --timezone <IANA id>`
+sets it and takes effect immediately (confirmed against
+`src/modules/scheduling/recurrence.ts`) — no cancel-and-recreate needed.
+Unset, the group defaults to the install-wide default, which is your host
+machine's own detected timezone, not UTC.
 
 ## Reads the shared repo mirror when it's set up
 

@@ -14,10 +14,12 @@ not to treat it as an incident.
    count. An individually unreachable platform this week records `null` —
    never guess, never carry last week's number forward as if fresh.
 2. **If every platform is unreachable** (all fetches blocked/502): do NOT
-   append an all-null row. In a sandboxed deployment that symptom means the
-   network allowlist lacks the social hosts (x.com, linkedin.com, etc. — see
-   docs/INSTALL.md §5, the allowlist step). Report that to your lead instead; a
-   week of nulls caused by policy is a config bug, not data.
+   append an all-null row. If `NANOCLAW_EGRESS_LOCKDOWN` is enabled on this
+   install, that symptom means the social hosts (x.com, linkedin.com, etc.)
+   aren't reachable through it — otherwise suspect the page-reading tool
+   itself (missing web fetch / `agent-browser`) rather than a network policy.
+   Report that to your lead instead; a week of nulls caused by config is a
+   bug, not data.
 3. Append one JSON line to your working copy,
    `plugin-data/community-secretary/social-metrics-history.jsonl`:
    `{"date": "<today>", "<platform>": <count|null>, ...}` — append-only.

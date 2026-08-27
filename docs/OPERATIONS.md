@@ -5,17 +5,20 @@ system alive, and the update policy. Install steps are in
 [INSTALL.md](INSTALL.md); the ready gate and the day-2/week-1/month-1
 verification checkpoints are in [CHECKPOINTS.md](CHECKPOINTS.md).
 
-## Keeping it running — the session IS the system
+## Keeping it running
 
-`sbx run` is a foreground process: **NanoClaw stops when its terminal
-session closes.** A laptop reboot, an SSH drop, or a closed tab takes the
-whole system down — and a stopped system cannot report its own death, so the
-symptom is pure silence. Two defenses:
+`nanoclaw.sh` installs a real background service (`launchd` on macOS,
+`systemd` on Linux) — this is no longer the foreground-terminal, "session IS
+the system" situation the old `sbx run` deployment had. The shipped plist
+sets `RunAtLoad` and `KeepAlive`: the service starts on login/boot and
+restarts itself if it crashes, without you doing anything. Confirm it's
+actually running rather than assuming it: `launchctl list | grep nanoclaw`
+(macOS) or the equivalent `systemctl` check on Linux.
 
-- Run `sbx run` somewhere durable — a `tmux`/`screen` session on an
-  always-on machine, not a laptop tab. After any host reboot, restarting it
-  is a manual step: same `sbx run` command; the sandbox's state volume
-  persists, so agents, config, and ledgers come back as they were.
+That said, a stopped system still can't report its own death, so silence is
+still the failure mode if something does take it down (a host that's fully
+off, a launchd/systemd config that got removed). One defense remains
+load-bearing:
 - **Watch for the weekly heartbeat.** `health-check` is the **local agent's**
   task, not the lead's. It wakes at least every 7 days even when everything is
   fine and sends a one-line "environment heartbeat: no issues found" to **its
@@ -47,7 +50,8 @@ bill to their own meter or eat yours.
 
 On a subscription, an agent that burns through the shared window takes your
 Claude Code access down with it — **including the break-glass session
-(`sbx exec … claude`) that is the documented way to fix a broken deployment.**
+(running `claude` from the `nanoclaw` checkout) that is the documented way
+to fix a broken deployment.**
 The recovery tool becomes unavailable at exactly the moment you need it, and
 the failure looks like silence rather than an error.
 
@@ -407,8 +411,19 @@ default. Config in `plugin-data/community-marketing/config.env`:
 |---|---|---|---|
 | `content-draft-cycle` (weekdays) | only on a new release or the 7-day floor | marketing PAT + `CONTENT_REPO` (+ optional `RELEASE_WATCH_REPO`) + brand source | silent skip |
 
-**Shipped times (UTC under the kit) — deliberately staggered.** On a
-memory-constrained host (a 16 GB Mac mini is the reference) every task
+**Shipped times (written in UTC; fire in each group's configured
+timezone) — deliberately staggered.** The cron lines below are as written
+in the task frontmatter. What timezone they actually fire in is per-group:
+`ncl groups config update --timezone <IANA id>` sets it and takes effect
+immediately (confirmed against `src/modules/scheduling/recurrence.ts` and
+its test) — no cancel-and-recreate needed, and no restart. Unset, a group
+defaults to the install-wide default, which itself defaults to **whatever
+timezone the host machine reports**, not UTC (`src/config.ts`'s
+`resolveConfigTimezone()` — UTC is only the fallback if that detection
+fails). So don't assume these times land in UTC on your install; check
+each group's actual timezone before reading this table as wall-clock time.
+
+On a memory-constrained host (a 16 GB Mac mini is the reference) every task
 firing at :00 means several agent containers spinning up at once. These
 are offset so no two tasks share a minute, and `unanswered-watch` keeps
 the round minutes because it's the task the north star depends on:
@@ -522,8 +537,8 @@ that passes — also always safe, and the routine maintenance most likely to
 prevent the corruption in the first place (see UPSTREAM-ISSUES.md #18: the
 central DB is missing hardening this same platform already added to its
 per-session DBs after hitting this exact class of bug there once). For the
-exact step-by-step — getting the script into a running sbx sandbox, finding
-the real data directory, what to capture for the team — see
+exact step-by-step — finding the real data directory, what to capture for
+the team — see
 [DB-HEALTH-CHECK-RUNBOOK.md](DB-HEALTH-CHECK-RUNBOOK.md).
 
 ## Adding a new external capability — the three-layer recipe
@@ -533,19 +548,21 @@ another LLM (image generation, embeddings), any external service — the same
 three layers apply, in order. The agent can *ask* for a capability; only you
 can grant one, and the agent never receives a key at any layer.
 
-1. **Network allowlist** (always): add the host to your local kit copy's
-   `spec.yaml` → `permissions.network.allow` (e.g. `api.openai.com:443`) and
-   recreate the sandbox with `--kit ./nanoclaw`. Default-deny is the
-   security model — every hole is opened deliberately, per host, in a file
-   agents can't write. For a keyless public website, this layer alone is the
-   whole job.
+1. **Network reachability** (check first — there's no per-host allowlist to
+   edit anymore). The old `sbx`-kit `spec.yaml` had a per-host allowlist;
+   without `sbx`, egress is binary: open by default, or fully gateway-only
+   if `NANOCLAW_EGRESS_LOCKDOWN=true` is set — there's no "add just this one
+   host" step in between. If lockdown is off, a keyless public website needs
+   nothing here at all. If lockdown is on, the new host is reachable through
+   the gateway the same as everything else already routed through it — no
+   separate per-host grant exists to add.
 2. **Vault entry** (if the service needs a key): `onecli secrets create`
    with a `--host-pattern` matching the new host (`--type openai` for an
    OpenAI-compatible LLM, `generic` for most others), or the dashboard. The
    proxy injects it; the key never enters an agent container.
 3. **Selective grant** (if keyed): assign the new secret to **only** the
    agent whose job needs it, then update your copy of the per-agent
-   footprint table (INSTALL.md §4) so the next `agent-access` audit doesn't
+   footprint table (INSTALL.md §2) so the next `agent-access` audit doesn't
    flag the grant as unexplained.
 
 Two policy gates on top, when they apply:
@@ -572,23 +589,23 @@ deployment. NanoClaw documents no in-place upgrade path; do not invent one.
 digest in [`platform-baseline.json`](../platform-baseline.json) is the exact
 `sha256` this template set was last verified against — content-addressed, so
 the same digest is byte-for-byte the same tested package everywhere. Pull by
-digest (`docker.io/sbx/nanoclaw-kit@sha256:...`), never by tag, when you
-actually upgrade; the `:latest` tag exists only so the watcher below can
-notice that a new digest was published.
+digest, never by tag, when you actually upgrade.
 
 The system is built to make that upgrade path cheap: **cattle, not pets**.
 Because almost nothing is stateful (context rebuilds from the web, config is a
 conversation, the one durable file lives in the git backup), updating the
-platform = recreating the sandbox — the same runbook you used to build it.
+platform = recreating the install — the same runbook you used to build it.
 
-**Noticing updates is automated, not an agent job.** The
-[`platform-watch`](../.github/workflows/platform-watch.yml) Action in this repo
-runs weekly: it compares the sbx VM image digest (`sbx/nanoclaw-kit:latest`,
-the prebuilt image this repo actually pulls), the latest NanoClaw release,
-and the kit spec against `platform-baseline.json`,
-and opens an issue here with a refresh checklist when any of them move.
-Security advisories for NanoClaw deserve an immediate refresh; otherwise batch
-refreshes when the issue appears.
+**Noticing updates is currently a manual job, not an automated one.** There
+used to be a weekly `platform-watch` Action that compared an `sbx` kit image
+digest, a NanoClaw release, and a kit-source repo commit against
+`platform-baseline.json` — all three checks were `sbx`-specific or dead once
+this deployment moved to running `nanoclaw.sh` directly, so the workflow was
+removed rather than patched to check something unverified. Until a real
+replacement exists: check
+[`nanocoai/nanoclaw`'s releases](https://github.com/nanocoai/nanoclaw/releases)
+and `versions.json`'s `agent-image` field by hand, periodically, and update
+`platform-baseline.json` yourself when you've verified a new one.
 
 **The refresh procedure** (~1 hour, mostly waiting on pulls):
 
@@ -631,14 +648,18 @@ refreshes when the issue appears.
    weeks), to copy them out by hand before a recreate, or to give the lead its
    own backup task. Pick one deliberately at install and write down which;
    discovering this during a restore is the expensive way to find out.
-2. Read the watch issue: it names the new digest. Verify it's what you
-   intend (release notes, no open security advisories), then update
-   `platform-baseline.json` to the new digest — that file is the record of
-   what you verified.
-3. `sbx rm nanoclaw` → `docker pull docker.io/sbx/nanoclaw-kit@sha256:<the
-   verified digest>` → `sbx run` against that same digest. Never pull the
-   bare `:latest` tag for the actual upgrade — the tag can move between your
-   decision and your pull.
+2. Check for a new NanoClaw release and a new agent image digest
+   (`versions.json`'s `agent-image` field, or the hardened-image registry).
+   Verify it's what you intend (release notes, no open security advisories),
+   then update `platform-baseline.json` to the new digest — that file is the
+   record of what you verified. There's no automated watcher for the image
+   digest right now (see "Noticing updates" above) — this step is manual
+   until one exists.
+3. Stop the service, pull the new agent image by digest — never a floating
+   `:latest` tag, which can move between your decision and your pull — and
+   restart. The exact pull/recreate command depends on whether you're on the
+   hardened-image path or building locally (`docs/hardened-image.md` in the
+   `nanoclaw` repo); this deployment no longer goes through `sbx rm`/`sbx run`.
 4. Restamp the latest templates from this repo; re-run `/add-discord` with the
    **same** Discord bot (its token comes from the Discord developer portal —
    the VM's stored copy died with the VM); re-verify the owner-DM round trip.
@@ -658,7 +679,7 @@ refreshes when the issue appears.
    instead. If the live install predates that file,
    `bash scripts/export-answers.sh` reconstructs one from it *before* you tear
    the install down.
-7. Smoke tests per INSTALL.md §7, and re-test anything in UPSTREAM-ISSUES.md
+7. Smoke tests per INSTALL.md §4, and re-test anything in UPSTREAM-ISSUES.md
    against the new build before closing the watch issue.
 
 **Template updates** flow the other way: edit this repo, restamp. Personas and

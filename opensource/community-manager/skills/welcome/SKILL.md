@@ -84,7 +84,7 @@ right here — nothing is lost.
 ```
 
 This should already have been done host-side at stamp time
-(`docs/INSTALL.md` step 3), so treat hitting it as a signal that step was
+(`docs/INSTALL.md` §1), so treat hitting it as a signal that step was
 skipped. Sub-agents are different: they're headless with no live
 conversation, so installing jq on them during stamping (section 6) is correct.
 
@@ -228,10 +228,10 @@ interview.
 
 **Conversational approach**: Rather than asking everything at once, ask one question at a time. After each answer, confirm you understood, move to the next, and always give the owner a chance to ask clarifying questions. This creates a more natural interview where corrections are easy and the owner doesn't feel interrogated.
 
-**Ask the timezone question first**, before anything else in this step. It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable — and unlike everything else in this interview, it is expensive to change: schedules are cron lines in task frontmatter, not runtime config. Say plainly: *"Your tasks are scheduled in UTC right now. What timezone do you actually work in, and do those times suit your day?"*
+**Ask the timezone question first**, before anything else in this step. It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable. Say plainly: *"What timezone do you actually work in? Your tasks are scheduled relative to it — I can set or change this any time, it takes effect right away."*
 
-- If UTC suits them, or the shipped times already land well in their timezone: record it and move on.
-- If not: the install runbook asks them to fix this **before stamping**, so either it wasn't done or the answer changed. Be honest about the cost now rather than later — changing a schedule after stamping means cancel-and-recreate for each task affected, host-side. Tell them which tasks are at bad local times, offer to list them, and let them decide whether to fix now or live with it. Never quietly accept a mismatch: a digest landing at 3am local is the kind of thing that reads as "this system doesn't work" three weeks in.
+- Record it, and run `ncl groups config update --timezone <IANA id>` on your own group yourself (or ask the owner to, if you can't reach `ncl` directly) — it takes effect immediately for scheduled tasks, no restart or recreate. If shipped times already suit them in their timezone, that's fine too.
+- If they're unsure the shipped times will land well: offer to list them, and let them decide whether any need adjusting once they see actual local times. This is a low-stakes, reversible setting now — never treat it as a one-shot decision.
 
 **Then proceed one question at a time** through the rest of what a complete config needs:
 
@@ -728,8 +728,8 @@ tailscale serve --tcp=10254 tcp://localhost:10254 --bg
 
 Then their address is `http://<their-tailscale-ip>:10254`. Persist whatever
 address they land on in `project-config.md` as `onecli_dashboard_url` — never
-assume `127.0.0.1`, `localhost`, or "the published port from `sbx run`" from
-here on; use exactly this value in every dashboard link you ever give them.
+assume `127.0.0.1` or `localhost` from here on; use exactly this value in
+every dashboard link you ever give them.
 
 **Second: "What's the dedicated bot account's username?"** (never the owner's
 own — see the prereqs table). Persist it as `github_bot_username` — every

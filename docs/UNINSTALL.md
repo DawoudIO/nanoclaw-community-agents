@@ -112,18 +112,6 @@ rm -rf ~/.local/share/onecli ~/.local/bin/onecli
 
 And drop the PATH lines from `~/.bashrc` / `~/.zshrc` if you added them.
 
-### Running in a sandbox
-
-If the install lives in an `sbx` VM, deleting the sandbox removes everything
-inside it in one step, and the uninstaller is unnecessary:
-
-```bash
-sbx stop nanoclaw && sbx rm nanoclaw
-```
-
-Anything on the host — `~/.config/nanoclaw`, host Docker images, OneCLI if it
-runs outside the VM — still needs the steps above.
-
 ## What no uninstaller can reach
 
 These are accounts and grants on other people's servers. Revoke them yourself,
