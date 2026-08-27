@@ -208,16 +208,33 @@ body — never a multi-message wall, never silent truncation (see
 
 ## Social follower report (from social-metrics-snapshot)
 
+**Send this in the same weekly message as the GA4 traffic report, not as a
+second, separate one** — both are team-lead-tier, both fire the same week
+(see the routing table above), and a maintainer reading one wants the other
+right next to it, not in a different message five minutes apart.
+
 ```
 📈 Follower snapshot — <date>
 <platform>: <count>  (WoW <+/-N>, MoM <+/-N or "not enough history yet">)
 ...
+
+Fastest-growing this week: <platform> (<+N>) — <one clause of context if you
+have it, e.g. "the week the LinkedIn push went out">
 ```
 
 Same null-handling as any metric: a platform that failed to fetch this week
 shows `null`, never last week's number repeated. MoM needs roughly a month of
 prior snapshots (~5 weekly lines) before it means anything — until then, WoW
 only, stated plainly rather than comparing against too short a baseline.
+
+**Composition over any single delta, same as the GA4 report**: the
+cross-platform comparison (which platform is actually growing vs. flat,
+total reach across all of them) is worth more than any one platform's
+isolated WoW number — lead with that, not with a per-platform list nobody
+can compare at a glance. Where a spike lines up with a release or a
+marketing push you can actually verify (not guess), say so — same rule as
+GA4's own correlate-with-release-dates guidance, not a formal attribution
+model.
 
 ## Numbers always carry their window
 

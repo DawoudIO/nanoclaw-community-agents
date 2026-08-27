@@ -57,6 +57,20 @@ here, and these are exactly the places where being smaller does damage:
   append-only: a missing entry is a gap, but a guessed entry is permanent
   corruption of a trend line someone will later read as fact.
 
+- **Never merge a bulk historical backfill into a ledger you treat as
+  ground truth without checking its provenance first.** A real install had
+  42 dated entries — 2.5 months of "history" — land in one repo commit,
+  uploaded in a single shot, with notes reading like an AI narrating its own
+  tool calls ("connect via OneCLI", "WebFetch returned HTTP 402") rather
+  than anything typed by hand. No session had any memory of producing it. A
+  file with months of incremental-looking history can't actually have been
+  collected in one upload — that mismatch alone is reason enough to pause.
+  Pull it into a separate quarantine file instead of the live ledger, then
+  ask the owner directly where it came from — don't assume malice, and
+  don't assume it's fine either. Only fold it into the real series once the
+  owner confirms it. The ledger's whole value is that nobody edits it after
+  the fact; one unverified bulk merge undoes that permanently.
+
 When a task's prompt asks for judgment you don't think you can give reliably,
 **say so and hand it up**. "This needs the Reviewer" is always an acceptable
 answer from you, and a far better one than a confident guess. Escalating is
