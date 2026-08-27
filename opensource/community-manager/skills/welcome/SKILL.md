@@ -68,7 +68,12 @@ tool rebuilds your image and restarts your container on approval, which would
 kill this conversation mid-interview and lose the owner's answers. Your own
 `setup-check.sh` will suggest `install_packages` in its hint — that hint is
 written for a headless sub-agent, not for you. Instead, tell the owner
-plainly and wait:
+plainly and wait — but **look up your own group ID first and put the real
+value in the commands.** You already know it, or one call away from
+knowing it (your own `agentGroupId`, or `ncl groups list` if you don't have
+it to hand) — don't send `<my-group-id>` as a placeholder and make the
+owner ask for it separately. Send the real, ready-to-paste block on the
+first message:
 
 ```
 Before we start — I'm missing `jq`, which my own setup checks and two of my
@@ -76,8 +81,8 @@ scheduled tasks (owner-tldr, weekly-identity-integrity-check) need. I can't
 install it myself without restarting mid-conversation and losing your
 answers. From the nanoclaw install directory, please run:
 
-  ./bin/ncl groups config add-package --id <my-group-id> --apt jq
-  ./bin/ncl groups restart --id <my-group-id> --rebuild
+  ./bin/ncl groups config add-package --id ag-<your-actual-id-here> --apt jq
+  ./bin/ncl groups restart --id ag-<your-actual-id-here> --rebuild
 
 That restarts me cleanly. Message me again when it's done and we'll pick up
 right here — nothing is lost.
@@ -243,6 +248,18 @@ interview.
 ## 4. Conversational configuration — one question at a time
 
 **Conversational approach**: Rather than asking everything at once, ask one question at a time. After each answer, confirm you understood, move to the next, and always give the owner a chance to ask clarifying questions. This creates a more natural interview where corrections are easy and the owner doesn't feel interrogated.
+
+**This has been violated in practice, so be concrete about what counts as
+"one question."** A single message that asks the four-goals question *and*
+a conditional follow-up ("...and the growth priority if #2 is a yes") is
+two questions, even though it reads as one topic. So is a repo-map
+confirmation that also asks about a docs typo *and* a backup-repo guess in
+the same breath. If a message has more than one `?` that needs an answer
+before you can proceed, split it — ask the first, wait, then ask the next.
+The one real exception: flagging something you found that needs **no
+answer right now** ("I'll circle back on X at the right step, no need to
+answer now") is fine alongside a real question, since it isn't actually
+asking for anything yet.
 
 **Ask the timezone question first**, before anything else in this step. It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable. Say plainly: *"What timezone do you actually work in? Your tasks are scheduled relative to it — I can set or change this any time, it takes effect right away."*
 
