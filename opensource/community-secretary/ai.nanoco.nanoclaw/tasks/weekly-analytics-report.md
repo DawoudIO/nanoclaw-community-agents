@@ -6,68 +6,282 @@ script: |
   # Deps: bash, curl, jq. The GA4 OAuth bearer is injected by the OneCLI proxy
   # for analyticsdata.googleapis.com — no credential belongs in this file.
   #
-  # WHY THIS IS A POST, AND WHY IT IS STILL READ-ONLY.
-  # This is the only POST anywhere in the task scripts, so it deserves an
+  # WHY THESE ARE POSTS, AND WHY THEY ARE STILL READ-ONLY.
+  # These are the only POSTs anywhere in the task scripts, so they deserve an
   # explanation rather than a raised eyebrow during an egress or scope audit.
-  # GA4's Data API takes its query as a JSON request body (date range + which
-  # metrics), which is far too structured for a query string — so Google made
-  # `properties/{id}:runReport` a POST. It is a QUERY verb, not a write: it
-  # returns rows and changes nothing on the property.
+  # GA4's Data API takes its query as a JSON request body (date ranges + which
+  # dimensions/metrics), which is far too structured for a query string — so
+  # Google made `properties/{id}:runReport` a POST. It is a QUERY verb, not a
+  # write: it returns rows and changes nothing on the property.
   #   - Host `analyticsdata.googleapis.com` = read/report only.
   #   - Writes/management live on `analyticsadmin.googleapis.com`, which this
   #     system never calls and which you should NOT enable in the Cloud project.
   #   - The required GA4 role is therefore Viewer. If a Viewer-scoped token can
-  #     run this call, that alone proves it isn't mutating anything.
+  #     run these calls, that alone proves neither is mutating anything.
   # Consequence for OneCLI: a request-hold rule that gates on HTTP method would
-  # flag this harmless report. Match on host+path if you gate anything here.
+  # flag both harmless reports. Match on host+path if you gate anything here.
   DATA="/workspace/agent/plugin-data/community-secretary"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
-  PROPERTY_ID="${GA4_PROPERTY_ID:-}"
-  if [ -z "$PROPERTY_ID" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set GA4_PROPERTY_ID in plugin-data/community-secretary/config.env"}}'
+
+  # GA4_PROPERTIES: comma-separated properties, each either a bare id
+  # ("253632751") or a "label:id" pair ("demo:362323228") when a readable
+  # name is worth carrying into the report. One task run covers every
+  # property listed here — never create a second task file per property.
+  # GA4_PROPERTY_ID (a single bare id) still works as a one-property
+  # fallback for configs written before GA4_PROPERTIES existed.
+  PROPS="${GA4_PROPERTIES:-}"
+  if [ -z "$PROPS" ] && [ -n "${GA4_PROPERTY_ID:-}" ]; then
+    PROPS="${GA4_PROPERTY_ID}"
+  fi
+  if [ -z "$PROPS" ]; then
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set GA4_PROPERTIES (id[,label:id...]) or GA4_PROPERTY_ID in plugin-data/community-secretary/config.env"}}'
     exit 0
   fi
-  HIST="$DATA/traffic-history.json"
-  if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
-  RESP=$(curl -sS --max-time 25 -X POST \
-    "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
-    -H 'Content-Type: application/json' \
-    -d '{"dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday"}],"metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"}]}' \
-    2>/dev/null || echo '')
-  # Guard on the exact field we are about to read, not just `.rows`. `jq -e
-  # '.rows'` treats an empty array as truthy, so a valid-but-empty GA4 response
-  # ({"rows":[]} — a property with no data in the window) passed this check and
-  # then died on `null | tonumber`, aborting under `set -e` with NO JSON at all.
-  # A gate that emits nothing is worse than one that reports a failure.
-  if [ -z "$RESP" ] || ! printf '%s' "$RESP" | jq -e '.rows[0].metricValues[2].value' >/dev/null 2>&1; then
-    echo '{"wakeAgent": true, "data": {"status": "fetch-failed"}}'
-    exit 0
-  fi
-  WEEK=$(printf '%s' "$RESP" | jq -c '{activeUsers: (.rows[0].metricValues[0].value|tonumber), sessions: (.rows[0].metricValues[1].value|tonumber), pageViews: (.rows[0].metricValues[2].value|tonumber)}' 2>/dev/null || echo '')
-  if [ -z "$WEEK" ]; then
-    echo '{"wakeAgent": true, "data": {"status": "fetch-failed", "hint": "GA4 responded but the metric values were not parseable as numbers"}}'
-    exit 0
-  fi
-  PREV=$(jq -c '.[-1].metrics // {}' "$HIST")
-  jq -c --argjson m "$WEEK" --arg d "$(date -u +%Y-%m-%d)" \
-    '. + [{date: $d, metrics: $m}] | .[-26:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
-  printf '{"wakeAgent": true, "data": {"status": "ok", "week": %s, "previous": %s}}\n' "$WEEK" "$PREV"
+
+  RESULTS='[]'
+  IFS=',' read -ra PAIRS <<< "$PROPS"
+  for PAIR in "${PAIRS[@]}"; do
+    if [[ "$PAIR" == *:* ]]; then
+      LABEL="${PAIR%%:*}"
+      PROPERTY_ID="${PAIR#*:}"
+    else
+      PROPERTY_ID="$PAIR"
+      LABEL="property-${PROPERTY_ID}"
+    fi
+    HIST="$DATA/traffic-history-${LABEL}.json"
+    if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
+
+    # --- Query 1: current vs. prior 7-day window, compared directly by GA4
+    # itself (two named dateRanges in one request, distinguished by the
+    # dateRange dimension) rather than diffed against our own local ledger.
+    # A same-day rerun no longer produces a fake same-day "previous" — the
+    # comparison always spans a real 7 days regardless of when this task
+    # last ran. The ledger below still accumulates for a longer trend line;
+    # it is not what WoW is computed from any more. ---
+    RESP=$(curl -sS --max-time 25 -X POST \
+      "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "dateRanges":[
+          {"startDate":"7daysAgo","endDate":"yesterday","name":"current"},
+          {"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous"}
+        ],
+        "dimensions":[{"name":"dateRange"}],
+        "metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"},{"name":"engagementRate"}]
+      }' 2>/dev/null || echo '')
+    # Guard on the exact field we are about to read, not just `.rows`. `jq -e
+    # '.rows'` treats an empty array as truthy, so a valid-but-empty GA4
+    # response ({"rows":[]}) passed this check and then died on
+    # `null | tonumber` under `set -e` with NO JSON at all — worse than
+    # reporting a failure.
+    CURROW=$(printf '%s' "$RESP" | jq -c '[.rows[]? | select(.dimensionValues[0].value=="current")][0] // empty' 2>/dev/null || echo '')
+    if [ -z "$RESP" ] || [ -z "$CURROW" ]; then
+      RESULTS=$(jq -c --arg l "$LABEL" --arg id "$PROPERTY_ID" '. + [{label:$l, property_id:$id, status:"fetch-failed"}]' <<< "$RESULTS")
+      continue
+    fi
+    WEEK=$(jq -c '{activeUsers:(.metricValues[0].value|tonumber), sessions:(.metricValues[1].value|tonumber), pageViews:(.metricValues[2].value|tonumber), engagementRate:(.metricValues[3].value|tonumber)}' <<< "$CURROW" 2>/dev/null || echo '')
+    if [ -z "$WEEK" ]; then
+      RESULTS=$(jq -c --arg l "$LABEL" --arg id "$PROPERTY_ID" '. + [{label:$l, property_id:$id, status:"fetch-failed", hint:"metric values not parseable"}]' <<< "$RESULTS")
+      continue
+    fi
+    PREVROW=$(printf '%s' "$RESP" | jq -c '[.rows[]? | select(.dimensionValues[0].value=="previous")][0] // empty' 2>/dev/null || echo '')
+    if [ -n "$PREVROW" ]; then
+      PREV=$(jq -c '{activeUsers:(.metricValues[0].value|tonumber), sessions:(.metricValues[1].value|tonumber), pageViews:(.metricValues[2].value|tonumber), engagementRate:(.metricValues[3].value|tonumber)}' <<< "$PREVROW" 2>/dev/null || echo '{}')
+    else
+      PREV='{}'
+    fi
+    jq -c --argjson m "$WEEK" --arg d "$(date -u +%Y-%m-%d)" \
+      '. + [{date: $d, metrics: $m}] | .[-26:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+
+    # --- Query 2: dimensional breakdown — geography, language, browser, AI
+    # referral, and social-media attribution, all from one query; jq buckets
+    # rows below rather than a GA4 dimensionFilter, so a parse failure here
+    # degrades to "dimensional data unavailable" without invalidating the
+    # totals above. ---
+    DIM_RESP=$(curl -sS --max-time 25 -X POST \
+      "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
+      -H 'Content-Type: application/json' \
+      -d '{
+        "dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday"}],
+        "dimensions":[
+          {"name":"sessionDefaultChannelGroup"},
+          {"name":"sessionSourceMedium"},
+          {"name":"sessionSource"},
+          {"name":"landingPagePlusQueryString"},
+          {"name":"deviceCategory"},
+          {"name":"country"},
+          {"name":"language"},
+          {"name":"browser"}
+        ],
+        "metrics":[
+          {"name":"sessions"},
+          {"name":"activeUsers"},
+          {"name":"engagedSessions"},
+          {"name":"engagementRate"},
+          {"name":"averageSessionDuration"},
+          {"name":"screenPageViews"}
+        ],
+        "orderBys":[{"metric":{"metricName":"sessions"},"desc":true}],
+        "limit": 500
+      }' 2>/dev/null || echo '')
+
+    AI_TRAFFIC='[]'; SOCIAL_TRAFFIC='[]'; TOP_PAGES='[]'; TOP_COUNTRIES='[]'; TOP_LANGUAGES='[]'; LIKELY_AUTOMATED='[]'; DIM_STATUS='ok'
+    if [ -z "$DIM_RESP" ] || ! printf '%s' "$DIM_RESP" | jq -e 'type=="object"' >/dev/null 2>&1; then
+      DIM_STATUS='fetch-failed'
+    else
+      ROWS=$(printf '%s' "$DIM_RESP" | jq -c '
+        [.rows // [] | .[] | {
+          channelGroup: .dimensionValues[0].value,
+          sourceMedium: .dimensionValues[1].value,
+          source: .dimensionValues[2].value,
+          landingPage: .dimensionValues[3].value,
+          device: .dimensionValues[4].value,
+          country: .dimensionValues[5].value,
+          language: .dimensionValues[6].value,
+          browser: .dimensionValues[7].value,
+          sessions: (.metricValues[0].value|tonumber),
+          activeUsers: (.metricValues[1].value|tonumber),
+          engagedSessions: (.metricValues[2].value|tonumber),
+          engagementRate: (.metricValues[3].value|tonumber),
+          avgSessionDuration: (.metricValues[4].value|tonumber),
+          pageViews: (.metricValues[5].value|tonumber)
+        }]' 2>/dev/null || echo '')
+      if [ -z "$ROWS" ]; then
+        DIM_STATUS='fetch-failed'
+      else
+        # Case-insensitive; catches direct AI/LLM referrers and GA4's own
+        # native "AI Assistant" channel/medium classification where present.
+        AI_TRAFFIC=$(printf '%s' "$ROWS" | jq -c '
+          [.[] | select(
+            (.source | test("chatgpt|openai|perplexity|claude|gemini|copilot|deepseek|grok|poe|you\\.com|phind"; "i"))
+            or (.sourceMedium | test("ai-assistant"; "i"))
+            or (.channelGroup | test("^AI Assistant$"; "i"))
+          )] | sort_by(-.sessions) | .[0:20]')
+        SOCIAL_TRAFFIC=$(printf '%s' "$ROWS" | jq -c '
+          [.[] | select(
+            (.channelGroup | test("Organic Social|Paid Social"; "i"))
+            or (.source | test("linkedin|twitter|x\\.com|t\\.co|facebook|reddit|instagram|youtube|github"; "i"))
+          )] | sort_by(-.sessions) | .[0:20]')
+        TOP_PAGES=$(printf '%s' "$ROWS" | jq -c '
+          group_by(.landingPage)
+          | map({page: .[0].landingPage, sessions: (map(.sessions)|add), engagedSessions: (map(.engagedSessions)|add)})
+          | sort_by(-.sessions) | .[0:5]')
+        TOP_COUNTRIES=$(printf '%s' "$ROWS" | jq -c '
+          group_by(.country)
+          | map({country: .[0].country, sessions: (map(.sessions)|add)})
+          | sort_by(-.sessions) | .[0:5]')
+        TOP_LANGUAGES=$(printf '%s' "$ROWS" | jq -c '
+          group_by(.language)
+          | map({language: .[0].language, sessions: (map(.sessions)|add)})
+          | sort_by(-.sessions) | .[0:5]')
+        # Heuristic only, not a confirmed bot/human split (GA4 already
+        # silently excludes its own "known spiders & bots" list before any
+        # of this data ever reaches us, and most real crawlers never
+        # execute the JS tag at all — so this can only ever flag what GA4
+        # itself still recorded). Flags a browser string that names itself
+        # a bot/crawler/headless client, OR a row with near-zero engagement,
+        # near-zero session duration, and one page view per session — the
+        # shape of a script hitting a URL and leaving, not a person reading.
+        LIKELY_AUTOMATED=$(printf '%s' "$ROWS" | jq -c '
+          [.[] | select(
+            (.browser | test("bot|spider|crawl|headless|compatible agent"; "i"))
+            or ((.engagementRate < 0.01) and (.avgSessionDuration < 1) and ((.pageViews / (if .sessions > 0 then .sessions else 1 end)) <= 1))
+          )] | sort_by(-.sessions) | .[0:20]')
+      fi
+    fi
+
+    ENTRY=$(jq -c -n --arg l "$LABEL" --arg id "$PROPERTY_ID" --argjson week "$WEEK" --argjson prev "$PREV" \
+      --argjson ai "$AI_TRAFFIC" --argjson social "$SOCIAL_TRAFFIC" --argjson pages "$TOP_PAGES" \
+      --argjson countries "$TOP_COUNTRIES" --argjson languages "$TOP_LANGUAGES" --argjson automated "$LIKELY_AUTOMATED" \
+      --arg dimstatus "$DIM_STATUS" \
+      '{label:$l, property_id:$id, status:"ok", week:$week, previous:$prev, ai_traffic:$ai, social_traffic:$social,
+        top_landing_pages:$pages, top_countries:$countries, top_languages:$languages,
+        likely_automated:$automated, dimensional_status:$dimstatus}')
+    RESULTS=$(jq -c --argjson e "$ENTRY" '. + [$e]' <<< "$RESULTS")
+  done
+
+  printf '{"wakeAgent": true, "data": {"properties": %s}}\n' "$RESULTS"
 ---
-Write the weekly traffic report from `scriptOutput.week` and
-`scriptOutput.previous` (the prior week — already fetched, don't re-query). If
-`status` is `fetch-failed`, report that plainly and stop.
+Write the weekly traffic report from `scriptOutput.properties` — an array
+with one entry per configured GA4 property (`label`, `property_id`,
+`status`, and, when `status` is `"ok"`, `week`/`previous`/`ai_traffic`/
+`social_traffic`/`top_landing_pages`/`top_countries`/`top_languages`/
+`likely_automated`/`dimensional_status`). Report every property, but as
+**one combined write-up** — never a separate task run or a separate message
+per property.
 
-**If `previous` is `{}` (empty)**: this is the first week ever recorded —
-there is no prior week to compare against. Report this week's numbers as a
-baseline and say plainly "first week tracked, no week-over-week comparison
-yet." **Never report a 0% (or any) delta from an empty `previous`** — a real
-install had this default to "0% change" on three metrics simultaneously right
-after a run of failures, which read as suspicious/fabricated data rather than
-what it actually was (nothing to compare against yet).
+For any entry with `status: "fetch-failed"`, report that property plainly
+as failed and move to the next one — don't guess at its numbers.
 
-Every number carries its window and its week-over-week delta. Explain a sharp
-move only if you actually verified the cause; otherwise report the move and mark
-the cause unverified.
+**`previous` is now a real prior-7-day GA4 comparison, not a same-day ledger
+diff** — report the week-over-week delta normally when `previous` is
+non-empty. Only skip the delta and say plainly "first comparison window,
+no prior data" when `previous` is genuinely `{}` (a brand-new property with
+nothing recorded before this window). **Composition — who's visiting, from
+where, in what language, via what kind of traffic — is still the core of
+this report, not just the delta**: don't let a WoW number crowd out
+`top_countries`/`top_languages`/the AI and social breakdown below.
+
+If `dimensional_status` is `fetch-failed` for a property, still report its
+totals, say plainly the location/language/AI/social breakdown couldn't be
+fetched this run, and skip that property's remaining sections.
+
+Structure each property's write-up around:
+
+**1. Who's visiting** — sessions, active users, page views, and engagement
+rate for the week, with the week-over-week delta from `previous` (or "first
+comparison window" per above). Then, from `top_countries` and
+`top_languages`: the top countries and languages this week's visitors
+actually used.
+
+**2. AI & Search Agent Discovery** — from `ai_traffic`: sessions, active
+users, engagement rate, and top landing page per AI source (ChatGPT,
+Perplexity, Gemini, Claude, Copilot, etc. — whatever actually appears; an
+empty list means no detected AI referral traffic this week, say so
+plainly). Assess whether it looks problem-aware and high-intent (it
+engages, and lands on a specific doc/feature page) or looks like noise
+(single-page bounces, near-zero engagement) — call it only from this
+week's actual rows. Never overstate the labeling's certainty: it's a regex
+match on source/medium/channel group, a directional read, not a confirmed
+identity check of the AI tool. And keep this distinct from real crawler/bot
+activity (section 3) — GA4 only ever sees a session here because a browser
+ran its JavaScript tag, which means a human almost certainly clicked
+through from an AI answer; it is not a sighting of the AI's own crawler.
+
+**3. Likely Automated Traffic** — from `likely_automated`: report it as a
+heuristic, explicitly, not a confirmed bot/human split. Two things worth
+saying plainly so this isn't over-read: GA4 already silently drops traffic
+matching its own "known spiders & bots" list before any of this data
+reaches us, and a genuine crawler (GPTBot, ClaudeBot, PerplexityBot, a
+scraper) almost never executes the page's JavaScript at all — so it is
+usually invisible to GA4 by nature, not filtered out, never counted in the
+first place. What `likely_automated` actually flags is script-like
+*recorded* sessions (near-zero engagement and duration, one page view, or a
+browser string that names itself a bot) — real crawler-traffic volume is a
+server-log or Cloudflare question, not a GA4 one; say so if the numbers here
+look like they're being asked to answer that.
+
+**4. Social Media Breakdown** — from `social_traffic`: a table by platform
+with sessions, engaged sessions, and engagement rate. There is no
+conversions/key-events metric on this property (and none is expected — see
+section 6), so judge "real interaction" by engagement rate and session
+depth, not a conversions column.
+
+**5. High-Performing Content** — from `top_landing_pages`: the top 5 pages
+by session volume. Name a page a "citation magnet" only when `ai_traffic`
+shows it landed on repeatedly by AI-classified sessions specifically — not
+from a single row.
+
+**6. Strategic Recommendations** — 2-3 concrete actions grounded in this
+week's actual rows. Where a shift looks worth explaining, correlate it
+against a recent release (check with the lead, or `release-announcement-
+watch`'s history, for a release date inside this window) or a recent
+marketing push (a post in #marketing) rather than a formal conversions
+metric — the owner has said those two are what's worth measuring against
+here, not a GA4 key-event count this property doesn't have configured.
+
+Every number carries its window. Explain a sharp move only if you actually
+verified the cause; otherwise report the move and mark the cause unverified.
 
 Hand it to your lead — you don't post it to a channel yourself.

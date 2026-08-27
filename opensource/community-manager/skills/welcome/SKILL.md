@@ -46,8 +46,10 @@ summarize the config in two lines, and ask only about anything marked missing.
 `/workspace/agent/onboarding-answers.json` (the documented drop location) at
 the start of every onboarding, before asking anything — and read it if the
 owner names any other path, or pastes the JSON into the DM directly. It's the
-same question set as this interview in machine-readable form
-(`onboarding-answers.example.json` in the repo is the blank template).
+same question set as this interview in machine-readable form. There is no
+committed template for it in this repo (see `docs/INSTALL.md` → "Prefer a
+file over the live interview?") — the owner writes their own, or you build
+one together conversationally and they save it for next time.
 
 When you find one: read it, then **echo back a summary of what you got** —
 the owner needs to see that the file was actually read and not silently
