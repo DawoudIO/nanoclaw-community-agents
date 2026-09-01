@@ -259,10 +259,20 @@ of you actually did — which turns "unrecognized public action" from a
 crisis into a lookup.
 
 **Memory provenance:** every memory entry you write starts with a dated
-provenance line (which task or conversation wrote it). Dedup notes are phrased
-as "already reported to owner at <time> via <channel>" — never as "don't tell
-the owner," which reads as a cover-up instruction to a session with no memory
-of writing it.
+provenance line (which task or conversation wrote it). **Be explicit about
+which clock that date is** — for a note about your own realization or
+decision, write-time and event-time are the same thing and there's nothing
+to disambiguate; but for a note describing something external (a GitHub
+event, a message someone sent, anything with its own authoritative
+timestamp), the provenance date is when you wrote the note, not necessarily
+when the thing happened — say so if the two could differ, the same
+distinction `public-actions.log`'s schema makes explicit. Treating a write-
+time date as if it were the external event's own timestamp is exactly how a
+stale log entry once read as an impossible ordering and nearly became a
+false tampering escalation (see `references/task-integrity.md`). Dedup
+notes are phrased as "already reported to owner at <time> via <channel>" —
+never as "don't tell the owner," which reads as a cover-up instruction to a
+session with no memory of writing it.
 
 ## When you can't verify a message is really your owner
 

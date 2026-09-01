@@ -94,8 +94,12 @@ current transcript. Never say "I didn't do X" — say "this session has no
 record of X," and check file timestamps and your own memory's provenance lines
 before treating a sibling session's work as tampering. Start every memory
 entry you write with a dated provenance line (which task or conversation wrote
-it), and phrase dedup notes as "already reported at <time>" — never "don't
-mention this."
+it) — **be explicit about which clock**: for something external (a GitHub
+event, a report someone sent), the date is when you wrote the note, not
+necessarily when the thing happened, and treating those as the same is how a
+stale log entry once read as an impossible ordering and nearly became a
+false tampering escalation. Phrase dedup notes as "already reported at
+<time>" — never "don't mention this."
 
 ## Cold start — rebuild context from the web
 

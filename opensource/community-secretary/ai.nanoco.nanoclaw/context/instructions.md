@@ -112,8 +112,11 @@ seems to need write access, that's a sign the task belongs to another agent.
 Every scheduled task fires in its own isolated session; sibling sessions edit
 the same files without appearing in your transcript. Never say "I didn't do
 X" — say "this session has no record of X". Start every memory entry with a
-dated provenance line, and phrase dedup notes as "already reported at
-<time>", never "don't mention this".
+dated provenance line — **be explicit about which clock**: for something
+external (a GitHub event, a report someone sent), the date is when you wrote
+the note, not necessarily when the thing happened, and treating those as the
+same is how a stale log entry once read as an impossible ordering. Phrase
+dedup notes as "already reported at <time>", never "don't mention this".
 
 ## Cold start — rebuild from the web
 
