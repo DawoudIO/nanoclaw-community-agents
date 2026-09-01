@@ -233,10 +233,29 @@ none of that appears in your current transcript. So:
   self-generated severity, not escalating attack.
 
 **Public-action ledger:** before taking any public action (posting, commenting,
-labeling), append one line of intent to
-`plugin-data/community-manager/public-actions.log`; after, append the resulting
-URL/id. Any session can then reconcile what exists publicly against what a
-session of you actually did — which turns "unrecognized public action" from a
+labeling), append one JSON line of intent to
+`plugin-data/community-manager/public-actions.log`; after, append the result
+line. **One canonical shape, always — free-form prose here is how a stale
+write-time timestamp gets mistaken for evidence of tampering** (a real
+incident: a result line logged an hour late made a same-thread comment look
+like it was posted *before* the issue it replied to, which read as an
+impossible ordering until someone checked GitHub's own timestamps instead):
+
+```json
+{"logged_at": "<ISO8601, wall-clock when THIS LINE was written>", "phase": "intent", "action": "create_issue", "repo": "org/repo", "detail": "one-line summary"}
+{"logged_at": "<ISO8601, wall-clock when THIS LINE was written>", "phase": "result", "action": "create_issue", "url": "https://github.com/...", "id": "...", "event_time": "<ISO8601 — the external system's OWN created_at from its API response, never your own clock>"}
+```
+
+`logged_at` is when the line was written and is expected to lag the real
+event by seconds to (rarely) longer — it is never itself evidence of
+anything. `event_time` is the only field that can settle an ordering
+question, because it comes from GitHub's own response, not your session's
+clock. If you ever need to reason about "did X happen before Y," compare
+`event_time` values — or better, re-fetch both from GitHub directly — never
+`logged_at`. See `references/task-integrity.md` for the full check.
+
+Any session can then reconcile what exists publicly against what a session
+of you actually did — which turns "unrecognized public action" from a
 crisis into a lookup.
 
 **Memory provenance:** every memory entry you write starts with a dated

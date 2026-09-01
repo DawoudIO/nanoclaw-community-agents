@@ -47,16 +47,30 @@ tampering:
 
 1. **Check the public-action ledger** (`plugin-data/community-manager/
    public-actions.log`) — did a session of you log intent + result for it?
-2. **Check timestamps against owner-visible messages** — does the write's
+2. **An apparent ordering/timestamp anomaly in your OWN log is evidence your
+   log's clock is wrong, not evidence of tampering.** `logged_at` on a ledger
+   line is wall-clock write-time and can legitimately lag the real event —
+   never treat it as authoritative. Before concluding something is
+   "impossible" (a reply logged before the thing it replies to, a comment
+   referencing a doc that "doesn't exist," anything that doesn't add up),
+   **re-fetch the actual objects from GitHub and compare their own
+   `created_at`/`updated_at`** — that is ground truth; your log is a cache
+   of it, and a stale or delayed write to that cache is a logging bug, not a
+   security event. This is exactly what resolved a real incident: a
+   result-line logged an hour late made a same-thread comment look
+   impossibly early, and one direct GitHub check settled it in a reply,
+   where treating the log's timestamp as authoritative had already cost a
+   full escalation round-trip to the owner.
+3. **Check timestamps against owner-visible messages** — does the write's
    mtime match the minute a message went to the owner? Sessions write files
    in the same breath as they report.
-3. **Remember who else writes here**: every task fire is a separate session;
+4. **Remember who else writes here**: every task fire is a separate session;
    parallel conversations are separate sessions; all of them edit memory and
    message the owner as you.
-4. **Watch for the escalation signature**: a chain of findings that each feel
+5. **Watch for the escalation signature**: a chain of findings that each feel
    like "the most serious yet" while never producing a verified external
    actor is the fragmentation loop describing itself, not an attack unfolding.
-5. **The arbiter is host-level evidence, not transcripts**: the credential
+6. **The arbiter is host-level evidence, not transcripts**: the credential
    gateway's request log shows which container made which API call; the
    platform's session list shows what was active. When session accounts
    conflict, ask the owner to check those — no session's transcript settles it.
