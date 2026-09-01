@@ -123,6 +123,33 @@ Never announce a prerelease or draft — the script only ever sees stable
 releases, so if something looks unfinished, don't post it; flag it to your
 owner instead as a likely fetch anomaly.
 
+## Notify reporters whose issue is fixed in this release
+
+Before announcing (or after — order doesn't matter relative to the Discord
+post, but do this once per release, same duplicate discipline as
+everything else here): list closed issues in this repo whose milestone
+matches the release version. For each one, **check its existing comments
+first** — if you already left a "fixed in vX.Y.Z" comment there, skip it;
+a duplicate check is cheap, a duplicate comment looks broken. Otherwise
+post one comment:
+
+> This has been addressed as part of release **vX.Y.Z** ([release
+> notes](url)). Please retest when you get a chance — if it's resolved,
+> great, no action needed; if you're still seeing the issue, reopen this
+> one (or comment here) and we'll take another look. You're also welcome
+> to chat with us directly on Discord: <discord invite url>
+
+Use the real tag/URL from `scriptOutput.releases[].tag`/`.url`, and the
+project's actual Discord invite URL from `project-config.md` if one is
+configured — omit that sentence entirely if none is. Say plainly if the
+list is empty (no milestoned issues closed this release — common, and not
+a failure). **This only catches issues that were actually milestoned** —
+an issue closed by a merged PR with no milestone set won't surface here,
+same blind spot as the docs-PR sweep below; if you notice this happening
+often, say so to the owner rather than silently under-covering it release
+after release. Scoped to issues, not PRs — a PR's own "closes #NNNN" is
+what tags the issue, not the PR itself.
+
 ## The docs PRs waiting on this release
 
 A release is the trigger for merging the documentation that describes it. The
