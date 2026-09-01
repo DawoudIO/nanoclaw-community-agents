@@ -666,6 +666,22 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"also before\"}" >> "$D/digest-queue.processing.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"marketing\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
 
+# owner-tldr, REGRESSION for the escalated-send-suppresses-next-routine-slot
+# bug. Seeds a `digest-last-sent` timestamp 8 hours ago — as an escalated
+# send the previous evening would leave — with NO routine-date marker (a
+# fresh install's state). It is now the routine hour. The old logic checked
+# `hours-since-any-send >= 20`, which 8 fails, silently swallowing this
+# morning's routine digest. The routine slot must fire regardless of how
+# recently an escalated send happened, because it answers a different
+# question (today's calendar date, not an hours-since counter).
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
+  '(.data.status == "digest-ready") and (.data.trigger == "routine")' '' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
+   printf "%s" "$(( $(date +%s) - 8*3600 ))" > "$D/digest-last-sent";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"routine item\"}" >> "$D/digest-queue.jsonl"'
+
 # owner-tldr: an `attention` item must be HELD while the owner is asleep. The
 # seed puts local time 6 hours BEFORE the digest hour — i.e. the middle of the
 # night — so the 15-hour waking window is closed. Escalating here would spend a

@@ -52,20 +52,24 @@ script: |
     HIST="$DATA/traffic-history-${LABEL}.json"
     if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
 
-    # --- Query 1: current vs. prior 7-day window, compared directly by GA4
-    # itself (two named dateRanges in one request, distinguished by the
-    # dateRange dimension) rather than diffed against our own local ledger.
-    # A same-day rerun no longer produces a fake same-day "previous" — the
-    # comparison always spans a real 7 days regardless of when this task
-    # last ran. The ledger below still accumulates for a longer trend line;
-    # it is not what WoW is computed from any more. ---
+    # --- Query 1: current vs. prior-week AND prior-month windows, compared
+    # directly by GA4 itself (three named dateRanges in one request,
+    # distinguished by the dateRange dimension) rather than diffed against
+    # our own local ledger. A same-day rerun no longer produces a fake
+    # same-day "previous" — every comparison spans a real calendar gap
+    # regardless of when this task last ran. YoY still comes from the
+    # ledger below (a comparable window a year back needs real history GA4's
+    # own date-range comparison can't shortcut its way into on a fresh
+    # install) — the ledger's whole job now is YoY plus a longer trend line,
+    # not WoW/MoM, which used to be its fake-delta failure mode. ---
     RESP=$(curl -sS --max-time 25 -X POST \
       "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
       -H 'Content-Type: application/json' \
       -d '{
         "dateRanges":[
           {"startDate":"7daysAgo","endDate":"yesterday","name":"current"},
-          {"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous"}
+          {"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous_week"},
+          {"startDate":"35daysAgo","endDate":"29daysAgo","name":"previous_month"}
         ],
         "dimensions":[{"name":"dateRange"}],
         "metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"},{"name":"engagementRate"}]
@@ -85,14 +89,31 @@ script: |
       RESULTS=$(jq -c --arg l "$LABEL" --arg id "$PROPERTY_ID" '. + [{label:$l, property_id:$id, status:"fetch-failed", hint:"metric values not parseable"}]' <<< "$RESULTS")
       continue
     fi
-    PREVROW=$(printf '%s' "$RESP" | jq -c '[.rows[]? | select(.dimensionValues[0].value=="previous")][0] // empty' 2>/dev/null || echo '')
-    if [ -n "$PREVROW" ]; then
-      PREV=$(jq -c '{activeUsers:(.metricValues[0].value|tonumber), sessions:(.metricValues[1].value|tonumber), pageViews:(.metricValues[2].value|tonumber), engagementRate:(.metricValues[3].value|tonumber)}' <<< "$PREVROW" 2>/dev/null || echo '{}')
-    else
-      PREV='{}'
-    fi
+    extract_row() {
+      local name="$1"
+      local row
+      row=$(printf '%s' "$RESP" | jq -c --arg n "$name" '[.rows[]? | select(.dimensionValues[0].value==$n)][0] // empty' 2>/dev/null || echo '')
+      if [ -n "$row" ]; then
+        jq -c '{activeUsers:(.metricValues[0].value|tonumber), sessions:(.metricValues[1].value|tonumber), pageViews:(.metricValues[2].value|tonumber), engagementRate:(.metricValues[3].value|tonumber)}' <<< "$row" 2>/dev/null || echo '{}'
+      else
+        echo '{}'
+      fi
+    }
+    PREV_WEEK=$(extract_row "previous_week")
+    PREV_MONTH=$(extract_row "previous_month")
+
+    # YoY from the ledger: nearest dated entry within ±10 days of 364 days ago.
+    # A brand-new install has no such entry — that's "not enough history yet",
+    # not a failure.
+    PREV_YEAR=$(jq -c --arg d "$(date -u +%Y-%m-%d)" '
+      (($d | strptime("%Y-%m-%d") | mktime) - (364*86400)) as $target
+      | [ .[] | . as $e | ($e.date | strptime("%Y-%m-%d") | mktime) as $t
+          | select(($t - $target | fabs) <= (10*86400)) | $e ]
+      | sort_by(($target - (.date | strptime("%Y-%m-%d") | mktime)) | fabs)
+      | (.[0].metrics // {})' "$HIST" 2>/dev/null || echo '{}')
+
     jq -c --argjson m "$WEEK" --arg d "$(date -u +%Y-%m-%d)" \
-      '. + [{date: $d, metrics: $m}] | .[-26:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+      '. + [{date: $d, metrics: $m}] | .[-370:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
 
     # --- Query 2: dimensional breakdown — geography, language, browser, AI
     # referral, and social-media attribution, all from one query; jq buckets
@@ -191,11 +212,14 @@ script: |
       fi
     fi
 
-    ENTRY=$(jq -c -n --arg l "$LABEL" --arg id "$PROPERTY_ID" --argjson week "$WEEK" --argjson prev "$PREV" \
+    ENTRY=$(jq -c -n --arg l "$LABEL" --arg id "$PROPERTY_ID" --argjson week "$WEEK" \
+      --argjson prevweek "$PREV_WEEK" --argjson prevmonth "$PREV_MONTH" --argjson prevyear "$PREV_YEAR" \
       --argjson ai "$AI_TRAFFIC" --argjson social "$SOCIAL_TRAFFIC" --argjson pages "$TOP_PAGES" \
       --argjson countries "$TOP_COUNTRIES" --argjson languages "$TOP_LANGUAGES" --argjson automated "$LIKELY_AUTOMATED" \
       --arg dimstatus "$DIM_STATUS" \
-      '{label:$l, property_id:$id, status:"ok", week:$week, previous:$prev, ai_traffic:$ai, social_traffic:$social,
+      '{label:$l, property_id:$id, status:"ok", week:$week,
+        previous_week:$prevweek, previous_month:$prevmonth, previous_year:$prevyear,
+        ai_traffic:$ai, social_traffic:$social,
         top_landing_pages:$pages, top_countries:$countries, top_languages:$languages,
         likely_automated:$automated, dimensional_status:$dimstatus}')
     RESULTS=$(jq -c --argjson e "$ENTRY" '. + [$e]' <<< "$RESULTS")
@@ -205,23 +229,28 @@ script: |
 ---
 Write the weekly traffic report from `scriptOutput.properties` — an array
 with one entry per configured GA4 property (`label`, `property_id`,
-`status`, and, when `status` is `"ok"`, `week`/`previous`/`ai_traffic`/
-`social_traffic`/`top_landing_pages`/`top_countries`/`top_languages`/
-`likely_automated`/`dimensional_status`). Report every property, but as
-**one combined write-up** — never a separate task run or a separate message
-per property.
+`status`, and, when `status` is `"ok"`, `week`/`previous_week`/
+`previous_month`/`previous_year`/`ai_traffic`/`social_traffic`/
+`top_landing_pages`/`top_countries`/`top_languages`/`likely_automated`/
+`dimensional_status`). Report every property, but as **one combined
+write-up** — never a separate task run or a separate message per property.
 
 For any entry with `status: "fetch-failed"`, report that property plainly
 as failed and move to the next one — don't guess at its numbers.
 
-**`previous` is now a real prior-7-day GA4 comparison, not a same-day ledger
-diff** — report the week-over-week delta normally when `previous` is
-non-empty. Only skip the delta and say plainly "first comparison window,
-no prior data" when `previous` is genuinely `{}` (a brand-new property with
-nothing recorded before this window). **Composition — who's visiting, from
-where, in what language, via what kind of traffic — is still the core of
-this report, not just the delta**: don't let a WoW number crowd out
-`top_countries`/`top_languages`/the AI and social breakdown below.
+**`previous_week` and `previous_month` are real GA4-native comparisons
+(the API's own multi-date-range query), not a same-day ledger diff** —
+report WoW and MoM normally whenever each is non-empty. **`previous_year`
+comes from the local ledger** (GA4-native ranges don't help here — a
+comparable window a year back needs real accumulated history) and is
+genuinely absent on any install under a year old; when it's `{}`, say
+plainly "not enough history for YoY yet," never a fabricated delta. Only
+skip a given comparison (WoW/MoM/YoY independently) when its own field is
+`{}` — one being empty doesn't mean the others are untrustworthy.
+**Composition — who's visiting, from where, in what language, via what
+kind of traffic — is still the core of this report, not just the
+deltas**: don't let WoW/MoM/YoY numbers crowd out `top_countries`/
+`top_languages`/the AI and social breakdown below.
 
 If `dimensional_status` is `fetch-failed` for a property, still report its
 totals, say plainly the location/language/AI/social breakdown couldn't be
@@ -230,10 +259,10 @@ fetched this run, and skip that property's remaining sections.
 Structure each property's write-up around:
 
 **1. Who's visiting** — sessions, active users, page views, and engagement
-rate for the week, with the week-over-week delta from `previous` (or "first
-comparison window" per above). Then, from `top_countries` and
-`top_languages`: the top countries and languages this week's visitors
-actually used.
+rate for the week, with WoW (`previous_week`), MoM (`previous_month`), and
+YoY (`previous_year`) deltas, each reported only when its own field is
+non-empty (per above). Then, from `top_countries` and `top_languages`: the
+top countries and languages this week's visitors actually used.
 
 **2. AI & Search Agent Discovery** — from `ai_traffic`: sessions, active
 users, engagement rate, and top landing page per AI source (ChatGPT,
@@ -261,6 +290,18 @@ first place. What `likely_automated` actually flags is script-like
 browser string that names itself a bot) — real crawler-traffic volume is a
 server-log or Cloudflare question, not a GA4 one; say so if the numbers here
 look like they're being asked to answer that.
+
+There's a second, opposite-looking pattern worth watching for even though
+`likely_automated` doesn't flag it: a property (or a slice of one) with
+`engagementRate` near 100% but `avgSessionDuration` clustered right around
+GA4's ~10-second engagement threshold, across a large volume of sessions.
+GA4 counts a session "engaged" the moment it clears roughly 10 seconds *or*
+two page views *or* a conversion — so a script or a demo instance that opens
+a tab and holds it open for just over that mark, every time, produces
+exactly this signature: near-total "engagement" that's actually an
+artifact of the threshold, not real reading. If you see it, name it as a
+suspicious pattern worth a manual look, same caveats as `likely_automated`
+above — this is judgment from the shape of the numbers, not a script flag.
 
 **4. Social Media Breakdown** — from `social_traffic`: a table by platform
 with sessions, engaged sessions, and engagement rate. There is no

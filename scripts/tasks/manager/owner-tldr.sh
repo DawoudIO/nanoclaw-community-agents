@@ -149,6 +149,20 @@ if [ -f "$LAST_F" ]; then
 fi
 HOUR_NOW=$(TZ="$OWNER_TZ" date +%-H 2>/dev/null || TZ="$OWNER_TZ" date +%H | sed 's/^0//')
 case "$HOUR_NOW" in ''|*[!0-9]*) HOUR_NOW=0;; esac
+# The routine slot is tracked by CALENDAR DATE (owner-local), separately from
+# HOURS_SINCE above — HOURS_SINCE is "since the last send of ANY tier" and
+# gets updated on an escalated send too. Comparing the routine slot against
+# that shared number meant an escalated digest in the afternoon could
+# suppress the NEXT MORNING's routine digest (< 20h later), which is exactly
+# backwards: the two tiers answer different questions ("has today's routine
+# slot fired" vs. "how long since anything went out") and must not share one
+# clock. A fresh install has no marker, which correctly means "hasn't fired
+# today" without needing NEVER_SENT as a special case here.
+ROUTINE_DATE_F="$DATA/digest-last-routine-date"
+TODAY_LOCAL=$(TZ="$OWNER_TZ" date +%Y-%m-%d 2>/dev/null || date -u +%Y-%m-%d)
+LAST_ROUTINE_DATE=$(cat "$ROUTINE_DATE_F" 2>/dev/null || echo "")
+ROUTINE_ALREADY_SENT_TODAY=false
+[ "$LAST_ROUTINE_DATE" = "$TODAY_LOCAL" ] && ROUTINE_ALREADY_SENT_TODAY=true
 # Waking window, derived from the one answer we already have rather than asking
 # for two more: it opens when the digest lands and runs 15 hours. Escalations
 # are held outside it — see the wake rules below.
@@ -169,8 +183,9 @@ WAKE=false; REASON=held
 if [ "$ATTENTION" -gt 0 ] && [ "$AWAKE" = "true" ] \
    && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge "$ESCALATE_GAP_H" ]; }; then
   WAKE=true; REASON=escalated
-# Routine: the owner's chosen hour, at most once for it.
-elif [ "$HOUR_NOW" -eq "$TLDR_LOCAL_HOUR" ] && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge 20 ]; }; then
+# Routine: the owner's chosen hour, at most once for it — gated on the
+# calendar-date marker (see above), never on HOURS_SINCE.
+elif [ "$HOUR_NOW" -eq "$TLDR_LOCAL_HOUR" ] && [ "$ROUTINE_ALREADY_SENT_TODAY" = "false" ]; then
   WAKE=true; REASON=routine
 # Safety net: the routine slot was missed entirely (a spent window, a restart).
 # Only meaningful once a real digest has been sent — otherwise "never sent"
@@ -194,6 +209,12 @@ if [ "$WAKE" = "false" ]; then
   exit 0
 fi
 printf '%s' "$(date +%s)" > "$LAST_F"
+# Only a routine or overdue-catch-up delivery satisfies "today's routine
+# slot" — an escalated send is a different kind of delivery and must not
+# mark the routine date, even though it happens to flush the same queue.
+case "$REASON" in
+  routine|overdue) printf '%s' "$TODAY_LOCAL" > "$ROUTINE_DATE_F" ;;
+esac
 
 printf '{"wakeAgent": true, "data": {"status": "digest-ready", "trigger": "%s", "total": %s, "attention_pending": %s, "owner_local_hour": %s, "tz": "%s", "tz_resolved": %s, "oldest_entry": "%s", "oldest_age_hours": %s, "deferred_runs": %s, "by_source": %s, "misfiled_urgent": %s, "misfiled_present": %s}}\n' \
   "$REASON" "$TOTAL" "$ATTENTION" "$HOUR_NOW" "$OWNER_TZ" "$TZ_OK" "$OLDEST" "$AGE_H" "$DEFERRED" "$BY_SOURCE" "$MISFILED" "$HAS_MISFILED"

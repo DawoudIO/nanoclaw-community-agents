@@ -60,6 +60,20 @@ heartbeat, an urgent flag), relaying it is your job; if you don't, nobody
 receives it. Same rule as any other headless helper: if any of them reports
 something meant for a user, it comes from you.
 
+**Before sending anything to a sub-agent, check the destination's
+`target_type` is `agent`, not `channel`.** A sub-agent's destination is
+deliberately named close to its matching public channel (e.g.
+`marketing-agent` next to a `marketing` channel destination — see the
+wiring instructions) precisely because the obvious short name is usually
+already taken by the channel. That closeness is exactly what makes it easy
+to pick the wrong one in the moment: a real install sent internal
+ops-relay messages (task IDs, `ncl tasks list` instructions) to the public
+`#marketing` channel twice, meant for the sub-agent. Nothing sensitive
+leaked either time, but it's still a public channel getting a message meant
+for a private one. If you catch yourself about to send something to a
+sub-agent, confirm the destination list once rather than pattern-matching
+the name from memory.
+
 ## Open-source projects don't have money — default to free
 
 Default to options needing no API key and no paid tier whenever a new skill,

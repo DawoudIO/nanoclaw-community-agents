@@ -51,18 +51,39 @@ for REPO in $REPOS; do
   (
     # comments:0 is the whole trick — GitHub's search does the "nobody has
     # replied" filter for us, so this stays one cheap call per repo.
-    curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
+    #
+    # `-f` alone turns every HTTP error into the same silent empty body —
+    # a genuine break, a transient 5xx, a 429 rate limit, and a 401 auth
+    # problem all look identical: a bare "degraded" with no reason. That
+    # produced a run of false-alarm-feeling escalations that were actually
+    # transient blips with no way to tell which. Capture the real status
+    # code and curl's own exit code instead, and carry both into the
+    # degraded-repo report so a genuine break is distinguishable from noise.
+    RAW=$(curl -sS --max-time 8 -w '\n%{http_code}' -H "Accept: application/vnd.github+json" \
       "https://api.github.com/search/issues?q=repo:$REPO+is:open+comments:0+created:%3E%3D$SINCE&sort=created&order=asc&per_page=20" \
-      > "$TMP/$i.raw" 2>/dev/null
-    OUT=$(jq -c --arg r "$REPO" --argjson now "$NOW_EPOCH" 'if .items then
-        {repo: $r, ok: true,
-         items: [.items[] | {
-           number, title: (.title[0:140]), author: .user.login, url: .html_url,
-           type: (if .pull_request then "pr" else "issue" end),
-           created_at,
-           age_min: ((($now - ((.created_at | fromdateiso8601?) // $now)) / 60) | floor)}]}
-      else {repo: $r, ok: false, items: []} end' < "$TMP/$i.raw" 2>/dev/null || echo "")
-    [ -z "$OUT" ] && OUT=$(jq -c -n --arg r "$REPO" '{repo: $r, ok: false, items: []}')
+      2>/dev/null) || RAW=""
+    HTTP_CODE=$(printf '%s' "$RAW" | tail -n1)
+    RESP=$(printf '%s' "$RAW" | sed '$d')
+    if [ -z "$RAW" ]; then
+      OUT=$(jq -c -n --arg r "$REPO" '{repo: $r, ok: false, items: [], reason: "curl request failed (network/timeout)"}')
+    elif [ "${HTTP_CODE#2}" = "$HTTP_CODE" ]; then
+      # Not a 2xx — surface the status code plainly (403 = rate limit or
+      # scope, 404 = repo/token mismatch, 5xx = GitHub-side). Distinguishing
+      # this from a generic "degraded" is the whole fix: they used to look
+      # identical, which produced a run of alarming-looking escalations that
+      # were actually transient blips with no way to tell which from a bug.
+      OUT=$(jq -c -n --arg r "$REPO" --arg reason "HTTP $HTTP_CODE" '{repo: $r, ok: false, items: [], reason: $reason}')
+    else
+      OUT=$(jq -c --arg r "$REPO" --argjson now "$NOW_EPOCH" 'if .items then
+          {repo: $r, ok: true,
+           items: [.items[] | {
+             number, title: (.title[0:140]), author: .user.login, url: .html_url,
+             type: (if .pull_request then "pr" else "issue" end),
+             created_at,
+             age_min: ((($now - ((.created_at | fromdateiso8601?) // $now)) / 60) | floor)}]}
+        else {repo: $r, ok: false, items: [], reason: "unexpected response shape"} end' <<< "$RESP" 2>/dev/null || echo "")
+      [ -z "$OUT" ] && OUT=$(jq -c -n --arg r "$REPO" '{repo: $r, ok: false, items: [], reason: "unparseable response"}')
+    fi
     printf '%s\n' "$OUT" > "$TMP/$i.json"
   ) &
   i=$((i+1))
@@ -74,7 +95,7 @@ if ! ls "$TMP"/*.json >/dev/null 2>&1; then
   exit 0
 fi
 ALL=$(cat "$TMP"/*.json | jq -c -s '.' 2>/dev/null || echo '[]')
-DEGRADED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.ok == false) | .repo]')
+DEGRADED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.ok == false) | {repo, reason}]')
 HAS_DEGRADED=$(printf '%s' "$DEGRADED" | jq 'length > 0')
 
 # Past the grace period, and not already handed to the agent once.
