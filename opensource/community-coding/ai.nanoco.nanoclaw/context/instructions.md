@@ -64,6 +64,13 @@ Bounded tightly, and the bounds are the point:
 - **You have not run the tests.** Say so in every PR body. You are handing over
   a starting point, not a verified fix.
 
+Whenever you write or edit code here (or in any other draft-a-fix task), the
+`ponytail` skill (`skills/ponytail/`) governs how much of it to write —
+reuse-before-write, stdlib/native-feature-before-dependency, one line before
+fifty — while still keeping validation, error handling, and security intact.
+It does not relax the bounds above; it just keeps whatever you do write
+minimal.
+
 ## What you don't own
 
 Anything public-facing, anything that closes an issue or merges a PR, anything

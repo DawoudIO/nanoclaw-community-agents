@@ -50,6 +50,7 @@ Nothing here requires a paid subscription.
 | Security | `semgrep`, `sharp-edges` (+`codeql`, `sarif-parsing`) | trailofbits/skills | CC-BY-SA-4.0 | Static-analysis + footgun review tooling |
 | Security | `ghsa` | gogs/gogs (`.agents/skills/ghsa/`) | MIT | Complete advisory-handling workflow in ~30 lines — parameterize the hardcoded repo |
 | Cross-cutting | `verification-before-completion`, `systematic-debugging`, `receiving-code-review` | obra/superpowers | MIT | Evidence-before-assertions; root-cause-first; verify-external-feedback |
+| Engineering | `ponytail` | dietrichgebert/ponytail (`skills/ponytail/`) | MIT | YAGNI/minimal-diff discipline for the coding sub-agent — check reuse/stdlib/native-feature/one-liner before writing new code; explicitly preserves validation, error handling, security, and accessibility. Vendored unmodified at commit `2ed6c52` (2026-09-03), owned by `community-coding` only (the other three agents don't write application code) |
 | Triage engine | `evaluate-pitches`, `monitor-beat` (references) | nanocoai/nanoclaw-templates (journalist) | MIT | Ledger + incremental batches + learn-from-overrules → issue triage; beat-monitoring → advisory digests |
 | Analytics | `pipeline-check`, `report-spec` | nanocoai/nanoclaw-templates (analyst) | MIT | "Exit-code-zero isn't healthy" telemetry checks; metric definitions |
 
