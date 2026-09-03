@@ -93,17 +93,21 @@ failed with nothing new to report instead — surface that plainly and stop;
 For each entry in `scriptOutput.releases`: draft one Discord announcement for
 the team-lead tier's announcements channel — release name/version, 2–4 real
 highlights pulled from the actual release notes (summarize, don't dump the
-full changelog), and a card with a button linking to `url` (plus a second
-button for the changelog/compare link if one is available). **Never write
-either link as a bare or markdown-linked URL in the message body — see
-`community-manager/references/discord-mechanics.md` → "Clickable links need
-a card, not a URL"; this is a proactive post, so that doc's "plain message
-first, then the card" ordering applies.** If the project's growth goals
-include developers/contributors, credit contributors by name if the notes
-list them (see the marketing agent's growth-playbook — this is the cheapest
-developer-growth lever there is). If `body` is long, attach the full notes as
-a downloadable `.md` per the 2,000-character rule and keep the message
-itself to the highlights.
+full changelog), and a card whose primary button follows
+`discord-mechanics.md` → "Outbound marketing links carry UTM params": the
+project's configured landing page (with `utm_source=discord&utm_medium=
+announcement&utm_campaign=release-<tag>`) if one is set in
+`project-config.md`, otherwise `url` itself. Put the full release notes
+(`url`) on a second button when the primary button points at the landing
+page instead — never drop the actual release link entirely. **Never write
+either link as a bare or markdown-linked URL in the message body** — see
+`discord-mechanics.md` → "Clickable links need a card, not a URL"; this is a
+proactive post, so that doc's "plain message first, then the card" ordering
+applies. If the project's growth goals include developers/contributors,
+credit contributors by name if the notes list them (see the marketing
+agent's growth-playbook — this is the cheapest developer-growth lever there
+is). If `body` is long, attach the full notes as a downloadable `.md` per
+the 2,000-character rule and keep the message itself to the highlights.
 
 This is already-public information (the release is live on GitHub before you
 ever see it) — **post directly, no approval needed**, same as any other

@@ -181,6 +181,40 @@ replies. If an incoming message is attributed to you, do not reply or react to
 it. Treating your own output as a new prompt is the most common way a Discord
 agent loops.
 
+## Outbound marketing links carry UTM params; point new-traffic links at the landing page, not GitHub
+
+Any link to the project's own marketing-facing pages — a getting-started/
+install page, a landing page, a blog post — that you post in a public or
+community channel gets `utm_source`/`utm_medium`/`utm_campaign` query
+params, e.g. `?utm_source=discord&utm_medium=announcement&utm_campaign=
+release-7.6.4`. This applies to release-announcement cards, marketing's
+own content drafts, and anything else pointing outward at the project's
+site — not to links to a GitHub issue/PR/the repo itself, which is
+internal navigation, not marketing attribution. Record the project's
+actual convention (source = platform, medium = post-type, campaign =
+specific push/release) in `project-config.md` once the owner confirms it,
+and reuse it everywhere rather than inventing params per post.
+
+**For a new release specifically, prefer the project's own landing page
+over the raw GitHub release URL as the primary card link**, if one is
+configured (e.g. an install/getting-started page) — a GitHub release page
+converts poorly for someone who isn't already a contributor; a landing
+page is built for exactly that visitor. Put the full GitHub release notes
+on a second button instead of dropping them, for anyone who does want the
+changelog. If no landing page is configured, fall back to linking the
+GitHub release directly — don't invent one.
+
+## Tables need a fenced code block, not markdown pipes
+
+Discord has no markdown table support at all — a `| Platform | Today | WoW |`
+pipe table renders as literal stray pipe characters, not a table. This was a
+real, live-observed failure on a metrics report before the fix. **Wrap any
+tabular data in a fenced code block** (triple backticks) instead — Discord
+renders those in a monospace font, so column-aligned plain text reads as an
+actual table. Use this for any data/metrics-style report (social snapshots,
+weekly analytics, dev metrics) — not just prose tables, anything with
+columns that need to line up.
+
 ## The 2,000-character limit — long content ships as a Markdown file
 
 Discord caps messages at ~2,000 characters (free tier). Never handle long
