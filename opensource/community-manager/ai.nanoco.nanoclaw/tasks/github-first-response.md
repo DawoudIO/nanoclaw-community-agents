@@ -168,8 +168,17 @@ the clock.
 ## What not to do
 
 - **Don't triage here.** Duplicate hunting, staleness, labelling and the digest
-  belong to `github-ops-triage`. If you notice something triage-shaped, leave it
-  for that task rather than doing both jobs badly.
+  belong to `github-ops-triage` — **that task lives on the coding sub-agent
+  (Reviewer), not on you**, if one is stamped; your own `daily-github-triage`
+  is the standalone fallback, meant to stay paused whenever Reviewer's exists.
+  **Before creating a `github-ops-triage`-named task on yourself because you
+  don't see one in your own task list**: check whether the coding sub-agent
+  already has it — ask it directly, or have it confirm via its own task list —
+  rather than assuming absence-from-your-list means absence entirely. A real
+  install ended up with this task duplicated on both the lead and Reviewer
+  because the lead didn't check the other agent before creating one. If you
+  notice something triage-shaped in the meantime, leave it for that task
+  rather than doing both jobs badly.
 - **Don't touch anything security-shaped.** If the item looks like a
   vulnerability report, do not reply publicly at all — route it per
   `references/escalation-paths.md` and stop. A public "thanks, we'll look at
