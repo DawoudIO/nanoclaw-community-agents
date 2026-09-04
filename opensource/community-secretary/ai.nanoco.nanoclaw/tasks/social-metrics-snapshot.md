@@ -18,7 +18,14 @@ not to treat it as an incident.
      historically), read both and record them as separate keys (e.g.
      `youtube_old`, `youtube_new`), never collapse them into one number.
    - **Discord**: member count via the bot's own guild access (you're
-     already in the server) — not a public invite-page scrape.
+     already in the server) — not a public invite-page scrape. **Track
+     member count only, never "currently online" count.** Online headcount
+     is a point-in-time snapshot that swings with who happens to be active
+     right now — it's noise, not a growth signal, and doesn't belong next
+     to real cumulative counts like followers/members/subscribers. A real
+     install tracked it, reported a "WoW +2" on it, and the owner correctly
+     called it worthless — it was dropped from the report afterward. Don't
+     re-add it.
    - **X/Twitter**: public profile pages are not a reliable read here — X
      blocks unauthenticated fetches outright (not a login wall, a hard
      block), so treat "public page" as not an option for this platform.
@@ -45,14 +52,24 @@ not to treat it as an incident.
 3. Append one JSON line to your working copy,
    `plugin-data/community-secretary/social-metrics-history.jsonl`:
    `{"date": "<today>", "<platform>": <count|null>, ...}` — append-only.
-4. **Compute deltas from the file you just appended to**, per platform:
-   - **Week-over-week (WoW)**: vs. the previous line — if last week was
-     `null`, skip back further to the last real reading instead of comparing
-     against nothing.
-   - **Month-over-month (MoM)**: vs. the line closest to 28 days earlier.
-     Needs at least ~5 weeks of history to mean anything — with fewer lines
-     than that, report WoW only and say plainly there's not enough history
-     for MoM yet, rather than comparing against too-short a baseline.
+4. **Compute deltas from the file you just appended to, and label them by
+   the actual elapsed time, never a fixed "WoW"/"MoM" assumption.** This
+   task's schedule isn't necessarily weekly — the owner may have it running
+   daily, and "WoW" printed on a 1-day delta is a real, observed mislabeling
+   bug (the numbers were fine, the label was a lie about the window). Look
+   at the actual date on the comparison line you pick and say what it
+   really is:
+   - **Short-window delta**: vs. the previous line, whatever that gap
+     actually is — report it as "vs N days ago", not "WoW", unless the gap
+     genuinely is ~7 days.
+   - **Longer-window delta**: vs. the line closest to 28 days earlier,
+     reported as "vs ~N days ago" (or "MoM" only when that line is genuinely
+     ~28-30 days back). Needs enough history to mean anything — with too few
+     lines, say plainly there's not enough history yet rather than comparing
+     against a too-short baseline.
+   The rule is the same one the weekly-analytics-report uses: state the
+   real window, never a label that assumes a cadence this task might not
+   actually be running on.
 5. **Send the exact same JSON line to your lead, plus both deltas**, per
    `report-formats.md`'s follower-report skeleton — including the
    fastest-growing-platform line, not just the raw per-platform numbers. The

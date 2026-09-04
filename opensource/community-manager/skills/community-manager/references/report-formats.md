@@ -215,17 +215,26 @@ right next to it, not in a different message five minutes apart.
 
 ```
 📈 Follower snapshot — <date>
-<platform>: <count>  (WoW <+/-N>, MoM <+/-N or "not enough history yet">)
+<platform>: <count>  (vs <N days> ago: <+/-N>, vs <~28-30 days> ago: <+/-N or "not enough history yet">)
 ...
 
-Fastest-growing this week: <platform> (<+N>) — <one clause of context if you
-have it, e.g. "the week the LinkedIn push went out">
+Fastest-growing recently: <platform> (<+N> over <window>) — <one clause of
+context if you have it, e.g. "the week the LinkedIn push went out">
 ```
 
-Same null-handling as any metric: a platform that failed to fetch this week
-shows `null`, never last week's number repeated. MoM needs roughly a month of
-prior snapshots (~5 weekly lines) before it means anything — until then, WoW
-only, stated plainly rather than comparing against too short a baseline.
+**Label every delta by its actual elapsed time, never a fixed "WoW"/"MoM"
+assumption** — this task's schedule isn't necessarily weekly, and printing
+"WoW" on what's actually a 1-day delta is a real, observed mislabeling bug
+(the numbers were fine, the label lied about the window). Only call
+something "WoW"/"MoM" when the comparison line genuinely is ~7 or ~28-30
+days back; otherwise say "vs N days ago" plainly.
+
+Same null-handling as any metric: a platform that failed to fetch this
+period shows `null`, never the prior number repeated. The longer-window
+comparison needs enough history to mean anything (~a month's worth of
+lines, whatever the actual cadence) — until then, the short-window
+comparison only, stated plainly rather than comparing against too short a
+baseline.
 
 **Composition over any single delta, same as the GA4 report**: the
 cross-platform comparison (which platform is actually growing vs. flat,
