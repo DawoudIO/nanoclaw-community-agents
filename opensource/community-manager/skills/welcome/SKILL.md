@@ -805,6 +805,20 @@ the same bot. This is a suggestion to the owner, not something you can fix
 yourself — the Discord display name is set when the bot application is
 created (step 3), separate from anything you configure.
 
+**Also recommend this account is used by nothing else** — not the owner's
+own tooling, not a different AI coding assistant or automation connected
+separately (a GitHub App integration, a personal script). A real install
+spent a full day chasing what looked like a compromised bot identity —
+issues and PRs appearing under the bot's account that the agent had no
+memory of creating — before the owner confirmed it was their own,
+intentional use of a different tool against the same account. Nothing was
+actually wrong, but there was no way to tell that from inside the system,
+and it cost real time and a real security scare to resolve. If the owner
+wants to use another tool (Codex, a personal script, anything) against
+these repos too, a **separate** GitHub identity for it removes the
+ambiguity entirely — say this plainly as a recommendation, not a
+requirement you can enforce.
+
 Now walk the setup itself. For every feature the owner enabled, tell them
 exactly what to set up — one message, only the rows that apply, pointing at
 `onecli_dashboard_url` for where to go. **Never ask for a raw key in chat** —
