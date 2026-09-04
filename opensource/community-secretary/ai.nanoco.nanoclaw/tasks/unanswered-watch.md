@@ -17,6 +17,19 @@ script: |
   # It deliberately does NOT call any API to check the lead's health: "did a
   # human's message go unanswered" is the signal that matters, and it's true
   # whether the cause is rate limits, a crashed session, or a wiring fault.
+  #
+  # WHY `ncl sessions list` + `ncl sessions history`, NOT a "messages" command.
+  # An earlier version of this gate called `ncl messages list`, which does not
+  # exist on this platform — there is no cross-agent-group message listing at
+  # all, by design (agent-group scoping). What DOES exist, and is what makes
+  # this gate possible: the router writes every inbound message into every
+  # WIRED agent-group's own session regardless of whether that agent's engage
+  # mode ever triggers a reply (only the wake decision differs). So as long as
+  # the local agent is silently wired to every support-tier channel (see
+  # welcome/SKILL.md §5c — `--engage-mode mention` on channels nobody ever
+  # @-mentions "Local Agent" in), it has its own real, passive session per
+  # support channel, readable via `ncl sessions history` — scoped to its own
+  # agent group, which it's always allowed to see.
   DATA="/workspace/agent/plugin-data/community-secretary"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
@@ -39,32 +52,60 @@ script: |
     exit 0
   fi
 
-  # Inbound support-tier messages, newest first. Shape varies by NanoClaw
-  # version, so treat an unexpected shape as "cannot tell" rather than "nothing
-  # to do" — a false quiet here means a community member gets silence.
-  RAW=$(ncl messages list --json 2>/dev/null || echo '')
-  if [ -z "$RAW" ] || ! printf '%s' "$RAW" | jq -e 'type=="array"' >/dev/null 2>&1; then
-    echo '{"wakeAgent": false, "data": {"status": "cannot-read-messages", "hint": "ncl messages list gave an unexpected shape - verify the command on this NanoClaw version before trusting this task"}}'
+  # Only channel-backed, active sessions — this agent's own agent-shared or
+  # agent-to-agent sessions (messaging_group_id null) are never support
+  # channels and would only ever produce false positives here.
+  SESSIONS=$(ncl sessions list --json 2>/dev/null | jq -c '[.[] | select(.status == "active") | select(.messaging_group_id != null)]' 2>/dev/null || echo '')
+  if [ -z "$SESSIONS" ] || ! printf '%s' "$SESSIONS" | jq -e 'type=="array"' >/dev/null 2>&1; then
+    echo '{"wakeAgent": false, "data": {"status": "cannot-read-sessions", "hint": "ncl sessions list gave an unexpected shape - verify the command on this NanoClaw version before trusting this task, and confirm the local agent is actually wired to support channels per welcome/SKILL.md 5c"}}'
+    exit 0
+  fi
+
+  if [ "$(printf '%s' "$SESSIONS" | jq 'length')" -eq 0 ]; then
+    echo '{"wakeAgent": false, "data": {"status": "no-channel-sessions", "hint": "no active channel-backed sessions - the local agent may not be wired to any support channel yet, see welcome/SKILL.md 5c"}}'
     exit 0
   fi
 
   CUTOFF=$(( $(date +%s) - GRACE * 60 ))
-  PENDING=$(printf '%s' "$RAW" | jq -c --argjson c "$CUTOFF" --rawfile seen "$SEEN" '
-    ($seen | split("\n") | map(select(length > 0))) as $done
-    | [ .[]
-        | select((.direction // "inbound") == "inbound")
-        | select((.answered // false) == false)
-        | select(((.created_at // empty) | fromdateiso8601? // 0) < $c)
-        | select((.id // .message_id // "" | tostring) as $i | ($i | IN($done[]) | not))
-        | {id: ((.id // .message_id) | tostring),
-           channel: (.channel // .messaging_group // "unknown"),
-           sender: (.sender // .author // "unknown"),
-           excerpt: ((.text // .body // "") | tostring | .[0:160])} ]' 2>/dev/null || echo '[]')
+  PENDING='[]'
+  DEGRADED='[]'
+  while IFS= read -r SESSION; do
+    SID=$(printf '%s' "$SESSION" | jq -r '.id')
+    MGID=$(printf '%s' "$SESSION" | jq -r '.messaging_group_id')
+    # Small limit: only the newest message matters for "has the last thing
+    # said here been answered", not a full transcript.
+    HIST=$(ncl sessions history --id "$SID" --limit 3 --json 2>/dev/null || echo '')
+    if [ -z "$HIST" ] || ! printf '%s' "$HIST" | jq -e 'type=="array"' >/dev/null 2>&1; then
+      DEGRADED=$(jq -c --arg mgid "$MGID" '. + [$mgid]' <<< "$DEGRADED")
+      continue
+    fi
+    # Newest row is last in the chronological array `sessions history` returns.
+    LAST=$(printf '%s' "$HIST" | jq -c 'if length > 0 then .[-1] else null end')
+    [ "$LAST" = "null" ] && continue
+
+    IS_UNANSWERED=$(jq -r --argjson c "$CUTOFF" '
+      (.direction == "in") and (((.timestamp | fromdateiso8601?) // $c) < $c)' <<< "$LAST" 2>/dev/null || echo false)
+    [ "$IS_UNANSWERED" != "true" ] && continue
+
+    # Dedup key: session + the exact timestamp of the unanswered message, so
+    # the same still-unanswered message isn't re-acknowledged every 10 minutes,
+    # but a NEW unanswered message in the same channel later still surfaces.
+    KEY="${SID}:$(jq -r '.timestamp' <<< "$LAST")"
+    if grep -qxF "$KEY" "$SEEN" 2>/dev/null; then continue; fi
+
+    ENTRY=$(jq -c --arg key "$KEY" --arg mgid "$MGID" \
+      '{key: $key, messaging_group_id: $mgid, sender: (.sender // "unknown"), excerpt: ((.text // "") | .[0:160])}' <<< "$LAST")
+    PENDING=$(jq -c --argjson e "$ENTRY" '. + [$e]' <<< "$PENDING")
+  done < <(printf '%s' "$SESSIONS" | jq -c '.[]')
 
   if [ "$(printf '%s' "$PENDING" | jq 'length')" -eq 0 ]; then
-    echo '{"wakeAgent": false, "data": {"status": "all-answered"}}'
+    if [ "$(printf '%s' "$DEGRADED" | jq 'length')" -gt 0 ]; then
+      printf '{"wakeAgent": false, "data": {"status": "partial-fetch-failure", "degraded_messaging_groups": %s}}\n' "$DEGRADED"
+    else
+      echo '{"wakeAgent": false, "data": {"status": "all-answered"}}'
+    fi
   else
-    printf '{"wakeAgent": true, "data": {"status": "unanswered", "grace_minutes": %s, "messages": %s}}\n' "$GRACE" "$PENDING"
+    printf '{"wakeAgent": true, "data": {"status": "unanswered", "grace_minutes": %s, "messages": %s, "degraded_messaging_groups": %s}}\n' "$GRACE" "$PENDING" "$DEGRADED"
   fi
 ---
 Only invoked when a support-tier message has gone unanswered longer than
@@ -72,15 +113,24 @@ Only invoked when a support-tier message has gone unanswered longer than
 out. **Your job is to make sure nobody hears silence. It is not to answer
 them.**
 
-For each message in `scriptOutput.messages`, post ONE holding reply in that
-channel, close to this wording:
+For each entry in `scriptOutput.messages`: its `messaging_group_id` is the
+channel it came from. Match it against your own `ncl destinations list` to
+find the local-name you post through for that channel (set up alongside
+your silent wiring — see `welcome/SKILL.md` §5c); if no matching
+destination exists, that channel was wired for you to observe but never
+given anywhere to post into — flag that to your lead as a setup gap rather
+than silently skipping it. Otherwise post ONE holding reply there, close to
+this wording:
 
 > Thanks for posting — I've logged this and a maintainer will pick it up
 > shortly.
 
-Then append its `id` to `plugin-data/community-secretary/acknowledged.txt`, one
-per line. That's your ack; the gate uses it so the same person is never
-acknowledged twice.
+Then append the entry's `key` (verbatim — it's the session+timestamp pair
+that identifies exactly this message, not a bare id) to
+`plugin-data/community-secretary/acknowledged.txt`, one per line. That's
+your ack; the gate uses it so the same still-unanswered message is never
+acknowledged twice, while a genuinely new unanswered message in the same
+channel later still surfaces.
 
 **Boundaries — these are the reason a local model is safe in public here:**
 
@@ -99,7 +149,19 @@ acknowledged twice.
   returns — an acknowledged message that nobody ever answers is a worse
   outcome than the silence you replaced.
 
-**If `status` is `cannot-read-messages`**: report it to your lead, marked for the owner,
-rather than assuming quiet. This gate failing open (staying silent) is the
-one failure mode it must never hide — verify the `ncl messages list` shape on
-this NanoClaw version.
+**If `status` is `cannot-read-sessions`**: report it to your lead, marked
+for the owner, rather than assuming quiet. This gate failing open (staying
+silent) is the one failure mode it must never hide — verify `ncl sessions
+list`'s shape on this NanoClaw version.
+
+**If `status` is `no-channel-sessions`**: the local agent isn't wired to
+any support channel yet (or the wiring dropped). Report this plainly to
+your lead once — it means this gate has been silently doing nothing, not
+that everything's been answered.
+
+**If `status` is `partial-fetch-failure`** (present on either an
+`all-answered` or `unanswered` result): `degraded_messaging_groups` lists
+channels whose history couldn't be read this run. Still act on whatever
+`messages` did come through; just don't read the absence of a channel from
+that list as "nothing to do" there — say so to your lead if it happens
+more than once or twice in a row.

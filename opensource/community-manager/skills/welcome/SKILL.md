@@ -519,6 +519,30 @@ Support-tier channels take `--engage-mode pattern --engage-pattern '.'`
 doesn't wait on per-sender approval — the owner DM is the one that stays
 locked to known senders.
 
+**Also silently wire the local agent to every support-tier channel — this
+is what makes `unanswered-watch` actually work.** Every agent wired to a
+messaging group receives every message into its own session regardless of
+whether its engage mode ever triggers a reply (the router writes the row
+either way; only the wake decision differs) — so a wiring with
+`--engage-mode mention` on a channel nobody ever @-mentions "Local Agent"
+in gives the local agent a real, passive session history of every support
+message, with zero risk of it ever actively replying. Without this, the
+local agent has no session for these channels at all and cannot see
+whether anything went unanswered — `unanswered-watch` silently has nothing
+to check, which is exactly the bug that shipped before this was fixed.
+
+```bash
+# per support-tier channel, in addition to the lead's own wiring above
+./bin/ncl wirings create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
+    --agent-group-id <local-id> --engage-mode mention
+./bin/ncl destinations add --agent-group-id <local-id> --local-name <channel-name> \
+    --target-type channel --target-id <messaging-group-id>
+```
+
+The destination is what lets it actually **post** the holding ack into that
+specific channel once it detects one is needed — a wiring alone only gives
+it something to read, not somewhere to send.
+
 If they pick (b), then proceed as below.
 
 **One combined ask in chat, not one question per channel — but be accurate
