@@ -63,7 +63,7 @@ one:
 
 | `nanoclaw.sh` does | The lead does, in the interview | Only you can do |
 |---|---|---|
-| Container image, OneCLI vault, agent runtime | Stamps the other three agents (§1) | Click through Discord bot creation |
+| Container image, OneCLI vault, agent runtime | Stamps the Reviewer (§1) | Click through Discord bot creation |
 | Service start, mounts, access rules | Wires their destinations + guild channels (§1) | Add each credential to OneCLI, when asked |
 | One agent, from your chosen template | Relays each sub-agent's config (§3) | |
 | One channel — your owner DM | Verifies every credential; sets up its own backup (§2, §3) | |
@@ -116,24 +116,18 @@ lead asks you for one.
 
 ## 1 · Stamp the agents and wire them
 
-Three agents, split by **model tier**, not subject — a capable model where
+Two agents, split by **model tier**, not subject — a capable model where
 judgment is needed, the cheapest tier where reliability matters more than
 capability:
 
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
 | **Lead** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only full one** | Always |
-| **Coding** (`opensource/community-coding`) — the Reviewer | Issue/PR triage, security advisories, Dependabot review, docs-currency, repo and contributor health, dev metrics, and the holding acknowledgment when the lead is rate-limited. Read-only + two narrow write paths (security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional, **add second** — takes the bulk of recurring work off the lead |
-| **Marketing** (`opensource/community-marketing`) | Follower counts and GA4 traffic; publishes the history that can't be rebuilt. Writes no content | Claude Haiku | No — headless | Optional, **not stamped by default** |
+| **Coding** (`opensource/community-coding`) — the Reviewer | Everything headless: issue/PR triage, security advisories, Dependabot review, docs-currency, repo and contributor health, dev metrics, web traffic, follower counts, and the holding acknowledgment when the lead is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the lead |
 
-**A fourth "secretary" agent used to sit between the lead and the
-Reviewer**, narrating pre-computed numbers on the cheap tier. It was retired:
-running a fourth container cost real memory on a small host, and reviewing its
-tasks one by one showed each belonged with whichever agent already owned the
-surrounding domain. Its tasks moved to the two agents above, except the ones
-that were dropped outright (a repo mirror that needed a Docker host mount, a
-health check that could not fix anything it found, a workspace backup nothing
-ever restored).
+**Nothing here writes content.** If you want posts, announcements or campaign
+copy, that stays with you and whoever you work with — this set measures and
+reports.
 
 (`docs-gap-review` sits with the lead, not coding, because it reads the
 lead's own `question-ledger.jsonl` — an agent can't read another's
@@ -155,9 +149,6 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # each group's id: the wiring and vault steps below need them.
 ./bin/ncl groups create --template opensource/community-manager    --name "Community Manager"
 ./bin/ncl groups create --template opensource/community-coding     --name "Community Coding"
-# Marketing is optional and not stamped by default:
-./bin/ncl groups create --template opensource/community-marketing  --name "Community Marketing"
-
 # Install jq on every agent, host-side, before you DM the lead. Every
 # template's setup-check.sh needs it, and the lead's own tasks parse JSON
 # with it. For the LEAD this must happen here: install_packages rebuilds
@@ -175,8 +166,6 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # sub-agent's reports just reach nobody.
 ./bin/ncl destinations add --agent-group-id <coding-id>     --local-name parent           --target-type agent --target-id <lead-id>
 ./bin/ncl destinations add --agent-group-id <lead-id>       --local-name coding           --target-type agent --target-id <coding-id>
-./bin/ncl destinations add --agent-group-id <marketing-id>  --local-name parent           --target-type agent --target-id <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>       --local-name marketing-agent  --target-type agent --target-id <marketing-id>
 ```
 
 Sub-agents are headless — `parent` is their **only** outbound path, which is
@@ -205,8 +194,8 @@ community member triggers a "new sender — allow?" prompt, defeating the
 point of a public channel. Verify the round trip both ways, then DM the
 lead — its `welcome` skill runs the interview (first question: your
 GitHub repo), persists config, and relays sub-agent values. Only then wire
-the public channels: the lead gets all of them; the reviewer and marketing
-get none, by design.
+the public channels: the lead gets all of them, and the Reviewer gets only the
+silent support-channel wiring `unanswered-watch` needs (below).
 
 **The Reviewer is the one exception to "no sub-agent has channel
 identity."** Its `unanswered-watch` task gets a wiring to each support
@@ -349,8 +338,7 @@ to give each one, so you don't have to work it out live:
 | Token | Needs | Never |
 |---|---|---|
 | Lead | `repo`/`public_repo` — comments, labels, issues | `read:org`, `admin:*`, `delete_repo` |
-| Coding | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for security patches, plus Contents write on the marketing repo for `ledger-publish` | Write on anything else; issue/PR comment rights |
-| Marketing | Marketing repo only, Contents read/write | Write on any other repo |
+| Coding | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for draft security patches, plus Contents write on `LEDGER_REPO` for `ledger-publish` | Write on anything else; issue/PR comment rights |
 
 If a future feature seems to need broader access, the fix is almost never
 "widen this token" — it's a new, narrower, single-purpose credential.
@@ -403,10 +391,8 @@ added, and nothing more.
 | Coding | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health, dev metrics, GFI health, hygiene audit |
 | Coding | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the metrics-history branch) |
 | Coding | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
-| Marketing | GitHub PAT | `api.github.com` | `ledger-publish` |
-| Marketing | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the history branch) |
-| Marketing | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
-| Marketing | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
+| Coding | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Coding | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
 
 A row that doesn't exist here is a finding: neither sub-agent appears against
 Discord, the lead never appears against GA4 or the social hosts, and no agent
@@ -445,11 +431,10 @@ parameters over the destination pairs from §1:
 
 | Sub-agent | Keys relayed into `config.env` |
 |---|---|---|
-| **Coding** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `MARKETING_REPO` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
-| **Marketing** | `MARKETING_REPO`, `GA4_PROPERTIES` (+ optional `LEDGER_BRANCH`) |
+| **Coding** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
 | **Lead** (own) | `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS`) |
 
-Plus `GITHUB_BOT_USERNAME`, held by all three.
+Plus `GITHUB_BOT_USERNAME`, held by both.
 
 **Check the coding relay specifically — it fails quietly.** It's the largest
 payload, and a missing key isn't an error: the gate exits `not-configured`
@@ -458,10 +443,11 @@ reads like a broken agent and is an unrelayed key. `ACK_GRACE_MINUTES` (20
 min) and `LEDGER_BRANCH` (`agent-metrics`) have built-in defaults; nothing
 else does.
 
-**`MARKETING_REPO` goes to both sub-agents.** Each publishes its own
-unrecoverable series to a branch there, and two agents cannot share a config
-file — so the same value is written twice. If one series stops appearing
-later, a half-done relay is the first thing to check.
+**`LEDGER_REPO` is the one that costs data if you skip it.** Without it
+`ledger-publish` can't run, and all three unrebuildable series live only
+inside the container until the next rebuild throws them away. Normally point
+it at the marketing repo — never the product repo, whose protected default
+branch and CI have no business receiving a daily metrics commit.
 
 ### The full question list
 
@@ -484,7 +470,7 @@ to the agent.
 | 11 | GitHub Actions → Discord notifications | Optional |
 | 12 | OneCLI dashboard address | Asked once |
 | 13 | Docs style (current-state vs version-history) | Enforced on every draft |
-| 14 | Audience + tone, in your words | **No** — marketing needs this |
+| 14 | Audience, in your words | Optional — shapes how reports describe reach |
 | 15 | Workspace backup repo | Optional but survives a recreate |
 | 16 | Bot's GitHub username | **No** |
 | 17 | Human backstop for when you're unreachable | **Asked always** — recorded as open risk if none |
@@ -541,7 +527,7 @@ equivalent:
 ./bin/ncl tasks get <task-id>     # inspect the result
 ```
 
-(Marketing's tasks won't appear unless you stamped that template — a lower
+(The Reviewer's tasks won't appear unless you stamped that template — a lower
 count than `gen-task-table.sh`'s total is expected, not missing.)
 
 Resume order, safe → side-effect-adjacent:
@@ -562,16 +548,16 @@ Resume order, safe → side-effect-adjacent:
    `dev-metrics-report`'s ledger to have run twice first. Each exits
    `not-configured` silently if its key is missing — resume, then check they
    did something.
-4. **The history publishes**, once `MARKETING_REPO` and the `github.com` (git)
-   credential are in place: `ledger-publish` on the Reviewer and on marketing.
-   Run each once by hand and confirm the branch actually lands — this is the
-   one pair whose silent failure costs data rather than a report.
+4. **The history publish**, once `LEDGER_REPO` and the `github.com` (git)
+   credential are in place: `ledger-publish`. Run it once by hand and confirm
+   the branch actually lands — this is the one task whose silent failure costs
+   data rather than a report.
 5. **Ungated tasks last** — nothing stops them burning a wake on an
    unconfigured service: `social-metrics-snapshot` (only once a
-   page-reading tool is confirmed in marketing's container — Claude's
+   page-reading tool is confirmed in the Reviewer's container — Claude's
    built-in web fetch or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser))
    and the lead's `inbox-check` (only once an email MCP is connected).
-6. **Marketing's report** (if stamped): `weekly-analytics-report`.
+6. **The weekly reports**: `weekly-analytics-report`.
 7. **Never run both** the lead's `daily-github-triage` and the coding
    agent's `github-ops-triage` — the former is the lead's standalone
    fallback; running both double-reports every issue. Pause it when you

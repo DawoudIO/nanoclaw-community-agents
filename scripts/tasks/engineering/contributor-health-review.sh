@@ -7,9 +7,9 @@ set -uo pipefail
 # sustained merged work to be worth a bigger role.
 #
 # WHY THIS IS ITS OWN TASK, NOT PART OF dev-metrics-report.
-# Split out of that daily digest. The numbers below are arithmetic and the
-# script computes them — but every one of them needs a judgment call that a
-# daily list of counts is the wrong place for:
+# The numbers below are arithmetic and the script computes them — but every one
+# of them needs a judgment call that a daily list of counts is the wrong place
+# for:
 #   * a rising unmerged ratio means EITHER more low-quality submissions OR a
 #     maintainer backlog. Opposite problems, opposite responses, same number.
 #   * high top-author share means "one person deep" only in context — a

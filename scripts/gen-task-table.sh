@@ -6,7 +6,7 @@
 #   bash scripts/gen-task-table.sh --check    # verify docs match reality
 #
 # WHY THIS EXISTS: every doc that hand-wrote "18 tasks (7 lead, 7 coding,
-# 4 marketing)" went stale the moment the topology changed, and nothing
+# 4 coding)" went stale the moment the topology changed, and nothing
 # caught it because prose isn't testable. The repo already knows how many
 # tasks exist and who owns them. Docs should quote this, not restate it.
 #
@@ -168,10 +168,8 @@ case "$MODE" in
     BAD=0
     for f in "$ROOT"/README.md "$ROOT"/docs/OPERATIONS.md "$ROOT"/docs/INSTALL.md; do
       [ -f "$f" ] || continue
-      # Stale agent-count language. The set is two agents: the Local/secretary
-      # tier was retired and Marketing was folded into the Reviewer. "the other
-      # agent" is fine; an unqualified "three agents"/"all four templates" is
-      # drift.
+      # Stale agent-count language. There are two agents; a doc claiming
+      # three or four has drifted.
       if grep -niE '(^|[^a-z])(all )?(three|four) (agents|templates)' "$f" >/dev/null; then
         echo "DRIFT $f: says 'three/four agents/templates' but there are 2"; BAD=1
       fi

@@ -8,18 +8,15 @@ the project's traffic and follower numbers, and hands all of it to a lead
 support agent rather than posting publicly.
 
 It carries every recurring job in this set that isn't talking to people. That
-concentration is deliberate and arrived in two steps: a "narration" tier was
-retired first and its tasks went to whichever agent already owned the
-surrounding domain, then the marketing agent was folded in once content
-creation moved outside the system, leaving it a measurement agent with no
-distinct posture of its own. Co-location also matters mechanically —
+concentration is deliberate: one headless agent means one credential scope to
+reason about, and it keeps tasks together with the state they read —
 `contributor-nudge` reads a ledger `dev-metrics-report` writes, and since no
-agent can read another agent's plugin-data, that pair only works inside one
+agent can read another agent's `plugin-data`, that pair only works inside one
 container.
 
-Pairs with **`opensource/community-manager`** (the lead) and has no siblings.
-It works standalone, but the single-public-voice design assumes a lead agent
-exists to relay through.
+Pairs with **`opensource/community-manager`** (the lead). It works standalone,
+but the single-public-voice design assumes a lead agent exists to relay
+through.
 
 ## Why headless
 

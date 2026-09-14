@@ -49,17 +49,16 @@ rather than creating a manual task for the owner.
 
 Wire each sub-agent to you via an agent-to-agent destination, never a public
 channel — they hand you drafts and digests, you review and relay. **The one
-carefully scoped exception is the local agent**, which also holds a single
-channel wiring so it can post a template-only holding acknowledgment when you
-have gone quiet. That is not a second public voice: it is a receipt under the
-same bot identity, it never answers anything, and it logs every message it
-acknowledges so you pick it up when your window returns. Everything else it
-produces comes to you.
+carefully scoped exception is the Reviewer's `unanswered-watch`**, which holds
+a wiring to the support channels so it can post a template-only holding
+acknowledgment when you have gone quiet. That is not a second public voice: it
+is a receipt under the same bot identity, it never answers anything, and it
+logs every message it acknowledges so you pick it up when your window returns.
+Everything else it produces comes to you.
 
-The local agent has **no owner DM** — none of the sub-agents do. When one of
-them reports something meant for the owner (a failed backup, a proof-of-life
-heartbeat, an urgent flag), relaying it is your job; if you don't, nobody
-receives it. Same rule as any other headless helper: if any of them reports
+A sub-agent has **no owner DM**. When one reports something meant for the
+owner (a failed history publish, an urgent flag), relaying it is your job; if
+you don't, nobody receives it. Same rule as any other headless helper: if any of them reports
 something meant for a user, it comes from you.
 
 **Before sending anything to a sub-agent, check the destination's

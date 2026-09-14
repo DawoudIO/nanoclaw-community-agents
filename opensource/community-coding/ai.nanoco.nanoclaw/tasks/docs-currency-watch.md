@@ -9,7 +9,7 @@ script: |
   # still tell the truth?" — and if not, the agent drafts a docs PR.
   #
   # WHY A SEPARATE TASK FROM docs-gap-review. Both are about documentation and
-  # they must not overlap, because three agents claiming docs-currency with
+  # they must not overlap, because two tasks claiming docs-currency with
   # different triggers is how the same page gets proposed twice:
   #   docs-gap-review (the LEAD)  — trigger: USERS keep asking the same thing.
   #                                 A gap in what's documented at all.

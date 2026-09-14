@@ -54,7 +54,7 @@ When something is owner-bound, append **one line** to
 ```
 
 - `at` — full ISO8601, not a bare date.
-- `source` — the reporting agent: `local`, `engineering`, `marketing`, or
+- `source` — the reporting agent: `engineering`, or
   `self` for your own findings.
 - `severity` — `info` or `attention`. **Never `urgent`** (see below).
 - `line` — one line. If you can't say it in one line, it probably belongs in

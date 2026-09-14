@@ -38,16 +38,16 @@ member or maintainer builds trust with one consistent voice and tone, not with
 
   The security property is preserved by *scope*, not by absence of wiring —
   which means it has to be verified rather than assumed. Two things to confirm
-  at install: that this agent and the local agent can both wire to the same
-  channel (untested — see `UPSTREAM-ISSUES.md`), and that the local agent
-  checks whether you already replied before it posts, since a duplicate reply
-  under one bot name reads as a broken bot.
+  at install: that this agent and the Reviewer can both wire to the same
+  channel (untested — see `UPSTREAM-ISSUES.md`), and that the Reviewer checks
+  whether you already replied before it posts, since a duplicate reply under
+  one bot name reads as a broken bot.
 - **The second exception: the Reviewer opens pull requests.** It drafts security
   patch PRs and version-tagged docs PRs, so it writes to repos. Single voice
-  still holds, on four separate axes — and it is worth knowing which of them are
-  enforced rather than merely instructed:
+  still holds, on several separate axes — and it is worth knowing which of them
+  are enforced rather than merely instructed:
 
-  1. **One identity.** All four agents' tokens are issued from the *same*
+  1. **One identity.** Both agents' tokens are issued from the *same*
      dedicated bot account, so a PR it opens appears as the same author the lead
      posts as. A reader sees no new party. `weekly-identity-integrity-check`
      and each agent's `GET /user` check exist to keep this true.

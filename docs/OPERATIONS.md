@@ -17,25 +17,19 @@ actually running rather than assuming it: `launchctl list | grep nanoclaw`
 
 That said, a stopped system still can't report its own death, so silence is
 still the failure mode if something does take it down (a host that's fully
-off, a launchd/systemd config that got removed). **There is no longer a heartbeat task, and that was a deliberate removal.**
-An earlier `health-check` sent a weekly "environment heartbeat: no issues
-found" whose *absence* past ~8 days was supposed to be the outage alarm. Two
-problems killed it: it could not fix anything it found, and an alarm that
-fires by not arriving is one a human has to actively notice — nobody reliably
-does. It also caused a real false contradiction once, landing its "clean"
-line the same minute as a genuine task failure elsewhere, because it only
-ever checked its own container's environment while being worded like
-system-wide health.
+off, a launchd/systemd config that got removed). **Check liveness on demand rather than waiting to be told.** DM the lead the
+single word `ping` — it answers `pong #<last-ledger-id> <UTC time>` and
+nothing else, which separates "the system is down" from "a rule is being
+ignored" in about five seconds.
 
-What to do instead: check liveness on demand rather than waiting to be told.
-DM the lead the single word `ping` — it answers `pong #<last-ledger-id>
-<UTC time>` and nothing else, which separates "the system is down" from "a
-rule is being ignored" in about five seconds. That is a stronger check than
-the heartbeat was, with the honest limitation that it only proves the *lead*
-is alive; a sub-agent that has stopped shows up instead as its reports
-going quiet.
+Deliberately, there is **no heartbeat task** that reports "all healthy" on a
+schedule. An alarm that fires by *not* arriving needs a human to notice the
+absence, which nobody reliably does — and a per-container "my environment is
+fine" signal is easily mistaken for system-wide health, which it never is.
+Note the honest limit of `ping`: it proves the *lead* is alive. A sub-agent
+that has stopped shows up instead as its reports going quiet.
   Two consequences of that chain worth knowing: the *detection* half runs on
-  the local model and so keeps working when the Claude window is gone, but the
+  no model at all and so keeps working when the Claude window is gone, but the
   *delivery* half goes through the lead. A missing heartbeat therefore means
   "something upstream of your DM is broken" — a dead sandbox, or a lead that
   can't speak — which is exactly the set of things you want to be told about.
@@ -64,7 +58,7 @@ the failure looks like silence rather than an error.
 The precedent is real and it's this project's own: the v1 deployment
 **exhausted its plan limits running 4 agents** — four *cloud-backed* agents,
 all on the one window. **This template set has a reduced version of the same
-exposure**: all three agents draw on that one window. Retiring the fourth
+exposure**: both agents draw on that one window. Retiring the fourth
 (narration) agent removed a whole container's worth of both memory and
 wakes, which is part of why that consolidation happened at all — but it did
 not change the fundamental shape: three cloud agents, one meter. A
@@ -139,14 +133,11 @@ persona plus whatever skill loads:
 |---|---|---|
 | Lead | ~8.6K tokens | ~18.8K (community-manager) · ~15K (welcome) |
 | Coding | ~3.2K | ~6.2K |
-| Marketing | ~3.9K | ~8.5K |
 
-**Re-measure Coding's row.** It was taken before that agent absorbed the
-retired fourth agent's work; its persona has grown since, and it now carries
-most of the tasks in the set, so its floor is the one that matters most to
-this budget. Measure the same way these were: persona + context on a cold
-wake. The retired agent's own floor is simply gone from the meter, which is
-the one unambiguous saving from the consolidation; see
+**Re-measure Coding's row** before trusting it for budget: it carries nearly
+every task in the set, so its floor is the one that matters most here, and
+these numbers were taken against a smaller persona. Measure the same way they
+were: persona + context on a cold wake. See
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md).
 
 Task prompt bodies add ~400 tokens on average. The lead is the expensive one
@@ -180,7 +171,7 @@ Code for anything else that day.**
 
 ## Right-sizing the agents
 
-**All three agents currently draw on your window** (see the trap section
+**Both agents currently draw on your window** (see the trap section
 above — a local-model provider was evaluated and set aside for this phase).
 Burn comes from model *wakes*, not from agents existing: a stamped agent
 whose tasks are paused costs nothing. Nearly all tasks are script-gated (run
@@ -202,28 +193,17 @@ the channel never goes silent long enough to look dead. That makes the team
 elastic: stamp what you need, then tune budget by which tasks you activate —
 never by deleting agents.
 
-**The fourth agent is gone, and that is the one structural saving.** This set
-used to run a dedicated narration tier on Haiku — cheap per wake, but on the
-same shared window, and costing a whole container's memory on the host. It was
-retired and its tasks moved to whichever agent already owned the surrounding
-domain. If you are reading old notes that mention a "local ops" or "secretary"
-agent, that is what they mean.
+**Two agents is the floor, not a starting point to trim further.** A real
+deployment exhausted its **subscription** limits running four cloud-backed
+agents, which is why agent count is treated as a budget item here at all. Two
+still share one meter, so the pause-order list below is your throttle.
 
-The original rule in this project's history was **"don't add a fourth agent
-for responsiveness,"** learned the expensive way on a real deployment that
-exhausted its **subscription** limits with four cloud-backed agents. That rule
-is now satisfied structurally rather than by discipline: there are three.
-Three still share one meter, so the pause-order list below is still your
-throttle — but the worst case is smaller than it was.
+Two rules worth keeping:
 
-Still true, and unchanged:
-
-- **Don't merge everything into one agent to save tokens.** The savings are
-  small (gated tasks already cost ~nothing when idle) and you lose the
-  per-agent credential scoping and the single-voice structure. The
-  consolidation that already happened went as far as it should: it removed an
-  agent whose job was narration, not one that holds a distinct credential
-  scope or voice.
+- **Don't merge the last two to save tokens.** The savings are small (gated
+  tasks already cost ~nothing when idle) and you would lose the thing that
+  actually protects you: separate credential scoping, and a single public
+  voice that a sub-agent structurally cannot speak with.
 - **Keep the public voice on the capable tier.** The split is by *model tier*
   for a reason. Cheap work done wrong in public costs more than expensive work
   done right — which is exactly why the Reviewer's one public-facing task is
@@ -236,7 +216,6 @@ the owner can change them there or later via group config):
 |---|---|---|
 | Lead | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
 | Reviewer (coding) | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the lead before publishing — except the one fixed holding line it may post itself, which it cannot compose freely. Upgrade only if quality disappoints |
-| Marketing | Haiku-class | Narrating numbers a script already computed. It writes no content, so there is no prose-quality argument for a bigger model here. Not stamped by default |
 
 **Decided: no local model for the Reviewer — Haiku stays.** Compared against
 Haiku (not Sonnet), the case collapses: the Reviewer's tasks together wake
@@ -248,7 +227,7 @@ every Reviewer output, degrading the Reviewer shifts work onto the *more*
 expensive tier. And the only local model plausibly good enough
 (`qwen3-coder:30b`, 18 GB) does not fit alongside everything else on a 16 GB
 host at all. Full reasoning, wake-volume table, and model comparison:
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). Note the contrast with the local
+[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). Note the contrast with the
 agent, which took the mechanical work *away* from this tier rather than
 degrading the tier itself — that's the move that generalizes.
 
@@ -256,16 +235,16 @@ degrading the tier itself — that's the move that generalizes.
 Wakes are frequent; premium models belong in interactive sessions, not cron.
 
 **If you hit the window ceiling** (on a shared subscription this also
-restores your own Claude Code access): **all three agents draw on that
-meter** — there is no off-meter tier to lean on right now. Both sub-agents
-cost less per-wake than the lead (cheapest cloud tier, aggressively gated),
-so they're lower priority to pause than genuinely expensive tasks, but
+restores your own Claude Code access): **both agents draw on that
+meter** — there is no off-meter tier to lean on right now. The Reviewer
+costs less per-wake than the lead (cheapest cloud tier, aggressively gated),
+so its tasks are lower priority to pause than genuinely expensive ones, but
 pausing them is a real lever. If a local-model provider is adopted later (see
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)), this section's advice shifts:
 whichever agent moved off the window would cost host memory instead of window
 budget.
 
-Pause in this order — lowest value first, across all three agents:
+Pause in this order — lowest value first, across both agents:
 
 1. `daily-github-triage` — if the Reviewer is stamped it's already redundant
    with `github-ops-triage`; it should be paused anyway.
@@ -305,7 +284,7 @@ share the meter:**
   templated, only fires when something's actually unanswered) and pausing it
   removes the one thing that keeps a window exhaustion from reading to the
   community as silence. There is no budget argument for pausing it.
-- **`ledger-publish`** (both agents). It never wakes a model on success, so
+- **`ledger-publish`.** It never wakes a model on success, so
   pausing it saves literally nothing — while every paused day is a day of an
   unrecoverable series that will not exist after the next rebuild. This is the
   clearest "no upside" pause in the set.
@@ -382,7 +361,7 @@ public voice:
 **Reviewer** (`opensource/community-coding`) — read-only except for drafting
 security patch PRs and docs PRs (branch + draft PR, never merged), never posts
 publicly. Config in `plugin-data/community-coding/config.env`.
-`contributor-health-review` is here rather than on the local tier for the
+`contributor-health-review` gets its own weekly slot for the
 same reason `posthog-weekly-review` was, before it was removed for never
 getting working end to end (see SKILLS-ADOPTION.md if it comes back): each is
 the *interpretation* half of a metric. The same unmerged-PR ratio means
@@ -396,15 +375,9 @@ is a judgment about a person. Narration went local; judgment stayed cloud.
 | `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | coding PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
-
-**Marketing** (`opensource/community-marketing`) — measurement only, not
-stamped by default. Config in `plugin-data/community-marketing/config.env`:
-
-| Task | Wakes model | Needs | Unconfigured |
-|---|---|---|---|
-| `social-metrics-snapshot` (weekly) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts | leave paused until the platforms are configured and allowlisted — it guards the one series nothing can rebuild |
+| `social-metrics-snapshot` (weekly) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts + a real page-reading capability in the container | leave paused until the platforms are configured and allowlisted — it guards the one series nothing can rebuild |
 | `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTIES` + allowlist | silent skip |
-| `ledger-publish` (daily) | **never on success** — only on a publish failure | `MARKETING_REPO` + a `github.com` (git) push credential | silent skip, and the series then lives only in this container |
+| `ledger-publish` (daily) | **never on success** — only on a publish failure | `LEDGER_REPO` + a `github.com` (git) push credential | silent skip, and all three series then live only in this container |
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
 
 **Shipped times (written in UTC; fire in each group's configured
@@ -446,13 +419,11 @@ the round minutes because it's the task the north star depends on:
 | `ready-to-merge` | Reviewer | **2× daily** | 09:47, 17:47 | yes |
 | `repo-hygiene-audit` | Reviewer | **daily** | 10:55 | yes |
 | `security-advisory-sweep` | Reviewer | **every 4h** | every 4h at :45 | yes |
+| `social-metrics-snapshot` | Reviewer | **weekly** | 13:23, Sun | no |
 | `unanswered-watch` | Reviewer | **every 10 min** | on the 10-minute mark | yes |
-| `conversation-archive-prune` | Marketing | **daily** | 05:17 | yes |
-| `ledger-publish` | Marketing | **daily** | 06:52 | yes |
-| `social-metrics-snapshot` | Marketing | **weekly** | 13:23, Sun | no |
-| `weekly-analytics-report` | Marketing | **weekly** | 14:19, Sun | yes |
+| `weekly-analytics-report` | Reviewer | **weekly** | 14:19, Sun | yes |
 
-_25 tasks across 3 agents; 23 script-gated (ungated: inbox-check social-metrics-snapshot)_
+_23 tasks across 2 agents; 21 script-gated (ungated: inbox-check social-metrics-snapshot)_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
 
 **This table is generated — do not hand-edit it.** It was hand-maintained
@@ -479,7 +450,7 @@ integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day.
 
 **The two ungated tasks are `inbox-check` (lead, 2×/day) and
-`social-metrics-snapshot` (marketing, weekly)** — those are the only two that
+`social-metrics-snapshot` (the Reviewer, weekly)** — those are the only two that
 wake their model on every fire, and they're capped at a few fires/day for
 exactly that reason. The script gate is what lets the frequent tasks exceed
 that cap safely: `unanswered-watch` at 144×/day, `owner-tldr` at 12×,
@@ -508,7 +479,7 @@ absent for now, deferred until closer to a real test pass — see
 SKILLS-ADOPTION.md; the script fails with a clear message if you run it
 before recreating one). This closes the round trip: onboarding can
 be done conversationally, which is friendlier but scatters the answers across
-three agents' `config.env` files with no single editable record. Export gives
+both agents' `config.env` files with no single editable record. Export gives
 you that record, so **changing one value means editing one line and rebuilding
 instead of redoing the interview** — and it's what to run *before* tearing an
 install down for a recreate. Two limits to know: it recovers every
@@ -592,13 +563,8 @@ Because almost nothing is stateful (context rebuilds from the web, config is a
 conversation, the one durable file lives in the git backup), updating the
 platform = recreating the install — the same runbook you used to build it.
 
-**Noticing updates is currently a manual job, not an automated one.** There
-used to be a weekly `platform-watch` Action that compared an `sbx` kit image
-digest, a NanoClaw release, and a kit-source repo commit against
-`platform-baseline.json` — all three checks were `sbx`-specific or dead once
-this deployment moved to running `nanoclaw.sh` directly, so the workflow was
-removed rather than patched to check something unverified. Until a real
-replacement exists: check
+**Noticing updates is a manual job.** There is no automated watcher for the
+image digest — check
 [`nanocoai/nanoclaw`'s releases](https://github.com/nanocoai/nanoclaw/releases)
 and `versions.json`'s `agent-image` field by hand, periodically, and update
 `platform-baseline.json` yourself when you've verified a new one.
@@ -606,18 +572,17 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
 **The refresh procedure** (~1 hour, mostly waiting on pulls):
 
 1. **Confirm the metrics branch is current, and understand that it is the
-   only thing that survives.** There is no workspace backup in this set — the
-   earlier one was removed because nothing ever restored from it. What
-   persists is what `ledger-publish` pushed to the marketing repo's
-   `agent-metrics` branch:
-   - `agent-metrics/marketing/social-metrics-history.jsonl` — the follower
-     series. Unrecoverable by any other means: every platform exposes today's
-     count and nothing else.
-   - `agent-metrics/marketing/traffic-history-*.json` — GA4 traffic.
-     Re-queryable inside the property's retention window (14 months by
-     default), gone beyond it.
-   - `agent-metrics/reviewer/metrics-history.json` — repo metrics. Rebuildable
-     only by paging every stargazer and every issue's comments; treat as gone.
+   only thing that survives.** There is no workspace backup in this set, by
+   design: a restore nobody runs is a write-only cost. What persists is what
+   `ledger-publish` pushed to `LEDGER_REPO`'s `agent-metrics` branch:
+   - `agent-metrics/social-metrics-history.jsonl` — the follower series.
+     Unrecoverable by any other means: every platform exposes today's count
+     and nothing else.
+   - `agent-metrics/traffic-history-*.json` — GA4 traffic. Re-queryable
+     inside the property's retention window (14 months by default), gone
+     beyond it.
+   - `agent-metrics/metrics-history.json` — repo metrics. Rebuildable only by
+     paging every stargazer and every issue's comments; treat as gone.
 
    Check the branch's last commit date before you tear anything down. If
    `ledger-publish` has been failing quietly, this is the moment that costs
@@ -664,17 +629,17 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
    detects their absence for you. (If you've since adopted a local-model
    provider for a sub-agent — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)
    — re-apply and re-verify that too; it isn't part of this phase's default.)
-5. Re-enter the 3 GitHub PATs in the fresh vault, selective mode (~5 min) —
-   one per agent — plus the `github.com` (git) secret both sub-agents push the
+5. Re-enter the 2 GitHub PATs in the fresh vault, selective mode (~5 min) —
+   one per agent — plus the `github.com` (git) secret the Reviewer pushes the
    metrics branch with. No rotation needed — refresh isn't compromise.
 6. **Don't restore plugin-data — re-interview instead.** Hand the lead your
    filled `onboarding-answers.json` and it re-creates each agent's config; if
    the live install predates that file, run
    `bash scripts/export-answers.sh` to reconstruct one *before* you tear the
    install down. The history series need no restore step at all: they live in
-   the marketing repo, and the next `ledger-publish` run appends to what is
-   already there rather than starting over — as long as `MARKETING_REPO`
-   points at the same repo and branch it did before.
+   the ledger repo, and the next `ledger-publish` run appends to what is
+   already there rather than starting over — as long as `LEDGER_REPO` points
+   at the same repo and branch it did before.
 7. Smoke tests per INSTALL.md §4, and re-test anything in UPSTREAM-ISSUES.md
    against the new build before closing the watch issue.
 

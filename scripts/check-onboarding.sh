@@ -41,11 +41,11 @@ for f in "$EXAMPLE" ${EXTRA:+"$EXTRA"}; do
   # --- 3. no secrets (run early; a leak matters more than a coverage gap) --
   # Credential-shaped values, not key names — `_ask` text legitimately says
   # the word "token", so match on VALUE shape only.
-  # The exclusion below must name the metadata keys EXACTLY. It used to be the
-  # broad `^_`, which skipped any path under a `_`-prefixed parent — so the
-  # `_exported` block written by scripts/export-answers.sh (real values read
-  # off a live host) was never scanned, and a GitHub token in a config.env
-  # exported cleanly. Keep this list specific; never re-broaden it to `^_`.
+  # The exclusion below must name the metadata keys EXACTLY, and must never be
+  # broadened to a bare `^_` prefix: that would skip every path under any
+  # `_`-prefixed parent, including the `_exported` block written by
+  # scripts/export-answers.sh — which holds real values read off a live host,
+  # so a GitHub token in a config.env would export unscanned.
   LEAKS=$(jq -r '
     [ paths(scalars) as $p | { k: ($p|map(tostring)|join(".")), v: (getpath($p)|tostring) } ]
     | map(select(

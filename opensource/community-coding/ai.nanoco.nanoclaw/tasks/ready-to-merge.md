@@ -11,11 +11,11 @@ script: |
   # notice, which is why it gets its own task instead of being buried in a
   # daily metrics digest.
   #
-  # Split out of dev-metrics-report because it needed its own cadence: twice
-  # daily rather than daily, since merge-readiness is time-sensitive in a way
-  # that trend counts are not. The GitHub search itself decides what counts as
-  # approved, so the output is a list to relay, not an assessment to make —
-  # judging *why* a PR is sitting belongs in contributor-health-review.
+  # Its own task, and its own cadence: twice daily rather than daily, because
+  # merge-readiness is time-sensitive in a way that trend counts are not. The
+  # GitHub search itself decides what counts as approved, so the output is a
+  # list to relay, not an assessment to make — judging *why* a PR is sitting
+  # belongs in contributor-health-review.
   #
   # Wake policy — the honest middle between nagging and forgetting:
   #   * the set of approved PRs CHANGED  -> wake now (something new is ready)

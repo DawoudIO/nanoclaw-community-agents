@@ -13,13 +13,9 @@ Discord.
 The lead works standalone and stamps the Reviewer itself, during setup, once
 it knows which jobs you want. Each template's own README has the detail.
 
-**Two agents, not four.** This set started with four: a lead, a Reviewer, a
-"narration" tier, and a marketing agent that drafted content. The narration
-tier was retired (its work belonged with whichever agent already owned the
-domain), and marketing was folded into the Reviewer once content creation
-moved outside the system, which left it a measurement agent with no distinct
-posture of its own. Older notes and decision entries that mention a
-"secretary", "local ops", or "marketing" agent are describing that history.
+**Nothing here writes content.** Posts, announcements and campaign copy stay
+with the project's owner; this set answers people, triages, measures, and
+reports.
 
 ## Install
 

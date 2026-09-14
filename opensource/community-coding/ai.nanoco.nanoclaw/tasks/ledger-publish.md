@@ -38,10 +38,10 @@ script: |
   # first finding a value in it that the API can no longer answer.
   #
   # This system is deliberately destroyed and rebuilt from the templates every
-  # few months, and nothing reimports a container backup — which is why the old
-  # whole-workspace backup was removed: it wrote a copy nothing ever read. This
-  # task is the narrow replacement, and the difference that matters is that a
-  # git repo is a destination a human already reads, not a restore nobody runs.
+  # few months, and nothing reimports a container backup — so a whole-workspace
+  # backup would be a copy nothing ever reads. This task is the narrow
+  # alternative: a git repo is a destination a human already opens, not a
+  # restore nobody runs.
   #
   # WHY A DEDICATED BRANCH. Everything published by this system lands on
   # LEDGER_BRANCH (default `agent-metrics`) rather than the repo's default
@@ -177,7 +177,7 @@ broken is a day permanently missing from the series once this container is
 rebuilt. It is not urgent within the hour, and it *is* worth your lead
 hearing about within the day.
 
-- **`not-configured`**: `LEDGER_REPO` (or `MARKETING_REPO`) isn't set. Say so
+- **`not-configured`**: `LEDGER_REPO` isn't set. Say so
   once and stop; don't re-raise it every run. Until it's set the series is
   container-local and will be lost at the next rebuild, which is a real
   consequence worth stating plainly rather than filing as a config nit.

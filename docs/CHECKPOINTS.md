@@ -27,18 +27,18 @@ noticing.
 | # | Test | How | Pass looks like |
 |---|---|---|---|
 | 1 | Owner DM round trip | DM the lead; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
-| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has each of the **two** sub-agents relay theirs (each group ships its own) | **All three tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Three reports, not two: a missing one means a sub-agent didn't answer, which is itself the finding |
+| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has the Reviewer relay its own | **Both tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Two reports, not one: a missing one means the sub-agent didn't answer, which is itself the finding |
 | 3 | Support-tier auto-reply | Post a question in a support channel from a **non-owner** account, no @mention | Unprompted reply within a couple of minutes. Silence here = the Message Content intent is off in the Discord dev portal |
 | 4 | Mention-only discipline | Post in a dev-tier channel *without* tagging the bot, then again *with* a tag | No reply to the first, a reply to the second |
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
-| 7 | Sub-agent relay | DM the lead: "ping both sub-agents and relay their answers" | Both answer **through the lead** — that's their only outbound path. Marketing has no channel wiring at all and cannot post publicly even if instructed to. The **Reviewer is the one deliberate exception**: it holds a wiring to the support channels, and the only thing it may ever put there is the template-only holding acknowledgment it is forbidden to compose freely. Nothing else it produces should ever appear in public |
+| 7 | Sub-agent relay | DM the lead: "ping the Reviewer and relay its answer" | It answers **through the lead** — that's its only outbound path for anything substantive. Its one channel wiring exists solely for the template-only holding acknowledgment it is forbidden to compose freely; nothing else it produces should ever appear in public |
 | 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
 | 9 | History publish actually pushed | Check the marketing repo's `agent-metrics` branch after the first `ledger-publish` run on **each** sub-agent | A commit from the bot exists under both `agent-metrics/reviewer/` and `agent-metrics/marketing/` (whichever agents you stamped); `tasks get` shows `published`. This is the only durable state in the system — a silent failure here is the one that costs data rather than a report |
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that all three agents currently bill to it** (a local-model provider was evaluated and set aside for this phase; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
+| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that both agents bill to it** (a local-model provider is possible but not adopted; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
 | 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
 | 15 | You can check liveness on demand | DM the lead exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices. Know that this proves only the *lead* is alive; a stopped sub-agent shows up as its reports going quiet instead |
 
@@ -71,10 +71,7 @@ Ten minutes, the morning after go-live:
     now.
   - **Are `ncl sessions list` / `ncl sessions history --json` the shapes the
     gate expects?** Also unverified — the output shape varies by NanoClaw
-    version. (An earlier version of this gate called `ncl messages list`,
-    which does not exist on this platform at all; it was rewritten against
-    these two real commands.) The gate is written to fail safe rather than
-    fail quiet: an unrecognized shape makes it report `cannot-read-sessions`,
+    version. The gate is written to fail safe rather than fail quiet: an unrecognized shape makes it report `cannot-read-sessions`,
     and no channel-backed session at all makes it report
     `no-channel-sessions`, instead of concluding "nothing to do."
     **So check for both statuses explicitly** (`./bin/ncl tasks get` on an
@@ -104,8 +101,8 @@ Ten minutes, the morning after go-live:
   owner to skim it, which costs you the one thing it exists to catch.
 - **The follower snapshot landed, and then got published.** This one is worth
   checking on both ends, because it's the only genuinely un-re-scrapable
-  series in the system. `social-metrics-snapshot` (marketing) appends its line
-  to `plugin-data/community-marketing/social-metrics-history.jsonl`, and
+  series in the system. `social-metrics-snapshot` appends its line
+  to `plugin-data/community-coding/social-metrics-history.jsonl`, and
   `ledger-publish` commits that file to the marketing repo's `agent-metrics`
   branch. Confirm the line exists in the container's file *and* that the
   branch has it. **A publish that silently stops leaves the local file still

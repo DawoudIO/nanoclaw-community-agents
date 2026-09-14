@@ -114,11 +114,12 @@ script: |
         fi
       fi
 
-      # Return-nudge lived here and moved to `contributor-nudge`: it was the one
-      # serial network path in this otherwise parallel script, and because it
-      # printed from the same statement below, a slow nudge check took the whole
-      # metrics report down with it. It also reads the ledger this task WRITES
-      # (known-contributors-<repo>.txt), which is why the write above stays here.
+      # The return-nudge check belongs to `contributor-nudge`, NOT here: it is a
+      # serial network path, and in this otherwise-parallel script a slow one
+      # would take the whole metrics report down with it (everything below
+      # prints from one statement, so a timeout loses the lot). It does read the
+      # ledger this task WRITES (known-contributors-<repo>.txt), which is why
+      # the write above stays here.
 
       printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}}\n' \
         "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" > "$TMP/$i.json"
@@ -127,11 +128,11 @@ script: |
   done
   wait
   #
-  # Approved-PR and maintainer-load signals used to live here too. They moved
-  # to their own tasks on this same agent: ready-to-merge (time-sensitive, needs
-  # its own twice-daily cadence) and contributor-health-review (its numbers are
-  # meaningless without a judgment call, so it gets its own weekly slot rather
-  # than being buried in a daily digest).
+  # Approved-PR and maintainer-load signals are NOT here, deliberately: they
+  # live in ready-to-merge (time-sensitive, needs its own twice-daily cadence)
+  # and contributor-health-review (its numbers are meaningless without a
+  # judgment call, so it gets its own weekly slot rather than a line in a daily
+  # digest). Don't add them back here.
   TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {stars, forks, open_issues, open_prs, releases, new_contributors_7d, awaiting_first_response}}) | add // {}')
   rm -rf "$TMP"
   jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
@@ -218,7 +219,7 @@ was just seeded — that run never means "no new contributors," it means
 "nothing to compare against yet"; don't report a count from it. If the
 project's growth goals include developers/contributors, **name them** in the
 report (contributor recognition is the cheapest developer-growth lever there
-is — see the marketing agent's growth playbook) rather than just a count.
+is) rather than just a count.
 
 **`awaiting_first_response`** is a backlog proxy, not a precision metric: the
 count of currently-open issues/PRs with zero comments, plus the oldest one's

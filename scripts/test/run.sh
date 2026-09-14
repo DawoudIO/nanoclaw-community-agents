@@ -112,7 +112,7 @@ done
 [ "$BADKEY" -eq 0 ] && pass || fail "task file(s) declare a frontmatter key other than schedule/script — verify against a real stamp attempt before adding one"
 
 # --- 1e. docs must not contradict the real topology ------------------------
-# Prose that hand-restates counts ("18 tasks", "three agents") goes stale
+# Prose that hand-restates counts ("18 tasks", "four agents") goes stale
 # silently on every restructure, because prose isn't testable. This makes it
 # testable: scripts/gen-task-table.sh derives the truth from the task files
 # and fails on any doc still claiming the old shape.
@@ -193,12 +193,10 @@ fi
 # path naming a different agent's dir is not a slow failure, it is a
 # permanently dead task: the file is simply never there.
 #
-# This shipped three times at once. `docs-gap-review` read the lead's
-# question-ledger from the coding agent's dir (and its own test fixture seeded
-# the same wrong path, so the suite agreed with the bug); `social-metrics-snapshot`
-# appended the follower series into marketing's dir; `health-check` watched an
-# owner-instruction ledger only the lead writes. Two of the three were
-# append-only ledgers, where a silent miss is unrecoverable data loss.
+# This is worth a hard gate because it has shipped repeatedly, and once with
+# the test fixture seeding the same wrong path, so the suite agreed with the
+# bug. Two of those cases were append-only ledgers, where a silent miss is
+# unrecoverable data loss rather than a late report.
 #
 # Checked on BOTH sides: the gate scripts and the task prompts, because the
 # prompt is what tells the agent where to write.
@@ -237,11 +235,9 @@ done
 # tells the agent to "send the owner" a report is asking for a route that does
 # not exist, so the report reaches nobody.
 #
-# This shipped in three tasks of the retired local tier at once — a
-# proof-of-life heartbeat, a backup failure report, and unanswered-watch's
-# urgent security flag. All three were exactly the messages you cannot afford
-# to lose, which is what makes this worth a hard gate rather than a review
-# habit. unanswered-watch still carries that risk on its new owner.
+# This has shipped in several tasks at once before, and always in the ones you
+# can least afford to lose — a failure report, an urgent security flag. That
+# is what makes it worth a hard gate rather than a review habit.
 #
 # Lead-owned tasks are exempt: the lead HAS the owner DM, so addressing the
 # owner is correct for them.
@@ -651,7 +647,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"queued before the limit hit\"}" >> "$D/digest-queue.processing.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"also before\"}" >> "$D/digest-queue.processing.jsonl";
-   echo "{\"at\":\"$NOW\",\"source\":\"marketing\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
+   echo "{\"at\":\"$NOW\",\"source\":\"engineering\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr, REGRESSION for the escalated-send-suppresses-next-routine-slot
 # bug. Seeds a `digest-last-sent` timestamp 8 hours ago — as an escalated

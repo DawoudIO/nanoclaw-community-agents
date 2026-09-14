@@ -2,7 +2,7 @@
 set -uo pipefail
 # jq is required by this script itself (every check below is built with it) —
 # fail loud and jq-free rather than crashing cryptically on the first `add`
-# call. Baseline requirement across all four community templates. Unlike the
+# call. Baseline requirement across both community templates. Unlike the
 # headless sub-agents, the LEAD must NOT self-install via install_packages:
 # that rebuilds the image and restarts the container, killing any live owner
 # conversation (e.g. a welcome interview) and losing its answers. This is

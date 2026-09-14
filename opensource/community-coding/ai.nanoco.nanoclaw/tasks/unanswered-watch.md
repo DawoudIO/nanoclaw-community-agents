@@ -19,11 +19,11 @@ script: |
   # human's message go unanswered" is the signal that matters, and it's true
   # whether the cause is rate limits, a crashed session, or a wiring fault.
   #
-  # WHY `ncl sessions list` + `ncl sessions history`, NOT a "messages" command.
-  # An earlier version of this gate called `ncl messages list`, which does not
-  # exist on this platform — there is no cross-agent-group message listing at
-  # all, by design (agent-group scoping). What DOES exist, and is what makes
-  # this gate possible: the router writes every inbound message into every
+  # WHY `ncl sessions list` + `ncl sessions history`, AND NOT A "messages"
+  # COMMAND. There is no cross-agent-group message listing on this platform, by
+  # design (agent-group scoping) — do not go looking for one. What DOES exist,
+  # and is what makes this gate possible: the router writes every inbound
+  # message into every
   # WIRED agent-group's own session regardless of whether that agent's engage
   # mode ever triggers a reply (only the wake decision differs). So as long as
   # this agent is silently wired to every support-tier channel (see

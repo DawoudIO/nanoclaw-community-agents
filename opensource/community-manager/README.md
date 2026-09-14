@@ -80,16 +80,15 @@ the lead writes, and no agent can read another agent's plugin-data — so in the
 Reviewer it was permanently dead. `daily-github-triage` likewise belongs to the
 lead (see the note under *Full setup* about leaving it paused).
 
-`health-check` and `workspace-backup` used to live in this set and are now
-**gone entirely**, not moved. The health check could never fix anything it
-found, and its "the system is alive" signal was a weekly heartbeat whose
-*absence* the owner had to notice — a dead container cannot report its own
-death. The backup wrote a daily copy of a container's workspace that nothing
-ever read back: this set is rebuilt from the templates every few months and
-nothing reimports container state. What replaced the backup is narrower and
-actually load-bearing: `ledger-publish` (on the Reviewer) commits only the
-three series that genuinely cannot be rebuilt into a branch of the project's
-repo.
+**There is no health-check or workspace-backup task in this set, by design.**
+A health check that cannot fix what it finds, reporting via a heartbeat whose
+*absence* is the alarm, needs a human to notice a silence — and a dead
+container cannot report its own death anyway. A whole-workspace backup is a
+write-only cost when nothing ever restores from it, which is the case here:
+the system is rebuilt from the templates and nothing reimports container
+state. What covers the real risk instead is narrower: `ledger-publish` (on the
+Reviewer) commits the three series that genuinely cannot be rebuilt into a
+branch of the project's repo.
 
 ## Channel tiers
 
@@ -134,12 +133,10 @@ This agent also owns its own `COMMUNITY_REPOS` plus an optional
 `RELEASE_WATCH_REPOS`, which narrows `release-announcement-watch` to a subset
 of it. `GITHUB_BOT_USERNAME` is set in both agents.
 
-**The lead keeps no copy of the metrics series.** An earlier version had it
-appending the follower counts into its own
-`social-metrics-history.jsonl` as a second durable copy; that is deliberately
-gone. The Reviewer owns that file and publishes it itself, because two ledgers
-of the same numbers in two containers drift apart and then nobody knows which
-is right.
+**The lead keeps no copy of the metrics series.** The Reviewer owns those
+files and publishes them itself. Two ledgers of the same numbers in two
+containers drift apart, and then nobody knows which is right — so the lead
+reports the numbers it is handed and stores none of them.
 
 **What the lead would still lose in a rebuild**: `question-ledger.jsonl` (the
 repeat-question ledger behind `docs-gap-review`) and `owner-instructions.jsonl`

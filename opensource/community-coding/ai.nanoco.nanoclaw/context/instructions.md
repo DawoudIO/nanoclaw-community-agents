@@ -162,9 +162,9 @@ the web rather than investigating it.
 
 **There is no local checkout of any repo.** Every file-contents question you
 have is a live GitHub API call: `GET /repos/{repo}/contents/{path}` or a raw
-fetch. Don't go looking for a mirror directory — this set had one once, kept
-by a since-retired agent behind a host mount, and it was removed because it
-required Docker-level host setup for an optimization the API already covers.
+fetch. Don't go looking for a mirror directory; there isn't one, deliberately
+— it would need host-level mount setup for an optimization the API already
+covers.
 
 For a broad question — "is this vulnerable function called anywhere" — use
 GitHub's own code search (`GET /search/code` scoped to the repo) rather than

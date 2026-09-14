@@ -5,18 +5,19 @@ script: |
   set -uo pipefail
   # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy.
   #
-  # Review Dependabot's open pull requests. Split out of
-  # security-advisory-sweep, which had grown two distinct jobs under one name:
+  # Review Dependabot's open pull requests. This is deliberately separate from
+  # security-advisory-sweep, because they take different inputs and produce
+  # different deliverables — keep them apart:
   #
   #   security-advisory-sweep  — input: ALERTS. "Are we affected, and if nobody
   #                              else is fixing it, draft the bump."
   #   dependabot-pr-review     — input: PULL REQUESTS. "Dependabot proposed a
   #                              version change; what does it actually cost us?"
   #
-  # Different inputs, different deliverables, and the review half is the one that
-  # matters more often: Dependabot tells you a version changed and says nothing
-  # about what it means in this codebase. A major bump inside a security PR is a
-  # breaking change wearing a security label, and that is why these sit unmerged.
+  # The review half matters more often: Dependabot tells you a version changed
+  # and says nothing about what it means in this codebase. A major bump inside a
+  # security PR is a breaking change wearing a security label, and that is why
+  # these sit unmerged.
   #
   # Re-review on force-push: Dependabot rebases its branches constantly. The
   # ledger key is PR number + head SHA, so a rebased or retargeted PR comes back

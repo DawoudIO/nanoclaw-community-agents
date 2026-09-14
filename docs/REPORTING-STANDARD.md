@@ -92,7 +92,7 @@ change and otherwise resurfaces weekly, so a month-old PR is mentioned about
 four times rather than sixty.
 
 **A quiet run is one line.** The strongest temptation in an automated report
-is padding to look thorough. Resist it — on the local tier especially, extra
+is padding to look thorough. Resist it — extra
 words are extra chances to be wrong. `ALL CLEAR — nothing needs you.` is a
 complete, good report.
 
@@ -140,7 +140,7 @@ A real `dev-metrics-report` output, and the same data under this standard:
 The second one is shorter, and it is the only one a busy maintainer will
 actually act on. Note what happened to the concentration numbers: they moved
 to `contributor-health-review` on the Reviewer, because they needed a
-judgment the local tier must not make — so they no longer dilute this report
+judgment that belongs in its own task — so they no longer dilute this report
 at all.
 
 ## Reviewing the reports themselves

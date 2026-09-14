@@ -8,7 +8,7 @@ script: |
   # THE DIGEST GATE. Work cadence and delivery cadence are different things, and
   # conflating them is what turned this system into a notification stream.
   #
-  # Sub-agents report whenever their gates fire — 21 tasks across four agents, on
+  # Sub-agent tasks report whenever their gates fire — many of them, on
   # their own schedules, for good reasons (a mirror sync every 15 minutes, an
   # advisory sweep every 4 hours). But the OWNER should not hear from us 21 times.
   # So the lead no longer relays each report as it arrives: it appends a one-line

@@ -58,7 +58,7 @@ for PAIR in "${PAIRS[@]}"; do
   # ledger below (a comparable window a year back needs real history GA4's
   # own date-range comparison can't shortcut its way into on a fresh
   # install) — the ledger's whole job now is YoY plus a longer trend line,
-  # not WoW/MoM, which used to be its fake-delta failure mode. ---
+  # not WoW/MoM — a fixed label on a variable window is a lie. ---
   RESP=$(curl -sS --max-time 25 -X POST \
     "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
     -H 'Content-Type: application/json' \

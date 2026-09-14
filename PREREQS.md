@@ -19,14 +19,13 @@ is aimed at catching that mistake *before* it happens, not after.
 
 | Credential | Create it here | Notes |
 |---|---|---|
-| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. All three agents draw on this same window — a local (Ollama) model for a sub-agent was tried and set aside for now (too much setup friction to get end-to-end working); see [SKILLS-ADOPTION.md](SKILLS-ADOPTION.md) for that history if you want to revisit it later |
+| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the lead simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. Both agents draw on this same window; a local (Ollama) model for the sub-agent is possible but not adopted — see [SKILLS-ADOPTION.md](SKILLS-ADOPTION.md) |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
 | Lead GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS`. Not classic, not `read:org` |
-| Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only Issues+PRs over `COMMUNITY_REPOS`, + Dependabot alerts if enabling the sweep, + Contents/PRs write for draft security patches, + Contents write on the marketing repo for `ledger-publish` |
-| Marketing GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Marketing repo only, Contents read/write (for `ledger-publish`). **Skip this if you won't stamp marketing yet** — it's optional and not stamped by default |
+| Coding GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only Issues+PRs over `COMMUNITY_REPOS`, + Dependabot alerts if enabling the sweep, + Contents/PRs write for draft security patches, + Contents write on `LEDGER_REPO` for `ledger-publish` |
 | **`github.com` (git) credential** | same tokens, registered against the git host | A **separate vault entry class** from `api.github.com`. Both sub-agents push the metrics-history branch with it; wiring only the REST host leaves `ledger-publish` failing with `push-failed` while everything else works |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the marketing agent** (`weekly-analytics-report`) — no other agent gets analytics access |
+| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Reviewer** (`weekly-analytics-report`) — the lead gets no analytics access |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §2 for the exact `serve` command |
 
@@ -48,7 +47,7 @@ explicitly permitted to take. Regenerate the endpoint list any time with:
 grep -rhoE 'https://api\.github\.com/[^"]*' scripts/tasks/*/*.sh */*/setup-check.sh | sort -u
 ```
 
-**Use fine-grained PATs for all three agents.** A classic `repo` scope is
+**Use fine-grained PATs for both agents.** A classic `repo` scope is
 account-wide (every repo the bot can see, read *and* write); a fine-grained
 token is an allowlist of named repos with per-category permissions. Nothing
 here needs classic. Note that a fine-grained token's repo list gates
@@ -59,7 +58,7 @@ access. That's the single most common misconfiguration in this system.
 **Almost every gate SCRIPT is a read** — `ledger-publish` is the one
 exception, and it writes only to its own metrics branch. Everything else that
 writes does so in an agent's live actions after a gate wakes it, which is why,
-of the three tokens, write is narrow and unevenly distributed:
+of the two tokens, write is narrow and unevenly distributed:
 
 - **Lead** — Issues and PRs write, for its own live replies: filing a bug
   report from a Discord conversation, commenting, labelling.
@@ -69,18 +68,15 @@ of the three tokens, write is narrow and unevenly distributed:
   It never marks a PR ready, never merges, and never pushes to a default
   branch — see §1b's least-privilege table for the branch-protection
   requirement this write scope depends on. Plus Contents write on the
-  marketing repo, for the metrics branch.
-- **Marketing** — Contents write on the marketing repo only, for the same
-  metrics branch. It has no other write anywhere.
+  ledger repo, for the metrics branch.
 
-So all three hold some write, but only one holds write on a branch anyone
-reads day to day (the lead on the community repos). The Reviewer's other
-write reaches only its own draft branches, never anything mergeable without a
-human, and both sub-agents' metrics writes land on a dedicated orphan branch
-that no human workflow builds from.
+So both hold some write, but only the lead's reaches a branch anyone reads day
+to day. The Reviewer's other writes reach only its own draft branches — never
+anything mergeable without a human — and its metrics write lands on a
+dedicated orphan branch that no human workflow builds from.
 
-There is exactly one `POST` in the whole system, it belongs to the **local**
-agent (`weekly-analytics-report`), and it is **not** a write:
+There is exactly one `POST` in the whole system, it belongs to the Reviewer
+(`weekly-analytics-report`), and it is **not** a write:
 GA4's `analyticsdata.googleapis.com/v1beta/properties/{id}:runReport`. That
 API takes its query (date range, which metrics) as a JSON body, so Google
 made the query verb a POST — it returns rows and mutates nothing. The
@@ -118,11 +114,11 @@ replies regardless, which is the larger justification of the two.
 own metrics branch.** This agent drafts a dependency-bump PR when it confirms
 an advisory genuinely affects the project, so it needs enough write to create
 a branch and open a draft PR. Separately, `ledger-publish` pushes a metrics
-branch to the marketing repo. Nothing beyond those two.
+branch to `LEDGER_REPO`. Nothing beyond those two.
 
-It carries most of this set's tasks since the retired fourth agent's work
-moved here, so this is the token whose repo list matters most — a repo left
-off it fails silently rather than falling back to public access.
+It carries nearly every task in the set, so this is the token whose repo list
+matters most — a repo left off it fails silently rather than falling back to
+public access.
 
 Worth noticing what is *absent* from every row below: `unanswered-watch`, the
 task the whole responsiveness guarantee rests on. It has no network access and
@@ -140,7 +136,7 @@ it, because it never had a token.
 | Contents | **Write** | create the `security/<ghsa-id>` branch and commit the manifest/lockfile version bump (`security-advisory-sweep`); create the docs branch (`docs-currency-watch`) |
 | Pull requests | **Write** | `POST /repos/{repo}/pulls` with `draft: true` — the security patch, and the version-tagged docs PR |
 | Issues | Read → **also needed on `DOCS_REPO`** | `docs-currency-watch` reads merged PRs on the product repo and opens a PR on the docs repo |
-| Contents (**marketing repo only**) | **Write** | `ledger-publish` pushes the metrics-history branch over `github.com` git — a *separate vault entry* from `api.github.com` |
+| Contents (**`LEDGER_REPO` only**) | **Write** | `ledger-publish` pushes the metrics-history branch over `github.com` git — a *separate vault entry* from `api.github.com` |
 
 **Why this is still least-privilege.** Contents write is the permission that
 lets an agent change a repo, so it deserves the scrutiny: it is here because
@@ -182,39 +178,17 @@ here). Verify the list against
 `grep -l api.github.com scripts/tasks/engineering/*.sh` rather than trusting
 this paragraph — it is the kind of list that goes stale on every split.
 
-If you are re-cutting this token against an older copy of this doc that said
-"read-only, no write of any kind", that changed deliberately: the Reviewer
-drafts security patches now.
+All of this agent's GitHub work depends on this one token. Verify the task
+list against `grep -l api.github.com scripts/tasks/engineering/*.sh` rather
+than trusting a paragraph — it is the kind of list that goes stale.
 
-### Marketing — `opensource/community-marketing`
+**Two non-GitHub things also live on this agent and nowhere else:** the GA4
+OAuth connection (`analyticsdata.googleapis.com`, `weekly-analytics-report`),
+and the public social-profile reads (`x.com`, `www.linkedin.com`, …) which
+need **no credential at all** but do need sandbox allowlist entries plus a
+real page-reading capability in the container. If `agent-access` reports GA4
+reachable by the lead, that is a finding — see §3.
 
-This agent measures and publishes; it writes no content and opens no PRs.
-Every permission below traces to `ledger-publish`.
-
-| Permission | Level | Justified by |
-|---|---|---|
-| Metadata | Read | setup-check reachability probes |
-| Contents | **Read + Write** on `MARKETING_REPO` | `ledger-publish` commits the follower and traffic series to the `agent-metrics` branch. The write is a git push over the `github.com` host — a *separate vault entry* from `api.github.com` |
-
-**If you are re-cutting this token against an older copy of this doc**, note
-what is gone: this agent used to hold Contents+PRs write on a content repo to
-commit drafts and open PRs, plus reads on a brand-source repo. It drafts
-nothing now, so those are access nothing uses — and unused access is exactly
-what §3's audit exists to catch. Its one non-GitHub credential is the GA4
-OAuth connection (`analyticsdata.googleapis.com`, `weekly-analytics-report`);
-if `agent-access` reports that reachable by the lead or the Reviewer, that is
-a finding.
-
-Repo list: `MARKETING_REPO` only. Note that the **Reviewer's** token also
-needs write on that same repo, for the same reason — both agents publish
-their own series to the same branch under different subdirectories, and two
-agents cannot share a config file or a token.
-
-**No social-platform credential is wired to this agent in any
-configuration.** It reads public profile pages and posts nowhere, so there is
-nothing to authenticate and nothing to gate. If a social posting credential
-ever appears against this agent in `agent-access`, that is a finding, not a
-feature.
 
 ### Why PATs and not a GitHub App
 

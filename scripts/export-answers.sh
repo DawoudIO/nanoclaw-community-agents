@@ -8,7 +8,7 @@
 #
 # WHY: onboarding can be done conversationally (you DM the lead and it
 # interviews you). That's the friendlier path, but it leaves the answers
-# scattered across four agents' config.env files with no single editable
+# scattered across each agent's config.env with no single editable
 # record. This walks the live install and writes them back into the same
 # shape as onboarding-answers.example.json — so you can diff it, edit one
 # value, and rebuild from the file instead of redoing the interview.

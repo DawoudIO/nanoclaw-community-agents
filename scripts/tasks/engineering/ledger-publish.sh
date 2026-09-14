@@ -35,10 +35,10 @@ set -euo pipefail
 # first finding a value in it that the API can no longer answer.
 #
 # This system is deliberately destroyed and rebuilt from the templates every
-# few months, and nothing reimports a container backup — which is why the old
-# whole-workspace backup was removed: it wrote a copy nothing ever read. This
-# task is the narrow replacement, and the difference that matters is that a
-# git repo is a destination a human already reads, not a restore nobody runs.
+# few months, and nothing reimports a container backup — so a whole-workspace
+# backup would be a copy nothing ever reads. This task is the narrow
+# alternative: a git repo is a destination a human already opens, not a
+# restore nobody runs.
 #
 # WHY A DEDICATED BRANCH. Everything published by this system lands on
 # LEDGER_BRANCH (default `agent-metrics`) rather than the repo's default

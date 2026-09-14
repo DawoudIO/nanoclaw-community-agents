@@ -375,11 +375,11 @@ asking for anything yet.
   - **Lead** — the public voice: replies, escalation, tone, security routing.
     Default **Sonnet**. No cheaper alternative offered; this is the one
     identity the community sees, and it's where judgment quality matters most.
-  - **Local ops** — narration of numbers a script already computed, mirrors,
-    backups. Default **Haiku** (cloud). No live alternative today — a
-    local-model provider (e.g. Ollama) was evaluated and set aside for setup
-    friction; mention it exists in SKILLS-ADOPTION.md if asked, but don't
-    offer it as a working option yet.
+  - **Reviewer** — triage, advisory assessment, repo health and every number
+    the project tracks. Default **Haiku**. Offer Sonnet only if the owner
+    wants stronger judgment on triage and is willing to spend more of the
+    shared window on it; a local-model provider is discussed in
+    SKILLS-ADOPTION.md but isn't a working option today.
   - **Reviewer (coding)** — draft-only triage and judgment (severity calls,
     breaking-change reads); every draft is reviewed by the lead before
     anything's public. Default **Haiku**. Real alternative: **Sonnet**, if the
@@ -542,8 +542,8 @@ either way; only the wake decision differs) — so a wiring with
 in gives it a real, passive session history of every support message, with
 zero risk of it ever actively replying. Without this, the Reviewer has no
 session for these channels at all and cannot see whether anything went
-unanswered — `unanswered-watch` silently has nothing to check, which is
-exactly the bug that shipped before this was fixed.
+unanswered — `unanswered-watch` then silently has nothing to check, which
+looks exactly like a quiet night.
 
 The `destinations add` line is not optional either: the wiring lets it *see*
 the messages, and the destination is what it posts the holding line *through*.
@@ -855,24 +855,22 @@ receive — they have no channel to post a card through themselves.
 
 ## 8. Set up the metrics-history publish — it is the only durable state
 
-**There is no workspace backup in this set, deliberately.** An earlier version
-had each agent push its whole workspace to a backup repo daily; it was removed
-because nothing ever read it back. This system is meant to be rebuilt from the
-templates every few months, and a restore that never happens is a write-only
-cost.
+**There is no workspace backup in this set, deliberately** — the system is
+meant to be rebuilt from the templates, and a restore nobody runs is a
+write-only cost.
 
-What replaced it is narrower and does get read: `ledger-publish` commits only
-the files that genuinely cannot be rebuilt into a branch of the marketing repo.
-There are three, and the distinction is worth stating to the owner in one line
-each, because it is the difference between "we can regenerate that" and "that
-is gone":
+What exists instead is narrower and does get read: `ledger-publish` commits
+only the files that genuinely cannot be rebuilt, into a branch of the
+project's repo. There are three, and the distinction is worth stating to the
+owner in one line each, because it is the difference between "we can
+regenerate that" and "that is gone":
 
-- **follower counts** (marketing) — unrecoverable, full stop. Every platform
-  exposes today's number and nothing else. A day not recorded is gone.
-- **GA4 traffic** (marketing) — re-queryable inside the property's retention
-  window (14 months by default), permanently gone beyond it.
-- **repo metrics history** (the Reviewer) — reconstructible in theory, but
-  only by paging every stargazer and every issue's comments. Treat it as gone.
+- **follower counts** — unrecoverable, full stop. Every platform exposes
+  today's number and nothing else. A day not recorded is gone.
+- **GA4 traffic** — re-queryable inside the property's retention window (14
+  months by default), permanently gone beyond it.
+- **repo metrics history** — reconstructible in theory, but only by paging
+  every stargazer and every issue's comments. Treat it as gone.
 
 Everything else each agent writes is a cache that rebuilds itself, and the
 lead's own ledgers (community questions, owner instructions) are deliberately
