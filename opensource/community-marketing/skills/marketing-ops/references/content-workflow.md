@@ -105,3 +105,28 @@ something has shipped, ask before drafting — don't hedge the language and hope
 
 A single reviewable item per cycle beats a batch. Batches get skimmed and
 approved wholesale, which defeats the review.
+
+## Some campaigns are handled entirely outside this system — check before drafting
+
+The owner may run a specific campaign or initiative themselves, directly or
+with a different tool (another AI agent, a personal script, a human
+collaborator) — not through your draft → PR → approve pipeline at all. A
+real install hit this: the owner was working a marketing-strategy campaign
+with a separate tool under the same GitHub identity, and it looked like
+unauthorized activity under this system's account until they confirmed it
+was their own, deliberate, out-of-band work.
+
+**Before drafting anything, check whether the campaign or initiative it
+serves is marked as owner-handled/external** in `project-config.md`. If the
+owner tells you (directly, or relayed through your lead) that something is
+being done outside this system, record it there — name, and roughly what it
+covers — and stop drafting for it going forward. Don't wait to be told
+again per cycle: once marked, skip it silently in your own planning rather
+than re-surfacing "should I draft for X" each time. If a growth goal or
+calendar slot only partially overlaps an external campaign, ask rather than
+guess how much of it is still yours to draft for.
+
+This is different from the "don't promote what isn't shipped" rule above —
+that one is about content accuracy; this one is about ownership. Both can
+apply to the same draft (an external campaign can also be about something
+unshipped), but check them independently.
