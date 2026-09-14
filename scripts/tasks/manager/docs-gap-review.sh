@@ -10,6 +10,16 @@ set -euo pipefail
 # has a fully mechanical fix.
 DATA="/workspace/agent/plugin-data/community-manager"
 mkdir -p "$DATA"
+
+# --- local telemetry (best-effort; never blocks the gate) -------------------
+# Mirrors this gate's one-line JSON output to a local per-task log so the
+# owner can review wake/error patterns weekly and adjust gates or budgets.
+# Not published anywhere (unlike ledger-publish's series) and not a source
+# of truth -- a background pipe means a very fast exit can occasionally drop
+# the last line, an accepted trade for never risking the gate's real output
+# or exit code.
+mkdir -p "$DATA/telemetry" 2>/dev/null || true
+exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$DATA/telemetry/docs-gap-review.jsonl" 2>/dev/null) 2>/dev/null)
 LEDGER="$DATA/question-ledger.jsonl"
 if [ ! -f "$LEDGER" ]; then
   echo '{"wakeAgent": false, "data": {"status": "no-ledger-yet", "hint": "the manager appends one topic line per resolved support conversation; nothing recorded yet"}}'

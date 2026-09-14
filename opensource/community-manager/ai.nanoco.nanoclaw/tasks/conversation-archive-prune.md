@@ -26,6 +26,15 @@ script: |
     ''|*[!0-9]*) KEEP_DAYS=3;;
   esac
 
+  # --- local telemetry (best-effort; never blocks the gate) -------------------
+  # See github-ops-triage.sh for the full rationale. Placed before every exit
+  # path in this script (including "no-directory") so no run is ever missed.
+  # This gate never wakes the model, so its log is purely a "did it run, did
+  # it error" record.
+  TELEMETRY_DATA="/workspace/agent/plugin-data/community-manager"
+  mkdir -p "$TELEMETRY_DATA/telemetry" 2>/dev/null || true
+  exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$TELEMETRY_DATA/telemetry/conversation-archive-prune.jsonl" 2>/dev/null) 2>/dev/null)
+
   if [ ! -d "$DIR" ]; then
     echo '{"wakeAgent": false, "data": {"status": "no-directory"}}'
     exit 0

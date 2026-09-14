@@ -36,6 +36,16 @@ set -uo pipefail
 # session that died mid-digest costs one repeated line, never a lost finding.
 DATA="/workspace/agent/plugin-data/community-manager"
 mkdir -p "$DATA"
+
+# --- local telemetry (best-effort; never blocks the gate) -------------------
+# Mirrors this gate's one-line JSON output to a local per-task log so the
+# owner can review wake/error patterns weekly and adjust gates or budgets.
+# Not published anywhere (unlike ledger-publish's series) and not a source
+# of truth -- a background pipe means a very fast exit can occasionally drop
+# the last line, an accepted trade for never risking the gate's real output
+# or exit code.
+mkdir -p "$DATA/telemetry" 2>/dev/null || true
+exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$DATA/telemetry/owner-tldr.jsonl" 2>/dev/null) 2>/dev/null)
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 # WHEN the owner gets the digest, in THEIR LOCAL TIME — 07:00 by default,
 # because the point is that they are awake and can act on it. A digest that

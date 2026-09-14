@@ -457,6 +457,32 @@ that cap safely: `unanswered-watch` at 144×/day, `owner-tldr` at 12×,
 `security-advisory-sweep` at 6× — all of which cost nothing on the runs where
 the gate finds nothing to say.
 
+## Local telemetry — one file per task, worth a weekly look
+
+Every gate script mirrors its own one-line JSON output to a local file:
+`plugin-data/<agent-folder>/telemetry/<task-name>.jsonl`, one line per run.
+This is **not** part of `ledger-publish`'s published series — it's local,
+disposable, and exists purely so you can see wake/error patterns over time
+and adjust a gate's threshold, cadence, or config if something looks off.
+
+```bash
+# how often did each task actually wake the model this week, in one agent?
+jq -s 'group_by(.task) | map({task: .[0].task, runs: length,
+  wakes: (map(select(.wakeAgent == true)) | length)})' \
+  groups/<folder>/plugin-data/community-helper/telemetry/*.jsonl
+
+# any errors (fetch-failed, script crash) surfaced this week?
+jq -s '[.[] | select(.data.status | test("fail|error"; "i"))]' \
+  groups/<folder>/plugin-data/community-helper/telemetry/*.jsonl
+```
+
+It's written via a background pipe inside each script, so on a very fast
+exit the last line can occasionally be dropped — an accepted trade, since
+the alternative (touching every exit path in every gate) was a much larger
+and riskier change for what's meant to be a casual, adjust-as-you-go log,
+not a source of truth. There's no scheduled task that reads or reports on
+this file; reviewing it is a manual, human habit.
+
 ## The operator's toolkit — two scripts worth knowing about
 
 These run on your machine against this repo or a live install. Neither is an

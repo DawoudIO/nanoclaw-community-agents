@@ -896,6 +896,43 @@ ledger_case() {
 }
 ledger_case "$ROOT/scripts/tasks/helper/ledger-publish.sh" "ledger-publish"
 
+# --- 2e. local telemetry: every gate must log its own run, on every path ---
+# Every gate script mirrors its one-line JSON output to
+# plugin-data/<agent>/telemetry/<task>.jsonl for weekly review (see the
+# comment in github-ops-triage.sh). This is placed as EARLY as possible in
+# each script, before any exit path, precisely because conversation-archive-
+# prune.sh once had it placed after its first exit branch ("no-directory")
+# and silently never logged that path at all. This test runs every gate
+# script in its cheapest (usually unconfigured) exit path and asserts a
+# valid JSON line was actually written — not just that the script itself
+# didn't crash.
+TELEMETRY_FAIL=0
+for sh in "$ROOT"/scripts/tasks/*/*.sh; do
+  group=$(basename "$(dirname "$sh")")
+  agent=$(agent_of "$group")
+  task=$(basename "$sh" .sh)
+  sandbox=$(mktemp -d)
+  mkdir -p "$sandbox/plugin-data/community-manager" "$sandbox/plugin-data/community-helper" "$sandbox/bin"
+  cat > "$sandbox/bin/curl" <<'MOCK'
+#!/bin/bash
+for a in "$@"; do case "$a" in *%{http_code}*) printf '\n000';; esac; done
+exit 22
+MOCK
+  chmod +x "$sandbox/bin/curl"
+  ( cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
+    bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") >/dev/null 2>&1 )
+  sleep 0.2
+  log="$sandbox/plugin-data/$agent/telemetry/$task.jsonl"
+  if [ -s "$log" ] && jq -e . "$log" >/dev/null 2>&1; then
+    pass
+  else
+    fail "telemetry: $sh did not write a valid JSON line to plugin-data/$agent/telemetry/$task.jsonl"
+    TELEMETRY_FAIL=1
+  fi
+  rm -rf "$sandbox"
+done
+[ "$TELEMETRY_FAIL" -eq 0 ] || echo "  (a gate exiting before its telemetry setup is a silent-miss bug — move the setup earlier)"
+
 echo
 echo "passed: $PASS  failed: $FAIL"
 [ "$FAIL" -eq 0 ]
