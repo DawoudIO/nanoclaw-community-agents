@@ -18,29 +18,29 @@ credential debugging loop will.
 Work through these in order after INSTALL.md §4's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
 
-It grew when the local agent joined: nothing in the original gate touched it,
-which meant an install could pass every check while the tier that owns the
-largest single share of tasks (run `bash scripts/gen-task-table.sh --counts`
-for the current split) was absent, misconfigured, or silently billing to the
-shared window without anyone noticing. Items 13–15 close that.
+Items 13–15 exist because an install could once pass every earlier check
+while the agent that owns most of the tasks (run
+`bash scripts/gen-task-table.sh --counts` for the current split) was absent,
+misconfigured, or silently billing to the shared window without anyone
+noticing.
 
 | # | Test | How | Pass looks like |
 |---|---|---|---|
 | 1 | Owner DM round trip | DM the lead; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
-| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has each of the **three** sub-agents relay theirs (each group ships its own) | **All four tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Four reports, not three: a missing one means a sub-agent didn't answer, which is itself the finding |
+| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has each of the **two** sub-agents relay theirs (each group ships its own) | **All three tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Three reports, not two: a missing one means a sub-agent didn't answer, which is itself the finding |
 | 3 | Support-tier auto-reply | Post a question in a support channel from a **non-owner** account, no @mention | Unprompted reply within a couple of minutes. Silence here = the Message Content intent is off in the Discord dev portal |
 | 4 | Mention-only discipline | Post in a dev-tier channel *without* tagging the bot, then again *with* a tag | No reply to the first, a reply to the second |
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
-| 7 | Sub-agent relay | DM the lead: "ping all three sub-agents and relay their answers" | All three answer **through the lead** — that's their only outbound path. The Reviewer and Marketing have no channel wiring at all and cannot post publicly even if instructed to. The **local agent is the one deliberate exception**: it holds a single channel, and the only thing it may ever put there is a template-only holding acknowledgment it is forbidden to compose freely. Nothing else it produces should ever appear in public |
+| 7 | Sub-agent relay | DM the lead: "ping both sub-agents and relay their answers" | Both answer **through the lead** — that's their only outbound path. Marketing has no channel wiring at all and cannot post publicly even if instructed to. The **Reviewer is the one deliberate exception**: it holds a wiring to the support channels, and the only thing it may ever put there is the template-only holding acknowledgment it is forbidden to compose freely. Nothing else it produces should ever appear in public |
 | 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
-| 9 | Backup actually pushed | Check the backup repo on GitHub after the first `workspace-backup` run | A commit from the bot exists; `tasks get` shows `pushed` |
+| 9 | History publish actually pushed | Check the marketing repo's `agent-metrics` branch after the first `ledger-publish` run on **each** sub-agent | A commit from the bot exists under both `agent-metrics/reviewer/` and `agent-metrics/marketing/` (whichever agents you stamped); `tasks get` shows `published`. This is the only durable state in the system — a silent failure here is the one that costs data rather than a report |
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that all four agents currently bill to it** (the local agent's Ollama provider was evaluated and set aside for this phase; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
+| 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that all three agents currently bill to it** (a local-model provider was evaluated and set aside for this phase; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
 | 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
-| 15 | You know the death signal | No action — confirm you understand it | A one-line heartbeat reaches you at least weekly — produced by the local agent's `health-check`, relayed by the lead. **More than ~8 days of silence means the sandbox died and needs a host-side restart.** Silence is the alarm |
+| 15 | You can check liveness on demand | DM the lead exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices. Know that this proves only the *lead* is alive; a stopped sub-agent shows up as its reports going quiet instead |
 
 ## Day 2 — did the first unattended cycle actually run?
 
@@ -59,23 +59,29 @@ Ten minutes, the morning after go-live:
   is the cheapest moment to correct tone — one DM to the lead.
 - **No surprise wakes**: gated tasks that had nothing to say stayed silent.
   A gate waking on nothing is a bug worth reporting while it's fresh.
-- **Close out the two unverified local-agent risks.** Both were flagged as
-  needing a real install before anyone could assert them, and both fail
-  *quietly*, which is why they belong on a checklist rather than in a bug
-  report you'd notice on your own:
-  - **Can the lead and the local agent both wire to the same Discord
+- **Close out the unverified holding-ack risk.** It was flagged as needing a
+  real install before anyone could assert it, and it fails *quietly*, which is
+  why it belongs on a checklist rather than in a bug report you'd notice on
+  your own:
+  - **Can the lead and the Reviewer both wire to the same Discord
     channel?** Still unverified. If the platform refuses the second wiring, or
-    the local agent's channel silently resolves to nothing, `unanswered-watch`
-    will do all its work and then have nowhere to put the acknowledgment. Ready
-    gate item 14 is the test; if you skipped it, do it now.
-  - **Is `ncl messages list --json` the shape the gate expects?** Also
-    unverified — the output shape varies by NanoClaw version. The gate is
-    written to fail safe rather than fail quiet: an unrecognized shape makes it
-    report `cannot-read-messages` instead of concluding "nothing to do."
-    **So check for that status explicitly** (`./bin/ncl tasks get` on an
-    `unanswered-watch` run). A run of `cannot-read-messages` looks almost
-    exactly like a healthy quiet night, and it means the safety net has been
-    off the whole time.
+    the Reviewer's channel destination silently resolves to nothing,
+    `unanswered-watch` will do all its work and then have nowhere to put the
+    acknowledgment. Ready gate item 14 is the test; if you skipped it, do it
+    now.
+  - **Are `ncl sessions list` / `ncl sessions history --json` the shapes the
+    gate expects?** Also unverified — the output shape varies by NanoClaw
+    version. (An earlier version of this gate called `ncl messages list`,
+    which does not exist on this platform at all; it was rewritten against
+    these two real commands.) The gate is written to fail safe rather than
+    fail quiet: an unrecognized shape makes it report `cannot-read-sessions`,
+    and no channel-backed session at all makes it report
+    `no-channel-sessions`, instead of concluding "nothing to do."
+    **So check for both statuses explicitly** (`./bin/ncl tasks get` on an
+    `unanswered-watch` run). Either one looks almost exactly like a healthy
+    quiet night, and means the safety net has been off the whole time —
+    `no-channel-sessions` specifically means the silent support-channel
+    wiring (§5c) never happened.
 
 ## Week 1 — the first full weekly cycle
 
@@ -96,21 +102,21 @@ Ten minutes, the morning after go-live:
   `resurfaced: true`, and it has to read as *"still waiting, no change since
   last week"*. If a re-mention reads as new activity, the task teaches the
   owner to skim it, which costs you the one thing it exists to catch.
-- **The follower snapshot made it across the handoff.** This one is worth
+- **The follower snapshot landed, and then got published.** This one is worth
   checking on both ends, because it's the only genuinely un-re-scrapable
-  series in the system and it crosses an agent boundary to get durable.
-  `social-metrics-snapshot` is the **local** agent's task: it appends its line
-  to `plugin-data/community-secretary/social-metrics-history.jsonl` (its own
-  working copy, and the one the backup captures) and relays the exact same
-  JSON line plus both deltas to the lead, which appends it to the lead's
-  durable ledger. Confirm the line exists on the local side *and* that the
-  lead has it. **A relay that silently stops leaves the local copy still
-  growing, so the local file looking healthy proves nothing about the
-  handoff** — check both or you haven't checked.
+  series in the system. `social-metrics-snapshot` (marketing) appends its line
+  to `plugin-data/community-marketing/social-metrics-history.jsonl`, and
+  `ledger-publish` commits that file to the marketing repo's `agent-metrics`
+  branch. Confirm the line exists in the container's file *and* that the
+  branch has it. **A publish that silently stops leaves the local file still
+  growing, so the container's copy looking healthy proves nothing about
+  durability** — check both, or you haven't checked the thing that matters.
 - **Integrity check is quiet**: `weekly-identity-integrity-check` baseline
   initialized on its first run and no drift alarm since — unless you edited
   a task, in which case you got asked about exactly that edit (good).
-- **Backup cadence**: the backup repo shows a commit per day with changes.
+- **Publish cadence**: the `agent-metrics` branch shows a commit per day on
+  the days the numbers actually changed (`ledger-publish` stays silent when
+  nothing moved, so an unchanged day with no commit is correct, not a miss).
 - **Test the correction loop once, deliberately**: tell the lead to change
   one small behavior (e.g. "stop including X in the digest"). Verify it
   acks with a ledger number, applies it, and the change survives to the

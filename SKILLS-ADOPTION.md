@@ -112,6 +112,15 @@ with the hosts correctly allowlisted).
 
 ## Decided: marketing stays on Claude — and a standing rule on model provenance
 
+> **Premise superseded 2026-09-14, conclusion unchanged.** Marketing no longer
+> drafts anything — content is owner-managed outside this system, and the
+> agent's remaining job is reading follower counts and GA4 traffic. So the
+> economics argument below no longer applies as written (there is no
+> `content-draft-cycle`, and the agent now runs Haiku rather than Sonnet
+> because narration is all it does). The **standing rule** that follows this
+> section — provenance before the public voice — is the part that still binds,
+> and it binds harder now: nothing this agent produces is public at all.
+
 Asked whether a content-writing fine-tune (`sachin2505/cw`) or something like
 it should run the marketing agent. **No**, for reasons worth keeping:
 
@@ -161,7 +170,7 @@ different risk class and a general local model is fine there.
 ## Shipped: the Ollama "acknowledger" for when the lead is rate-limited
 
 **This one is built, not proposed.** It lives at
-`opensource/community-secretary/ai.nanoco.nanoclaw/tasks/unanswered-watch.md`, runs every
+`opensource/community-coding/ai.nanoco.nanoclaw/tasks/unanswered-watch.md`, runs every
 10 minutes, and holds no network access and no credentials of any kind. It was
 a **different and much better** use of Ollama than the coding-agent idea below,
 and it targets a real failure this deployment has already lived through: **when
@@ -208,7 +217,7 @@ get wrong.
   line with none of its detail repeated, then goes to the lead flagged
   owner-DM-urgent. It never triages.
 - **Handoff**: every acknowledged id is appended to
-  `plugin-data/community-secretary/acknowledged.txt` and reported to the lead, so
+  `plugin-data/community-coding/acknowledged.txt` and reported to the lead, so
   the lead picks the message up when its window returns. The acknowledgment is
   a receipt, not a resolution — an acknowledged message nobody ever answers is
   a worse outcome than the silence it replaced.
@@ -220,7 +229,7 @@ the *reader-facing* identity holds. But the old blanket claim that sub-agents
 "have no channel wiring at all and cannot post publicly even if instructed to"
 is **no longer true as written**, and shouldn't be repeated. The accurate
 version: the **Reviewer and marketing** have no channel wiring and cannot post
-publicly under any instruction. The **local agent is the one deliberate
+publicly under any instruction. The **Reviewer is the one deliberate
 exception** — it needs a channel to deliver holding acknowledgments, so its
 restriction is enforced by *scope* instead of by absence: one channel,
 read-only credentials everywhere else, no write access, and a template-only
@@ -233,7 +242,7 @@ rather than a preference precisely because of it.
 These were open questions in the proposal; the code shipped without waiting for
 them, so they are now **checks to run at install**, not design debates:
 
-1. **Two groups, one channel.** Confirm the lead and the local agent can both
+1. **Two groups, one channel.** Confirm the lead and the Reviewer can both
    wire to the same Discord channel, and that a per-group provider override
    coexists with that. Still unverified. If it turns out they can't, the
    acknowledger has no delivery path and this whole safety net is inert — check
@@ -279,16 +288,21 @@ wakes per week:
 
 That is ~13–23 wakes/week at ~6.2K context each, with a byte-identical persona
 prefix that caches. On the cheapest model tier it isn't close to noise — it
-*is* noise. Four of the tasks that used to pad this table
-(`dev-metrics-report`, `repo-mirror-sync`, `good-first-issue-health`,
-`repo-hygiene-audit`) belong to the local agent now, and the two that went to
-the lead (`daily-github-triage`, `docs-gap-review`) are Sonnet-tier by design.
-Neither set is coding's to save, so neither belongs in a table about coding's
-spend. (**Current state, 2026-08-24**: `posthog-weekly-review` is removed —
-never got working end to end — and `dependabot-pr-review`/`docs-currency-watch`
-have since been added, so the Reviewer now owns 5 tasks, not 4. The reasoning
-below is unaffected — every task on this tier, then and now, is judgment, not
-narration.)
+*is* noise. (**Current state, 2026-09-14**: this table is a snapshot from when
+the Reviewer owned 4–5 tasks. It now owns most of the set: the retired local
+tier's tasks — `dev-metrics-report`, `good-first-issue-health`,
+`repo-hygiene-audit`, `ready-to-merge`, `contributor-nudge`,
+`unanswered-watch` — moved here, and `repo-mirror-sync` was dropped entirely
+with the shared mount. `posthog-weekly-review` is still removed; it never got
+working end to end. Run `bash scripts/gen-task-table.sh --counts` for the real
+split rather than trusting this table's row count.
+
+The conclusion below survives the change, but its *shape* is worth stating
+honestly: this tier is no longer purely judgment work. It now carries relay
+tasks too (a list of approved PRs is decided by the search, not the reader).
+The argument against a local model rests on the judgment tasks that remain —
+reachability, severity, duplicate detection — not on every task here being
+one.)
 
 `contributor-health-review` (and `posthog-weekly-review`, while it existed)
 are the sharpest argument against a local model here: both exist to decide
@@ -337,12 +351,12 @@ true — it changed owner, and keeping it honest means recording it as the local
 agent's headline risk rather than deleting it. Two mitigations shipped with it:
 
 - **The gate computes every number.**
-  `scripts/tasks/secretary/dev-metrics-report.sh` does the fetching, the deltas and
+  `scripts/tasks/engineering/dev-metrics-report.sh` does the fetching, the deltas and
   the `null`-on-failure handling before any model wakes, so the model narrates
   a computed result instead of deriving one. A dropped rule can make the prose
   worse; it cannot make the numbers wrong.
 - **The local persona's explicit never-do list**
-  (`opensource/community-secretary/ai.nanoco.nanoclaw/context/instructions.md`) hard-codes
+  (the retired local tier's persona) hard-coded
   the rules least safe to drop: never invent a number, `null` means
   "unavailable" and never zero, never assess security, never write anything
   readable as the project's voice.
@@ -485,6 +499,25 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
    back.)
 
 ## Decided: keep all four agents separate — no merges on model-tier match alone
+
+> **Overtaken by events, 2026-09-14 — and the reasoning is why it went the way
+> it did.** The agent count did come down, but not by any merge considered
+> here. The local tier was **retired** rather than merged into the Reviewer:
+> its tasks were reviewed one at a time and sent to whichever agent already
+> owned the surrounding domain, and four of them were dropped outright rather
+> than rehomed. So the "blast radius and behavioral contract" test below was
+> applied per *task*, not per agent — which is the finer-grained version of
+> the same question, and it produced a different answer than the
+> all-or-nothing merge framing could.
+>
+> Two of the specific objections below turned out to be wrong or moot:
+> the safety-net-crowding worry (`unanswered-watch` now runs on the Reviewer
+> and the cadence clash has not materialised, because its gate is free and
+> its wake is rare), and the write-access objection (the backup-repo push and
+> mirror clone that made the local tier a write-holder were both deleted, so
+> there was no write left to combine). The objection that still stands
+> untouched is **Reviewer→Marketing**: that merge was never done, and the
+> credential-blast-radius argument against it is unchanged.
 
 Asked twice, from both directions, whether same-tier agents should merge to
 cut the agent count: Marketing+Reviewer (both real candidates once

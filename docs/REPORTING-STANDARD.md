@@ -104,11 +104,14 @@ what couldn't be read.
 **One action, one owner.** If nothing is actionable, the verdict line is
 `ALL CLEAR` and the report is over.
 
-**Don't assess above your tier.** The local agent narrates and lists; it
-never diagnoses. "Unmerged ratio moved from 0.18 to 0.31" is its job.
-"Because contribution quality is dropping" is not — that's the Reviewer's,
-and a confident wrong diagnosis costs more than an honest handoff. See each
-agent's never-do list.
+**Say which you are doing: relaying a list, or making a call.** Some tasks
+hand you a list the search already decided (`ready-to-merge`,
+`good-first-issue-health`) and some hand you numbers that mean nothing until
+someone interprets them (`contributor-health-review`). "Unmerged ratio moved
+from 0.18 to 0.31" is a reading; "because contribution quality is dropping"
+is a diagnosis — and if you have not actually checked, say the cause is
+unverified rather than asserting it. A confident wrong diagnosis costs more
+than an honest handoff.
 
 ## Before and after
 

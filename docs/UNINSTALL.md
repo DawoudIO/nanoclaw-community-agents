@@ -94,7 +94,7 @@ is individually caught, so re-running is safe and picks up what failed.
 ```bash
 cd /path/to/nanoclaw
 bash nanoclaw.sh --uninstall --dry-run    # read it
-bash nanoclaw.sh --uninstall              # accept all four groups
+bash nanoclaw.sh --uninstall              # accept all stamped groups
 
 cd .. && rm -rf nanoclaw                  # includes .env.bak — check it first
 rm -rf ~/.config/nanoclaw                 # registry token, mount allowlist
