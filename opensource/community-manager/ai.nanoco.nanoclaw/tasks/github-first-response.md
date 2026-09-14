@@ -18,7 +18,7 @@ script: |
   # which is the notification stream we deliberately removed. So: fast and
   # narrow here, slow and thorough there.
   #
-  # Discord needs no equivalent — the lead answers Discord live through its
+  # Discord needs no equivalent — the manager answers Discord live through its
   # channel wiring, event-driven, and unanswered-watch is the safety net for when
   # it can't. GitHub has no live wiring in this design, so this poll is the path.
   DATA="/workspace/agent/plugin-data/community-manager"
@@ -146,7 +146,7 @@ repo with no new issues.
 ## Answer it, don't acknowledge it
 
 This is not `unanswered-watch` and you are not posting a holding reply. You are
-the lead, on a capable model, and you have the whole repo available — so
+the manager, on a capable model, and you have the whole repo available — so
 actually respond:
 
 - **Read the item first.** Open it, read the linked code or error, check whether
@@ -168,15 +168,15 @@ the clock.
 ## What not to do
 
 - **Don't triage here.** Duplicate hunting, staleness, labelling and the digest
-  belong to `github-ops-triage` — **that task lives on the coding sub-agent
-  (Reviewer), not on you**, if one is stamped; your own `daily-github-triage`
-  is the standalone fallback, meant to stay paused whenever Reviewer's exists.
+  belong to `github-ops-triage` — **that task lives on the helper
+  (Helper), not on you**, if one is stamped; your own `daily-github-triage`
+  is the standalone fallback, meant to stay paused whenever Helper's exists.
   **Before creating a `github-ops-triage`-named task on yourself because you
-  don't see one in your own task list**: check whether the coding sub-agent
+  don't see one in your own task list**: check whether the helper
   already has it — ask it directly, or have it confirm via its own task list —
   rather than assuming absence-from-your-list means absence entirely. A real
-  install ended up with this task duplicated on both the lead and Reviewer
-  because the lead didn't check the other agent before creating one. If you
+  install ended up with this task duplicated on both the manager and Helper
+  because the manager didn't check the other agent before creating one. If you
   notice something triage-shaped in the meantime, leave it for that task
   rather than doing both jobs badly.
 - **Don't touch anything security-shaped.** If the item looks like a

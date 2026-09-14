@@ -17,7 +17,7 @@ actually running rather than assuming it: `launchctl list | grep nanoclaw`
 
 That said, a stopped system still can't report its own death, so silence is
 still the failure mode if something does take it down (a host that's fully
-off, a launchd/systemd config that got removed). **Check liveness on demand rather than waiting to be told.** DM the lead the
+off, a launchd/systemd config that got removed). **Check liveness on demand rather than waiting to be told.** DM the manager the
 single word `ping` — it answers `pong #<last-ledger-id> <UTC time>` and
 nothing else, which separates "the system is down" from "a rule is being
 ignored" in about five seconds.
@@ -26,12 +26,12 @@ Deliberately, there is **no heartbeat task** that reports "all healthy" on a
 schedule. An alarm that fires by *not* arriving needs a human to notice the
 absence, which nobody reliably does — and a per-container "my environment is
 fine" signal is easily mistaken for system-wide health, which it never is.
-Note the honest limit of `ping`: it proves the *lead* is alive. A sub-agent
+Note the honest limit of `ping`: it proves the *manager* is alive. A sub-agent
 that has stopped shows up instead as its reports going quiet.
   Two consequences of that chain worth knowing: the *detection* half runs on
   no model at all and so keeps working when the Claude window is gone, but the
-  *delivery* half goes through the lead. A missing heartbeat therefore means
-  "something upstream of your DM is broken" — a dead sandbox, or a lead that
+  *delivery* half goes through the manager. A missing heartbeat therefore means
+  "something upstream of your DM is broken" — a dead sandbox, or a manager that
   can't speak — which is exactly the set of things you want to be told about.
 
 ## Model budget — one shared window, and the trap in it
@@ -75,10 +75,10 @@ Four defenses, in order of effectiveness:
 1. **Separate the meters where it counts.** If you can, put the agents on
    their own subscription (or an API key) and keep your personal Claude Code
    on yours. Full stop — this removes the failure mode instead of managing it.
-2. **Pause tasks, don't downgrade models.** Moving the coding agent to local
+2. **Pause tasks, don't downgrade models.** Moving the helper to local
    Ollama was evaluated and rejected — it saves little (the gates already cut
-   coding to ~20–50 wakes/week on the cheapest tier) and shifts work onto the
-   Sonnet-class lead that reviews its output. See
+   the helper to ~20–50 wakes/week on the cheapest tier) and shifts work onto the
+   Sonnet-class manager that reviews its output. See
    [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). The pause-order list below is
    the real throttle.
 3. **Keep the pause-order list to hand** (below). It's not a nice-to-have on
@@ -86,15 +86,15 @@ Four defenses, in order of effectiveness:
 4. **Watch `clidash`** for session/usage state rather than discovering the
    ceiling by hitting it.
 
-**And know what hitting it looks like**: the lead stops answering Discord
+**And know what hitting it looks like**: the manager stops answering Discord
 altogether — the community gets silence, which for a public-facing support
 agent is the worst failure mode there is. The safety net for exactly this now
-ships: the Reviewer's `unanswered-watch` **gate** runs every 10 minutes,
+ships: the Helper's `unanswered-watch` **gate** runs every 10 minutes,
 sees only local session state (no network, no credentials), and costs
 nothing regardless of the shared window's state — so the *detection* survives
 a window exhaustion. **The acknowledgment itself does not**, for this phase:
-posting it is still a model wake on the Reviewer, which shares the same
-cloud window as the lead. If the window is fully exhausted, both the lead and
+posting it is still a model wake on the Helper, which shares the same
+cloud window as the manager. If the window is fully exhausted, both the manager and
 the acknowledger go quiet together. This is a real, reduced version of the
 safety net compared to an off-window local model — see
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) for why Ollama was set aside and
@@ -122,7 +122,7 @@ window**, so budget them together:
   weeks), and `ledger-publish` / `conversation-archive-prune` never wake a
   model on success at any point in their lives. Only the gates you actually
   configured can cost you anything.
-- **Smoke tests**: 3–4 real lead interactions.
+- **Smoke tests**: 3–4 real manager interactions.
 
 ### Measured context floors (per model wake, this template set)
 
@@ -131,16 +131,16 @@ persona plus whatever skill loads:
 
 | Agent | Persona + context | With its main skill |
 |---|---|---|
-| Lead | ~8.6K tokens | ~18.8K (community-manager) · ~15K (welcome) |
-| Coding | ~3.2K | ~6.2K |
+| Manager | ~8.6K tokens | ~18.8K (community-manager) · ~15K (welcome) |
+| Helper | ~3.2K | ~6.2K |
 
-**Re-measure Coding's row** before trusting it for budget: it carries nearly
+**Re-measure the Helper's row** before trusting it for budget: it carries nearly
 every task in the set, so its floor is the one that matters most here, and
 these numbers were taken against a smaller persona. Measure the same way they
 were: persona + context on a cold wake. See
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md).
 
-Task prompt bodies add ~400 tokens on average. The lead is the expensive one
+Task prompt bodies add ~400 tokens on average. The manager is the expensive one
 and always will be — it carries the public-facing judgment. Prompt caching
 makes repeat wakes much cheaper than these numbers suggest, since the persona
 prefix is byte-identical every time.
@@ -182,7 +182,7 @@ cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
 minutes (`*/10`)**, and its *gate* is the cheapest thing in the system on
 every axis at once — no network call, no credentials, nothing but local
-session state. Its acknowledgment does cost a Haiku wake on the Reviewer,
+session state. Its acknowledgment does cost a Haiku wake on the Helper,
 which shares this window; the detection is what stays free. That combination
 is the point: the task the north star depends on had to be the one thing
 that can't be knocked over by an outage, even if it can be slowed by an
@@ -206,7 +206,7 @@ Two rules worth keeping:
   voice that a sub-agent structurally cannot speak with.
 - **Keep the public voice on the capable tier.** The split is by *model tier*
   for a reason. Cheap work done wrong in public costs more than expensive work
-  done right — which is exactly why the Reviewer's one public-facing task is
+  done right — which is exactly why the Helper's one public-facing task is
   restricted to a fixed template it cannot compose freely.
 
 **Model defaults per agent** (confirmed at cold start by the welcome flow —
@@ -214,16 +214,16 @@ the owner can change them there or later via group config):
 
 | Agent | Default | Why |
 |---|---|---|
-| Lead | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
-| Reviewer (coding) | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the lead before publishing — except the one fixed holding line it may post itself, which it cannot compose freely. Upgrade only if quality disappoints |
+| Manager | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
+| Helper | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the manager before publishing — except the one fixed holding line it may post itself, which it cannot compose freely. Upgrade only if quality disappoints |
 
-**Decided: no local model for the Reviewer — Haiku stays.** Compared against
-Haiku (not Sonnet), the case collapses: the Reviewer's tasks together wake
+**Decided: no local model for the Helper — Haiku stays.** Compared against
+Haiku (not Sonnet), the case collapses: the Helper's tasks together wake
 only a few dozen times a week because the gates already suppress the rest, so
 there is little left to save on the cheapest tier — while the risk lands
 precisely on what's left, which is nothing but judgment: advisory reachability
-assessment and triage duplicate detection. Because the Sonnet-class lead reviews
-every Reviewer output, degrading the Reviewer shifts work onto the *more*
+assessment and triage duplicate detection. Because the Sonnet-class manager reviews
+every Helper output, degrading the Helper shifts work onto the *more*
 expensive tier. And the only local model plausibly good enough
 (`qwen3-coder:30b`, 18 GB) does not fit alongside everything else on a 16 GB
 host at all. Full reasoning, wake-volume table, and model comparison:
@@ -236,8 +236,8 @@ Wakes are frequent; premium models belong in interactive sessions, not cron.
 
 **If you hit the window ceiling** (on a shared subscription this also
 restores your own Claude Code access): **both agents draw on that
-meter** — there is no off-meter tier to lean on right now. The Reviewer
-costs less per-wake than the lead (cheapest cloud tier, aggressively gated),
+meter** — there is no off-meter tier to lean on right now. The Helper
+costs less per-wake than the manager (cheapest cloud tier, aggressively gated),
 so its tasks are lower priority to pause than genuinely expensive ones, but
 pausing them is a real lever. If a local-model provider is adopted later (see
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)), this section's advice shifts:
@@ -246,9 +246,9 @@ budget.
 
 Pause in this order — lowest value first, across both agents:
 
-1. `daily-github-triage` — if the Reviewer is stamped it's already redundant
+1. `daily-github-triage` — if the Helper is stamped it's already redundant
    with `github-ops-triage`; it should be paused anyway.
-2. `inbox-check` — ungated, so it wakes the lead on **every** run, twice a day,
+2. `inbox-check` — ungated, so it wakes the manager on **every** run, twice a day,
    whether or not there's mail. Per-wake it's the most reliably expensive thing
    in the set.
 3. `contributor-health-review` — a reasonable early pause: nothing it reports
@@ -308,8 +308,8 @@ have different mechanics:
 
 | Surface | Path | Speed |
 |---|---|---|
-| **Discord** | **Live.** The lead is wired to the channels and answers events as they arrive — no cron involved | realtime |
-| Discord, when the lead is down | `unanswered-watch` on the Reviewer posts a holding ack | ≤10 min; detection is free, the ack itself is a cheap Haiku wake sharing the window for this phase |
+| **Discord** | **Live.** The manager is wired to the channels and answers events as they arrive — no cron involved | realtime |
+| Discord, when the manager is down | `unanswered-watch` on the Helper posts a holding ack | ≤10 min; detection is free, the ack itself is a cheap Haiku wake sharing the window for this phase |
 | **GitHub** | No live wiring in this design, so it polls: `github-first-response` finds new unanswered items | ≤10 min + grace |
 | GitHub triage (duplicates, staleness, labels) | `github-ops-triage` digest | 6h — deliberately slow |
 | Everything else | its own gated schedule, posted to the channel that cares | see the table below |
@@ -345,22 +345,22 @@ unconfigured burns turns on every fire. And **"wakes model" means a different
 meter depending on the agent** — a Local-ops wake spends host RAM, never the
 shared Claude window.
 
-**Lead** (`opensource/community-manager`) — 7 tasks, the only agent with a full
+**Manager** (`opensource/community-manager`) — 7 tasks, the only agent with a full
 public voice:
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
-| `daily-github-triage` (weekdays) | only on new/updated items | lead PAT + `COMMUNITY_REPOS` in `plugin-data/community-manager/config.env` | silent skip. **This is the lead's standalone-mode fallback** — leave it paused when the Reviewer is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Reviewer |
-| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the lead's own `plugin-data/community-manager/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
-| `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | lead PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
+| `daily-github-triage` (weekdays) | only on new/updated items | manager PAT + `COMMUNITY_REPOS` in `plugin-data/community-manager/config.env` | silent skip. **This is the manager's standalone-mode fallback** — leave it paused when the Helper is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Helper |
+| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
+| `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
 | `inbox-check` (2×/day) | **every run** (ungated) | email MCP + read-only mailbox + allowlist | leave paused |
-| `release-announcement-watch` (every 3h) | only on a new stable release | lead PAT + `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS` to scope announcements to a subset) in `plugin-data/community-manager/config.env` | silent skip |
+| `release-announcement-watch` (every 3h) | only on a new stable release | manager PAT + `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS` to scope announcements to a subset) in `plugin-data/community-manager/config.env` | silent skip |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 
-**Reviewer** (`opensource/community-coding`) — read-only except for drafting
+**Helper** (`opensource/community-helper`) — read-only except for drafting
 security patch PRs and docs PRs (branch + draft PR, never merged), never posts
-publicly. Config in `plugin-data/community-coding/config.env`.
+publicly. Config in `plugin-data/community-helper/config.env`.
 `contributor-health-review` gets its own weekly slot for the
 same reason `posthog-weekly-review` was, before it was removed for never
 getting working end to end (see SKILLS-ADOPTION.md if it comes back): each is
@@ -370,11 +370,11 @@ is a judgment about a person. Narration went local; judgment stayed cloud.
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
-| `docs-currency-watch` (every 6h) | only on merged PRs not yet assessed | coding PAT (Contents+PRs **write**) + `PRODUCT_REPO`/`COMMUNITY_REPOS` + `DOCS_REPO` | silent skip — no `DOCS_REPO` means the project has no docs site and the task never fires |
-| `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | coding PAT + `COMMUNITY_REPOS` | silent skip |
-| `github-ops-triage` (4×/day) | only on new/updated items | coding PAT + `COMMUNITY_REPOS` | silent skip |
-| `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | coding PAT + `COMMUNITY_REPOS` | silent skip |
-| `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | coding PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
+| `docs-currency-watch` (every 6h) | only on merged PRs not yet assessed | helper PAT (Contents+PRs **write**) + `PRODUCT_REPO`/`COMMUNITY_REPOS` + `DOCS_REPO` | silent skip — no `DOCS_REPO` means the project has no docs site and the task never fires |
+| `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | helper PAT + `COMMUNITY_REPOS` | silent skip |
+| `github-ops-triage` (4×/day) | only on new/updated items | helper PAT + `COMMUNITY_REPOS` | silent skip |
+| `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | helper PAT + `COMMUNITY_REPOS` | silent skip |
+| `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | helper PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
 | `social-metrics-snapshot` (weekly) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts + a real page-reading capability in the container | leave paused until the platforms are configured and allowlisted — it guards the one series nothing can rebuild |
 | `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTIES` + allowlist | silent skip |
 | `ledger-publish` (daily) | **never on success** — only on a publish failure | `LEDGER_REPO` + a `github.com` (git) push credential | silent skip, and all three series then live only in this container |
@@ -399,29 +399,29 @@ the round minutes because it's the task the north star depends on:
 
 | Task | Agent | Cadence | When (UTC) | Gated |
 |------|-------|---------|------------|-------|
-| `conversation-archive-prune` | Lead | **daily** | 05:17 | yes |
-| `daily-github-triage` | Lead | **weekdays** | 13:13, Mon–Fri | yes |
-| `docs-gap-review` | Lead | **weekly** | 15:15, Tue | yes |
-| `github-first-response` | Lead | **6× hourly** | :4/14/24/34/44/54 each hour | yes |
-| `inbox-check` | Lead | **2× daily** | 06:55, 16:55 | no |
-| `owner-tldr` | Lead | **every 2h** | every 2h at :41 | yes |
-| `release-announcement-watch` | Lead | **every 3h** | every 3h at :05 | yes |
-| `weekly-identity-integrity-check` | Lead | **weekly** | 15:45, Mon | yes |
-| `contributor-health-review` | Reviewer | **weekly** | 11:26, Wed | yes |
-| `contributor-nudge` | Reviewer | **daily** | 09:18 | yes |
-| `conversation-archive-prune` | Reviewer | **daily** | 05:17 | yes |
-| `dependabot-pr-review` | Reviewer | **every 6h** | every 6h at :11 | yes |
-| `dev-metrics-report` | Reviewer | **daily** | 12:15 | yes |
-| `docs-currency-watch` | Reviewer | **every 6h** | every 6h at :29 | yes |
-| `github-ops-triage` | Reviewer | **every 6h** | every 6h at :35 | yes |
-| `good-first-issue-health` | Reviewer | **weekly** | 16:16, Mon | yes |
-| `ledger-publish` | Reviewer | **daily** | 06:38 | yes |
-| `ready-to-merge` | Reviewer | **2× daily** | 09:47, 17:47 | yes |
-| `repo-hygiene-audit` | Reviewer | **daily** | 10:55 | yes |
-| `security-advisory-sweep` | Reviewer | **every 4h** | every 4h at :45 | yes |
-| `social-metrics-snapshot` | Reviewer | **weekly** | 13:23, Sun | no |
-| `unanswered-watch` | Reviewer | **every 10 min** | on the 10-minute mark | yes |
-| `weekly-analytics-report` | Reviewer | **weekly** | 14:19, Sun | yes |
+| `conversation-archive-prune` | Manager | **daily** | 05:17 | yes |
+| `daily-github-triage` | Manager | **weekdays** | 13:13, Mon–Fri | yes |
+| `docs-gap-review` | Manager | **weekly** | 15:15, Tue | yes |
+| `github-first-response` | Manager | **6× hourly** | :4/14/24/34/44/54 each hour | yes |
+| `inbox-check` | Manager | **2× daily** | 06:55, 16:55 | no |
+| `owner-tldr` | Manager | **every 2h** | every 2h at :41 | yes |
+| `release-announcement-watch` | Manager | **every 3h** | every 3h at :05 | yes |
+| `weekly-identity-integrity-check` | Manager | **weekly** | 15:45, Mon | yes |
+| `contributor-health-review` | Helper | **weekly** | 11:26, Wed | yes |
+| `contributor-nudge` | Helper | **daily** | 09:18 | yes |
+| `conversation-archive-prune` | Helper | **daily** | 05:17 | yes |
+| `dependabot-pr-review` | Helper | **every 6h** | every 6h at :11 | yes |
+| `dev-metrics-report` | Helper | **daily** | 12:15 | yes |
+| `docs-currency-watch` | Helper | **every 6h** | every 6h at :29 | yes |
+| `github-ops-triage` | Helper | **every 6h** | every 6h at :35 | yes |
+| `good-first-issue-health` | Helper | **weekly** | 16:16, Mon | yes |
+| `ledger-publish` | Helper | **daily** | 06:38 | yes |
+| `ready-to-merge` | Helper | **2× daily** | 09:47, 17:47 | yes |
+| `repo-hygiene-audit` | Helper | **daily** | 10:55 | yes |
+| `security-advisory-sweep` | Helper | **every 4h** | every 4h at :45 | yes |
+| `social-metrics-snapshot` | Helper | **weekly** | 13:23, Sun | no |
+| `unanswered-watch` | Helper | **every 10 min** | on the 10-minute mark | yes |
+| `weekly-analytics-report` | Helper | **weekly** | 14:19, Sun | yes |
 
 _23 tasks across 2 agents; 21 script-gated (ungated: inbox-check social-metrics-snapshot)_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
@@ -449,8 +449,8 @@ Rules of thumb: put the
 integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day.
 
-**The two ungated tasks are `inbox-check` (lead, 2×/day) and
-`social-metrics-snapshot` (the Reviewer, weekly)** — those are the only two that
+**The two ungated tasks are `inbox-check` (manager, 2×/day) and
+`social-metrics-snapshot` (the Helper, weekly)** — those are the only two that
 wake their model on every fire, and they're capped at a few fires/day for
 exactly that reason. The script gate is what lets the frequent tasks exceed
 that cap safely: `unanswered-watch` at 144×/day, `owner-tldr` at 12×,
@@ -597,9 +597,9 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
      losing these is noise, not data loss: the system re-nudges someone it
      already nudged and re-acknowledges a message it already acknowledged,
      once.
-   - `question-ledger.jsonl` (the lead) — `docs-gap-review`'s only input. It
+   - `question-ledger.jsonl` (the manager) — `docs-gap-review`'s only input. It
      rebuilds from live traffic over weeks, so a rebuild resets that clock.
-   - `owner-instructions.jsonl` and `public-actions.log` (the lead) — the ack
+   - `owner-instructions.jsonl` and `public-actions.log` (the manager) — the ack
      and public-action records. These are deliberately never published: they
      contain community members' words and the owner's private direction, which
      don't belong in a repo branch. They only need to outlive a session, not a
@@ -630,9 +630,9 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
    provider for a sub-agent — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)
    — re-apply and re-verify that too; it isn't part of this phase's default.)
 5. Re-enter the 2 GitHub PATs in the fresh vault, selective mode (~5 min) —
-   one per agent — plus the `github.com` (git) secret the Reviewer pushes the
+   one per agent — plus the `github.com` (git) secret the Helper pushes the
    metrics branch with. No rotation needed — refresh isn't compromise.
-6. **Don't restore plugin-data — re-interview instead.** Hand the lead your
+6. **Don't restore plugin-data — re-interview instead.** Hand the manager your
    filled `onboarding-answers.json` and it re-creates each agent's config; if
    the live install predates that file, run
    `bash scripts/export-answers.sh` to reconstruct one *before* you tear the

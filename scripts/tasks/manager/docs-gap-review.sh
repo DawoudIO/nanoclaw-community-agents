@@ -1,7 +1,7 @@
 #!/bin/bash
 set -euo pipefail
 # Deps: bash, jq. No network — this gate only reads the local question ledger.
-# The lead appends one line per resolved support conversation (see
+# The manager appends one line per resolved support conversation (see
 # report-formats.md): {"date": "<ISO8601 datetime>", "topic": "<kebab-slug>",
 # "channel": "<where>"}. This weekly gate clusters the last 60 days and wakes
 # the agent only when a topic has repeated enough (3+) to deserve a docs page
@@ -12,7 +12,7 @@ DATA="/workspace/agent/plugin-data/community-manager"
 mkdir -p "$DATA"
 LEDGER="$DATA/question-ledger.jsonl"
 if [ ! -f "$LEDGER" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "no-ledger-yet", "hint": "the lead appends one topic line per resolved support conversation; nothing recorded yet"}}'
+  echo '{"wakeAgent": false, "data": {"status": "no-ledger-yet", "hint": "the manager appends one topic line per resolved support conversation; nothing recorded yet"}}'
   exit 0
 fi
 PROPOSED="$DATA/docs-proposals-sent.txt"

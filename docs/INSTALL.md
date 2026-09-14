@@ -4,7 +4,7 @@
 
 **You need two things before you start: Docker Desktop running, and a
 Discord server you admin.** Everything else — GitHub tokens, GA4, Gmail —
-the lead agent asks you for, one at a time, only when a task actually needs
+the manager asks you for, one at a time, only when a task actually needs
 it. There's no upfront checklist to collect first.
 
 ```bash
@@ -61,23 +61,23 @@ then this script goes away.
 Three actors do the work, and most of what follows belongs to the middle
 one:
 
-| `nanoclaw.sh` does | The lead does, in the interview | Only you can do |
+| `nanoclaw.sh` does | The manager does, in the interview | Only you can do |
 |---|---|---|
-| Container image, OneCLI vault, agent runtime | Stamps the Reviewer (§1) | Click through Discord bot creation |
+| Container image, OneCLI vault, agent runtime | Stamps the Helper (§1) | Click through Discord bot creation |
 | Service start, mounts, access rules | Wires their destinations + guild channels (§1) | Add each credential to OneCLI, when asked |
 | One agent, from your chosen template | Relays each sub-agent's config (§3) | |
 | One channel — your owner DM | Verifies every credential; sets up its own backup (§2, §3) | |
 | Timezone detection | Resumes + test-fires every task, one at a time (§4) | |
 
-So "do I have to do all this?" is mostly no. The lead does most of it and
+So "do I have to do all this?" is mostly no. The manager does most of it and
 reports back — you're needed for Discord's own portal (nothing else can
 click through that for you) and for approving each credential as OneCLI
 asks for it.
 
 Two things worth knowing: the installer wires **only your owner DM** — every
-other Discord channel is the lead's job in §1a. And Discord's bot token
+other Discord channel is the manager's job in §1a. And Discord's bot token
 lands in `.env`, **not** the vault — the vault holds provider auth and the
-per-agent tokens the lead asks for as it goes.
+per-agent tokens the manager asks for as it goes.
 
 Activation is deliberately not one "go" at the end (§4): a real install
 batch-resumed everything, lost the step in the evening's noise, and nothing
@@ -112,7 +112,7 @@ Stop the service first if it fails again.
 Below: stamp/wire the agents → connect Discord → configuration → go-live.
 [OPERATIONS.md](OPERATIONS.md) covers everything after go-live.
 [PREREQS.md](../PREREQS.md) has the credential-scope reference for when the
-lead asks you for one.
+manager asks you for one.
 
 ## 1 · Stamp the agents and wire them
 
@@ -122,21 +122,21 @@ capability:
 
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
-| **Lead** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only full one** | Always |
-| **Coding** (`opensource/community-coding`) — the Reviewer | Everything headless: issue/PR triage, security advisories, Dependabot review, docs-currency, repo and contributor health, dev metrics, web traffic, follower counts, and the holding acknowledgment when the lead is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the lead |
+| **Manager** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only full one** | Always |
+| **Helper** (`opensource/community-helper`) — the Helper | Everything headless: issue/PR triage, security advisories, Dependabot review, docs-currency, repo and contributor health, dev metrics, web traffic, follower counts, and the holding acknowledgment when the manager is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the manager |
 
 **Nothing here writes content.** If you want posts, announcements or campaign
 copy, that stays with you and whoever you work with — this set measures and
 reports.
 
-(`docs-gap-review` sits with the lead, not coding, because it reads the
-lead's own `question-ledger.jsonl` — an agent can't read another's
+(`docs-gap-review` sits with the manager, not the helper, because it reads the
+manager's own `question-ledger.jsonl` — an agent can't read another's
 `plugin-data/`.)
 
-**Not a one-way door.** Stamp just the lead today; add others later. To
+**Not a one-way door.** Stamp just the manager today; add others later. To
 disable an agent, pause its tasks (`ncl tasks pause`) rather than deleting
 the group, so config/memory survive. To add one later: stamp, wire its
-destination pair (below), DM the lead to relay config (§3) — same process
+destination pair (below), DM the manager to relay config (§3) — same process
 at hour one or month six.
 
 Run from the nanoclaw checkout (`cd nanoclaw`, or conversationally via
@@ -148,28 +148,28 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # Stamp — check each response's templateReport for skipped parts, and note
 # each group's id: the wiring and vault steps below need them.
 ./bin/ncl groups create --template opensource/community-manager    --name "Community Manager"
-./bin/ncl groups create --template opensource/community-coding     --name "Community Coding"
-# Install jq on every agent, host-side, before you DM the lead. Every
-# template's setup-check.sh needs it, and the lead's own tasks parse JSON
-# with it. For the LEAD this must happen here: install_packages rebuilds
+./bin/ncl groups create --template opensource/community-helper     --name "Community Helper"
+# Install jq on every agent, host-side, before you DM the manager. Every
+# template's setup-check.sh needs it, and the manager's own tasks parse JSON
+# with it. For the MANAGER this must happen here: install_packages rebuilds
 # the image and restarts the container on approval, which would kill the
-# welcome interview mid-conversation. Sub-agents are headless, so the lead
+# welcome interview mid-conversation. Sub-agents are headless, so the manager
 # can install jq on them itself while stamping — these two lines are only
 # needed if you pre-stamped a sub-agent above.
-./bin/ncl groups config add-package --id <lead-id> --apt jq
-./bin/ncl groups restart --id <lead-id> --rebuild
+./bin/ncl groups config add-package --id <manager-id> --apt jq
+./bin/ncl groups restart --id <manager-id> --rebuild
 # …and once per sub-agent you stamped above, with its own <id>.
 
-# Wire sub-agents to the lead — agent-to-agent, NEVER to a channel. One pair
-# per sub-agent: `parent` on the child pointing at the lead, a named
-# destination on the lead pointing back. A missing pair doesn't error — the
+# Wire sub-agents to the manager — agent-to-agent, NEVER to a channel. One pair
+# per sub-agent: `parent` on the child pointing at the manager, a named
+# destination on the manager pointing back. A missing pair doesn't error — the
 # sub-agent's reports just reach nobody.
-./bin/ncl destinations add --agent-group-id <coding-id>     --local-name parent           --target-type agent --target-id <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>       --local-name coding           --target-type agent --target-id <coding-id>
+./bin/ncl destinations add --agent-group-id <helper-id>     --local-name parent           --target-type agent --target-id <manager-id>
+./bin/ncl destinations add --agent-group-id <manager-id>       --local-name helper           --target-type agent --target-id <helper-id>
 ```
 
 Sub-agents are headless — `parent` is their **only** outbound path, which is
-why every sub-agent task addresses the lead, never the owner (a report
+why every sub-agent task addresses the manager, never the owner (a report
 addressed to the owner from a sub-agent goes nowhere; this was a real bug in
 three tasks, now fixed).
 
@@ -187,17 +187,17 @@ HTTP webhook path instead of the Gateway — which happens when the Gateway
 listener is down, e.g. from this exact intent being off. If an approval
 card ever rejects an obvious Approve click, check this setting first.
 
-**Your own DM with the lead is the control plane — wire it first.** Set
+**Your own DM with the manager is the control plane — wire it first.** Set
 sender scopes at wiring time: owner DM stays locked to known senders, but
 every public channel gets `--sender-scope all` — otherwise each new
 community member triggers a "new sender — allow?" prompt, defeating the
 point of a public channel. Verify the round trip both ways, then DM the
-lead — its `welcome` skill runs the interview (first question: your
+manager — its `welcome` skill runs the interview (first question: your
 GitHub repo), persists config, and relays sub-agent values. Only then wire
-the public channels: the lead gets all of them, and the Reviewer gets only the
+the public channels: the manager gets all of them, and the Helper gets only the
 silent support-channel wiring `unanswered-watch` needs (below).
 
-**The Reviewer is the one exception to "no sub-agent has channel
+**The Helper is the one exception to "no sub-agent has channel
 identity."** Its `unanswered-watch` task gets a wiring to each support
 channel, through the *same* Discord bot — one public identity, two agents
 allowed to speak, very different scopes: support channels only, a
@@ -207,13 +207,13 @@ reported upward. A receipt, never a resolution.
 Wire it with `--engage-mode mention` (nobody will ever @-mention it, which is
 the point: it sees every message but never actively replies) **and** add a
 destination per channel so it has somewhere to post the holding line — the
-wiring alone lets it detect the silence with nowhere to answer it. The lead's
+wiring alone lets it detect the silence with nowhere to answer it. The manager's
 `welcome/SKILL.md` §5c has the exact commands.
 **Unverified**: whether two groups can wire to the same Discord channel in
 your NanoClaw version — test it; fall back to a dedicated channel if not.
 
 **Name the Discord app to visibly match the GitHub bot account** you'll set
-up when the lead asks for one (`acmecrm-bot` ↔ "AcmeCRM Bot") — this is the
+up when the manager asks for one (`acmecrm-bot` ↔ "AcmeCRM Bot") — this is the
 only agent with a public voice on both platforms, and a mismatch reads as
 two different bots.
 
@@ -231,7 +231,7 @@ full filesystem and Docker access, same as anything else you run locally.
 **Helps:** operates on the system instead of negotiating with an agent;
 works when Discord doesn't.
 
-**Hurts:** every change is out-of-framework — pair it with a DM to the lead
+**Hurts:** every change is out-of-framework — pair it with a DM to the manager
 afterward, or expect an ask-don't-lock question from the integrity gate. It
 bypasses every gate (no request-holds, no ledger entry) — nothing stops a
 typo. Habit decay is the real risk: routine config drifting into CLI edits
@@ -303,7 +303,7 @@ Everything else in NanoClaw's skill catalog was reviewed and is either N/A
 for this deployment or rejected with reasons — see
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md).
 
-## 2 · Credentials — added when the lead asks, not upfront
+## 2 · Credentials — added when the manager asks, not upfront
 
 **There is no `.env` file in this system, deliberately.** Secrets go in the
 OneCLI vault; platform settings belong to the kit's `spec.yaml`; task
@@ -331,14 +331,14 @@ credential lives in the same dashboard's **LLMs** tab.
 never clear may mean your gateway predates the API the SDK expects — see
 `docs/onecli-upgrades.md` before assuming it's a template problem.
 
-**When the lead asks for a GitHub token** (one per agent it needs — never
+**When the manager asks for a GitHub token** (one per agent it needs — never
 one shared token), [PREREQS.md](../PREREQS.md) has the exact URL. The scope
 to give each one, so you don't have to work it out live:
 
 | Token | Needs | Never |
 |---|---|---|
-| Lead | `repo`/`public_repo` — comments, labels, issues | `read:org`, `admin:*`, `delete_repo` |
-| Coding | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for draft security patches, plus Contents write on `LEDGER_REPO` for `ledger-publish` | Write on anything else; issue/PR comment rights |
+| Manager | `repo`/`public_repo` — comments, labels, issues | `read:org`, `admin:*`, `delete_repo` |
+| Helper | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for draft security patches, plus Contents write on `LEDGER_REPO` for `ledger-publish` | Write on anything else; issue/PR comment rights |
 
 If a future feature seems to need broader access, the fix is almost never
 "widen this token" — it's a new, narrower, single-purpose credential.
@@ -386,16 +386,16 @@ added, and nothing more.
 
 | Agent | Granted | Host | Used by |
 |---|---|---|---|
-| Lead | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
-| Lead | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
-| Coding | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health, dev metrics, GFI health, hygiene audit |
-| Coding | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the metrics-history branch) |
-| Coding | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
-| Coding | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
-| Coding | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
+| Manager | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
+| Manager | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
+| Helper | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health, dev metrics, GFI health, hygiene audit |
+| Helper | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the metrics-history branch) |
+| Helper | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
+| Helper | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Helper | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
 
 A row that doesn't exist here is a finding: neither sub-agent appears against
-Discord, the lead never appears against GA4 or the social hosts, and no agent
+Discord, the manager never appears against GA4 or the social hosts, and no agent
 holds a write grant on a repo outside the narrow set above.
 
 ### Confirm identity, don't assume it
@@ -421,22 +421,22 @@ never wire auto-posting as a silent capability.
 ## 3 · Configuration — one conversation, three files
 
 **The default path is the conversation, not file edits.** After the owner
-DM is wired (§1a), the lead's `welcome` skill interviews you and persists
+DM is wired (§1a), the manager's `welcome` skill interviews you and persists
 everything as runtime config. You edit zero files for any of it.
 
 ### The relay
 
-You answer once, in the owner DM; the lead pushes each sub-agent's
+You answer once, in the owner DM; the manager pushes each sub-agent's
 parameters over the destination pairs from §1:
 
 | Sub-agent | Keys relayed into `config.env` |
 |---|---|---|
-| **Coding** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
-| **Lead** (own) | `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS`) |
+| **Helper** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
+| **Manager** (own) | `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS`) |
 
 Plus `GITHUB_BOT_USERNAME`, held by both.
 
-**Check the coding relay specifically — it fails quietly.** It's the largest
+**Check the helper relay specifically — it fails quietly.** It's the largest
 payload, and a missing key isn't an error: the gate exits `not-configured`
 and goes back to sleep. Symptom: "stamped and never does anything," which
 reads like a broken agent and is an unrelayed key. `ACK_GRACE_MINUTES` (20
@@ -483,7 +483,7 @@ activating anything.
 
 `onboarding-answers.example.json` is currently absent from the repo (see
 SKILLS-ADOPTION.md); if present, copy it, fill in what you know, and the
-lead reads it instead of interviewing — asking only about `null`s. Validate
+manager reads it instead of interviewing — asking only about `null`s. Validate
 first — it also refuses anything credential-shaped:
 
 ```bash
@@ -496,10 +496,10 @@ Then put it where the agent can see it (the container only sees its own
 workspace):
 
 ```bash
-cp /path/to/onboarding-answers.json groups/<lead-folder>/
+cp /path/to/onboarding-answers.json groups/<manager-folder>/
 ```
 
-DM the lead: *"my answers are in `/workspace/agent/onboarding-answers.json`"*
+DM the manager: *"my answers are in `/workspace/agent/onboarding-answers.json`"*
 — it reads, echoes a summary back (check that it matches), asks about what's
 missing, persists. Rebuilding later: this file + your `plugin-data/` backup
 is the complete recovery set.
@@ -527,21 +527,21 @@ equivalent:
 ./bin/ncl tasks get <task-id>     # inspect the result
 ```
 
-(The Reviewer's tasks won't appear unless you stamped that template — a lower
+(The Helper's tasks won't appear unless you stamped that template — a lower
 count than `gen-task-table.sh`'s total is expected, not missing.)
 
 Resume order, safe → side-effect-adjacent:
 
 1. **Outage safety net first** — no credentials, no network:
-   `unanswered-watch` (the Reviewer, every 10 min — the one task standing
-   between a rate-limited lead and total silence), plus
-   `weekly-identity-integrity-check` and `owner-tldr` (lead — jq only).
+   `unanswered-watch` (the Helper, every 10 min — the one task standing
+   between a rate-limited manager and total silence), plus
+   `weekly-identity-integrity-check` and `owner-tldr` (manager — jq only).
    `conversation-archive-prune` on every stamped agent can go here too; it is
    pure filesystem housekeeping and never wakes a model.
-2. **Lead's live response**: `github-first-response`, `release-announcement-watch`
+2. **Manager's live response**: `github-first-response`, `release-announcement-watch`
    — safe once `COMMUNITY_REPOS` is set. `docs-gap-review` is safe from day
    one; it stays quiet until support work fills its ledger.
-3. **The Reviewer's gates**, once §3's relay has landed: `github-ops-triage`,
+3. **The Helper's gates**, once §3's relay has landed: `github-ops-triage`,
    `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`,
    `contributor-health-review`, `dev-metrics-report`, `ready-to-merge`,
    `good-first-issue-health`, `repo-hygiene-audit`. `contributor-nudge` needs
@@ -554,21 +554,21 @@ Resume order, safe → side-effect-adjacent:
    data rather than a report.
 5. **Ungated tasks last** — nothing stops them burning a wake on an
    unconfigured service: `social-metrics-snapshot` (only once a
-   page-reading tool is confirmed in the Reviewer's container — Claude's
+   page-reading tool is confirmed in the Helper's container — Claude's
    built-in web fetch or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser))
-   and the lead's `inbox-check` (only once an email MCP is connected).
+   and the manager's `inbox-check` (only once an email MCP is connected).
 6. **The weekly reports**: `weekly-analytics-report`.
-7. **Never run both** the lead's `daily-github-triage` and the coding
-   agent's `github-ops-triage` — the former is the lead's standalone
+7. **Never run both** the manager's `daily-github-triage` and the helper
+   agent's `github-ops-triage` — the former is the manager's standalone
    fallback; running both double-reports every issue. Pause it when you
-   stamp coding.
+   stamp the helper.
 
 Smoke-test: post in a support-tier channel (expect an unprompted reply),
-@mention the lead in a dev-tier channel (expect a reply only because you
-tagged it), DM the lead to ping every sub-agent (exercises both destination
+@mention the manager in a dev-tier channel (expect a reply only because you
+tagged it), DM the manager to ping every sub-agent (exercises both destination
 pairs — a silent sub-agent means a missing destination, not a broken agent).
-If you stamped the Reviewer, test the holding-acknowledgment path once — it's
-the one behavior that only shows up when the lead can't answer, so it is also
+If you stamped the Helper, test the holding-acknowledgment path once — it's
+the one behavior that only shows up when the manager can't answer, so it is also
 the one most likely to be quietly broken (a missing support-channel wiring or
 destination) without anything else looking wrong.
 

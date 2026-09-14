@@ -20,7 +20,7 @@ FAIL=0
 group_dir() {
   case "$1" in
     manager)     echo "opensource/community-manager";;
-    engineering) echo "opensource/community-coding";;
+    helper)      echo "opensource/community-helper";;
     *)           echo "";;
   esac
 }
@@ -31,7 +31,7 @@ group_dir() {
 group_key() {
   case "$1" in
     community-manager)   echo "manager";;
-    community-coding)    echo "engineering";;
+    community-helper)    echo "helper";;
     *)                   echo "";;
   esac
 }

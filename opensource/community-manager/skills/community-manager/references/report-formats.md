@@ -54,7 +54,7 @@ When something is owner-bound, append **one line** to
 ```
 
 - `at` — full ISO8601, not a bare date.
-- `source` — the reporting agent: `engineering`, or
+- `source` — the reporting agent: `helper`, or
   `self` for your own findings.
 - `severity` — `info` or `attention`. **Never `urgent`** (see below).
 - `line` — one line. If you can't say it in one line, it probably belongs in
@@ -239,7 +239,7 @@ baseline.
 **Composition over any single delta, same as the GA4 report**: the
 cross-platform comparison (which platform is actually growing vs. flat,
 total reach across all of them) is worth more than any one platform's
-isolated WoW number — lead with that, not with a per-platform list nobody
+isolated WoW number — manager with that, not with a per-platform list nobody
 can compare at a glance. Where a spike lines up with a release or a
 marketing push you can actually verify (not guess), say so — same rule as
 GA4's own correlate-with-release-dates guidance, not a formal attribution

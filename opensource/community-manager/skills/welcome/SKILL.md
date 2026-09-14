@@ -1,6 +1,6 @@
 ---
 name: welcome
-description: First-contact onboarding interview for the community-manager lead agent. Triggers on the owner's first message to a freshly stamped agent, whenever the live project config (plugin-data/community-manager/project-config.md) is missing or incomplete, or when the owner says anything like "set up", "onboard", "configure yourself", or "let's get started". Collects the project's runtime configuration conversationally — repo map, channels, contacts — instead of requiring pre-stamp file edits, persists it to writable plugin-data, and relays each sub-agent's values through the agent-to-agent destinations.
+description: First-contact onboarding interview for the community-manager agent. Triggers on the owner's first message to a freshly stamped agent, whenever the live project config (plugin-data/community-manager/project-config.md) is missing or incomplete, or when the owner says anything like "set up", "onboard", "configure yourself", or "let's get started". Collects the project's runtime configuration conversationally — repo map, channels, contacts — instead of requiring pre-stamp file edits, persists it to writable plugin-data, and relays each sub-agent's values through the agent-to-agent destinations.
 ---
 
 # Welcome — conversational setup
@@ -139,10 +139,10 @@ pauses tasks in whichever group holds them:
 
 | Goal | If yes, these tasks become eligible |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* · `ready-to-merge` *(Reviewer)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(Reviewer)* · `weekly-analytics-report` *(Reviewer)* · `good-first-issue-health` *(Reviewer)* · `repo-hygiene-audit` *(Reviewer)* · `dev-metrics-report`'s new-contributor section *(Reviewer)* · `contributor-nudge` *(Reviewer)* · `contributor-health-review` *(Reviewer)* |
-| **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(Reviewer)* (`posthog-weekly-review` *(Reviewer)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
-| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · `dependabot-pr-review` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
+| **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `daily-github-triage` *(manager, standalone only)* · `docs-gap-review` *(manager)* · `release-announcement-watch` *(manager)* · `github-ops-triage` *(Helper)* · `ready-to-merge` *(Helper)* |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(Helper)* · `weekly-analytics-report` *(Helper)* · `good-first-issue-health` *(Helper)* · `repo-hygiene-audit` *(Helper)* · `dev-metrics-report`'s new-contributor section *(Helper)* · `contributor-nudge` *(Helper)* · `contributor-health-review` *(Helper)* |
+| **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(Helper)* (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
+| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · `dependabot-pr-review` *(Helper)* · the escalation paths in `escalation-paths.md` |
 
 **Content creation is not on this menu, and should not be offered.** Posts,
 announcements, blog entries and campaigns are handled by the owner outside this
@@ -209,20 +209,20 @@ DM by default, which is the outcome we're avoiding. Urgent things (security, an 
 decision that blocks work) bypass the queue and arrive immediately; everything
 else waits for the digest.
 
-`unanswered-watch` is the one to never skip. It is the Reviewer's
+`unanswered-watch` is the one to never skip. It is the Helper's
 every-10-minutes check that no support message has been sitting unanswered
 past `ACK_GRACE_MINUTES`, and if one has, it posts a holding acknowledgment.
 It exists because response delay is the strongest predictor of whether a
 first-time contributor comes back, and because *this* is what happens when
-the shared usage window runs out: the lead stops replying and the community
+the shared usage window runs out: the manager stops replying and the community
 hears nothing. Its gate has no network and no credentials, so *detecting* the need costs
 nothing regardless of the shared window's state — but for this phase, posting
-the acknowledgment is still a model wake on the Reviewer, which shares the same
+the acknowledgment is still a model wake on the Helper, which shares the same
 cloud window as you. If the window is fully exhausted, both of you go quiet
 together; it's a cheap, high-value safety net, not an off-window guarantee.
 Offer it as protection for the north star, not as a feature.
 
-**Not goal-scoped**: `inbox-check` — the lead's own task. An inbox is a
+**Not goal-scoped**: `inbox-check` — the manager's own task. An inbox is a
 support channel on a different transport, so the same escalation rules apply;
 offered only if the project has a shared inbox and an email tool is
 connected.
@@ -234,7 +234,7 @@ Two things to get right here:
   by security-minded maintainers too). Eligible = **any** of its goals was
   chosen, never all of them.
 - **Declining a goal never orphans another goal's task.** This matters for the
-  Reviewer specifically, because its tasks span every goal:
+  Helper specifically, because its tasks span every goal:
   `good-first-issue-health`, `contributor-nudge`, `social-metrics-snapshot`
   and `weekly-analytics-report` serve growth, `dev-metrics-report` serves
   *detection*, `security-advisory-sweep` serves security, `ready-to-merge`
@@ -242,7 +242,7 @@ Two things to get right here:
   dormant — relay it only the config those active tasks need, and say which
   ones are live. With one sub-agent holding everything, dormancy (step 6) now
   only applies if *every* goal was declined, which in practice means the owner
-  wants the lead standalone.
+  wants the manager standalone.
 
 Record the answers (with audience priorities) in `project-config.md` as the
 **scoping authority**. Revisiting a goal later is one DM — and per the
@@ -311,7 +311,7 @@ asking for anything yet.
 - **Docs style** — does this project want its docs to describe current
   behavior only (no "added in X.x" / "as of version" / changelog-style
   language), or is version-history language fine? Relay the answer to the
-  coding agent (`references/triage-rules.md` enforces it on every docs
+  helper (`references/triage-rules.md` enforces it on every docs
   issue/PR it drafts) — don't leave this as an unconfigured assumption.
 - **Who this project is actually for, in the reader's own words — and the
   tone that follows from it.** Don't infer this from the README; ask
@@ -331,27 +331,27 @@ asking for anything yet.
   opt-in only)
 - **Optional analytics: GA4 property id** — "not now" is a fine answer; the
   task silent-skips until configured. **If the project has several GA4
-  properties**, put them all in one `GA4_PROPERTIES` value in the Reviewer's
+  properties**, put them all in one `GA4_PROPERTIES` value in the Helper's
   config (`id`, or `label:id,label:id`) and reuse the same
   `weekly-analytics-report` task for all of them. Do not create separate
   report tasks per property — one task per report goal is the pattern, and the
   task covers every configured property in a single run.
 - **Dependabot — check `.github/dependabot.yml` before asking.** If it
   already has an active `version-updates` config, that answers the question:
-  Dependabot opens its own fix PRs, and the Reviewer's job is reviewing that
+  Dependabot opens its own fix PRs, and the Helper's job is reviewing that
   diff (major bump? does our code touch the affected API? safe to merge?).
   State what you found and confirm rather than asking from scratch — "I see
-  Dependabot is already configured for npm/pip/etc. — I'll have the Reviewer
+  Dependabot is already configured for npm/pip/etc. — I'll have the Helper
   review its PRs rather than draft its own bumps, unless you want it
   otherwise." If the file is absent or has no `version-updates` block, then
   ask: "Do you want Dependabot opening the fix PR when it reports a
-  vulnerability (recommended), or should the Reviewer draft the bump itself?"
+  vulnerability (recommended), or should the Helper draft the bump itself?"
   Pick one, or the project gets two PRs per CVE.
 
   **You cannot enable it yourself.** It's a repository setting (Settings →
   Code security) and no agent here holds Administration write, on purpose.
   If it's off and the owner wants it, point them at the checkbox — don't
-  offer to do it. The Reviewer also re-detects reality later by correlating
+  offer to do it. The Helper also re-detects reality later by correlating
   open Dependabot PRs against alerts, so a stale answer degrades rather than
   breaks.
 - **Discord invite URL — check the README/site for one before asking.**
@@ -372,19 +372,19 @@ asking for anything yet.
 - **Models per agent — state the job, name the default, ask if they want
   something else, and give real alternatives (not just "confirm the
   default").** Go through each stamped agent:
-  - **Lead** — the public voice: replies, escalation, tone, security routing.
+  - **Manager** — the public voice: replies, escalation, tone, security routing.
     Default **Sonnet**. No cheaper alternative offered; this is the one
     identity the community sees, and it's where judgment quality matters most.
-  - **Reviewer** — triage, advisory assessment, repo health and every number
+  - **Helper** — triage, advisory assessment, repo health and every number
     the project tracks. Default **Haiku**. Offer Sonnet only if the owner
     wants stronger judgment on triage and is willing to spend more of the
     shared window on it; a local-model provider is discussed in
     SKILLS-ADOPTION.md but isn't a working option today.
-  - **Reviewer (coding)** — draft-only triage and judgment (severity calls,
-    breaking-change reads); every draft is reviewed by the lead before
+  - **Helper** — draft-only triage and judgment (severity calls,
+    breaking-change reads); every draft is reviewed by the manager before
     anything's public. Default **Haiku**. Real alternative: **Sonnet**, if the
     owner wants stronger judgment on drafts and is willing to spend more of
-    the shared window on it — since the lead reviews everything anyway, this
+    the shared window on it — since the manager reviews everything anyway, this
     is a quality/cost trade the owner should make consciously, not one we
     make for them.
   Never an Opus-class model on a scheduled task. Remind the owner: cost comes
@@ -456,7 +456,7 @@ Tell them what's about to happen and what each agent does:
 ```
 Understood. Now I'm going to set up the system based on your config:
 
-1. **Stamp the Reviewer** (the helper that runs alongside me): triages
+1. **Stamp the Helper** (the helper that runs alongside me): triages
    issues/PRs, reviews security advisories, tracks repo and contributor
    health, reads the project's traffic and follower numbers, and posts a
    holding acknowledgment if I ever go quiet
@@ -486,7 +486,7 @@ directly.
 Wiring N channels agent-side costs ~2N approval cards (one per
 messaging-group create, one per wiring). For 11 channels that is ~22 clicks.
 Run by the owner from a terminal, all of it is free: host callers bypass the
-approval gate entirely, by design. So lead with that offer, and only fall
+approval gate entirely, by design. So manager with that offer, and only fall
 back to doing it yourself if they'd rather click:
 
 ```
@@ -516,14 +516,14 @@ ID once, from either source:
   server.
 
 Generate one line per channel from the recorded tier map, substituting the
-real guild ID, channel snowflake IDs, and the lead's group id:
+real guild ID, channel snowflake IDs, and the manager's group id:
 
 ```bash
-# per channel: create the messaging group, then wire it to the lead
+# per channel: create the messaging group, then wire it to the manager
 ./bin/ncl messaging-groups create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
     --name "<channel-name>" --is-group 1 --unknown-sender-policy public
 ./bin/ncl wirings create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
-    --agent-group-id <lead-id> --engage-mode <mention-sticky|pattern>
+    --agent-group-id <manager-id> --engage-mode <mention-sticky|pattern>
 ```
 
 Support-tier channels take `--engage-mode pattern --engage-pattern '.'`
@@ -533,14 +533,14 @@ Support-tier channels take `--engage-mode pattern --engage-pattern '.'`
 doesn't wait on per-sender approval — the owner DM is the one that stays
 locked to known senders.
 
-**Also silently wire the Reviewer to every support-tier channel — this
+**Also silently wire the Helper to every support-tier channel — this
 is what makes `unanswered-watch` actually work.** Every agent wired to a
 messaging group receives every message into its own session regardless of
 whether its engage mode ever triggers a reply (the router writes the row
 either way; only the wake decision differs) — so a wiring with
-`--engage-mode mention` on a channel nobody ever @-mentions the Reviewer
+`--engage-mode mention` on a channel nobody ever @-mentions the Helper
 in gives it a real, passive session history of every support message, with
-zero risk of it ever actively replying. Without this, the Reviewer has no
+zero risk of it ever actively replying. Without this, the Helper has no
 session for these channels at all and cannot see whether anything went
 unanswered — `unanswered-watch` then silently has nothing to check, which
 looks exactly like a quiet night.
@@ -551,10 +551,10 @@ With the wiring but no destination, it detects the silence and then has
 nowhere to answer it.
 
 ```bash
-# per support-tier channel, in addition to the lead's own wiring above
+# per support-tier channel, in addition to the manager's own wiring above
 ./bin/ncl wirings create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
-    --agent-group-id <coding-id> --engage-mode mention
-./bin/ncl destinations add --agent-group-id <coding-id> --local-name <channel-name> \
+    --agent-group-id <helper-id> --engage-mode mention
+./bin/ncl destinations add --agent-group-id <helper-id> --local-name <channel-name> \
     --target-type channel --target-id <messaging-group-id>
 ```
 
@@ -620,9 +620,9 @@ one real approval card per stamp, plus one more per `jq` install**, not one
 card total. Don't imply otherwise:
 
 ```
-I'm about to stamp the Reviewer based on your goals:
+I'm about to stamp the Helper based on your goals:
 
-- Engineering Agent (the Reviewer): issue/PR triage, security assessments,
+- Helper (the Helper): issue/PR triage, security assessments,
   repo and contributor health, the project's traffic and follower numbers,
   and the holding acknowledgment when I go quiet
 
@@ -639,7 +639,7 @@ until done) — you'll see a few separate approval cards land as it goes.
 ```
 
 Then:
-1. Stamp the engineering agent (the Reviewer) → install `jq`
+1. Stamp the helper (the Helper) → install `jq`
 2. Relay its config
 
 Report when complete.
@@ -678,7 +678,7 @@ forms:
 # Stamp a sub-agent. NEVER pass --folder together with --template: the two are
 # mutually exclusive and the platform rejects the whole call ("--folder applies
 # only to bare creates"). A templated group's folder derives from --name.
-ncl groups create --template opensource/community-coding --name "<agent name>"
+ncl groups create --template opensource/community-helper --name "<agent name>"
 
 # Install jq on a stamped sub-agent. APT, never npm.
 ncl groups config add-package --id <sub-agent-id> --apt jq
@@ -692,7 +692,7 @@ right form, run `ncl <resource> --help` first: help is ungated and free, and
 one help call is cheaper than one wasted approval.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
-1. Use the template from the shared catalog (`opensource/community-coding`)
+1. Use the template from the shared catalog (`opensource/community-helper`)
 2. **It stamps on the cloud default (Haiku-4.5)** — there is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
 3. Relay the config keys listed below
 4. Report the stamping result and the agent's status to the owner
@@ -708,8 +708,8 @@ topology in one place. Ask once, with the block ready to paste:
 Stamped. To let me talk to them, paste this from your nanoclaw install
 directory — one block, no approval cards:
 
-  ./bin/ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
-  ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
+  ./bin/ncl destinations add --agent-group-id <helper-id>    --local-name parent --target-type agent --target-id <manager-id>
+  ./bin/ncl destinations add --agent-group-id <manager-id>      --local-name helper --target-type agent --target-id <helper-id>
 
 Tell me when it's done and I'll relay its config.
 ```
@@ -730,14 +730,14 @@ keys listed below **by name** over agent-to-agent destinations once stamped; eac
 sub-agent writes its own `config.env` + `project-config.md` and confirms. A key
 you don't relay is a feature that silently never runs.
 
-**coding** (the Reviewer) → `plugin-data/community-coding/config.env` —
+**helper** → `plugin-data/community-helper/config.env` —
 **relay this one first.** It owns most of the tasks in the set, so an unrelayed
 key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
 |---|---|---|
 | `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch`, `dev-metrics-report`, `ready-to-merge`, `good-first-issue-health`, `repo-hygiene-audit`, `contributor-nudge` — all go quiet without it |
-| `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a lead that was about to answer |
+| `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a manager that was about to answer |
 | `LEDGER_REPO` | normally the project's marketing repo, never the product repo | `ledger-publish` commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
 | `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `weekly-analytics-report`. One task run covers every property — never create separate tasks per property |
 | `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
@@ -822,11 +822,11 @@ keys go into the OneCLI vault dashboard only:
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
-| GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
-| Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Reviewer. Wiring only the REST host leaves the publish failing with `push-failed` while every other GitHub call works |
+| GitHub work (manager + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
+| Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Helper. Wiring only the REST host leaves the publish failing with `push-failed` while every other GitHub call works |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
-| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the lead's own group** — `inbox-check` is the lead's task. A platform config change, not something you can do from in here; point the owner at the template README |
+| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the manager's own group** — `inbox-check` is the manager's task. A platform config change, not something you can do from in here; point the owner at the template README |
 
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:
@@ -873,7 +873,7 @@ regenerate that" and "that is gone":
   every stargazer and every issue's comments. Treat it as gone.
 
 Everything else each agent writes is a cache that rebuilds itself, and the
-lead's own ledgers (community questions, owner instructions) are deliberately
+manager's own ledgers (community questions, owner instructions) are deliberately
 never published — they contain people's words and the owner's private
 direction, which don't belong in a repo branch.
 
@@ -895,7 +895,7 @@ next morning, asking "why didn't anything run overnight." **Never let
 activation depend on a single moment that's easy for the owner (or you) to
 lose track of.** Instead, activation is incremental and self-verifying:
 
-For **each agent** in this order — **you (the lead) first, then the Reviewer**
+For **each agent** in this order — **you (the manager) first, then the Helper**
 (skip it if not stamped):
 
 1. **State what this agent is and does**, one line, if you haven't already
@@ -924,7 +924,7 @@ For **each agent** in this order — **you (the lead) first, then the Reviewer**
    next agent. Tasks whose goal wasn't chosen stay paused; say so as part of
    "healthy," not as a gap.
 
-Never resume `daily-github-triage` if the coding sub-agent is stamped
+Never resume `daily-github-triage` if the helper is stamped
 (redundant). If the owner wants to skip straight to activating everything at
 once anyway, that's their call to make explicitly — don't default to it.
 

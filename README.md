@@ -1,16 +1,16 @@
 # Community Agent Set for NanoClaw
 
-Four agent templates that run an open-source project's community work as a
-team with **one public voice**: awareness, response, proactive issue
+Two agent templates that run an open-source project's community work as a
+pair with **one public voice**: awareness, response, proactive issue
 detection, and security — at low cost, before people give up on GitHub or
 Discord.
 
 | Template | Role | Model | Public voice |
 |---|---|---|---|
-| [`opensource/community-manager`](opensource/community-manager/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes, the only full one** |
-| [`opensource/community-coding`](opensource/community-coding/) | Reviewer — issue/PR triage, security advisories, docs currency, repo and contributor health, and every number the project tracks (dev metrics, traffic, followers); holds the line when the lead is rate-limited | Claude Haiku | Holding replies only |
+| [`opensource/community-manager`](opensource/community-manager/) | Manager — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes, the only full one** |
+| [`opensource/community-helper`](opensource/community-helper/) | Helper — issue/PR triage, security advisories, docs currency, repo and contributor health, and every number the project tracks (dev metrics, traffic, followers); holds the line when the manager is rate-limited | Claude Haiku | Holding replies only |
 
-The lead works standalone and stamps the Reviewer itself, during setup, once
+The manager works standalone and stamps the Helper itself, during setup, once
 it knows which jobs you want. Each template's own README has the detail.
 
 **Nothing here writes content.** Posts, announcements and campaign copy stay
@@ -52,9 +52,9 @@ Read next, in this order:
   judge. `bash scripts/gen-task-table.sh` prints the current task table,
   generated from the task files so it can't drift from what ships.
 - **One public voice, enforced structurally, not by instruction.** The
-  Reviewer's only channel wiring is the one `unanswered-watch` needs, and the
+  Helper's only channel wiring is the one `unanswered-watch` needs, and the
   only thing it may put there is a fixed template it's forbidden to write
-  freely: the support channels only, under the lead's own bot identity — a
+  freely: the support channels only, under the manager's own bot identity — a
   receipt,
   never a resolution.
 - **Agents never hold keys.** Every credential lives in the OneCLI vault and
@@ -64,7 +64,7 @@ Read next, in this order:
   on cold start. The few things that can't be reconstructed (follower
   counts, the question ledger) are append-only and covered by the workspace
   backup.
-- **Setup is a conversation.** You DM the lead; its `welcome` skill
+- **Setup is a conversation.** You DM the manager; its `welcome` skill
   interviews you, and configuration is runtime data, not a template edit.
 
 ## Staying up to date
@@ -91,5 +91,5 @@ pull/restamp/restore procedure.
   community agent) and generalized.
 
 > This README, `docs/`, and `UPSTREAM-ISSUES.md` are for this staging repo
-> only. A PR to `nanocoai/nanoclaw-templates` carries just the four template
+> only. A PR to `nanocoai/nanoclaw-templates` carries just the two template
 > directories — that catalog has its own README.

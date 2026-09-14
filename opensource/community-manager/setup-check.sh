@@ -3,7 +3,7 @@ set -uo pipefail
 # jq is required by this script itself (every check below is built with it) —
 # fail loud and jq-free rather than crashing cryptically on the first `add`
 # call. Baseline requirement across both community templates. Unlike the
-# headless sub-agents, the LEAD must NOT self-install via install_packages:
+# headless sub-agents, the MANAGER must NOT self-install via install_packages:
 # that rebuilds the image and restarts the container, killing any live owner
 # conversation (e.g. a welcome interview) and losing its answers. This is
 # meant to be installed host-side at stamp time — docs/INSTALL.md §1 (stamping).
@@ -11,7 +11,7 @@ if ! command -v jq >/dev/null 2>&1; then
   printf '{"status": "incomplete", "checks": [{"name": "jq", "status": "missing", "hint": "jq is required to run this script and by the owner-tldr and weekly-identity-integrity-check tasks. Do NOT self-install with install_packages — it restarts this container mid-conversation. Ask the owner to run, host-side: ncl groups config add-package --id <this-group-id> --apt jq && ncl groups restart --id <this-group-id> --rebuild"}]}\n'
   exit 1
 fi
-# On-demand, mechanical setup status check for the LEAD's own config — run
+# On-demand, mechanical setup status check for the MANAGER's own config — run
 # whenever the owner asks "what's not set up". This checks only what a
 # script can verify; Discord wiring, sub-agent stamping, and the owner-DM
 # round trip are NOT curl-testable and stay on the ready gate (CHECKPOINTS.md)
@@ -35,7 +35,7 @@ fi
 
 IDENT=$(curl -s -H "Accept: application/vnd.github+json" https://api.github.com/user | jq -r '.login // empty')
 if [ -z "$IDENT" ]; then
-  add "identity_check" "unreachable" "GET /user failed — lead's GitHub token not wired"
+  add "identity_check" "unreachable" "GET /user failed — manager's GitHub token not wired"
 elif [ -n "${GITHUB_BOT_USERNAME:-}" ] && [ "$IDENT" != "$GITHUB_BOT_USERNAME" ]; then
   add "identity_check" "mismatch" "token resolves to '$IDENT', expected '$GITHUB_BOT_USERNAME'"
 else

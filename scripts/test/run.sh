@@ -203,22 +203,22 @@ fi
 agent_of() {
   case "$1" in
     manager)     echo "community-manager";;
-    engineering) echo "community-coding";;
+    helper)      echo "community-helper";;
   esac
 }
 dir_of() {
   case "$1" in
     manager)     echo "opensource/community-manager";;
-    engineering) echo "opensource/community-coding";;
+    helper)      echo "opensource/community-helper";;
   esac
 }
 CROSS=0
-for group in manager engineering; do
+for group in manager helper; do
   own=$(agent_of "$group")
   gdir=$(dir_of "$group")
   for f in "$ROOT/scripts/tasks/$group"/*.sh "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$f" ] || continue
-    for other in community-manager community-coding; do
+    for other in community-manager community-helper; do
       [ "$other" = "$own" ] && continue
       if grep -q "plugin-data/$other" "$f" 2>/dev/null; then
         echo "  cross-agent path: ${f#"$ROOT"/} (owned by $own) references plugin-data/$other"
@@ -229,9 +229,9 @@ for group in manager engineering; do
 done
 [ "$CROSS" -eq 0 ] && pass || fail "task(s) reference another agent's plugin-data — those paths are never readable"
 
-# --- 1h. sub-agent tasks must report through the lead, never to the owner --
+# --- 1h. sub-agent tasks must report through the manager, never to the owner --
 # Every sub-agent is headless: its only outbound path is the `parent`
-# destination to the lead, which relays to the owner DM. A sub-agent task that
+# destination to the manager, which relays to the owner DM. A sub-agent task that
 # tells the agent to "send the owner" a report is asking for a route that does
 # not exist, so the report reaches nobody.
 #
@@ -239,37 +239,37 @@ done
 # can least afford to lose — a failure report, an urgent security flag. That
 # is what makes it worth a hard gate rather than a review habit.
 #
-# Lead-owned tasks are exempt: the lead HAS the owner DM, so addressing the
+# Manager-owned tasks are exempt: the manager HAS the owner DM, so addressing the
 # owner is correct for them.
 OWNER_DIRECT=0
-for group in engineering; do
+for group in helper; do
   gdir=$(dir_of "$group")
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$md" ] || continue
-    # Imperative constructions only, and never a line that also names the lead
-    # — "hand it to your lead marked for the owner" is the CORRECT phrasing and
+    # Imperative constructions only, and never a line that also names the manager
+    # — "hand it to your manager marked for the owner" is the CORRECT phrasing and
     # must not trip this. Likewise "you have no owner DM" is the rule itself.
     if hits=$(grep -nEi 'send the owner|tell the owner|DM the owner|report [^.]{0,24}to the owner|flag [^.]{0,24}to the owner' "$md" \
-              | grep -vi 'your lead\|no owner DM'); then
+              | grep -vi 'your manager\|no owner DM'); then
       echo "  direct-to-owner in a sub-agent task: ${md#"$ROOT"/}"
       printf '    %s\n' "$hits"
       OWNER_DIRECT=1
     fi
   done
 done
-[ "$OWNER_DIRECT" -eq 0 ] && pass || fail "sub-agent task(s) address the owner directly — they have no owner DM; route via the lead"
+[ "$OWNER_DIRECT" -eq 0 ] && pass || fail "sub-agent task(s) address the owner directly — they have no owner DM; route via the manager"
 
 # --- 1i. single voice: no sub-agent task may instruct a public comment -----
-# The Reviewer now opens pull requests (security patches, docs PRs), which is a
+# The Helper now opens pull requests (security patches, docs PRs), which is a
 # deliberate exception. The line it must not cross is CONVERSATION: commenting
-# on an issue or PR is the lead's job, and the real control is that the
-# Reviewer's token has Issues *read* only, so PR comments are impossible.
+# on an issue or PR is the manager's job, and the real control is that the
+# Helper's token has Issues *read* only, so PR comments are impossible.
 #
 # This guards the prompt side of that, because a prompt telling an agent to
 # comment would produce silent 403s rather than an obvious failure — and would
 # be an argument for widening the token, which is exactly the wrong fix.
 COMMENTERS=0
-for group in engineering; do
+for group in helper; do
   gdir=$(dir_of "$group")
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$md" ] || continue
@@ -280,7 +280,7 @@ for group in engineering; do
     fi
   done
 done
-[ "$COMMENTERS" -eq 0 ] && pass || fail "sub-agent task(s) instruct posting a public comment — conversation is the lead's, and their tokens cannot do it anyway"
+[ "$COMMENTERS" -eq 0 ] && pass || fail "sub-agent task(s) instruct posting a public comment — conversation is the manager's, and their tokens cannot do it anyway"
 
 # --- 1j. every `references/...md` a prompt points at must exist ------------
 # Moving craft rules out of a prompt into a skill reference cuts per-wake cost,
@@ -336,7 +336,7 @@ assert_gate() {
   local fixdir="$sandbox/.fixtures"
   render_fixtures "$ROOT/scripts/test/fixtures/$sname" "$fixdir"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
-           "$sandbox/plugin-data/community-coding"
+           "$sandbox/plugin-data/community-helper"
   # fake curl: first URL-ish arg is matched against fixture patterns
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
@@ -366,7 +366,7 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-manager community-coding; do
+  for g in community-manager community-helper; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   local out
@@ -409,7 +409,7 @@ assert_scenario() {
   local fixdir="$sandbox/.fixtures"
   render_fixtures "$ROOT/scripts/test/fixtures/$fixture" "$fixdir"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
-           "$sandbox/plugin-data/community-coding"
+           "$sandbox/plugin-data/community-helper"
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
@@ -433,7 +433,7 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-manager community-coding; do
+  for g in community-manager community-helper; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   [ -n "$seed" ] && ( cd "$sandbox" && SANDBOX="$sandbox" bash -c "$seed" )
@@ -463,7 +463,7 @@ MOCK
 }
 
 # Unconfigured: every config-gated script must exit clean without waking.
-for sh in "$ROOT"/scripts/tasks/engineering/*.sh \
+for sh in "$ROOT"/scripts/tasks/helper/*.sh \
           "$ROOT"/scripts/tasks/manager/release-announcement-watch.sh; do
   assert_gate "$sh" "unconfigured" "false" ""
 done
@@ -471,15 +471,15 @@ done
 # Fetch failure with config set: gates that watch external state must WAKE
 # (a broken fetch must never read as a quiet day). The mock curl exits 22
 # for every URL because no fixtures matched.
-assert_gate "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" \
+assert_gate "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" \
+assert_gate "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/engineering/good-first-issue-health.sh" \
+assert_gate "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/engineering/github-ops-triage.sh" \
+assert_gate "$ROOT/scripts/tasks/helper/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/manager/daily-github-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
@@ -492,7 +492,7 @@ assert_gate "$ROOT/scripts/tasks/manager/daily-github-triage.sh" \
 # dev-metrics-report: every field its prompt references, in the nesting the
 # prompt describes. `count` (14) deliberately exceeds the listed prs (2) so
 # the "N approved PRs waiting, oldest 10 listed" truncation path is covered.
-assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metrics-full true \
+assert_scenario "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" dev-metrics-full true \
   '.data.today["acme/demo"] as $t
    | ($t.stars == 937) and ($t.forks == 558)
      and ($t.open_issues == 42) and ($t.open_prs == 7)
@@ -512,7 +512,7 @@ assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metr
 # ready-to-merge: 14 approved PRs waiting with only the 2 oldest listed, so
 # the truncation path is covered. First run has no prior set, so every PR is
 # "newly ready" and the gate must wake.
-assert_scenario "$ROOT/scripts/tasks/engineering/ready-to-merge.sh" ready-to-merge-waiting true \
+assert_scenario "$ROOT/scripts/tasks/helper/ready-to-merge.sh" ready-to-merge-waiting true \
   '(.data.status == "ready")
    and (.data.total == 14)
    and (.data.repos[0].truncated == true)
@@ -526,16 +526,16 @@ assert_scenario "$ROOT/scripts/tasks/engineering/ready-to-merge.sh" ready-to-mer
 # ready-to-merge, run 2: identical approved set, so the "changed" gate must
 # SUPPRESS rather than re-report the same PRs the next morning. This is the
 # difference between useful and nagging, and it only exists from run 2 on.
-assert_scenario "$ROOT/scripts/tasks/engineering/ready-to-merge.sh" ready-to-merge-waiting false \
+assert_scenario "$ROOT/scripts/tasks/helper/ready-to-merge.sh" ready-to-merge-waiting false \
   '(.data.resurfaced == true) and (.data.newly_ready | length == 0)' \
   'COMMUNITY_REPOS="acme/demo"' 2
 
-# contributor-health-review: the Reviewer's half of the split. Asserts the
+# contributor-health-review: the Helper's half of the split. Asserts the
 # histogram maths the script does so the agent never has to — 20/6/4 across
 # three authors is a 67% top-author share and exactly two candidates at the
 # 5-merged floor. first_run must be true (no history to diff yet) and must
 # wake, because a baseline is worth one report.
-assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" contributor-health-move true \
+assert_scenario "$ROOT/scripts/tasks/helper/contributor-health-review.sh" contributor-health-move true \
   '.data.repos[0] as $r
    | ($r.closed_prs_30d.merged == 20)
      and ($r.closed_prs_30d.unmerged == 4)
@@ -550,13 +550,13 @@ assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" c
 
 # contributor-health-review, run 2: byte-identical numbers, so nothing
 # "moved" and the quarterly heartbeat has not elapsed — must suppress.
-assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" contributor-health-move false \
+assert_scenario "$ROOT/scripts/tasks/helper/contributor-health-review.sh" contributor-health-move false \
   '(.data.quiet_heartbeat == true) and (.data.moved | length == 0) and (.data.first_run == false)' \
   'COMMUNITY_REPOS="acme/demo"' 2
 
 # dev-metrics-report, run 2: nothing changed between runs, and no approved PRs
 # this time, so the wake gate must SUPPRESS. Untestable without multi-run.
-assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metrics-quiet false \
+assert_scenario "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" dev-metrics-quiet false \
   '.data.quiet_heartbeat == true' 'COMMUNITY_REPOS="acme/demo"' 2
 
 # posthog-weekly-review is removed for now (never got working end to end).
@@ -567,7 +567,7 @@ assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metr
 
 # good-first-issue-health: only the unassigned AND stale issue is listed;
 # truncated must be true because total_count (150) > items returned (3).
-assert_scenario "$ROOT/scripts/tasks/engineering/good-first-issue-health.sh" gfi-stale true \
+assert_scenario "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" gfi-stale true \
   '.data.results[0] as $r
    | ($r.open_count == 150) and ($r.truncated == true)
      and ($r.unassigned_stale | length == 1)
@@ -626,13 +626,13 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
    and (.data.total == 3)
    and (.data.deferred_runs == 0)
    and (.data.misfiled_present == false)
-   and ([.data.by_source[].source] | sort == ["engineering","local"])' '' 1 \
+   and ([.data.by_source[].source] | sort == ["helper","manager"])' '' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror synced\"}" >> "$D/digest-queue.jsonl";
-   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl";
-   echo "{\"at\":\"$NOW\",\"source\":\"engineering\",\"severity\":\"attention\",\"line\":\"advisory needs a look\"}" >> "$D/digest-queue.jsonl"'
+   echo "{\"at\":\"$NOW\",\"source\":\"helper\",\"severity\":\"info\",\"line\":\"metrics history published\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"manager\",\"severity\":\"info\",\"line\":\"release announced\"}" >> "$D/digest-queue.jsonl";
+   echo "{\"at\":\"$NOW\",\"source\":\"helper\",\"severity\":\"attention\",\"line\":\"advisory needs a look\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr, RATE-LIMIT SAFETY — the assertion that matters most here.
 # Simulates the exact state a spent usage window leaves behind: a .processing
@@ -647,7 +647,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"queued before the limit hit\"}" >> "$D/digest-queue.processing.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"also before\"}" >> "$D/digest-queue.processing.jsonl";
-   echo "{\"at\":\"$NOW\",\"source\":\"engineering\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
+   echo "{\"at\":\"$NOW\",\"source\":\"helper\",\"severity\":\"attention\",\"line\":\"arrived while rate-limited\"}" >> "$D/digest-queue.jsonl"'
 
 # owner-tldr, REGRESSION for the escalated-send-suppresses-next-routine-slot
 # bug. Seeds a `digest-last-sent` timestamp 8 hours ago — as an escalated
@@ -737,7 +737,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
   'COMMUNITY_REPOS="acme/crm"'
 
 # github-first-response, run 2: the same item must not surface again. At six
-# runs an hour, a gate that re-reports the same issue would wake the lead 144
+# runs an hour, a gate that re-reports the same issue would wake the manager 144
 # times a day for one unanswered issue.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
@@ -748,7 +748,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
 # affected": a development-only dependency is a different risk from a runtime
 # one. Before this, the gate emitted only alert numbers and the agent had to
 # re-fetch each one to learn any of it.
-assert_scenario "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" advisory-mixed true \
+assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-mixed true \
   '(.data.status == "new")
    and (.data.count == 3)
    and (.data.highest_severity == "critical")
@@ -773,7 +773,7 @@ assert_scenario "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" adv
 # and latest_release so the agent can tell "already shipped, merge it" from
 # "unreleased, hold it as a draft". Docs describing an unreleased fix are wrong
 # for everyone reading the site today, so this is a correctness property.
-assert_scenario "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" docs-merges true \
+assert_scenario "$ROOT/scripts/tasks/helper/docs-currency-watch.sh" docs-merges true \
   '(.data.status == "new-merges")
    and (.data.count == 3)
    and (.data.latest_release == "v5.2.0")
@@ -787,11 +787,11 @@ DOCS_REPO="acme/docs"'
 
 # docs-currency-watch: no DOCS_REPO means the project has no docs site, and the
 # task must stay silent forever rather than inventing a target.
-assert_gate "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" no-docs-target false \
+assert_gate "$ROOT/scripts/tasks/helper/docs-currency-watch.sh" no-docs-target false \
   'COMMUNITY_REPOS="acme/crm"'
 
 # docs-currency-watch, run 2: the same merges must not resurface.
-assert_scenario "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" docs-merges false \
+assert_scenario "$ROOT/scripts/tasks/helper/docs-currency-watch.sh" docs-merges false \
   '.data.status == "no-new-merges"' \
   'COMMUNITY_REPOS="acme/crm"
 DOCS_REPO="acme/docs"' 2
@@ -828,7 +828,7 @@ ledger_case() {
   # a file that must never be published, whichever agent runs
   echo 'private' > "$t/data/owner-instructions.jsonl"
 
-  sed -e "s#/workspace/agent/plugin-data/community-coding#$t/data#" \
+  sed -e "s#/workspace/agent/plugin-data/community-helper#$t/data#" \
       -e "s#https://github.com/\$REPO.git#$t/remote.git#" "$sh" > "$t/run.sh"
 
   # unconfigured: silent
@@ -894,7 +894,7 @@ ledger_case() {
   fi
   rm -rf "$t"
 }
-ledger_case "$ROOT/scripts/tasks/engineering/ledger-publish.sh" "ledger-publish"
+ledger_case "$ROOT/scripts/tasks/helper/ledger-publish.sh" "ledger-publish"
 
 echo
 echo "passed: $PASS  failed: $FAIL"

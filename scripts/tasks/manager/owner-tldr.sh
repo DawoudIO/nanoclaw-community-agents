@@ -8,12 +8,12 @@ set -uo pipefail
 # Sub-agent tasks report whenever their gates fire — many of them, on
 # their own schedules, for good reasons (a mirror sync every 15 minutes, an
 # advisory sweep every 4 hours). But the OWNER should not hear from us 21 times.
-# So the lead no longer relays each report as it arrives: it appends a one-line
+# So the manager no longer relays each report as it arrives: it appends a one-line
 # entry to a queue, and this task turns the queue into ONE digest.
 #
 # THREE TIERS, because "how often" has three different right answers:
 #
-#   urgent    -> bypasses this queue entirely; the lead sends it the moment it
+#   urgent    -> bypasses this queue entirely; the manager sends it the moment it
 #                happens (security, an outage, a decision that blocks work).
 #   attention -> escalated: digest within ~4h. This tier exists for findings
 #                that mean WE ARE BLIND — a degraded fetch, a failing
@@ -24,7 +24,7 @@ set -uo pipefail
 #
 # Why not simply digest every 2-4 hours: the digest is not in any
 # responsiveness path. Community responsiveness is unanswered-watch (every 10
-# minutes) plus the lead's live replies; nobody outside is waiting on this. A
+# minutes) plus the manager's live replies; nobody outside is waiting on this. A
 # fixed 4-hourly digest would therefore buy the OWNER six messages a day in
 # place of one, without making the system any faster for anyone else — which
 # is the notification stream this task was created to remove. The escalation
@@ -65,7 +65,7 @@ PROC="$DATA/digest-queue.processing.jsonl"
 
 # WHY THIS SURVIVES A RATE LIMIT.
 # Gate scripts are bash and cost no tokens, so this runs on schedule whether or
-# not the agent has budget left. If the lead is rate-limited the gate still
+# not the agent has budget left. If the manager is rate-limited the gate still
 # rotates and still reports `digest-ready` — the agent simply never wakes, and
 # .processing sits untouched. The next run folds the new queue into it, so the
 # batch grows rather than disappearing, and the first run after the window

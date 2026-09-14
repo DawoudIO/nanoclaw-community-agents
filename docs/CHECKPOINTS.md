@@ -26,21 +26,21 @@ noticing.
 
 | # | Test | How | Pass looks like |
 |---|---|---|---|
-| 1 | Owner DM round trip | DM the lead; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
-| 2 | Bot identity on GitHub | Ask the lead "what's not set up?" — it runs its own `setup-check.sh` and has the Reviewer relay its own | **Both tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Two reports, not one: a missing one means the sub-agent didn't answer, which is itself the finding |
+| 1 | Owner DM round trip | DM the manager; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
+| 2 | Bot identity on GitHub | Ask the manager "what's not set up?" — it runs its own `setup-check.sh` and has the Helper relay its own | **Both tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Two reports, not one: a missing one means the sub-agent didn't answer, which is itself the finding |
 | 3 | Support-tier auto-reply | Post a question in a support channel from a **non-owner** account, no @mention | Unprompted reply within a couple of minutes. Silence here = the Message Content intent is off in the Discord dev portal |
 | 4 | Mention-only discipline | Post in a dev-tier channel *without* tagging the bot, then again *with* a tag | No reply to the first, a reply to the second |
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
-| 7 | Sub-agent relay | DM the lead: "ping the Reviewer and relay its answer" | It answers **through the lead** — that's its only outbound path for anything substantive. Its one channel wiring exists solely for the template-only holding acknowledgment it is forbidden to compose freely; nothing else it produces should ever appear in public |
+| 7 | Sub-agent relay | DM the manager: "ping the Helper and relay its answer" | It answers **through the manager** — that's its only outbound path for anything substantive. Its one channel wiring exists solely for the template-only holding acknowledgment it is forbidden to compose freely; nothing else it produces should ever appear in public |
 | 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
-| 9 | History publish actually pushed | Check the marketing repo's `agent-metrics` branch after the first `ledger-publish` run on **each** sub-agent | A commit from the bot exists under both `agent-metrics/reviewer/` and `agent-metrics/marketing/` (whichever agents you stamped); `tasks get` shows `published`. This is the only durable state in the system — a silent failure here is the one that costs data rather than a report |
+| 9 | History publish actually pushed | Check the marketing repo's `agent-metrics` branch after the first `ledger-publish` run on **each** sub-agent | A commit from the bot exists under both `agent-metrics/helper/` and `agent-metrics/marketing/` (whichever agents you stamped); `tasks get` shows `published`. This is the only durable state in the system — a silent failure here is the one that costs data rather than a report |
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's per-agent footprint table; nothing extra |
-| 12 | Human backstop recorded | Ask the lead who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
+| 12 | Human backstop recorded | Ask the manager who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
 | 13 | **Which meter the agents bill to** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it | You can state which meter — **and that both agents bill to it** (a local-model provider is possible but not adopted; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses |
-| 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the lead answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
-| 15 | You can check liveness on demand | DM the lead exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices. Know that this proves only the *lead* is alive; a stopped sub-agent shows up as its reports going quiet instead |
+| 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the manager answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
+| 15 | You can check liveness on demand | DM the manager exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices. Know that this proves only the *manager* is alive; a stopped sub-agent shows up as its reports going quiet instead |
 
 ## Day 2 — did the first unattended cycle actually run?
 
@@ -56,16 +56,16 @@ Ten minutes, the morning after go-live:
   that actually exist. Spot-check one item against GitHub.
 - **Tone check on one real reply**: read the bot's first genuine
   support-channel answers. Correct register? Right language behavior? This
-  is the cheapest moment to correct tone — one DM to the lead.
+  is the cheapest moment to correct tone — one DM to the manager.
 - **No surprise wakes**: gated tasks that had nothing to say stayed silent.
   A gate waking on nothing is a bug worth reporting while it's fresh.
 - **Close out the unverified holding-ack risk.** It was flagged as needing a
   real install before anyone could assert it, and it fails *quietly*, which is
   why it belongs on a checklist rather than in a bug report you'd notice on
   your own:
-  - **Can the lead and the Reviewer both wire to the same Discord
+  - **Can the manager and the Helper both wire to the same Discord
     channel?** Still unverified. If the platform refuses the second wiring, or
-    the Reviewer's channel destination silently resolves to nothing,
+    the Helper's channel destination silently resolves to nothing,
     `unanswered-watch` will do all its work and then have nowhere to put the
     acknowledgment. Ready gate item 14 is the test; if you skipped it, do it
     now.
@@ -102,7 +102,7 @@ Ten minutes, the morning after go-live:
 - **The follower snapshot landed, and then got published.** This one is worth
   checking on both ends, because it's the only genuinely un-re-scrapable
   series in the system. `social-metrics-snapshot` appends its line
-  to `plugin-data/community-coding/social-metrics-history.jsonl`, and
+  to `plugin-data/community-helper/social-metrics-history.jsonl`, and
   `ledger-publish` commits that file to the marketing repo's `agent-metrics`
   branch. Confirm the line exists in the container's file *and* that the
   branch has it. **A publish that silently stops leaves the local file still
@@ -114,7 +114,7 @@ Ten minutes, the morning after go-live:
 - **Publish cadence**: the `agent-metrics` branch shows a commit per day on
   the days the numbers actually changed (`ledger-publish` stays silent when
   nothing moved, so an unchanged day with no commit is correct, not a miss).
-- **Test the correction loop once, deliberately**: tell the lead to change
+- **Test the correction loop once, deliberately**: tell the manager to change
   one small behavior (e.g. "stop including X in the digest"). Verify it
   acks with a ledger number, applies it, and the change survives to the
   next day's session. This is the loop you'll rely on for everything later —
@@ -132,14 +132,14 @@ Ten minutes, the morning after go-live:
   Never delete agents.
 - **Question ledger is accumulating**: `plugin-data/community-manager/question-ledger.jsonl`
   has one line per resolved support conversation. If it's empty after a
-  month of real support traffic, the lead isn't logging — correct it. If
+  month of real support traffic, the manager isn't logging — correct it. If
   `docs-gap-review` fired, its first docs proposal is the system's
-  load-reduction loop working; review it seriously. **The lead owns both
+  load-reduction loop working; review it seriously. **The manager owns both
   halves of this loop** — it writes the ledger and it runs `docs-gap-review`
   against its own copy, so that path is a within-agent read. It hasn't always
-  been: the task previously lived with the Reviewer, where it read a file only
-  the lead writes, and since one agent cannot read another's `plugin-data` it
-  was permanently dead code that looked configured. Moving it to the lead is
+  been: the task previously lived with the Helper, where it read a file only
+  the manager writes, and since one agent cannot read another's `plugin-data` it
+  was permanently dead code that looked configured. Moving it to the manager is
   the fix. If you see it silent, the cause is an empty ledger, not a wiring
   fault.
 - **First return-nudges become possible**: the contributor ledger only

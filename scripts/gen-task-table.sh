@@ -5,8 +5,8 @@
 #   bash scripts/gen-task-table.sh --counts   # just the headline counts
 #   bash scripts/gen-task-table.sh --check    # verify docs match reality
 #
-# WHY THIS EXISTS: every doc that hand-wrote "18 tasks (7 lead, 7 coding,
-# 4 coding)" went stale the moment the topology changed, and nothing
+# WHY THIS EXISTS: every doc that hand-wrote "18 tasks (7 manager, 11
+# helper)" went stale the moment the topology changed, and nothing
 # caught it because prose isn't testable. The repo already knows how many
 # tasks exist and who owns them. Docs should quote this, not restate it.
 #
@@ -19,15 +19,15 @@ MODE="${1:-table}"
 # group dir -> (label, model tier). Keep in sync with scripts/sync-tasks.sh.
 group_label() {
   case "$1" in
-    manager)     echo "Lead|Claude Sonnet";;
-    engineering) echo "Reviewer|Claude Haiku";;
+    manager)     echo "Manager|Claude Sonnet";;
+    helper)      echo "Helper|Claude Haiku";;
     *)           echo "?|?";;
   esac
 }
 group_dir() {
   case "$1" in
     manager)     echo "opensource/community-manager";;
-    engineering) echo "opensource/community-coding";;
+    helper)      echo "opensource/community-helper";;
   esac
 }
 
@@ -91,7 +91,7 @@ when() {
 
 TOTAL=0; GATED=0; UNGATED=""
 ROWS=""
-for group in manager engineering; do
+for group in manager helper; do
   gdir=$(group_dir "$group")
   label=$(group_label "$group"); agent="${label%%|*}"
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
@@ -130,7 +130,7 @@ case "$MODE" in
     #            permanent data loss, so these are what backup exists for.
     echo "| Task | Agent | Writes | Class |"
     echo "|------|-------|--------|-------|"
-    for group in manager engineering; do
+    for group in manager helper; do
       gdir=$(group_dir "$group")
       label=$(group_label "$group"); agent="${label%%|*}"
       for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
@@ -170,7 +170,7 @@ case "$MODE" in
       [ -f "$f" ] || continue
       # Stale agent-count language. There are two agents; a doc claiming
       # three or four has drifted.
-      if grep -niE '(^|[^a-z])(all )?(three|four) (agents|templates)' "$f" >/dev/null; then
+      if grep -niE '(^|[^a-z])(all )?(three|four)[- ](agent[- ]?)?(agents|templates)' "$f" >/dev/null; then
         echo "DRIFT $f: says 'three/four agents/templates' but there are 2"; BAD=1
       fi
       # stale task-count language: any "N of M tasks" or "all M tasks" where M != TOTAL

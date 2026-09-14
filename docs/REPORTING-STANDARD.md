@@ -139,7 +139,7 @@ A real `dev-metrics-report` output, and the same data under this standard:
 
 The second one is shorter, and it is the only one a busy maintainer will
 actually act on. Note what happened to the concentration numbers: they moved
-to `contributor-health-review` on the Reviewer, because they needed a
+to `contributor-health-review` on the Helper, because they needed a
 judgment that belongs in its own task — so they no longer dilute this report
 at all.
 

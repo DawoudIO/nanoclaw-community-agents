@@ -157,7 +157,7 @@ what tags the issue, not the PR itself.
 ## The docs PRs waiting on this release
 
 A release is the trigger for merging the documentation that describes it. The
-Reviewer's `docs-currency-watch` drafts a docs PR for every merge that changed
+Helper's `docs-currency-watch` drafts a docs PR for every merge that changed
 observable behaviour and **holds it as a draft**, tagged with the version,
 because docs describing an unreleased fix are wrong for everyone reading them
 today.

@@ -15,7 +15,7 @@ underneath you.
 ## 1. Collect — your own check, plus every stamped sub-agent's
 
 1. Run your own `setup-check.sh`.
-2. If the Reviewer is **stamped**, ask it —
+2. If the Helper is **stamped**, ask it —
    over its agent-to-agent destination — to run its own `setup-check.sh` and
    report the result back to you. You cannot run their scripts directly; a
    sub-agent's `plugin-data` is not yours to read. Wait for all of them
@@ -70,8 +70,8 @@ quietly picking one to relay.
 ```
 **System check — <date/time>**
 
-**Lead**: <config/credential status, one line> · <N active, M paused — reasons for any real gaps>
-**Reviewer** (if stamped): <same, one line> · <N active, M paused>
+**Manager**: <config/credential status, one line> · <N active, M paused — reasons for any real gaps>
+**Helper** (if stamped): <same, one line> · <N active, M paused>
 
 **Ran recently, worth knowing**: <task — actual result, not just pass/fail>
 (repeat per task with something real to report; omit entirely if nothing has

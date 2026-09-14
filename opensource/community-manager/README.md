@@ -1,6 +1,6 @@
 # Community Manager Agent Template
 
-The lead agent in a two-template set for running an open-source project's
+The manager agent in a two-template set for running an open-source project's
 community: answer users and contributors on Discord and GitHub as one consistent
 identity, triage what comes in, and relay the work of one headless sub-agent —
 while being the only thing in the system with a **full** public voice.
@@ -9,10 +9,10 @@ while being the only thing in the system with a **full** public voice.
 
 | Template | Role | Public voice? |
 |---|---|---|
-| `opensource/community-manager` (this one) | Lead: community replies, GitHub triage, escalation, relays sub-agents | **Yes — the only full one** |
-| `opensource/community-coding` | The Reviewer: issue/PR triage, security advisories, repo and contributor health, and every number the project tracks | Holding acknowledgments only |
+| `opensource/community-manager` (this one) | Manager: community replies, GitHub triage, escalation, relays sub-agents | **Yes — the only full one** |
+| `opensource/community-helper` | The Helper: issue/PR triage, security advisories, repo and contributor health, and every number the project tracks | Holding acknowledgments only |
 
-The lead works standalone. Add the Reviewer when you want that work done
+The manager works standalone. Add the Helper when you want that work done
 without giving it a second identity.
 
 ## Why one voice
@@ -21,22 +21,22 @@ Every extra identity that can post publicly is another thing a reader has to
 trust separately, and another seam an injected instruction can aim at — "reply as
 the other bot," "don't mention a sub-agent did this."
 
-The **Reviewer** (`opensource/community-coding`) has no channel wiring beyond
+The **Helper** (`opensource/community-helper`) has no channel wiring beyond
 the one narrow case below, so that whole class of attempt has almost nothing to
 attach to — it fails structurally rather than relying on an agent remembering a
 rule under pressure.
 
-The **Reviewer**'s `unanswered-watch` is the one deliberate exception, and it's
+The **Helper**'s `unanswered-watch` is the one deliberate exception, and it's
 worth stating precisely rather than blurring: it *does* hold a channel wiring,
 because a holding acknowledgment has to appear where the unanswered message is.
 Its restriction is enforced by **scope** instead of by absence — the support
 channels only, the same bot identity so no reader sees a new party, and a fixed
 template it is forbidden to compose freely. What it posts is a receipt, never a
-resolution. Every actual answer is still only ever the lead's. Full reasoning in
+resolution. Every actual answer is still only ever the manager's. Full reasoning in
 `skills/community-manager/references/single-voice-relay.md`.
 
 The reason that exception lives on a *different* agent at all: an agent sharing
-the lead's usage window cannot be the thing that covers for that window running
+the manager's usage window cannot be the thing that covers for that window running
 out.
 
 ## Layout
@@ -76,9 +76,9 @@ community-manager/
 
 `docs-gap-review` lives here for a mechanical reason worth remembering before
 moving any task between agents: it reads `question-ledger.jsonl`, which only
-the lead writes, and no agent can read another agent's plugin-data — so in the
-Reviewer it was permanently dead. `daily-github-triage` likewise belongs to the
-lead (see the note under *Full setup* about leaving it paused).
+the manager writes, and no agent can read another agent's plugin-data — so in the
+Helper it was permanently dead. `daily-github-triage` likewise belongs to the
+manager (see the note under *Full setup* about leaving it paused).
 
 **There is no health-check or workspace-backup task in this set, by design.**
 A health check that cannot fix what it finds, reporting via a heartbeat whose
@@ -87,7 +87,7 @@ container cannot report its own death anyway. A whole-workspace backup is a
 write-only cost when nothing ever restores from it, which is the case here:
 the system is rebuilt from the templates and nothing reimports container
 state. What covers the real risk instead is narrower: `ledger-publish` (on the
-Reviewer) commits the three series that genuinely cannot be rebuilt into a
+Helper) commits the three series that genuinely cannot be rebuilt into a
 branch of the project's repo.
 
 ## Channel tiers
@@ -120,12 +120,12 @@ The relay is not a convenience: an agent can only read
 `plugin-data/<its-own-name>/`, so every key has to be written into the owning
 agent's file, and there are three relays to get right:
 
-| Sub-agent | Keys the lead relays |
+| Sub-agent | Keys the manager relays |
 |---|---|
-| `opensource/community-coding` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
+| `opensource/community-helper` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
 
 There is only one relay now, and it carries nearly every key in the system —
-the Reviewer owns most of the tasks (run `bash scripts/gen-task-table.sh --counts`
+the Helper owns most of the tasks (run `bash scripts/gen-task-table.sh --counts`
 for the current split), so an unrelayed key here is the single largest source
 of "stamped and never does anything."
 
@@ -133,12 +133,12 @@ This agent also owns its own `COMMUNITY_REPOS` plus an optional
 `RELEASE_WATCH_REPOS`, which narrows `release-announcement-watch` to a subset
 of it. `GITHUB_BOT_USERNAME` is set in both agents.
 
-**The lead keeps no copy of the metrics series.** The Reviewer owns those
+**The manager keeps no copy of the metrics series.** The Helper owns those
 files and publishes them itself. Two ledgers of the same numbers in two
-containers drift apart, and then nobody knows which is right — so the lead
+containers drift apart, and then nobody knows which is right — so the manager
 reports the numbers it is handed and stores none of them.
 
-**What the lead would still lose in a rebuild**: `question-ledger.jsonl` (the
+**What the manager would still lose in a rebuild**: `question-ledger.jsonl` (the
 repeat-question ledger behind `docs-gap-review`) and `owner-instructions.jsonl`
 (the ack ledger). Neither is published anywhere, deliberately — both contain
 community members' words and the owner's private direction, which don't belong
@@ -149,18 +149,18 @@ outlive a session, not a repave.
 ## Full setup, from zero
 
 ```bash
-# 1. Stamp the lead
+# 1. Stamp the manager
 ncl groups create --template opensource/community-manager --name "Community Manager"
 
-# 2. Stamp the Reviewer, if you want its work done
-ncl groups create --template opensource/community-coding --name "Community Coding"
+# 2. Stamp the Helper, if you want its work done
+ncl groups create --template opensource/community-helper --name "Community Helper"
 
-# 3. Wire it to the lead — agent-to-agent
-ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
-ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
+# 3. Wire it to the manager — agent-to-agent
+ncl destinations add --agent-group-id <helper-id>    --local-name parent --target-type agent --target-id <manager-id>
+ncl destinations add --agent-group-id <manager-id>      --local-name helper --target-type agent --target-id <helper-id>
 
-# 4. Wire the LEAD to your Discord channels and GitHub repos, per your
-#    platform's channel management. The Reviewer additionally needs a SILENT
+# 4. Wire the MANAGER to your Discord channels and GitHub repos, per your
+#    platform's channel management. The Helper additionally needs a SILENT
 #    wiring to each support channel so unanswered-watch can see messages and
 #    post its holding line — see welcome/SKILL.md 5c for the exact commands.
 
@@ -175,8 +175,8 @@ the config its README lists, and resume deliberately — that's the
 rebuild-cheaply property: the whole system is a stamp plus a handful of
 `resume` calls, and tearing it down is deleting two groups.
 
-**If you stamp the Reviewer (`opensource/community-coding`), leave the lead's
-`daily-github-triage` paused.** It exists for lead-standalone deployments, and
+**If you stamp the Helper (`opensource/community-helper`), leave the manager's
+`daily-github-triage` paused.** It exists for manager-standalone deployments, and
 `github-ops-triage` covers the same ground at a higher cadence (every 6 hours
 versus a weekday digest). The reason this matters more than it used to: the two
 tasks now live in *different* agents, so they no longer share a cursor file —
@@ -186,7 +186,7 @@ nothing in the system will notice.
 
 **There is no workspace backup anywhere in this set, by design.** See the note
 under *Configuration* above: the only state worth preserving is published by
-`ledger-publish` on the Reviewer, and everything else is meant to be rebuilt.
+`ledger-publish` on the Helper, and everything else is meant to be rebuilt.
 
 **Script dependencies:** `bash`, `curl`, `jq`, and `ncl`
 (`weekly-identity-integrity-check` reads `ncl tasks list --json`; without `ncl`
@@ -208,7 +208,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and `release-announcement-watch`: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Reviewer's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and `release-announcement-watch`: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 | Shared inbox (e.g. Gmail) *(optional)* | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** (`gmail.readonly`) for `inbox-check`. This agent never sends mail — the send is always a human's, so do not grant send or modify scopes. An inbox is a support channel, which is why it belongs to the agent that owns support escalation. | Google Cloud console → OAuth consent + credentials |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
@@ -223,8 +223,8 @@ on a real deployment it lands in the **Custom** tab as a generic secret (host
 here uses — that's NanoClaw's own internal plumbing for its Discord adapter,
 not a step you perform yourself.
 
-**Give each agent its own least-privilege token.** The lead's is the only one
-that comments and files issues; the Reviewer's is read-only across
+**Give each agent its own least-privilege token.** The manager's is the only one
+that comments and files issues; the Helper's is read-only across
 `COMMUNITY_REPOS` plus Contents+PRs write for draft security patches and
 Contents write on the ledger repo. Sharing one broad token across both defeats
 the point of splitting them.

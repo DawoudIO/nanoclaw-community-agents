@@ -15,7 +15,7 @@ set -uo pipefail
 # which is the notification stream we deliberately removed. So: fast and
 # narrow here, slow and thorough there.
 #
-# Discord needs no equivalent — the lead answers Discord live through its
+# Discord needs no equivalent — the manager answers Discord live through its
 # channel wiring, event-driven, and unanswered-watch is the safety net for when
 # it can't. GitHub has no live wiring in this design, so this poll is the path.
 DATA="/workspace/agent/plugin-data/community-manager"

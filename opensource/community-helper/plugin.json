@@ -1,0 +1,11 @@
+{
+  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
+  "name": "community-helper",
+  "version": "1.0.0",
+  "description": "Headless review and measurement sub-agent: issue and PR triage, duplicate detection, security-advisory assessment and draft security patches, docs-currency review, repo and contributor health, plus every number the project tracks (dev metrics, GA4 traffic, social follower counts) with a durable published history. Reports to a community-manager manager agent; it writes no content, and the only thing it ever posts publicly is a fixed holding acknowledgment when the manager is down.",
+  "extensions": {
+    "ai.nanoco.nanoclaw": {
+      "agentName": "Community Helper"
+    }
+  }
+}

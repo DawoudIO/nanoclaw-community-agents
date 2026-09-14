@@ -6,7 +6,7 @@
 #   bash scripts/export-answers.sh ~/nanoclaw                 # -> onboarding-answers.exported.json
 #   bash scripts/export-answers.sh ~/nanoclaw my-answers.json
 #
-# WHY: onboarding can be done conversationally (you DM the lead and it
+# WHY: onboarding can be done conversationally (you DM the manager and it
 # interviews you). That's the friendlier path, but it leaves the answers
 # scattered across each agent's config.env with no single editable
 # record. This walks the live install and writes them back into the same

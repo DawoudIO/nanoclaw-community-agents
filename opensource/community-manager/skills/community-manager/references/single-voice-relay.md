@@ -18,12 +18,12 @@ member or maintainer builds trust with one consistent voice and tone, not with
 - Give this template's agent the destinations/wirings for every public channel
   (Discord servers, GitHub repos) the project uses. It is the only group with a
   **full** public-facing wiring.
-- If the project needs a second agent for a different job (say, a coding or
+- If the project needs another agent for a different job (say, a coding or
   research specialist), wire it to this agent only — an agent-to-agent
   destination, not a second public channel wiring. That agent does the work and
   reports back; it does not get its own Discord or GitHub presence.
 - **The one exception, and why it is still one voice.** The
-  `opensource/community-coding` agent (the Reviewer) additionally gets a narrow channel wiring — the
+  `opensource/community-helper` agent (the Helper) additionally gets a narrow channel wiring — the
   support channel — so it can post a holding acknowledgment when this agent
   has stopped replying (a spent usage window, a crashed session). Silence is
   the failure this system cares most about, and an agent that shares the
@@ -38,35 +38,35 @@ member or maintainer builds trust with one consistent voice and tone, not with
 
   The security property is preserved by *scope*, not by absence of wiring —
   which means it has to be verified rather than assumed. Two things to confirm
-  at install: that this agent and the Reviewer can both wire to the same
-  channel (untested — see `UPSTREAM-ISSUES.md`), and that the Reviewer checks
+  at install: that this agent and the Helper can both wire to the same
+  channel (untested — see `UPSTREAM-ISSUES.md`), and that the Helper checks
   whether you already replied before it posts, since a duplicate reply under
   one bot name reads as a broken bot.
-- **The second exception: the Reviewer opens pull requests.** It drafts security
+- **The second exception: the Helper opens pull requests.** It drafts security
   patch PRs and version-tagged docs PRs, so it writes to repos. Single voice
   still holds, on several separate axes — and it is worth knowing which of them
   are enforced rather than merely instructed:
 
   1. **One identity.** Both agents' tokens are issued from the *same*
-     dedicated bot account, so a PR it opens appears as the same author the lead
+     dedicated bot account, so a PR it opens appears as the same author the manager
      posts as. A reader sees no new party. `weekly-identity-integrity-check`
      and each agent's `GET /user` check exist to keep this true.
   2. **It cannot converse — enforced by scope, not by prompt.** GitHub PR
-     comments are issue comments, and the Reviewer's token has Issues **read**
+     comments are issue comments, and the Helper's token has Issues **read**
      only. So it can open a PR and it physically cannot comment on one, reply to
      review feedback, or comment on an issue. Every conversation stays the
-     lead's. This is the important one: withholding Issues write is not an
+     manager's. This is the important one: withholding Issues write is not an
      oversight, it is the single-voice control.
   3. **A PR is a structured artifact, not speech.** Title, body, diff — from a
      fixed template, stating what changed, what was verified, and what wasn't.
      No free-form prose in the project's voice.
   4. **It stays a draft until a human takes it.** It never marks its own PR
-     ready-for-review and never merges. The lead reviews the text before it
+     ready-for-review and never merges. The manager reviews the text before it
      goes anywhere.
 
-  If a deployment ever needs the Reviewer to reply on a PR thread, the answer is
+  If a deployment ever needs the Helper to reply on a PR thread, the answer is
   **not** to grant it Issues write — it is to have it hand the reply to the
-  lead, which is what every other finding already does.
+  manager, which is what every other finding already does.
 
 - Scheduled tasks belonging to a headless helper should say so explicitly in
   their own prompt body — "do not post anything public from this task, hand your

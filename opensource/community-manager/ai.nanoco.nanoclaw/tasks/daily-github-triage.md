@@ -40,7 +40,7 @@ script: |
     printf '{"wakeAgent": true, "data": {"since": "%s", "truncated_repos": "%s", "items": %s}}\n' "${SINCE:-first-run}" "${TRUNC# }" "$ITEMS"
   fi
 ---
-Standalone-mode triage (leave this task paused if the coding sub-agent is
+Standalone-mode triage (leave this task paused if the helper is
 stamped — its own triage covers this at higher cadence).
 
 **If `status` is `fetch-failed`**: don't triage — report it to the owner.

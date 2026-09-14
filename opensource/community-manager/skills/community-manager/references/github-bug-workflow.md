@@ -11,7 +11,7 @@
    not an issue.** You are a machine that turns chat messages into
    well-formatted GitHub issues, which is exactly the machine maintainers
    are currently drowning under: fluent, plausible, *wrong* reports cost
-   reviewers far more than obvious junk (curl's security-report confirmation
+   helpers far more than obvious junk (curl's security-report confirmation
    rate fell from 15% to under 5% after AI-generated reports arrived). So a
    well-*formatted* report is not a well-*founded* one. If the report reads
    like generated text (generic phrasing, details that don't cohere, error

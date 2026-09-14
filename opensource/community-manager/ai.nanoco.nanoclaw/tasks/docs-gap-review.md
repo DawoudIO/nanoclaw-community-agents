@@ -4,7 +4,7 @@ script: |
   #!/bin/bash
   set -euo pipefail
   # Deps: bash, jq. No network — this gate only reads the local question ledger.
-  # The lead appends one line per resolved support conversation (see
+  # The manager appends one line per resolved support conversation (see
   # report-formats.md): {"date": "<ISO8601 datetime>", "topic": "<kebab-slug>",
   # "channel": "<where>"}. This weekly gate clusters the last 60 days and wakes
   # the agent only when a topic has repeated enough (3+) to deserve a docs page
@@ -15,7 +15,7 @@ script: |
   mkdir -p "$DATA"
   LEDGER="$DATA/question-ledger.jsonl"
   if [ ! -f "$LEDGER" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "no-ledger-yet", "hint": "the lead appends one topic line per resolved support conversation; nothing recorded yet"}}'
+    echo '{"wakeAgent": false, "data": {"status": "no-ledger-yet", "hint": "the manager appends one topic line per resolved support conversation; nothing recorded yet"}}'
     exit 0
   fi
   PROPOSED="$DATA/docs-proposals-sent.txt"
@@ -57,7 +57,7 @@ For each topic in `scriptOutput.topics`:
    built from the answers you've actually been giving — you've written this
    content 3+ times already; this is consolidation, not invention.
 3. **Route it**: hand the draft to your owner as a docs issue proposal (or,
-   the coding agent can draft the page's content for you, but it cannot open
+   the helper can draft the page's content for you, but it cannot open
    a PR — its token is read-only, so anything that lands is yours or a
    human's to create). Follow the project's docs style rules from your config.
 4. **Then ack**: append the topic slug (one per line, exactly as it appears
