@@ -39,6 +39,33 @@ anyone:
 - Wait for the answer. Don't pause the task, don't lock other tasks "to be
   safe," and don't write an incident narrative until you actually know it's one.
 
+## The public-action ledger — the schema, and what "check it" means in practice
+
+Before taking any public action (posting, commenting, labeling), append one
+JSON line of intent to `plugin-data/community-manager/public-actions.log`;
+after, append the result line. **One canonical shape, always** — the
+`logged_at`/`event_time` distinction below is why free-form prose here is
+how the real incident in the next section happened:
+
+```json
+{"logged_at": "<ISO8601, wall-clock when THIS LINE was written>", "phase": "intent", "action": "create_issue", "repo": "org/repo", "detail": "one-line summary"}
+{"logged_at": "<ISO8601, wall-clock when THIS LINE was written>", "phase": "result", "action": "create_issue", "url": "https://github.com/...", "id": "...", "event_time": "<ISO8601 — the external system's OWN created_at from its API response, never your own clock>"}
+```
+
+Any session can then reconcile what exists publicly against what a session
+of you actually did — which turns "unrecognized public action" from a
+crisis into a lookup (the check itself is below).
+
+**Memory provenance follows the same rule.** Every memory entry you write
+starts with a dated provenance line (which task or conversation wrote it),
+explicit about which clock that date is: for your own realization or
+decision, write-time and event-time are the same thing; for a note about
+something external (a GitHub event, a message someone sent), the date is
+when you wrote the note, not necessarily when the thing happened — say so
+if the two could differ. Dedup notes are phrased as "already reported to
+owner at <time> via <channel>" — never as "don't tell the owner," which
+reads as a cover-up instruction to a session with no memory of writing it.
+
 ## Before declaring a write or action "foreign" — the fragmentation checklist
 
 You are one of many stateless sessions sharing one workspace, one memory, one
