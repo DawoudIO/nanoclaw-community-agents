@@ -308,6 +308,30 @@ for md in "$ROOT"/*/*/ai.nanoco.nanoclaw/tasks/*.md "$ROOT"/*/*/ai.nanoco.nanocl
 done
 [ "$BADREF" -eq 0 ] && pass || fail "task prompt(s) point at a reference file that does not exist — the agent silently never reads it"
 
+# Render a fixture directory into the sandbox, substituting date placeholders.
+#
+# WHY: a fixture with a hardcoded date is tested against a gate that compares
+# against `now`, so the fixture silently changes meaning as real time passes.
+# This bit: `good-first-issue-health` treats an unassigned issue untouched for
+# 14 days as stale, and its fixture's deliberately-NOT-stale issue was dated
+# 2026-08-20 — fine when written, quietly stale months later, so the test
+# asserted one stale issue and found two. Placeholders keep a fixture's
+# *meaning* fixed instead of its literal value.
+#
+#   __RECENT_ISO__  — 2 days ago: inside every freshness window in this kit
+#   __STALE_ISO__   — 120 days ago: outside every staleness window
+render_fixtures() {
+  local src="$1" dst="$2" recent stale
+  [ -d "$src" ] || return 0
+  mkdir -p "$dst"
+  recent=$(date -u -v-2d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)
+  stale=$(date -u -v-120d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '120 days ago' +%Y-%m-%dT%H:%M:%SZ)
+  for f in "$src"/*; do
+    [ -f "$f" ] || continue
+    sed -e "s#__RECENT_ISO__#$recent#g" -e "s#__STALE_ISO__#$stale#g" "$f" > "$dst/$(basename "$f")"
+  done
+}
+
 # --- 2. behavioral: single-line valid JSON contract ------------------------
 # Each script runs in a sandbox dir with plugin-data pre-seeded per scenario.
 # assert_gate <script> <scenario-name> <expected-wakeAgent|any> <config-env-content>
@@ -315,7 +339,8 @@ assert_gate() {
   local sh="$1" name="$2" expect="$3" cfg="$4"
   local sandbox; sandbox=$(mktemp -d)
   local sname; sname=$(basename "$sh" .sh)
-  local fixdir="$ROOT/scripts/test/fixtures/$sname"
+  local fixdir="$sandbox/.fixtures"
+  render_fixtures "$ROOT/scripts/test/fixtures/$sname" "$fixdir"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
            "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
   # fake curl: first URL-ish arg is matched against fixture patterns
@@ -387,7 +412,8 @@ assert_scenario() {
   local sh="$1" fixture="$2" expect="$3" pred="$4" cfg="$5" runs="${6:-1}" seed="${7:-}"
   local sandbox; sandbox=$(mktemp -d)
   local sname; sname=$(basename "$sh" .sh)
-  local fixdir="$ROOT/scripts/test/fixtures/$fixture"
+  local fixdir="$sandbox/.fixtures"
+  render_fixtures "$ROOT/scripts/test/fixtures/$fixture" "$fixdir"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
            "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
   cat > "$sandbox/bin/curl" <<MOCK

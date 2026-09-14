@@ -116,16 +116,24 @@ lead asks you for one.
 
 ## 1 · Stamp the agents and wire them
 
-Four agents, split by **model tier**, not subject — capable models where
-judgment is needed, cheapest tier where reliability matters more than
+Three agents, split by **model tier**, not subject — a capable model where
+judgment is needed, the cheapest tier where reliability matters more than
 capability:
 
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
-| **Lead** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only one** | Always |
-| **Secretary** (`opensource/community-secretary`) | Script-computed metrics, mirror sync, workspace backup, holding acknowledgments when the lead is rate-limited | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional, **add second** — takes the bulk of recurring work off the lead |
-| **Coding** (`opensource/community-coding`) | Issue/PR triage, security advisories, Dependabot review, docs-currency, maintainer load. Read-only + two narrow draft-PR paths | Claude Haiku | No — headless | Optional; lead does lighter triage standalone otherwise |
-| **Marketing** (`opensource/community-marketing`) | Content drafts via PR | Claude | No — headless | Optional, **not stamped by default** |
+| **Lead** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only full one** | Always |
+| **Coding** (`opensource/community-coding`) — the Reviewer | Issue/PR triage, security advisories, Dependabot review, docs-currency, repo and contributor health, dev metrics, and the holding acknowledgment when the lead is rate-limited. Read-only + two narrow write paths (security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional, **add second** — takes the bulk of recurring work off the lead |
+| **Marketing** (`opensource/community-marketing`) | Follower counts and GA4 traffic; publishes the history that can't be rebuilt. Writes no content | Claude Haiku | No — headless | Optional, **not stamped by default** |
+
+**A fourth "secretary" agent used to sit between the lead and the
+Reviewer**, narrating pre-computed numbers on the cheap tier. It was retired:
+running a fourth container cost real memory on a small host, and reviewing its
+tasks one by one showed each belonged with whichever agent already owned the
+surrounding domain. Its tasks moved to the two agents above, except the ones
+that were dropped outright (a repo mirror that needed a Docker host mount, a
+health check that could not fix anything it found, a workspace backup nothing
+ever restored).
 
 (`docs-gap-review` sits with the lead, not coding, because it reads the
 lead's own `question-ledger.jsonl` — an agent can't read another's
@@ -146,7 +154,6 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # Stamp — check each response's templateReport for skipped parts, and note
 # each group's id: the wiring and vault steps below need them.
 ./bin/ncl groups create --template opensource/community-manager    --name "Community Manager"
-./bin/ncl groups create --template opensource/community-secretary  --name "Community Secretary"
 ./bin/ncl groups create --template opensource/community-coding     --name "Community Coding"
 # Marketing is optional and not stamped by default:
 ./bin/ncl groups create --template opensource/community-marketing  --name "Community Marketing"
@@ -166,8 +173,6 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # per sub-agent: `parent` on the child pointing at the lead, a named
 # destination on the lead pointing back. A missing pair doesn't error — the
 # sub-agent's reports just reach nobody.
-./bin/ncl destinations add --agent-group-id <secretary-id>  --local-name parent           --target-type agent --target-id <lead-id>
-./bin/ncl destinations add --agent-group-id <lead-id>       --local-name secretary        --target-type agent --target-id <secretary-id>
 ./bin/ncl destinations add --agent-group-id <coding-id>     --local-name parent           --target-type agent --target-id <lead-id>
 ./bin/ncl destinations add --agent-group-id <lead-id>       --local-name coding           --target-type agent --target-id <coding-id>
 ./bin/ncl destinations add --agent-group-id <marketing-id>  --local-name parent           --target-type agent --target-id <lead-id>
@@ -203,11 +208,18 @@ GitHub repo), persists config, and relays sub-agent values. Only then wire
 the public channels: the lead gets all of them; the reviewer and marketing
 get none, by design.
 
-**The secretary is the one exception to "no sub-agent has channel
-identity."** It gets one channel wiring, through the *same* Discord bot —
-one public identity, two agents allowed to speak, very different scopes:
-one channel, read-only elsewhere, no write access, a template-only reply
-it's forbidden to compose freely. A receipt, never a resolution.
+**The Reviewer is the one exception to "no sub-agent has channel
+identity."** Its `unanswered-watch` task gets a wiring to each support
+channel, through the *same* Discord bot — one public identity, two agents
+allowed to speak, very different scopes: support channels only, a
+template-only reply it's forbidden to compose freely, everything else still
+reported upward. A receipt, never a resolution.
+
+Wire it with `--engage-mode mention` (nobody will ever @-mention it, which is
+the point: it sees every message but never actively replies) **and** add a
+destination per channel so it has somewhere to post the holding line — the
+wiring alone lets it detect the silence with nowhere to answer it. The lead's
+`welcome/SKILL.md` §5c has the exact commands.
 **Unverified**: whether two groups can wire to the same Discord channel in
 your NanoClaw version — test it; fall back to a dedicated channel if not.
 
@@ -293,10 +305,9 @@ for a recreate — anything marked *modifies install* needs re-applying after
 | `/add-discord` | **Required** | §1a | No |
 | `/debug` | Built-in | Any time | No |
 | `/add-clidash` | **Recommended** | Right after §1 | Copies `tools/clidash` |
-| `/add-ollama-provider` | **Not used this phase** — see SKILLS-ADOPTION.md | Would route the secretary to a host Ollama model | **Yes** — Dockerfile + `container.json` edits |
+| `/add-ollama-provider` | **Not used this phase** — see SKILLS-ADOPTION.md | Would route a sub-agent to a host Ollama model | **Yes** — Dockerfile + `container.json` edits |
 | `/add-ollama` (tool) | **Proposed, undecided** | Only if translation volume proves expensive | **Yes** — copies an MCP server, rebuilds image |
 | `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real budget question | **Yes** — persistent process, `DASHBOARD_SECRET` |
-| `ncl groups config add-mount` | **Optional, advanced — skip unless you're comfortable with Docker host administration** | Shared repo mirror — see `community-secretary/README.md`. Requires editing a host allowlist file, running per-group mount commands with real RW/RO semantics, and a restart to apply. Everything works fine without it — each agent just makes its own live GitHub API reads instead of sharing one local checkout, at zero extra setup cost. Only worth the operational overhead if you're already fluent in Docker and specifically hitting rate limits or latency from repeated live reads | Config + operator-side mount allowlist |
 | `/update-skills` | **Break-glass only** | Never in steady state | **Yes**, desyncs from `platform-baseline.json` |
 
 Everything else in NanoClaw's skill catalog was reviewed and is either N/A
@@ -338,23 +349,26 @@ to give each one, so you don't have to work it out live:
 | Token | Needs | Never |
 |---|---|---|
 | Lead | `repo`/`public_repo` — comments, labels, issues | `read:org`, `admin:*`, `delete_repo` |
-| Secretary | `COMMUNITY_REPOS` + `MIRROR_REPOS`: Contents/Issues read, PRs read, Contents write on backup repo only | Write anywhere else; issue/PR comment rights |
-| Coding | `COMMUNITY_REPOS` only, read-only (+ Dependabot alerts) | Any write scope; `MIRROR_REPOS` |
-| Marketing | Content repo only, Contents + PRs read/write | Write on any other repo |
-| Backup (optional) | Push to the one backup repo | Nothing beyond it |
+| Coding | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for security patches, plus Contents write on the marketing repo for `ledger-publish` | Write on anything else; issue/PR comment rights |
+| Marketing | Marketing repo only, Contents read/write | Write on any other repo |
 
 If a future feature seems to need broader access, the fix is almost never
 "widen this token" — it's a new, narrower, single-purpose credential.
 
 **Set every agent to `selective` secret mode and assign each its own
-secret**, as they're added. All four GitHub tokens match the same host — in
+secret**, as they're added. All three GitHub tokens match the same host — in
 the default `all` mode, every agent gets whichever secret matches first,
 collapsing your scoped tokens back into one shared token:
 
 ```bash
 onecli agents list
-onecli agents set-secret-mode --id <agent-id> --mode selective   # ×4
+onecli agents set-secret-mode --id <agent-id> --mode selective   # ×3
 ```
+
+**Both sub-agents also need the `github.com` (git) host wired**, not just
+`api.github.com` — those are separate vault entry classes, and
+`ledger-publish` pushes a branch. Wiring only the REST host leaves the
+publish failing with `push-failed` while every other GitHub call works.
 
 Optionally add **request-hold approval rules** for anything you can never
 allow unattended (publishing, sending mail) — gating at the proxy is
@@ -386,20 +400,17 @@ added, and nothing more.
 |---|---|---|---|
 | Lead | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
 | Lead | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
-| Secretary | GitHub PAT | `api.github.com` | metrics, GFI health, hygiene audit, draft cleanup |
-| Secretary | same PAT, git protocol *(private repos only)* | `github.com` | `repo-mirror-sync` |
-| Secretary | Backup push secret *(optional)* | `github.com` | `workspace-backup` |
-| Secretary | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
-| Secretary | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
-| Secretary | — (nothing) | — | `unanswered-watch`, `health-check` — local state only |
-| Coding | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health |
-| Marketing | GitHub PAT | `api.github.com` | `content-draft-cycle` |
+| Coding | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health, dev metrics, GFI health, hygiene audit |
+| Coding | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the metrics-history branch) |
+| Coding | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
+| Marketing | GitHub PAT | `api.github.com` | `ledger-publish` |
+| Marketing | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the history branch) |
+| Marketing | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
+| Marketing | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
 
-Note where analytics landed: on the **secretary**, not marketing or coding
-— judgment work stayed on the metered agents, narration moved to the
-cheapest tier. A row that doesn't exist here is a finding: the reviewer and
-marketing never appear against Discord, GA4, or social hosts, and the
-secretary never appears with a write grant outside its one backup repo.
+A row that doesn't exist here is a finding: neither sub-agent appears against
+Discord, the lead never appears against GA4 or the social hosts, and no agent
+holds a write grant on a repo outside the narrow set above.
 
 ### Confirm identity, don't assume it
 
@@ -433,26 +444,24 @@ You answer once, in the owner DM; the lead pushes each sub-agent's
 parameters over the destination pairs from §1:
 
 | Sub-agent | Keys relayed into `config.env` |
-|---|---|
-| **Secretary** | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
-| **Coding** | `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS`) |
-| **Marketing** | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
-| **Lead** (own) | (+ optional `RELEASE_WATCH_REPOS` — plural, distinct from Marketing's singular key) |
-
-Plus `GITHUB_BOT_USERNAME`, held by all four.
-
-**Check the secretary relay specifically — it fails quietly.** It's the
-largest payload, and a missing key isn't an error: the gate exits
-`not-configured` and goes back to sleep. Symptom: "stamped and never does
-anything," which reads like a broken agent and is an unrelayed key.
-`ACK_GRACE_MINUTES` alone has a built-in default (20 min); nothing else
-does.
-
-**One thing lives outside the conversation:**
-
-| What | Where | When |
 |---|---|---|
-| Workspace backup git init/remote/identity | Secretary's group folder | After stamping, host-side |
+| **Coding** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `MARKETING_REPO` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
+| **Marketing** | `MARKETING_REPO`, `GA4_PROPERTIES` (+ optional `LEDGER_BRANCH`) |
+| **Lead** (own) | `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS`) |
+
+Plus `GITHUB_BOT_USERNAME`, held by all three.
+
+**Check the coding relay specifically — it fails quietly.** It's the largest
+payload, and a missing key isn't an error: the gate exits `not-configured`
+and goes back to sleep. Symptom: "stamped and never does anything," which
+reads like a broken agent and is an unrelayed key. `ACK_GRACE_MINUTES` (20
+min) and `LEDGER_BRANCH` (`agent-metrics`) have built-in defaults; nothing
+else does.
+
+**`MARKETING_REPO` goes to both sub-agents.** Each publishes its own
+unrecoverable series to a branch there, and two agents cannot share a config
+file — so the same value is written twice. If one series stops appearing
+later, a half-done relay is the first thing to check.
 
 ### The full question list
 
@@ -463,7 +472,7 @@ to the agent.
 | # | Asked | Optional? |
 |---|---|---|
 | 1 | GitHub repo or org | **No** |
-| 2 | Which of the four jobs are goals | **No** |
+| 2 | Which of the four kinds of job are goals | **No** |
 | 3 | Repo map: product/docs/site/marketing | Inferred + confirmed |
 | 4 | Docs site URL, language, topic scope | Inferred where possible |
 | 5 | Discord channels by tier | Required if using Discord |
@@ -537,40 +546,45 @@ count than `gen-task-table.sh`'s total is expected, not missing.)
 
 Resume order, safe → side-effect-adjacent:
 
-1. **Outage safety net first** — no credentials, no network: `unanswered-watch`
-   (secretary, every 10 min — the reason the secretary exists), `health-check`
-   (secretary), `weekly-identity-integrity-check` and `owner-tldr` (lead —
-   jq only).
-2. **Backup** (`workspace-backup`) — after §3's git setup.
-3. **Lead's live response**: `github-first-response`, `release-announcement-watch`
+1. **Outage safety net first** — no credentials, no network:
+   `unanswered-watch` (the Reviewer, every 10 min — the one task standing
+   between a rate-limited lead and total silence), plus
+   `weekly-identity-integrity-check` and `owner-tldr` (lead — jq only).
+   `conversation-archive-prune` on every stamped agent can go here too; it is
+   pure filesystem housekeeping and never wakes a model.
+2. **Lead's live response**: `github-first-response`, `release-announcement-watch`
    — safe once `COMMUNITY_REPOS` is set. `docs-gap-review` is safe from day
    one; it stays quiet until support work fills its ledger.
-4. **Secretary's gates**, once §3's relay has landed: `repo-mirror-sync`,
-   `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit`,
-   `draft-cleanup`, `ready-to-merge`, `weekly-analytics-report`.
-   `contributor-nudge` needs `dev-metrics-report`'s ledger to run twice
-   first. Each exits `not-configured` silently if its key is missing —
-   resume, then check they did something.
-5. **Coding**: `github-ops-triage`, `security-advisory-sweep`,
-   `dependabot-pr-review`, `docs-currency-watch`, `contributor-health-review`.
-6. **Ungated tasks last** — nothing stops them burning a wake on an
+3. **The Reviewer's gates**, once §3's relay has landed: `github-ops-triage`,
+   `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`,
+   `contributor-health-review`, `dev-metrics-report`, `ready-to-merge`,
+   `good-first-issue-health`, `repo-hygiene-audit`. `contributor-nudge` needs
+   `dev-metrics-report`'s ledger to have run twice first. Each exits
+   `not-configured` silently if its key is missing — resume, then check they
+   did something.
+4. **The history publishes**, once `MARKETING_REPO` and the `github.com` (git)
+   credential are in place: `ledger-publish` on the Reviewer and on marketing.
+   Run each once by hand and confirm the branch actually lands — this is the
+   one pair whose silent failure costs data rather than a report.
+5. **Ungated tasks last** — nothing stops them burning a wake on an
    unconfigured service: `social-metrics-snapshot` (only once a
-   page-reading tool is confirmed in the secretary's container — Claude's
+   page-reading tool is confirmed in marketing's container — Claude's
    built-in web fetch or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser))
    and the lead's `inbox-check` (only once an email MCP is connected).
-7. **Marketing** (if stamped): `content-draft-cycle`.
-8. **Never run both** the lead's `daily-github-triage` and the coding
+6. **Marketing's report** (if stamped): `weekly-analytics-report`.
+7. **Never run both** the lead's `daily-github-triage` and the coding
    agent's `github-ops-triage` — the former is the lead's standalone
    fallback; running both double-reports every issue. Pause it when you
    stamp coding.
 
 Smoke-test: post in a support-tier channel (expect an unprompted reply),
 @mention the lead in a dev-tier channel (expect a reply only because you
-tagged it), DM the lead to ping every sub-agent (exercises all three
-destination pairs — a silent sub-agent means a missing destination, not a
-broken agent). If you stamped the secretary, test the holding
-acknowledgment path once — it's the one behavior that only shows up when
-the lead can't answer.
+tagged it), DM the lead to ping every sub-agent (exercises both destination
+pairs — a silent sub-agent means a missing destination, not a broken agent).
+If you stamped the Reviewer, test the holding-acknowledgment path once — it's
+the one behavior that only shows up when the lead can't answer, so it is also
+the one most likely to be quietly broken (a missing support-channel wiring or
+destination) without anything else looking wrong.
 
 **"Resumed" is not "ready."** Walk the 15-point ready gate in
 [CHECKPOINTS.md](CHECKPOINTS.md) before calling it live. Everything after

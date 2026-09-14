@@ -1,4 +1,4 @@
 {"total_count": 150, "items":[
- {"number":10,"title":"Add a widget","assignee":null,"updated_at":"2026-05-01T00:00:00Z","html_url":"https://x/10"},
- {"number":11,"title":"Assigned one","assignee":{"login":"someone"},"updated_at":"2026-05-01T00:00:00Z","html_url":"https://x/11"},
- {"number":12,"title":"Recent one","assignee":null,"updated_at":"2026-08-20T00:00:00Z","html_url":"https://x/12"}]}
+ {"number":10,"title":"Add a widget","assignee":null,"updated_at":"__STALE_ISO__","html_url":"https://x/10"},
+ {"number":11,"title":"Assigned one","assignee":{"login":"someone"},"updated_at":"__STALE_ISO__","html_url":"https://x/11"},
+ {"number":12,"title":"Recent one","assignee":null,"updated_at":"__RECENT_ISO__","html_url":"https://x/12"}]}
