@@ -25,7 +25,7 @@ script: |
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 
   # GA4_PROPERTIES: comma-separated properties, each either a bare id
-  # ("253632751") or a "label:id" pair ("demo:362323228") when a readable
+  # ("123456789") or a "label:id" pair ("docs:987654321") when a readable
   # name is worth carrying into the report. One task run covers every
   # property listed here — never create a second task file per property.
   # GA4_PROPERTY_ID (a single bare id) still works as a one-property
@@ -49,6 +49,10 @@ script: |
       PROPERTY_ID="$PAIR"
       LABEL="property-${PROPERTY_ID}"
     fi
+    # LABEL becomes part of a filename below (traffic-history-$LABEL.json) and
+    # travels into ledger-publish.sh's own file list — a "../.." or a space in
+    # GA4_PROPERTIES must not become a path escape or a word-split filename.
+    LABEL=$(printf '%s' "$LABEL" | tr -c 'A-Za-z0-9_-' '_')
     HIST="$DATA/traffic-history-${LABEL}.json"
     if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
 

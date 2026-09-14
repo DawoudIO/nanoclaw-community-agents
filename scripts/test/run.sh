@@ -837,7 +837,7 @@ ledger_case() {
     && pass || fail "$label/unconfigured: expected a silent not-configured, got: $out"
 
   # first publish
-  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
   printf '%s' "$out" | jq -e '.wakeAgent == false and .data.status == "published"' >/dev/null 2>&1 \
     && pass || fail "$label/first-publish: expected published, got: $out"
 
@@ -863,14 +863,14 @@ ledger_case() {
   fi
 
   # unchanged: silent, no new commit
-  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
   printf '%s' "$out" | jq -e '.data.status == "ok"' >/dev/null 2>&1 \
     && pass || fail "$label/unchanged: expected a quiet ok, got: $out"
 
   # THE REGRESSION: an unpushed commit with a clean tree must still publish.
   # Simulated by deleting the remote branch, leaving the local commit orphaned.
   git -C "$t/remote.git" branch -D agent-metrics >/dev/null 2>&1
-  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
   printf '%s' "$out" | jq -e '.data.status == "published"' >/dev/null 2>&1 \
     && pass || fail "$label/unpushed-recovery: a clean tree with an unpushed commit must still push, got: $out"
 
@@ -884,7 +884,7 @@ ledger_case() {
   before=$(git -C "$t/remote.git" rev-parse agent-metrics)
   echo '[{"date":"2026-01-02"}]' > "$t/data/metrics-history.json"
   printf '{"date":"2026-01-02","x":2}\n' >> "$t/data/social-metrics-history.jsonl"
-  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
   # Either it published on top of the outside commit (a fast-forward, fine) or
   # it reported a failure — what it must NEVER do is drop the outside commit.
   if git -C "$t/remote.git" ls-tree -r --name-only agent-metrics | grep -q 'outside-change.txt'; then

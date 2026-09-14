@@ -68,6 +68,23 @@ fi
 BRANCH="${LEDGER_BRANCH:-agent-metrics}"
 SUBDIR="${LEDGER_PATH:-agent-metrics}"
 
+# These three come from config.env, which this agent itself writes — but a
+# prompt-injection that gets a bad value written there must not turn into git
+# argument injection (a `-`-prefixed BRANCH read as a flag), an unintended
+# repo write (REPO in some other shape), or a path escape out of $WORK (SUBDIR
+# containing ..). Reject anything outside the plain shape each is documented
+# to take, before it reaches a single git or filesystem command.
+case "$REPO" in
+  [A-Za-z0-9_.-]*/[A-Za-z0-9_.-]*) ;;
+  *) echo '{"wakeAgent": true, "data": {"status": "bad-config", "hint": "LEDGER_REPO must look like owner/repo"}}'; exit 0 ;;
+esac
+case "$BRANCH" in
+  -*) echo '{"wakeAgent": true, "data": {"status": "bad-config", "hint": "LEDGER_BRANCH must not start with -"}}'; exit 0 ;;
+esac
+case "$SUBDIR" in
+  /*|*..*|-*) echo '{"wakeAgent": true, "data": {"status": "bad-config", "hint": "LEDGER_PATH must be a plain relative subdirectory name: no leading / or -, no .."}}'; exit 0 ;;
+esac
+
 # The curated list. Numeric, unrebuildable series only — see the note above.
 # The traffic files are one per configured GA4 property, so they are matched by
 # glob rather than named: adding a property publishes it without a code change.
@@ -76,14 +93,17 @@ SUBDIR="${LEDGER_PATH:-agent-metrics}"
 # whole script, which for a task gate means exiting with NO output at all —
 # a silent failure, the one outcome worse than a reported one. The glob needs
 # the same guard for the no-match case, where it stays literal.
-PRESENT=""
+# A real array, not a space-joined string: a filename containing a space
+# (e.g. a GA4 label that slipped past its own sanitization) must never
+# word-split into two bogus `cp` arguments below.
+PRESENT=()
 for f in metrics-history.json social-metrics-history.jsonl; do
-  if [ -f "$DATA/$f" ]; then PRESENT="$PRESENT $f"; fi
+  if [ -f "$DATA/$f" ]; then PRESENT+=("$f"); fi
 done
 for f in "$DATA"/traffic-history-*.json; do
-  if [ -f "$f" ]; then PRESENT="$PRESENT $(basename "$f")"; fi
+  if [ -f "$f" ]; then PRESENT+=("$(basename "$f")"); fi
 done
-if [ -z "${PRESENT# }" ]; then
+if [ "${#PRESENT[@]}" -eq 0 ]; then
   echo '{"wakeAgent": false, "data": {"status": "nothing-to-publish", "hint": "no history files exist yet - dev-metrics-report, social-metrics-snapshot and weekly-analytics-report each build their own on their first run"}}'
   exit 0
 fi
@@ -132,7 +152,7 @@ else
 fi
 
 mkdir -p "$WORK/$SUBDIR"
-for f in $PRESENT; do
+for f in "${PRESENT[@]}"; do
   cp "$DATA/$f" "$WORK/$SUBDIR/$f"
 done
 
@@ -157,7 +177,11 @@ if [ -n "$REMOTE_SHA" ] && [ "$REMOTE_SHA" = "$LOCAL_SHA" ]; then
   exit 0
 fi
 # No --force, ever: if someone else moved the branch, this must fail and be
-# reported, never overwrite a history whose whole value is being intact.
-git -C "$WORK" push --quiet origin "$BRANCH" >/dev/null 2>&1 \
+# reported, never overwrite a history whose whole value is being intact. The
+# explicit refs/heads:refs/heads refspec (not a bare branch name) means this
+# can never be misread as a force-push shorthand regardless of what BRANCH
+# contains — belt-and-suspenders on top of the leading-`-` rejection above.
+git -C "$WORK" push --quiet origin "refs/heads/$BRANCH:refs/heads/$BRANCH" >/dev/null 2>&1 \
   || fail push-failed "committed locally but could not push - most likely the vault github.com (git) credential lacks write access to the ledger repo, or the branch moved upstream since the last run. The commit is kept and retried next run"
-printf '{"wakeAgent": false, "data": {"status": "published", "branch": "%s", "files": "%s"}}\n' "$BRANCH" "${PRESENT# }"
+jq -nc --arg branch "$BRANCH" --arg files "$(IFS=,; echo "${PRESENT[*]}")" \
+  '{wakeAgent: false, data: {status: "published", branch: $branch, files: $files}}'
