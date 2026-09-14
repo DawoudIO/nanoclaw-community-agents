@@ -110,29 +110,18 @@ from a name — a display name and a URL slug are often different strings
 rather than erring loudly. Only ask the owner for a
 platform's URL if the README doesn't have one and they've said that
 platform matters. **Only ask about the repos needed for this template**
-(docs, site, marketing, wiki) — don't enumerate all repos in the org;
-that's noise. Cross-check against what you're already wired to (channels
-look support-shaped vs developer-shaped vs team-lead-shaped).
+(docs, site, marketing) — don't enumerate all repos in the org; that's
+noise. Cross-check against what you're already wired to (channels look
+support-shaped vs developer-shaped vs team-lead-shaped). **This template
+doesn't track a wiki repo** — a GitHub wiki has no issues/PRs mechanism at
+all, so there's nothing for any task here to act on even if one exists;
+don't ask about it or propose auto-detecting it.
 
-**Auto-detect the wiki repo — via `has_wiki`, never by probing `.wiki` as
-its own repo.** `GET /repos/{owner}/{repo}` (the same call you already made
-for the README) returns a `has_wiki` boolean on the main repo — check that
-field. **Do not** call `GET /repos/{owner}/{repo}.wiki` or otherwise treat
-`{repo}.wiki` as an independently addressable API resource — GitHub's wiki
-storage isn't exposed that way over the REST API, so that check reports
-"not found" even when the wiki genuinely exists and has content. This was a
-real, repeatable false negative on a real install, not a one-off glitch.
-If `has_wiki` is true, propose `{owner}/{repo}.wiki` as the wiki repo and
-confirm with the owner; if false, ask explicitly rather than assuming
-absence. This avoids an extra question in the common case without risking
-a wrong one.
-
-**For docs, site, marketing, and wiki, ask specifically whether each is the
+**For docs, site, and marketing, ask specifically whether each is the
 same repo as product or a different one** — don't assume separate repos.
 Common real shapes: everything in one monorepo (docs and site are just
-subdirectories); a wiki that's actually a plain `docs/` folder instead of
-GitHub's wiki feature; one shared repo for both site and marketing content.
-For anything that's a subdirectory rather than the repo root, note the path
+subdirectories); one shared repo for both site and marketing content. For
+anything that's a subdirectory rather than the repo root, note the path
 alongside the repo (`owner/repo` + `docs/`) — mirroring and reading both work
 the same either way; it only changes where within the checkout to look. One
 confirmation of a good guess beats an interrogation, but don't guess this
@@ -406,9 +395,24 @@ one per line, quoted:
 
 | Key | From | Read by |
 |---|---|---|
-| `COMMUNITY_REPOS` | repo map (space-separated) | `daily-github-triage`, `release-announcement-watch`, own setup-check |
+| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `daily-github-triage`, `release-announcement-watch`, own setup-check |
 | `RELEASE_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `release-announcement-watch` — ask if the owner wants release announcements scoped to just the main product repo rather than the whole map (docs/content repos rarely cut releases, and without this they wake this gate every 3h for nothing). Falls back to `COMMUNITY_REPOS` if unset |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
+
+**`COMMUNITY_REPOS` itself should be narrower than "the full repo map,"
+same principle as `RELEASE_WATCH_REPOS`/`SECURITY_WATCH_REPOS` below — just
+applied one level up.** This key drives *your own* first-response/triage
+polling (every 10 minutes for `github-first-response`), so include only
+repos that actually receive **external, community-filed** issues/PRs.
+Concretely:
+- **Think twice about a purely internal repo** (e.g. a marketing-drafts
+  repo that only your own agents open PRs into) — if external contributors
+  never file issues there, first-responding to it isn't "community"
+  first-response, it's replying to your own team's work.
+- Every extra repo in this list is a real API call every poll cycle — more
+  repos means more surface for a transient failure (a 502, a rate limit) to
+  degrade the whole cycle's `partial-fetch-failure` status, not just extra
+  noise.
 
 **`plugin-data/community-manager/project-config.md`** — prose, with a dated
 provenance line, and these four written as `key: value` at line start
@@ -728,7 +732,7 @@ unrelayed key here is the largest single source of "nothing is happening":
 | Key | Value | Why it matters |
 |---|---|---|
 | `COMMUNITY_REPOS` | repos it reads | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit` |
-| `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing/wiki, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged. Optional: falls back to `COMMUNITY_REPOS`, so relay it only to mirror *more* than the triaged set |
+| `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged. Optional: falls back to `COMMUNITY_REPOS`, so relay it only to mirror *more* than the triaged set |
 | `CONTENT_REPO` | content repo | `draft-cleanup`. Note this key goes to **both** local and marketing, for different tasks |
 | `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report`. If you have multiple GA4 properties, configure one ID here and the same task reports on all properties — don't create separate tasks per property. |
 | `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |

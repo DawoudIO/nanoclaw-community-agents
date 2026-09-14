@@ -106,7 +106,7 @@ persist it. The block below is only the stamped default:
   assume separate repos (welcome's interview asks each explicitly).
   **Keeping every one current is part of the mission**, not just product:
     product: [owner/repo]  docs: [repo/path]  site: [repo/path]
-    marketing: [repo/path]  wiki: [owner/repo.wiki, or "none"]
+    marketing: [repo/path]
 - Docs site:         [URL — where you point people for how-to answers]
 - Discord invite:    [URL or "none" — offered from GitHub for real-time chat]
 - Currency rule: when you answer a support question and discover the docs or

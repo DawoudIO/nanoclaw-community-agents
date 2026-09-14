@@ -25,7 +25,7 @@ threshold.** Card embeds are the only acceptable form for a link, full stop.
   card(s), in that order. Some platforms only let you attach a rich card in a
   follow-up turn once the channel context is established from the first post.
 - **Summarizing several reference links at once** (e.g. a repo-map
-  confirmation listing product/docs/site/wiki/social URLs, or several GHSA
+  confirmation listing product/docs/site/social URLs, or several GHSA
   advisory links in one triage summary) — **it is fine to send many cards in
   a single message.** One card per link, stacked together, beats any amount
   of plain text: every link stays a real click target, and there is no

@@ -107,7 +107,7 @@ as `/workspace/agent/plugin-data/community-secretary/config.env`):
 ```bash
 # groups/<folder>/plugin-data/community-secretary/config.env
 COMMUNITY_REPOS="owner/repo1 owner/repo2"   # dev metrics, hygiene, GFI health
-MIRROR_REPOS="owner/repo1 owner/repo1.wiki" # repo-mirror-sync; the FULL repo
+MIRROR_REPOS="owner/repo1 owner/docs-repo"  # repo-mirror-sync; the FULL repo
                                             # map, not just triaged repos.
                                             # Falls back to COMMUNITY_REPOS.
 CONTENT_REPO="owner/marketing"              # optional — draft-cleanup

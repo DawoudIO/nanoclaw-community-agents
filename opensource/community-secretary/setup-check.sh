@@ -25,7 +25,7 @@ add() { CHECKS=$(printf '%s' "$CHECKS" | jq -c --arg n "$1" --arg s "$2" --arg h
 # when it is unset. Reporting it "missing" flipped the whole check to
 # "incomplete" on a correctly-configured install, which trains the owner to
 # ignore this report — the opposite of what it is for.
-[ -n "${MIRROR_REPOS:-}" ] && add "config:MIRROR_REPOS" "ok" "" || add "config:MIRROR_REPOS" "skipped" "optional — repo-mirror-sync falls back to COMMUNITY_REPOS. Set it only to mirror MORE than the triaged repos (e.g. the wiki)"
+[ -n "${MIRROR_REPOS:-}" ] && add "config:MIRROR_REPOS" "ok" "" || add "config:MIRROR_REPOS" "skipped" "optional — repo-mirror-sync falls back to COMMUNITY_REPOS. Set it only to mirror MORE than the triaged repos (e.g. a docs or site repo that isn't triaged for issues)"
 [ -n "${CONTENT_REPO:-}" ] && add "config:CONTENT_REPO" "ok" "" || add "config:CONTENT_REPO" "skipped" "optional — draft-cleanup stays paused"
 [ -n "${GA4_PROPERTIES:-}${GA4_PROPERTY_ID:-}" ] && add "config:GA4_PROPERTIES" "ok" "" || add "config:GA4_PROPERTIES" "skipped" "optional — weekly-analytics-report stays paused. GA4_PROPERTIES takes one or more properties (id[,label:id...]); GA4_PROPERTY_ID (single bare id) still works too"
 # No PostHog check: posthog-weekly-review moved to the Reviewer
