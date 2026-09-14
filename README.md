@@ -8,11 +8,18 @@ Discord.
 | Template | Role | Model | Public voice |
 |---|---|---|---|
 | [`opensource/community-manager`](opensource/community-manager/) | Lead — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes, the only full one** |
-| [`opensource/community-coding`](opensource/community-coding/) | Reviewer — issue/PR triage, security advisories, docs currency, repo and contributor health; holds the line when the lead is rate-limited | Claude Haiku | Holding replies only |
-| [`opensource/community-marketing`](opensource/community-marketing/) | Measurement — follower counts and web traffic. Writes no content. **Optional, not stamped by default** | Claude Haiku | No |
+| [`opensource/community-coding`](opensource/community-coding/) | Reviewer — issue/PR triage, security advisories, docs currency, repo and contributor health, and every number the project tracks (dev metrics, traffic, followers); holds the line when the lead is rate-limited | Claude Haiku | Holding replies only |
 
-The lead works standalone and stamps the other two itself, during setup,
-once it knows which jobs you want. Each template's own README has the detail.
+The lead works standalone and stamps the Reviewer itself, during setup, once
+it knows which jobs you want. Each template's own README has the detail.
+
+**Two agents, not four.** This set started with four: a lead, a Reviewer, a
+"narration" tier, and a marketing agent that drafted content. The narration
+tier was retired (its work belonged with whichever agent already owned the
+domain), and marketing was folded into the Reviewer once content creation
+moved outside the system, which left it a measurement agent with no distinct
+posture of its own. Older notes and decision entries that mention a
+"secretary", "local ops", or "marketing" agent are describing that history.
 
 ## Install
 
@@ -49,10 +56,10 @@ Read next, in this order:
   judge. `bash scripts/gen-task-table.sh` prints the current task table,
   generated from the task files so it can't drift from what ships.
 - **One public voice, enforced structurally, not by instruction.** The
-  Marketing agent has no channel wiring at all — it can't post publicly even
-  if told to. The Reviewer's `unanswered-watch` is the one exception: the
-  support channels only, under the lead's own bot identity, and a
-  template-only acknowledgment it's forbidden to write freely — a receipt,
+  Reviewer's only channel wiring is the one `unanswered-watch` needs, and the
+  only thing it may put there is a fixed template it's forbidden to write
+  freely: the support channels only, under the lead's own bot identity — a
+  receipt,
   never a resolution.
 - **Agents never hold keys.** Every credential lives in the OneCLI vault and
   is injected at the egress proxy, outside the containers. An agent that

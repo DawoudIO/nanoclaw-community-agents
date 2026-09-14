@@ -50,7 +50,7 @@ not to treat it as an incident.
    Report that to your lead instead; a week of nulls caused by config is a
    bug, not data.
 3. Append one JSON line to
-   `plugin-data/community-marketing/social-metrics-history.jsonl`:
+   `plugin-data/community-coding/social-metrics-history.jsonl`:
    `{"date": "<today>", "<platform>": <count|null>, ...}` — append-only.
    **This file is the series.** It is not a working copy of something kept
    elsewhere: it is the only record, and `ledger-publish` commits it to the

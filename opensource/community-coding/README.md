@@ -1,23 +1,25 @@
 # Community Coding Agent Template
 
-The **Reviewer** of the set: a headless GitHub-ops sub-agent, read-only
-everywhere except two narrow paths — it drafts security patch PRs, and it
-publishes a metrics history branch — running on **Claude Haiku**. It triages
-issues and PRs, assesses security advisories, tracks repo and contributor
-health, and hands all of it to a lead support agent rather than posting
-publicly.
+The **Reviewer**: the one headless sub-agent in this set, read-only everywhere
+except two narrow paths — it drafts security patch PRs, and it publishes a
+metrics history branch — running on **Claude Haiku**. It triages issues and
+PRs, assesses security advisories, tracks repo and contributor health, reads
+the project's traffic and follower numbers, and hands all of it to a lead
+support agent rather than posting publicly.
 
-It carries the bulk of this set's recurring GitHub work. That concentration is
-deliberate: when the fourth "narration" agent was retired, its tasks went to
-whichever agent already owned the surrounding domain, and for anything shaped
-like an issue, a PR, or a repo, that is this one. Co-location also matters
-mechanically — `contributor-nudge` reads a ledger `dev-metrics-report` writes,
-and since no agent can read another agent's plugin-data, the pair only works
-inside one container.
+It carries every recurring job in this set that isn't talking to people. That
+concentration is deliberate and arrived in two steps: a "narration" tier was
+retired first and its tasks went to whichever agent already owned the
+surrounding domain, then the marketing agent was folded in once content
+creation moved outside the system, leaving it a measurement agent with no
+distinct posture of its own. Co-location also matters mechanically —
+`contributor-nudge` reads a ledger `dev-metrics-report` writes, and since no
+agent can read another agent's plugin-data, that pair only works inside one
+container.
 
-Pairs with **`opensource/community-manager`** (the lead); its sibling is
-**`opensource/community-marketing`** (measurement). It works standalone, but
-the single-public-voice design assumes a lead agent exists to relay through.
+Pairs with **`opensource/community-manager`** (the lead) and has no siblings.
+It works standalone, but the single-public-voice design assumes a lead agent
+exists to relay through.
 
 ## Why headless
 
@@ -49,7 +51,9 @@ community-coding/
 │       ├── ready-to-merge.md                     # approved-and-open PRs, 2×/day
 │       ├── good-first-issue-health.md            # onboarding-pipeline supply
 │       ├── repo-hygiene-audit.md                 # CONTRIBUTING/CoC/templates present?
-│       ├── ledger-publish.md                     # commits metrics-history to the marketing repo
+│       ├── social-metrics-snapshot.md            # follower counts — the unrecoverable series
+│       ├── weekly-analytics-report.md            # GA4 traffic, real windows and deltas
+│       ├── ledger-publish.md                     # commits all three history series to a branch
 │       └── conversation-archive-prune.md         # pure housekeeping, never wakes the model
 ├── skills/
 │   └── coding-ops/
@@ -113,10 +117,13 @@ SECURITY_WATCH_REPOS="owner/repo1"               # optional — narrows
                                                  # (falls back to it if unset)
 DOCS_REPO="owner/docs"                           # optional — docs-currency-watch
                                                  # stays silent forever if unset
-MARKETING_REPO="owner/marketing"                 # ledger-publish: where the metrics
-                                                 # history branch is committed.
-                                                 # Same repo the marketing agent
-                                                 # publishes to; see below.
+LEDGER_REPO="owner/marketing"                    # ledger-publish: where the history
+                                                 # branch is committed. Normally the
+                                                 # marketing repo, never the product
+                                                 # repo — see below
+GA4_PROPERTIES="123456789"                       # optional — weekly-analytics-report.
+                                                 # One or more: "id" or
+                                                 # "label:id,label:id"
 LEDGER_BRANCH="agent-metrics"                    # optional — default shown. An
                                                  # orphan branch; the repo's
                                                  # default branch is never touched
@@ -132,11 +139,13 @@ defaulting: too long and the silence it exists to prevent happens anyway; too
 short and it interrupts a lead that was about to answer. 20 minutes is the
 shipped default.
 
-**`MARKETING_REPO` has to be set in two places** — here and in the marketing
-agent's own config.env. Two agents cannot share a config file (each reads only
-its own plugin-data), so the same value is written twice. Both publish to the
-same branch under different subdirectories, so one place holds the whole
-project's number history.
+> **`LEDGER_REPO` is the one worth not skipping.** Without it
+> `ledger-publish` can't run, and the three history series live only inside
+> this container. This system is meant to be rebuilt from the templates every
+> few months and nothing reimports container state — so leaving it unset means
+> the trend lines restart at zero on every rebuild, permanently. Repo metrics
+> and GA4 traffic can be partly reconstructed; **follower counts cannot be
+> re-read from anywhere, ever.**
 
 **`posthog-weekly-review` is removed for now** — it never got working end to
 end. If it comes back, it belongs here (product-telemetry anomalies need a
@@ -182,15 +191,26 @@ this agent drafts the bump instead. Either is fine; having both produces two PRs
 per CVE, which is why onboarding asks. Nothing here can turn the setting on —
 that needs Administration write, which no agent in this set holds.
 
-This agent needs **no GA4 access** — web traffic belongs to
-`opensource/community-marketing`, along with its Viewer-scoped credential. (It
-would also need a PostHog key if `posthog-weekly-review` comes back — removed
-for now, see above.)
+This agent also holds the **GA4** credential now: OAuth on
+`analyticsdata.googleapis.com`, scoped **Viewer** on the property.
+`weekly-analytics-report` only ever calls `runReport` — a POST, but a read:
+it's a query verb that takes a JSON body. Do not enable
+`analyticsadmin.googleapis.com`; nothing here writes to GA4. (It would also
+need a PostHog key if `posthog-weekly-review` comes back — removed for now,
+see above.)
 
-It does need the **`github.com` (git) host** wired in addition to
-`api.github.com`, with push access to the marketing repo, because
+It needs the **`github.com` (git) host** wired in addition to
+`api.github.com`, with push access to the ledger repo, because
 `ledger-publish` pushes a branch. Those are two separate vault entry classes:
-wiring only the REST host leaves the publish failing with `push-failed`.
+wiring only the REST host leaves the publish failing with `push-failed` while
+every other GitHub call works.
+
+**Social platforms need no credential at all** — the follower counts come off
+public profile pages. What they do need is sandbox allowlist entries for those
+hosts (`x.com`, `www.linkedin.com`, …) and a real page-reading capability in
+this container (Claude's built-in web fetch, or the `agent-browser` skill).
+There is no posting capability to put an approval gate in front of, because
+there is no posting.
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at
@@ -219,13 +239,17 @@ floor is deliberate — on repos this size a 1–2 point swing is sampling noise
 and waking a model to narrate noise is how a useful signal becomes something
 the owner learns to skip. A steady quarter costs one wake.
 
-**Every task here is gated, including the ones that arrived from the retired
-fourth agent** — `dev-metrics-report` wakes only on real movement (or weekly,
-so the channel never looks dead), `ready-to-merge` only when the approved set
-changes, `repo-hygiene-audit` only when a community health file is actually
-missing, `good-first-issue-health` and `contributor-nudge` only when there is
-something to report. `ledger-publish` and `conversation-archive-prune` never
-wake the model on success at all.
+**Nearly every task here is gated** — `dev-metrics-report` wakes only on real
+movement (or weekly, so the channel never looks dead), `ready-to-merge` only
+when the approved set changes, `repo-hygiene-audit` only when a community
+health file is actually missing, `good-first-issue-health` and
+`contributor-nudge` only when there is something to report. `ledger-publish`
+and `conversation-archive-prune` never wake the model on success at all.
+
+**The one ungated task is `social-metrics-snapshot`**, and it cannot be gated:
+reading a follower count off a profile page is the agent's own work, so it
+wakes every time it runs, by design. It and the lead's `inbox-check` are the
+only two ungated wakes left in the system.
 
 `unanswered-watch` is the one that runs most often — every ten minutes — and
 it is also the cheapest possible check: no network, no credentials, just a

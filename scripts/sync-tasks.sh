@@ -21,19 +21,17 @@ group_dir() {
   case "$1" in
     manager)     echo "opensource/community-manager";;
     engineering) echo "opensource/community-coding";;
-    marketing)   echo "opensource/community-marketing";;
     *)           echo "";;
   esac
 }
 
 # Reverse of group_dir: template directory name -> scripts/tasks/<group> key.
-# All three templates share the opensource/ category, so the category dir no
+# Both templates share the opensource/ category, so the category dir no
 # longer identifies the group — the template name does.
 group_key() {
   case "$1" in
     community-manager)   echo "manager";;
     community-coding)    echo "engineering";;
-    community-marketing) echo "marketing";;
     *)                   echo "";;
   esac
 }

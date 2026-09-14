@@ -21,7 +21,6 @@ group_label() {
   case "$1" in
     manager)     echo "Lead|Claude Sonnet";;
     engineering) echo "Reviewer|Claude Haiku";;
-    marketing)   echo "Marketing|Claude";;
     *)           echo "?|?";;
   esac
 }
@@ -29,7 +28,6 @@ group_dir() {
   case "$1" in
     manager)     echo "opensource/community-manager";;
     engineering) echo "opensource/community-coding";;
-    marketing)   echo "opensource/community-marketing";;
   esac
 }
 
@@ -93,7 +91,7 @@ when() {
 
 TOTAL=0; GATED=0; UNGATED=""
 ROWS=""
-for group in manager engineering marketing; do
+for group in manager engineering; do
   gdir=$(group_dir "$group")
   label=$(group_label "$group"); agent="${label%%|*}"
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
@@ -112,7 +110,7 @@ for group in manager engineering marketing; do
 done
 
 counts() {
-  printf '%s tasks across 3 agents; %s script-gated' "$TOTAL" "$GATED"
+  printf '%s tasks across 2 agents; %s script-gated' "$TOTAL" "$GATED"
   [ -n "$UNGATED" ] && printf ' (ungated:%s)' "$UNGATED"
   printf '\n'
 }
@@ -132,7 +130,7 @@ case "$MODE" in
     #            permanent data loss, so these are what backup exists for.
     echo "| Task | Agent | Writes | Class |"
     echo "|------|-------|--------|-------|"
-    for group in manager engineering marketing; do
+    for group in manager engineering; do
       gdir=$(group_dir "$group")
       label=$(group_label "$group"); agent="${label%%|*}"
       for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
@@ -170,12 +168,12 @@ case "$MODE" in
     BAD=0
     for f in "$ROOT"/README.md "$ROOT"/docs/OPERATIONS.md "$ROOT"/docs/INSTALL.md; do
       [ -f "$f" ] || continue
-      # Stale agent-count language. The set is three agents since the Local/
-      # secretary tier was retired; "the other two agents" is CORRECT (one is
-      # being excluded), so only an unqualified "four agents"/"all four
-      # templates" is drift.
-      if grep -niE '(^|[^a-z])(all )?four (agents|templates)' "$f" >/dev/null; then
-        echo "DRIFT $f: says 'four agents/templates' but there are 3"; BAD=1
+      # Stale agent-count language. The set is two agents: the Local/secretary
+      # tier was retired and Marketing was folded into the Reviewer. "the other
+      # agent" is fine; an unqualified "three agents"/"all four templates" is
+      # drift.
+      if grep -niE '(^|[^a-z])(all )?(three|four) (agents|templates)' "$f" >/dev/null; then
+        echo "DRIFT $f: says 'three/four agents/templates' but there are 2"; BAD=1
       fi
       # stale task-count language: any "N of M tasks" or "all M tasks" where M != TOTAL
       while IFS= read -r m; do

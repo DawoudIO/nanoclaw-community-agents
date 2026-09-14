@@ -5,16 +5,27 @@ set -euo pipefail
 #
 # WHAT THIS IS FOR. Most of what this agent writes is cache: a cursor, a
 # last-seen snapshot, a dedup list. Losing any of it costs one duplicate
-# report and it rebuilds itself on the next run. ONE file is different.
+# report and it rebuilds itself on the next run. Three files are different,
+# and the test that earns a file a place here is not "does it look like
+# history" — it is "could a script rebuild this from scratch tomorrow?"
 #
-# `metrics-history.json` is an append-only daily series, and the test that
-# earns it a place here is not "does it look like history" — it is "could a
-# script rebuild this from scratch tomorrow?" For this file the answer is
-# effectively no: GitHub's API returns the CURRENT star and fork count, and
-# reconstructing past values means paging every stargazer with the special
-# `star+json` Accept header and every issue's comment timestamps for
-# `awaiting_first_response`. Possible in principle; a multi-thousand-call
-# reconstruction in practice. Treat it as unrecoverable.
+#   social-metrics-history.jsonl  NO, never. Facebook, LinkedIn, Instagram and
+#     YouTube each expose the CURRENT follower count and nothing else. There is
+#     no API, page, or export anywhere that will say what the count was last
+#     Tuesday. A day that goes unrecorded is gone for good, at any price. This
+#     is the strongest single reason this task exists.
+#
+#   traffic-history-*.json        PARTLY. GA4 can be re-queried for any date
+#     inside the property's retention window (14 months by default, and
+#     configurable down to 2) and nothing at all from before the property
+#     existed. Recoverable short-term, permanently gone past that horizon —
+#     which is exactly what the year-over-year comparison needs.
+#
+#   metrics-history.json          EFFECTIVELY NO. GitHub returns the CURRENT
+#     star and fork count; reconstructing past values means paging every
+#     stargazer with the special `star+json` Accept header, plus every issue's
+#     comment timestamps for `awaiting_first_response`. Possible in principle,
+#     a multi-thousand-call reconstruction in practice.
 #
 # `contributor-health-history.json` deliberately does NOT ship here, and the
 # reason is worth keeping: it is a rollup over a 90-day window of PR merge and
@@ -45,31 +56,35 @@ set -euo pipefail
 DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
-# Targets the MARKETING repo, not the product repo, even though these numbers
-# are about the codebase: every published series in this system lands in the
-# same repo, so there is one place a human looks for "the history of this
-# project's numbers". The product repo also carries the heavier CI and review
-# burden, and a daily metrics commit has no business near it.
-REPO="${LEDGER_REPO:-${MARKETING_REPO:-}}"
+# Normally the project's marketing repo rather than the product repo — a daily
+# metrics commit has no business near the repo carrying the CI and review
+# burden, and one destination means one place a human looks for "the history of
+# this project's numbers".
+REPO="${LEDGER_REPO:-}"
 if [ -z "$REPO" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set LEDGER_REPO (owner/repo, defaults to MARKETING_REPO) in plugin-data/community-coding/config.env to publish the metric history; unset means the series stays container-local and is lost at the next rebuild"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set LEDGER_REPO (owner/repo - normally the marketing repo) in plugin-data/community-coding/config.env to publish the metric history; unset means every series stays container-local and is lost at the next rebuild, and the follower counts cannot be re-read from anywhere afterwards"}}'
   exit 0
 fi
 BRANCH="${LEDGER_BRANCH:-agent-metrics}"
-SUBDIR="${LEDGER_PATH:-agent-metrics}/reviewer"
+SUBDIR="${LEDGER_PATH:-agent-metrics}"
 
 # The curated list. Numeric, unrebuildable series only — see the note above.
-FILES="metrics-history.json"
-
-# Explicit if, not `[ -f x ] && VAR=y`: under `set -e` a false test ends the
+# The traffic files are one per configured GA4 property, so they are matched by
+# glob rather than named: adding a property publishes it without a code change.
+#
+# Explicit ifs, not `[ -f x ] && VAR=y`: under `set -e` a false test ends the
 # whole script, which for a task gate means exiting with NO output at all —
-# a silent failure, the one outcome worse than a reported one.
+# a silent failure, the one outcome worse than a reported one. The glob needs
+# the same guard for the no-match case, where it stays literal.
 PRESENT=""
-for f in $FILES; do
+for f in metrics-history.json social-metrics-history.jsonl; do
   if [ -f "$DATA/$f" ]; then PRESENT="$PRESENT $f"; fi
 done
-if [ -z "$PRESENT" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "nothing-to-publish", "hint": "metrics-history.json does not exist yet - dev-metrics-report builds it on its first run"}}'
+for f in "$DATA"/traffic-history-*.json; do
+  if [ -f "$f" ]; then PRESENT="$PRESENT $(basename "$f")"; fi
+done
+if [ -z "${PRESENT# }" ]; then
+  echo '{"wakeAgent": false, "data": {"status": "nothing-to-publish", "hint": "no history files exist yet - dev-metrics-report, social-metrics-snapshot and weekly-analytics-report each build their own on their first run"}}'
   exit 0
 fi
 
@@ -124,10 +139,10 @@ done
 if [ -n "$(git -C "$WORK" status --porcelain 2>/dev/null)" ]; then
   if ! git -C "$WORK" config user.email >/dev/null 2>&1; then
     git -C "$WORK" config user.email "noreply@localhost" || true
-    git -C "$WORK" config user.name "Community Reviewer Agent" || true
+    git -C "$WORK" config user.name "Community Agent" || true
   fi
   git -C "$WORK" add -A >/dev/null 2>&1 || true
-  git -C "$WORK" commit --quiet -m "chore(metrics): reviewer history for $(date -u +%Y-%m-%d)" >/dev/null 2>&1 \
+  git -C "$WORK" commit --quiet -m "chore(metrics): history for $(date -u +%Y-%m-%d)" >/dev/null 2>&1 \
     || fail commit-failed "the tree changed but the commit was refused"
 fi
 

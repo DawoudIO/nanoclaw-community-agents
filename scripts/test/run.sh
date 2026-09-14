@@ -206,23 +206,21 @@ agent_of() {
   case "$1" in
     manager)     echo "community-manager";;
     engineering) echo "community-coding";;
-    marketing)   echo "community-marketing";;
   esac
 }
 dir_of() {
   case "$1" in
     manager)     echo "opensource/community-manager";;
     engineering) echo "opensource/community-coding";;
-    marketing)   echo "opensource/community-marketing";;
   esac
 }
 CROSS=0
-for group in manager engineering marketing; do
+for group in manager engineering; do
   own=$(agent_of "$group")
   gdir=$(dir_of "$group")
   for f in "$ROOT/scripts/tasks/$group"/*.sh "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$f" ] || continue
-    for other in community-manager community-coding community-marketing; do
+    for other in community-manager community-coding; do
       [ "$other" = "$own" ] && continue
       if grep -q "plugin-data/$other" "$f" 2>/dev/null; then
         echo "  cross-agent path: ${f#"$ROOT"/} (owned by $own) references plugin-data/$other"
@@ -248,7 +246,7 @@ done
 # Lead-owned tasks are exempt: the lead HAS the owner DM, so addressing the
 # owner is correct for them.
 OWNER_DIRECT=0
-for group in engineering marketing; do
+for group in engineering; do
   gdir=$(dir_of "$group")
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$md" ] || continue
@@ -275,7 +273,7 @@ done
 # comment would produce silent 403s rather than an obvious failure — and would
 # be an argument for widening the token, which is exactly the wrong fix.
 COMMENTERS=0
-for group in engineering marketing; do
+for group in engineering; do
   gdir=$(dir_of "$group")
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$md" ] || continue
@@ -342,7 +340,7 @@ assert_gate() {
   local fixdir="$sandbox/.fixtures"
   render_fixtures "$ROOT/scripts/test/fixtures/$sname" "$fixdir"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
-           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
+           "$sandbox/plugin-data/community-coding"
   # fake curl: first URL-ish arg is matched against fixture patterns
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
@@ -372,7 +370,7 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-manager community-coding community-marketing; do
+  for g in community-manager community-coding; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   local out
@@ -415,7 +413,7 @@ assert_scenario() {
   local fixdir="$sandbox/.fixtures"
   render_fixtures "$ROOT/scripts/test/fixtures/$fixture" "$fixdir"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
-           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
+           "$sandbox/plugin-data/community-coding"
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
@@ -439,7 +437,7 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-manager community-coding community-marketing; do
+  for g in community-manager community-coding; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   [ -n "$seed" ] && ( cd "$sandbox" && SANDBOX="$sandbox" bash -c "$seed" )
@@ -469,7 +467,7 @@ MOCK
 }
 
 # Unconfigured: every config-gated script must exit clean without waking.
-for sh in "$ROOT"/scripts/tasks/engineering/*.sh "$ROOT"/scripts/tasks/marketing/*.sh \
+for sh in "$ROOT"/scripts/tasks/engineering/*.sh \
           "$ROOT"/scripts/tasks/manager/release-announcement-watch.sh; do
   assert_gate "$sh" "unconfigured" "false" ""
 done
@@ -814,7 +812,8 @@ DOCS_REPO="acme/docs"' 2
 #     otherwise report "no change since the last publish" forever while the
 #     history never actually reached the repo
 #   * a diverged remote is NEVER force-overwritten
-#   * both agents can share one branch without clobbering each other
+#   * only the curated numeric series are published, never a conversational
+#     ledger that happens to sit in the same directory
 ledger_case() {
   local sh="$1" label="$2"
   local t; t=$(mktemp -d)
@@ -834,7 +833,6 @@ ledger_case() {
   echo 'private' > "$t/data/owner-instructions.jsonl"
 
   sed -e "s#/workspace/agent/plugin-data/community-coding#$t/data#" \
-      -e "s#/workspace/agent/plugin-data/community-marketing#$t/data#" \
       -e "s#https://github.com/\$REPO.git#$t/remote.git#" "$sh" > "$t/run.sh"
 
   # unconfigured: silent
@@ -855,8 +853,14 @@ ledger_case() {
   [ "$(git -C "$t/remote.git" rev-list --count agent-metrics)" = "1" ] \
     && pass || fail "$label: metrics branch is not an orphan (it inherited the repo's history)"
 
-  # nothing conversational published
-  if git -C "$t/remote.git" ls-tree -r --name-only agent-metrics | grep -q 'owner-instructions'; then
+  # all three curated series published, and nothing conversational
+  published=$(git -C "$t/remote.git" ls-tree -r --name-only agent-metrics)
+  missing=""
+  for want in metrics-history.json social-metrics-history.jsonl traffic-history-main.json; do
+    printf '%s' "$published" | grep -q "$want" || missing="$missing $want"
+  done
+  [ -z "$missing" ] && pass || fail "$label: curated series not published:$missing"
+  if printf '%s' "$published" | grep -q 'owner-instructions'; then
     fail "$label: published a conversational ledger — only numeric series may be published"
   else
     pass
@@ -894,8 +898,7 @@ ledger_case() {
   fi
   rm -rf "$t"
 }
-ledger_case "$ROOT/scripts/tasks/engineering/ledger-publish.sh" "ledger-publish(reviewer)"
-ledger_case "$ROOT/scripts/tasks/marketing/ledger-publish.sh" "ledger-publish(marketing)"
+ledger_case "$ROOT/scripts/tasks/engineering/ledger-publish.sh" "ledger-publish"
 
 echo
 echo "passed: $PASS  failed: $FAIL"

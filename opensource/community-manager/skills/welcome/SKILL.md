@@ -140,7 +140,7 @@ pauses tasks in whichever group holds them:
 | Goal | If yes, these tasks become eligible |
 |---|---|
 | **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* · `ready-to-merge` *(Reviewer)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(marketing)* · `weekly-analytics-report` *(marketing)* · `good-first-issue-health` *(Reviewer)* · `repo-hygiene-audit` *(Reviewer)* · `dev-metrics-report`'s new-contributor section *(Reviewer)* · `contributor-nudge` *(Reviewer)* · `contributor-health-review` *(Reviewer)* |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(Reviewer)* · `weekly-analytics-report` *(Reviewer)* · `good-first-issue-health` *(Reviewer)* · `repo-hygiene-audit` *(Reviewer)* · `dev-metrics-report`'s new-contributor section *(Reviewer)* · `contributor-nudge` *(Reviewer)* · `contributor-health-review` *(Reviewer)* |
 | **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(Reviewer)* (`posthog-weekly-review` *(Reviewer)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
 | **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · `dependabot-pr-review` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
 
@@ -166,9 +166,9 @@ a goal: `unanswered-watch`, `github-first-response`, `owner-tldr`,
 The last two are pure housekeeping and cost nothing, but say what
 `ledger-publish` is *for* rather than listing it: it commits the few history
 files that cannot be rebuilt (follower counts especially — no platform will
-ever tell you last Tuesday's number) into a branch of the marketing repo, so
+ever tell you last Tuesday's number) into a branch of the project's repo, so
 they survive this system being rebuilt. Without it those series restart at
-zero on every repave, permanently. That makes `MARKETING_REPO` worth asking
+zero on every repave, permanently. That makes `LEDGER_REPO` worth asking
 for even from an owner who declines every growth goal.
 
 `github-first-response` is the GitHub half of responsiveness. Discord you
@@ -233,18 +233,16 @@ Two things to get right here:
   both growth and detection; `good-first-issue-health` under growth but read
   by security-minded maintainers too). Eligible = **any** of its goals was
   chosen, never all of them.
-- **Declining a goal never orphans another goal's task.** The Reviewer is the
-  one this matters for, because its tasks span every goal: `good-first-issue-health`
-  and `contributor-nudge` serve growth, `dev-metrics-report` serves *detection*,
-  `security-advisory-sweep` serves security, `ready-to-merge` serves support. So
-  if security is yes and growth is no, the Reviewer is **not** dormant — relay
-  it only the config those active tasks need, and say which ones are live.
-  Marketing is the simpler case: both its reporting tasks serve growth only, so
-  declining growth leaves only its housekeeping running (and it is not stamped
-  by default anyway) — but if it is stamped, still relay `MARKETING_REPO`,
-  because the Reviewer publishes its own history there too.
-  Dormancy (step 6) applies only when *every* goal that agent's tasks serve
-  was declined.
+- **Declining a goal never orphans another goal's task.** This matters for the
+  Reviewer specifically, because its tasks span every goal:
+  `good-first-issue-health`, `contributor-nudge`, `social-metrics-snapshot`
+  and `weekly-analytics-report` serve growth, `dev-metrics-report` serves
+  *detection*, `security-advisory-sweep` serves security, `ready-to-merge`
+  serves support. So if security is yes and growth is no, it is **not**
+  dormant — relay it only the config those active tasks need, and say which
+  ones are live. With one sub-agent holding everything, dormancy (step 6) now
+  only applies if *every* goal was declined, which in practice means the owner
+  wants the lead standalone.
 
 Record the answers (with audience priorities) in `project-config.md` as the
 **scoping authority**. Revisiting a goal later is one DM — and per the
@@ -333,8 +331,8 @@ asking for anything yet.
   opt-in only)
 - **Optional analytics: GA4 property id** — "not now" is a fine answer; the
   task silent-skips until configured. **If the project has several GA4
-  properties**, put them all in one `GA4_PROPERTIES` value in the marketing
-  agent's config (`id`, or `label:id,label:id`) and reuse the same
+  properties**, put them all in one `GA4_PROPERTIES` value in the Reviewer's
+  config (`id`, or `label:id,label:id`) and reuse the same
   `weekly-analytics-report` task for all of them. Do not create separate
   report tasks per property — one task per report goal is the pattern, and the
   task covers every configured property in a single run.
@@ -389,10 +387,6 @@ asking for anything yet.
     the shared window on it — since the lead reviews everything anyway, this
     is a quality/cost trade the owner should make consciously, not one we
     make for them.
-  - **Marketing** (if stamped) — content drafts; voice quality is the whole
-    job. Default **Sonnet**. No cheaper alternative offered — a weak model
-    here produces content nobody wants published.
-
   Never an Opus-class model on a scheduled task. Remind the owner: cost comes
   from wakes, not agents existing — a paused task burns nothing, so tune
   budget by activating fewer tasks instead of deleting agents or downgrading
@@ -462,10 +456,10 @@ Tell them what's about to happen and what each agent does:
 ```
 Understood. Now I'm going to set up the system based on your config:
 
-1. **Stamp sub-agents** (the helpers that run alongside me):
-   - Local Agent: runs metrics, mirrors, backups, holding acknowledgments
-   - Engineering Agent: triages issues/PRs, reviews security advisories
-   - Marketing Agent: drafts content based on releases and strategy
+1. **Stamp the Reviewer** (the helper that runs alongside me): triages
+   issues/PRs, reviews security advisories, tracks repo and contributor
+   health, reads the project's traffic and follower numbers, and posts a
+   holding acknowledgment if I ever go quiet
 
 2. **Wire Discord channels** to their proper tiers:
    - Support (auto-reply): [list channels]
@@ -626,11 +620,11 @@ one real approval card per stamp, plus one more per `jq` install**, not one
 card total. Don't imply otherwise:
 
 ```
-I'm about to stamp the two sub-agents based on your goals:
+I'm about to stamp the Reviewer based on your goals:
 
 - Engineering Agent (the Reviewer): issue/PR triage, security assessments,
-  repo and contributor health, and the holding acknowledgment when I go quiet
-- Marketing Agent: follower counts and web traffic (it writes no content)
+  repo and contributor health, the project's traffic and follower numbers,
+  and the holding acknowledgment when I go quiet
 
 Approve all? [yes/no] — heads up: this surfaces one approval card per stamp
 (and one more for each agent that needs `jq` installed), not a single combined
@@ -644,10 +638,9 @@ Stamping sub-agents now (this takes about 30–60 seconds, no further messages
 until done) — you'll see a few separate approval cards land as it goes.
 ```
 
-Then stamp both in sequence:
-1. Stamp engineering agent (the Reviewer) → install `jq`
-2. Stamp marketing agent → install `jq`
-3. Relay config to each agent
+Then:
+1. Stamp the engineering agent (the Reviewer) → install `jq`
+2. Relay its config
 
 Report when complete.
 
@@ -686,7 +679,6 @@ forms:
 # mutually exclusive and the platform rejects the whole call ("--folder applies
 # only to bare creates"). A templated group's folder derives from --name.
 ncl groups create --template opensource/community-coding --name "<agent name>"
-ncl groups create --template opensource/community-marketing --name "<agent name>"
 
 # Install jq on a stamped sub-agent. APT, never npm.
 ncl groups config add-package --id <sub-agent-id> --apt jq
@@ -700,18 +692,17 @@ right form, run `ncl <resource> --help` first: help is ungated and free, and
 one help call is cheaper than one wasted approval.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
-1. Use the template from the shared catalog (`opensource/community-coding`, `opensource/community-marketing`)
-2. **Both sub-agents stamp on the cloud default (Haiku-4.5)** — there is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
-3. Relay the config keys listed below to each agent
-4. Report the stamping result and each agent's status to the owner
+1. Use the template from the shared catalog (`opensource/community-coding`)
+2. **It stamps on the cloud default (Haiku-4.5)** — there is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
+3. Relay the config keys listed below
+4. Report the stamping result and the agent's status to the owner
 
-**Wiring the destination pairs: hand the owner one block, don't issue four
-gated calls.** Relaying config needs a `parent` destination on each sub-agent
-pointing at you, and a named one on you pointing back — two per sub-agent, so
-four for both sub-agents. Each `destinations add` you issue yourself is its
-own approval card. Run host-side by the owner they cost **zero** cards, and
-the operator sees the whole agent topology in one place instead of
-approving four fragments. Ask once, with the block ready to paste:
+**Wiring the destination pair: hand the owner one block, don't issue the
+gated calls yourself.** Relaying config needs a `parent` destination on the
+sub-agent pointing at you, and a named one on you pointing back. Each
+`destinations add` you issue yourself is its own approval card; run host-side
+by the owner they cost **zero** cards, and the operator sees the whole agent
+topology in one place. Ask once, with the block ready to paste:
 
 ```
 Stamped. To let me talk to them, paste this from your nanoclaw install
@@ -719,21 +710,18 @@ directory — one block, no approval cards:
 
   ./bin/ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
   ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
-  ./bin/ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
-  ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name marketing-agent --target-type agent --target-id <marketing-id>
 
-(Skip the pair for any sub-agent you didn't stamp.) Tell me when it's done
-and I'll relay each one's config.
+Tell me when it's done and I'll relay its config.
 ```
 
 **A destination's `--local-name` must not collide with one you already have.**
 Your own group already holds a destination per wired channel, so the obvious
-name for a sub-agent is often taken — `marketing` collides with a `#marketing`
-channel, and the add fails. Hence `marketing-agent` above. If a name collides,
-suffix `-agent` rather than reusing or renaming the channel destination.
+short name for a sub-agent can already be taken by a channel, and the add
+fails. If a name collides, suffix `-agent` rather than reusing or renaming the
+channel destination.
 
 Substitute the real group ids from each stamp response before sending. If the
-owner would rather you just did it, issue them yourself and warn that it's four
+owner would rather you just did it, issue them yourself and warn that it's two
 separate cards. A missing pair doesn't error — the sub-agent's reports simply
 reach nobody — so confirm the block actually ran before relaying.
 
@@ -750,7 +738,8 @@ key here is the largest single source of "nothing is happening":
 |---|---|---|
 | `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch`, `dev-metrics-report`, `ready-to-merge`, `good-first-issue-health`, `repo-hygiene-audit`, `contributor-nudge` — all go quiet without it |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a lead that was about to answer |
-| `MARKETING_REPO` | the marketing repo | `ledger-publish` commits `metrics-history.json` to a branch there. Unset means that series is lost at the next rebuild, and it is not cheaply rebuildable |
+| `LEDGER_REPO` | normally the project's marketing repo, never the product repo | `ledger-publish` commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
+| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `weekly-analytics-report`. One task run covers every property — never create separate tasks per property |
 | `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
 | `DOCS_REPO` | the docs repo, if the project has one | `docs-currency-watch` stays silent forever without it rather than inventing a target |
 | `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
@@ -766,23 +755,11 @@ wiring must cover the channels the community actually posts in (§5c).
 (`POSTHOG_PROJECT_ID`/`POSTHOG_HOST` would relay here too if
 `posthog-weekly-review` comes back — removed for now, see SKILLS-ADOPTION.md.)
 
-**marketing** → `plugin-data/community-marketing/config.env`:
-
-| Key | Value | Why it matters |
-|---|---|---|
-| `MARKETING_REPO` | the marketing repo | `ledger-publish` commits the follower and traffic series to a branch there. The same value goes to the Reviewer too — two agents cannot share a config file |
-| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `weekly-analytics-report`. One task run covers every property — never create separate tasks per property |
-| `LEDGER_BRANCH` | optional; default `agent-metrics` | as above; if you relay a custom value, relay the *same* one to both agents or the history splits across two branches |
-| `GITHUB_BOT_USERNAME` | the bot account | same dead-check problem |
-
-Marketing is **not stamped at install by default**, so if it was never
-stamped, skip this relay entirely rather than waiting on a confirmation that
-cannot arrive.
-
 Plus in prose: the social profile URLs (read-only — it posts nowhere), and
 `target_audience` verbatim from step 4 so its reports say whether the project
 is reaching the people the owner named. **Do not relay content/brand/tone
-config** — it writes nothing, so there is nothing for those to shape.
+config** — nothing in this system writes content, so there is nothing for
+those to shape.
 
 A sub-agent whose goals were all declined in step 3 gets a dormancy note
 instead of config: "your goals aren't active for this project — stay idle,
@@ -846,7 +823,7 @@ keys go into the OneCLI vault dashboard only:
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
 | GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
-| Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to the marketing repo, for both sub-agents. Wiring only the REST host leaves the publish failing with `push-failed` |
+| Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Reviewer. Wiring only the REST host leaves the publish failing with `push-failed` while every other GitHub call works |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
 | Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the lead's own group** — `inbox-check` is the lead's task. A platform config change, not something you can do from in here; point the owner at the template README |
@@ -903,10 +880,9 @@ never published — they contain people's words and the owner's private
 direction, which don't belong in a repo branch.
 
 To set it up: the owner confirms which repo to use (normally the marketing
-repo) and creates the `github.com` (git) vault entry with push access to it.
-Then relay `MARKETING_REPO` to **both** sub-agents, run each one's
-`ledger-publish` once (`ncl tasks run`), and report the branch landing or the
-exact failure. The branch (`agent-metrics` by default) is created as an orphan
+repo, never the product repo) and creates the `github.com` (git) vault entry
+with push access to it. Then relay `LEDGER_REPO`, run `ledger-publish` once
+(`ncl tasks run`), and report the branch landing or the exact failure. The branch (`agent-metrics` by default) is created as an orphan
 branch, so it carries only these files and never touches the repo's default
 branch or its CI.
 
@@ -921,8 +897,8 @@ next morning, asking "why didn't anything run overnight." **Never let
 activation depend on a single moment that's easy for the owner (or you) to
 lose track of.** Instead, activation is incremental and self-verifying:
 
-For **each agent** in this order — **you (the lead) first, then the Reviewer,
-then marketing** (skip any not stamped):
+For **each agent** in this order — **you (the lead) first, then the Reviewer**
+(skip it if not stamped):
 
 1. **State what this agent is and does**, one line, if you haven't already
    in this conversation (you likely have, back in step 6 — don't repeat
