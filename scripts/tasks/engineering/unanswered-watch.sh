@@ -8,8 +8,9 @@ set -euo pipefail
 # stops replying and the community hears silence. Response delay is the
 # strongest predictor of whether someone comes back, so silence is the worst
 # failure this system has. This gate notices unanswered support messages and
-# wakes the LOCAL agent (which has no window to run out of) to post a holding
-# acknowledgment.
+# wakes the REVIEWER to post a holding acknowledgment — a different agent
+# group with its own session, so a lead that is rate-limited, crashed, or
+# mis-wired does not take the acknowledgment down with it.
 #
 # It deliberately does NOT call any API to check the lead's health: "did a
 # human's message go unanswered" is the signal that matters, and it's true
@@ -22,12 +23,12 @@ set -euo pipefail
 # this gate possible: the router writes every inbound message into every
 # WIRED agent-group's own session regardless of whether that agent's engage
 # mode ever triggers a reply (only the wake decision differs). So as long as
-# the local agent is silently wired to every support-tier channel (see
+# this agent is silently wired to every support-tier channel (see
 # welcome/SKILL.md §5c — `--engage-mode mention` on channels nobody ever
-# @-mentions "Local Agent" in), it has its own real, passive session per
+# @-mentions the Reviewer in), it has its own real, passive session per
 # support channel, readable via `ncl sessions history` — scoped to its own
 # agent group, which it's always allowed to see.
-DATA="/workspace/agent/plugin-data/community-secretary"
+DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 # Minutes a support-tier message may go unanswered before we acknowledge it.
@@ -54,12 +55,12 @@ fi
 # channels and would only ever produce false positives here.
 SESSIONS=$(ncl sessions list --json 2>/dev/null | jq -c '[.[] | select(.status == "active") | select(.messaging_group_id != null)]' 2>/dev/null || echo '')
 if [ -z "$SESSIONS" ] || ! printf '%s' "$SESSIONS" | jq -e 'type=="array"' >/dev/null 2>&1; then
-  echo '{"wakeAgent": false, "data": {"status": "cannot-read-sessions", "hint": "ncl sessions list gave an unexpected shape - verify the command on this NanoClaw version before trusting this task, and confirm the local agent is actually wired to support channels per welcome/SKILL.md 5c"}}'
+  echo '{"wakeAgent": false, "data": {"status": "cannot-read-sessions", "hint": "ncl sessions list gave an unexpected shape - verify the command on this NanoClaw version before trusting this task, and confirm this agent is actually wired to support channels per welcome/SKILL.md 5c"}}'
   exit 0
 fi
 
 if [ "$(printf '%s' "$SESSIONS" | jq 'length')" -eq 0 ]; then
-  echo '{"wakeAgent": false, "data": {"status": "no-channel-sessions", "hint": "no active channel-backed sessions - the local agent may not be wired to any support channel yet, see welcome/SKILL.md 5c"}}'
+  echo '{"wakeAgent": false, "data": {"status": "no-channel-sessions", "hint": "no active channel-backed sessions - this agent may not be wired to any support channel yet, see welcome/SKILL.md 5c"}}'
   exit 0
 fi
 

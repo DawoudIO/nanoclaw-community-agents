@@ -1,9 +1,0 @@
-{
-  "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
-  "name": "community-secretary",
-  "version": "1.0.0",
-  "description": "Always-available agent: narrates script-computed data, keeps mirrors fresh, does the workspace backup, and holds the line — acknowledging community messages when the cloud-backed lead is rate-limited",
-  "extensions": {
-    "ai.nanoco.nanoclaw": { "agentName": "Community Secretary" }
-  }
-}

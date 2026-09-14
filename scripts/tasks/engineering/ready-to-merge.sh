@@ -8,11 +8,11 @@ set -uo pipefail
 # notice, which is why it gets its own task instead of being buried in a
 # daily metrics digest.
 #
-# Split out of dev-metrics-report. It belongs to the LOCAL agent because the
-# output is a list, not an assessment: the search itself decides what is
-# approved, so the model only has to relay it. It runs twice daily rather
-# than daily because merge-readiness is time-sensitive in a way that trend
-# counts are not.
+# Split out of dev-metrics-report because it needed its own cadence: twice
+# daily rather than daily, since merge-readiness is time-sensitive in a way
+# that trend counts are not. The GitHub search itself decides what counts as
+# approved, so the output is a list to relay, not an assessment to make —
+# judging *why* a PR is sitting belongs in contributor-health-review.
 #
 # Wake policy — the honest middle between nagging and forgetting:
 #   * the set of approved PRs CHANGED  -> wake now (something new is ready)
@@ -21,12 +21,12 @@ set -uo pipefail
 #                                         mentioned ~4 times, not 60
 #   * a fetch failed                   -> wake, because "nothing ready" and
 #                                         "cannot see" must never look alike
-DATA="/workspace/agent/plugin-data/community-secretary"
+DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-secretary/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
   exit 0
 fi
 

@@ -1,22 +1,22 @@
 ---
-schedule: "55 10 1 */3 *"
+schedule: "55 10 * * *"
 script: |
   #!/bin/bash
   set -euo pipefail
   # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy.
-  # Quarterly newcomer-path audit via GitHub's community-profile endpoint —
+  # Daily newcomer-path audit via GitHub's community-profile endpoint —
   # ONE call per repo answers all of it: CONTRIBUTING, CODE_OF_CONDUCT, issue
   # and PR templates, README, license, plus GitHub's own health percentage.
   # Research context: failed OSS projects had contributing guidelines 16% of
   # the time vs 72% for healthy ones — a well-tended good-first-issue list on
   # a repo with no CONTRIBUTING.md optimizes step two of a path with no step
   # one. Wakes only when something is missing or a fetch failed.
-  DATA="/workspace/agent/plugin-data/community-secretary"
+  DATA="/workspace/agent/plugin-data/community-coding"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPOS="${COMMUNITY_REPOS:-}"
   if [ -z "$REPOS" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-secretary/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
     exit 0
   fi
   TMP=$(mktemp -d)
@@ -50,11 +50,20 @@ script: |
     echo '{"wakeAgent": false, "data": {"status": "all-complete"}}'
   fi
 ---
-Quarterly newcomer-path audit. Only invoked when a repo is missing community
-health files or a fetch failed — a fully complete quarter stays silent.
+Daily newcomer-path audit. Only invoked when a repo is missing community
+health files or a fetch failed — a fully complete repo set stays silent, which
+on a healthy project is most days.
+
+**These absences change on the scale of months, not days.** Running daily
+catches a newly-added repo (or a file someone deleted) quickly, but it also
+means the same missing `CONTRIBUTING.md` is true again tomorrow. Say it once
+and let it rest: if you already reported a repo's missing files and nothing
+about that list has changed, don't re-report it — note only what is new since
+your last report. Re-sending an identical audit daily is how a real finding
+gets tuned out.
 
 **If a repo is in `failed_repos`**: report the symptom to your lead (`401/403`
-= token wiring, `502` = sandbox network policy) and skip it this quarter.
+= token wiring, `502` = sandbox network policy) and skip it this run.
 
 For each repo in `scriptOutput.results` with a non-empty `missing` list:
 GitHub's community profile has flagged absent files —
@@ -70,13 +79,13 @@ possible values include `code_of_conduct`, `contributing`, `issue_template`,
   and are read as the project speaking, which is not yours to do — a
   CONTRIBUTING.md is the first thing a newcomer reads. Name the absence and
   its cost; ask your lead to draft the content. (This is a deliberate change:
-  handing over a ready-to-commit draft was faster, but a file written on this
-  tier and committed under the project's name is exactly the risk the never-do
-  list exists for.)
+  handing over a ready-to-commit draft was faster, but a file committed under
+  the project's name speaks for the project, and that is the owner's voice to
+  use, not yours.)
 - For CODE_OF_CONDUCT.md, note only that one is absent and that any code of
   conduct needs a named *human* reporting contact before it means anything.
   Which document to adopt is the owner's call — don't name a specific one.
 
 Hand the audit to your lead as one short report, worst repo first. Include
-each repo's `health_percentage` so the owner sees the trend quarter over
-quarter. Don't re-litigate files that exist — this task is about absences.
+each repo's `health_percentage` so the owner can see whether it's moving.
+Don't re-litigate files that exist — this task is about absences.

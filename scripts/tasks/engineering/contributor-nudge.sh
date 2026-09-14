@@ -22,12 +22,12 @@ set -uo pipefail
 # by dev-metrics-report. Same agent, same plugin-data, so this is a legitimate
 # read — but it does mean this task reports nothing until that one has run at
 # least twice (once to seed, once to record a real first contribution).
-DATA="/workspace/agent/plugin-data/community-secretary"
+DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-secretary/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
   exit 0
 fi
 # Serial API calls, so this is capped. Whoever is skipped today is still inside

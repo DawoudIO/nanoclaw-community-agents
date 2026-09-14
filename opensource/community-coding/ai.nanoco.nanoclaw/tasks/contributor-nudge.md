@@ -25,12 +25,12 @@ script: |
   # by dev-metrics-report. Same agent, same plugin-data, so this is a legitimate
   # read — but it does mean this task reports nothing until that one has run at
   # least twice (once to seed, once to record a real first contribution).
-  DATA="/workspace/agent/plugin-data/community-secretary"
+  DATA="/workspace/agent/plugin-data/community-coding"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPOS="${COMMUNITY_REPOS:-}"
   if [ -z "$REPOS" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-secretary/config.env"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
     exit 0
   fi
   # Serial API calls, so this is capped. Whoever is skipped today is still inside
@@ -98,11 +98,12 @@ steepest in the first 30 days and re-engagement is rare after 90.
 **If `status` is `nobody-in-window`** you were not woken. Nothing to do.
 
 **If `repos_without_ledger` is non-empty**, those repos have no contributor
-ledger yet — `dev-metrics-report` builds it, and it needs to have run at least
-twice (once to seed the existing contributor list, once to record a real first
-contribution). Say so plainly rather than reporting those repos as quiet;
-"nobody is in the window" and "we aren't tracking yet" look identical
-otherwise.
+ledger yet — `dev-metrics-report` builds it (same agent, same plugin-data),
+and it needs to have run at least twice: once to seed the existing contributor
+list, once to record a real first contribution. So on a fresh install this
+task reports nothing for a couple of days. Say so plainly rather than
+reporting those repos as quiet; "nobody is in the window" and "we aren't
+tracking yet" look identical otherwise.
 
 ## What to hand over
 
@@ -115,8 +116,11 @@ the CSV delimiter bug" is a reason for a maintainer to reach out; "made a
 contribution 24 days ago" is not, and a generic nudge is worse than none.
 
 **Do not write the message and do not contact anybody.** You are surfacing a
-list; a maintainer reaching out personally is the entire value, and a templated
-bot follow-up would destroy it. Hand it to your lead.
+list; a maintainer reaching out personally is the entire value, and a
+templated bot follow-up would destroy it. Hand it to your lead, and say the
+window is time-boxed — this is worth the lead passing on now rather than
+holding for the next routine digest, since a name that surfaces three days
+late has three fewer days left on it.
 
 **Don't rank or editorialise.** No "promising contributor", no guesses about why
 they haven't returned. Facts and the window.

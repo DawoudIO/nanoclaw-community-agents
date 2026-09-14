@@ -9,21 +9,20 @@ script: |
   # single author, is the close-without-merge rate drifting, and who has enough
   # sustained merged work to be worth a bigger role.
   #
-  # WHY THIS IS THE REVIEWER'S TASK, NOT THE LOCAL AGENT'S.
-  # Split out of dev-metrics-report, which lives on the local (narration-only)
-  # agent. The numbers below are arithmetic and the script computes them — but
-  # every one of them is useless without a judgment the local agent is
-  # explicitly forbidden to make:
+  # WHY THIS IS ITS OWN TASK, NOT PART OF dev-metrics-report.
+  # Split out of that daily digest. The numbers below are arithmetic and the
+  # script computes them — but every one of them needs a judgment call that a
+  # daily list of counts is the wrong place for:
   #   * a rising unmerged ratio means EITHER more low-quality submissions OR a
   #     maintainer backlog. Opposite problems, opposite responses, same number.
   #   * high top-author share means "one person deep" only in context — a
   #     solo-maintainer project at 95% is normal; a ten-person project at 95%
   #     is a bus-factor emergency.
-  #   * naming someone a delegation candidate is a judgment about a PERSON.
-  #     That is the last thing to put on the weakest tier.
-  # So the fetching stays scripted and the interpreting moves to the tier that
-  # can do it. Weekly, because these are slow-moving signals — a daily read of
-  # a 90-day window is just noise with extra API calls.
+  #   * naming someone a delegation candidate is a judgment about a PERSON, and
+  #     deserves a deliberate read rather than a line in a digest.
+  # So the fetching stays scripted and the interpreting gets its own slot.
+  # Weekly, because these are slow-moving signals — a daily read of a 90-day
+  # window is just noise with extra API calls.
   DATA="/workspace/agent/plugin-data/community-coding"
   mkdir -p "$DATA"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi

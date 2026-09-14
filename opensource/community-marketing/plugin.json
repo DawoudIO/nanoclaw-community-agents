@@ -2,7 +2,7 @@
   "$schema": "https://agent-plugins.org/schemas/1.0.0/plugin.schema.json",
   "name": "community-marketing",
   "version": "1.0.0",
-  "description": "Headless marketing sub-agent: drafts posts and release announcements through a review-and-pull-request workflow, written for the project's real audience rather than for engineers — reports to a community-manager lead agent, never publishes itself",
+  "description": "Headless measurement sub-agent: tracks the project's audience growth — social follower counts and GA4 web traffic — narrated with real comparison windows and honest nulls, and keeps the append-only history durable in the project's marketing repo. Reports to a community-manager lead agent; it writes no content and publishes nothing.",
   "extensions": {
     "ai.nanoco.nanoclaw": {
       "agentName": "Community Marketing"

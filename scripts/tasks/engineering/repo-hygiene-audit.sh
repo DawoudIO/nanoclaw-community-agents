@@ -1,19 +1,19 @@
 #!/bin/bash
 set -euo pipefail
 # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy.
-# Quarterly newcomer-path audit via GitHub's community-profile endpoint —
+# Daily newcomer-path audit via GitHub's community-profile endpoint —
 # ONE call per repo answers all of it: CONTRIBUTING, CODE_OF_CONDUCT, issue
 # and PR templates, README, license, plus GitHub's own health percentage.
 # Research context: failed OSS projects had contributing guidelines 16% of
 # the time vs 72% for healthy ones — a well-tended good-first-issue list on
 # a repo with no CONTRIBUTING.md optimizes step two of a path with no step
 # one. Wakes only when something is missing or a fetch failed.
-DATA="/workspace/agent/plugin-data/community-secretary"
+DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-secretary/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
   exit 0
 fi
 TMP=$(mktemp -d)

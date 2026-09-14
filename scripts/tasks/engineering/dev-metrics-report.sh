@@ -4,12 +4,12 @@ set -euo pipefail
 # Repos are fetched IN PARALLEL to stay inside the platform's script
 # timeout, and a failed fetch records null (unknown) — never zero, which
 # would corrupt the delta series with fake swings.
-DATA="/workspace/agent/plugin-data/community-secretary"
+DATA="/workspace/agent/plugin-data/community-coding"
 mkdir -p "$DATA"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-secretary/config.env"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-coding/config.env"}}'
   exit 0
 fi
 HIST="$DATA/metrics-history.json"
@@ -124,10 +124,11 @@ for REPO in $REPOS; do
 done
 wait
 #
-# Approved-PR and maintainer-load signals used to live here too. They moved:
-# ready-to-merge to its own local task (time-sensitive, needs its own
-# cadence), and contributor-health-review to the Reviewer (its numbers are
-# meaningless without a judgment this tier must not make).
+# Approved-PR and maintainer-load signals used to live here too. They moved
+# to their own tasks on this same agent: ready-to-merge (time-sensitive, needs
+# its own twice-daily cadence) and contributor-health-review (its numbers are
+# meaningless without a judgment call, so it gets its own weekly slot rather
+# than being buried in a daily digest).
 TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {stars, forks, open_issues, open_prs, releases, new_contributors_7d, awaiting_first_response}}) | add // {}')
 rm -rf "$TMP"
 jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \

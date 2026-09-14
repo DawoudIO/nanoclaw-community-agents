@@ -19,12 +19,13 @@
 #       only exist from run 2 onward.
 #
 # HONEST LIMITS, so nobody mistakes green for complete:
-#   - Fixtures cover 7 scenarios across 6 gates, not all 16. Uncovered on the
+#   - Fixtures cover a handful of scenarios, not every gate. Uncovered on the
 #     success path: security-advisory-sweep, github-ops-triage,
 #     daily-github-triage, weekly-analytics-report, repo-hygiene-audit,
-#     draft-cleanup, workspace-backup, weekly-identity-integrity-check.
-#   - The repo-mirror-sync assertion needs live network to github.com; it is
-#     the one test that flips on an offline run.
+#     weekly-identity-integrity-check.
+#   - ledger-publish's git behavior (orphan branch creation, unpushed-commit
+#     recovery, refusal to force) is verified against a real local bare repo
+#     rather than mocked; see 2d.
 #   - Fixtures are hand-written, so they encode what we BELIEVE each API
 #     returns. They catch our own logic errors, not upstream API changes —
 #     only a real install does that.
@@ -203,27 +204,25 @@ fi
 # prompt is what tells the agent where to write.
 agent_of() {
   case "$1" in
-    support)     echo "community-manager";;
-    local)       echo "community-secretary";;
+    manager)     echo "community-manager";;
     engineering) echo "community-coding";;
     marketing)   echo "community-marketing";;
   esac
 }
 dir_of() {
   case "$1" in
-    support)     echo "opensource/community-manager";;
-    local)       echo "opensource/community-secretary";;
+    manager)     echo "opensource/community-manager";;
     engineering) echo "opensource/community-coding";;
     marketing)   echo "opensource/community-marketing";;
   esac
 }
 CROSS=0
-for group in support local engineering marketing; do
+for group in manager engineering marketing; do
   own=$(agent_of "$group")
   gdir=$(dir_of "$group")
   for f in "$ROOT/scripts/tasks/$group"/*.sh "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$f" ] || continue
-    for other in community-manager community-secretary community-coding community-marketing; do
+    for other in community-manager community-coding community-marketing; do
       [ "$other" = "$own" ] && continue
       if grep -q "plugin-data/$other" "$f" 2>/dev/null; then
         echo "  cross-agent path: ${f#"$ROOT"/} (owned by $own) references plugin-data/$other"
@@ -240,16 +239,16 @@ done
 # tells the agent to "send the owner" a report is asking for a route that does
 # not exist, so the report reaches nobody.
 #
-# This shipped in three of the local agent's tasks at once — health-check's
-# proof-of-life heartbeat, workspace-backup's failure report, and
-# unanswered-watch's urgent security flag. All three are exactly the messages
-# you cannot afford to lose, which is what makes this worth a hard gate rather
-# than a review habit.
+# This shipped in three tasks of the retired local tier at once — a
+# proof-of-life heartbeat, a backup failure report, and unanswered-watch's
+# urgent security flag. All three were exactly the messages you cannot afford
+# to lose, which is what makes this worth a hard gate rather than a review
+# habit. unanswered-watch still carries that risk on its new owner.
 #
 # Lead-owned tasks are exempt: the lead HAS the owner DM, so addressing the
 # owner is correct for them.
 OWNER_DIRECT=0
-for group in local engineering marketing; do
+for group in engineering marketing; do
   gdir=$(dir_of "$group")
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$md" ] || continue
@@ -276,7 +275,7 @@ done
 # comment would produce silent 403s rather than an obvious failure — and would
 # be an argument for widening the token, which is exactly the wrong fix.
 COMMENTERS=0
-for group in local engineering marketing; do
+for group in engineering marketing; do
   gdir=$(dir_of "$group")
   for md in "$ROOT/$gdir"/ai.nanoco.nanoclaw/tasks/*.md; do
     [ -f "$md" ] || continue
@@ -318,8 +317,7 @@ assert_gate() {
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$ROOT/scripts/test/fixtures/$sname"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
-           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing" \
-           "$sandbox/plugin-data/community-secretary"
+           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
   # fake curl: first URL-ish arg is matched against fixture patterns
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
@@ -349,13 +347,12 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-manager community-coding community-marketing community-secretary; do
+  for g in community-manager community-coding community-marketing; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   local out
   out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
-        bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" \
-                   -e "s#/workspace/extra/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
+        bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") 2>/dev/null | tail -1)
   rm -rf "$sandbox"
   if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
     fail "$sname/$name: last line is not valid JSON: ${out:0:120}"
@@ -392,8 +389,7 @@ assert_scenario() {
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$ROOT/scripts/test/fixtures/$fixture"
   mkdir -p "$sandbox/bin" "$sandbox/plugin-data/community-manager" \
-           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing" \
-           "$sandbox/plugin-data/community-secretary"
+           "$sandbox/plugin-data/community-coding" "$sandbox/plugin-data/community-marketing"
   cat > "$sandbox/bin/curl" <<MOCK
 #!/bin/bash
 url=""
@@ -417,15 +413,14 @@ if \$wants_code; then printf '\n000'; exit 0; fi
 exit 22
 MOCK
   chmod +x "$sandbox/bin/curl"
-  for g in community-manager community-coding community-marketing community-secretary; do
+  for g in community-manager community-coding community-marketing; do
     [ -n "$cfg" ] && printf '%s\n' "$cfg" > "$sandbox/plugin-data/$g/config.env"
   done
   [ -n "$seed" ] && ( cd "$sandbox" && SANDBOX="$sandbox" bash -c "$seed" )
   local out i
   for i in $(seq 1 "$runs"); do
     out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
-          bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" \
-                   -e "s#/workspace/extra/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
+          bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") 2>/dev/null | tail -1)
   done
   rm -rf "$sandbox"
   local label="$sname/$fixture"
@@ -448,16 +443,8 @@ MOCK
 }
 
 # Unconfigured: every config-gated script must exit clean without waking.
-# Two local gates are deliberately excluded: health-check isn't config-gated
-# (it wakes on its own first-run heartbeat, asserted separately below) and
-# workspace-backup requires a real /workspace/agent git checkout rather than
-# a config key, so "unconfigured" isn't a meaningful state for it.
 for sh in "$ROOT"/scripts/tasks/engineering/*.sh "$ROOT"/scripts/tasks/marketing/*.sh \
-          "$ROOT"/scripts/tasks/secretary/*.sh \
           "$ROOT"/scripts/tasks/manager/release-announcement-watch.sh; do
-  case "$(basename "$sh")" in
-    health-check.sh|workspace-backup.sh) continue;;
-  esac
   assert_gate "$sh" "unconfigured" "false" ""
 done
 
@@ -466,27 +453,16 @@ done
 # for every URL because no fixtures matched.
 assert_gate "$ROOT/scripts/tasks/engineering/security-advisory-sweep.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" \
+assert_gate "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/secretary/good-first-issue-health.sh" \
+assert_gate "$ROOT/scripts/tasks/engineering/good-first-issue-health.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/secretary/draft-cleanup.sh" \
-  "fetch-fails-must-wake" "true" 'CONTENT_REPO="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/engineering/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/manager/daily-github-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-
-# health-check: no config needed; on a healthy fresh box the only wake
-# reason is the first-run weekly heartbeat.
-assert_gate "$ROOT/scripts/tasks/secretary/health-check.sh" "first-run-heartbeat" "true" ""
-
-# repo-mirror-sync: a nonexistent repo is a real clone failure (no mock
-# needed — git's own error against a real host is the test).
-assert_gate "$ROOT/scripts/tasks/secretary/repo-mirror-sync.sh" \
-  "nonexistent-repo-clone-must-wake" "true" 'MIRROR_REPOS="acme/this-repo-does-not-exist-xyz-12345"'
 
 # --- 2c. success-path assertions -------------------------------------------
 # These check the SHAPE the task prompts actually read. A renamed or dropped
@@ -496,7 +472,7 @@ assert_gate "$ROOT/scripts/tasks/secretary/repo-mirror-sync.sh" \
 # dev-metrics-report: every field its prompt references, in the nesting the
 # prompt describes. `count` (14) deliberately exceeds the listed prs (2) so
 # the "N approved PRs waiting, oldest 10 listed" truncation path is covered.
-assert_scenario "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" dev-metrics-full true \
+assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metrics-full true \
   '.data.today["acme/demo"] as $t
    | ($t.stars == 937) and ($t.forks == 558)
      and ($t.open_issues == 42) and ($t.open_prs == 7)
@@ -516,7 +492,7 @@ assert_scenario "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" dev-metric
 # ready-to-merge: 14 approved PRs waiting with only the 2 oldest listed, so
 # the truncation path is covered. First run has no prior set, so every PR is
 # "newly ready" and the gate must wake.
-assert_scenario "$ROOT/scripts/tasks/secretary/ready-to-merge.sh" ready-to-merge-waiting true \
+assert_scenario "$ROOT/scripts/tasks/engineering/ready-to-merge.sh" ready-to-merge-waiting true \
   '(.data.status == "ready")
    and (.data.total == 14)
    and (.data.repos[0].truncated == true)
@@ -530,7 +506,7 @@ assert_scenario "$ROOT/scripts/tasks/secretary/ready-to-merge.sh" ready-to-merge
 # ready-to-merge, run 2: identical approved set, so the "changed" gate must
 # SUPPRESS rather than re-report the same PRs the next morning. This is the
 # difference between useful and nagging, and it only exists from run 2 on.
-assert_scenario "$ROOT/scripts/tasks/secretary/ready-to-merge.sh" ready-to-merge-waiting false \
+assert_scenario "$ROOT/scripts/tasks/engineering/ready-to-merge.sh" ready-to-merge-waiting false \
   '(.data.resurfaced == true) and (.data.newly_ready | length == 0)' \
   'COMMUNITY_REPOS="acme/demo"' 2
 
@@ -560,7 +536,7 @@ assert_scenario "$ROOT/scripts/tasks/engineering/contributor-health-review.sh" c
 
 # dev-metrics-report, run 2: nothing changed between runs, and no approved PRs
 # this time, so the wake gate must SUPPRESS. Untestable without multi-run.
-assert_scenario "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" dev-metrics-quiet false \
+assert_scenario "$ROOT/scripts/tasks/engineering/dev-metrics-report.sh" dev-metrics-quiet false \
   '.data.quiet_heartbeat == true' 'COMMUNITY_REPOS="acme/demo"' 2
 
 # posthog-weekly-review is removed for now (never got working end to end).
@@ -571,7 +547,7 @@ assert_scenario "$ROOT/scripts/tasks/secretary/dev-metrics-report.sh" dev-metric
 
 # good-first-issue-health: only the unassigned AND stale issue is listed;
 # truncated must be true because total_count (150) > items returned (3).
-assert_scenario "$ROOT/scripts/tasks/secretary/good-first-issue-health.sh" gfi-stale true \
+assert_scenario "$ROOT/scripts/tasks/engineering/good-first-issue-health.sh" gfi-stale true \
   '.data.results[0] as $r
    | ($r.open_count == 150) and ($r.truncated == true)
      and ($r.unassigned_stale | length == 1)
@@ -595,19 +571,6 @@ assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" rele
 # indistinguishable from a real auth/network failure.
 assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-no-releases false \
   '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"'
-
-# content-draft-cycle: on a fresh sandbox run 1 seeds the release baseline and
-# the weekly floor is immediately due, so it wakes with trigger "weekly"...
-assert_scenario "$ROOT/scripts/tasks/marketing/content-draft-cycle.sh" content-release true \
-  '.data.trigger == "weekly"' \
-  'CONTENT_REPO="acme/marketing"
-RELEASE_WATCH_REPO="acme/demo"'
-# ...and run 2 must suppress: the tag hasn't moved and the floor was just
-# reset, so there is genuinely nothing to draft.
-assert_scenario "$ROOT/scripts/tasks/marketing/content-draft-cycle.sh" content-release false \
-  '.data.status == "no-trigger"' \
-  'CONTENT_REPO="acme/marketing"
-RELEASE_WATCH_REPO="acme/demo"' 2
 
 # docs-gap-review: pure local-file logic, previously the ONLY gate with no
 # behavioral coverage at all. Ledger seeded with one topic 4× inside the
@@ -812,6 +775,101 @@ assert_scenario "$ROOT/scripts/tasks/engineering/docs-currency-watch.sh" docs-me
   '.data.status == "no-new-merges"' \
   'COMMUNITY_REPOS="acme/crm"
 DOCS_REPO="acme/docs"' 2
+
+# --- 2d. ledger-publish: real git, not a mock ------------------------------
+# This is the only task that WRITES to a remote, and the data it writes is the
+# one thing in the system that cannot be regenerated. A mocked git would prove
+# nothing about the cases that actually matter, so this runs against a real
+# local bare repo and asserts on the resulting refs and trees:
+#
+#   * the default branch is never touched
+#   * the metrics branch is an ORPHAN (no product history dragged along)
+#   * a clean tree with an UNPUSHED commit still pushes — the bug that would
+#     otherwise report "no change since the last publish" forever while the
+#     history never actually reached the repo
+#   * a diverged remote is NEVER force-overwritten
+#   * both agents can share one branch without clobbering each other
+ledger_case() {
+  local sh="$1" label="$2"
+  local t; t=$(mktemp -d)
+  git init -q --bare "$t/remote.git"
+  git init -q "$t/seed"
+  git -C "$t/seed" config user.email t@t; git -C "$t/seed" config user.name t
+  git -C "$t/seed" config commit.gpgsign false
+  echo readme > "$t/seed/README.md"
+  git -C "$t/seed" add -A; git -C "$t/seed" commit -qm init; git -C "$t/seed" branch -M main
+  git -C "$t/seed" remote add origin "$t/remote.git"; git -C "$t/seed" push -q origin main
+
+  mkdir -p "$t/data"
+  echo '[{"date":"2026-01-01"}]' > "$t/data/metrics-history.json"
+  printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.jsonl"
+  echo '{"s":1}' > "$t/data/traffic-history-main.json"
+  # a file that must never be published, whichever agent runs
+  echo 'private' > "$t/data/owner-instructions.jsonl"
+
+  sed -e "s#/workspace/agent/plugin-data/community-coding#$t/data#" \
+      -e "s#/workspace/agent/plugin-data/community-marketing#$t/data#" \
+      -e "s#https://github.com/\$REPO.git#$t/remote.git#" "$sh" > "$t/run.sh"
+
+  # unconfigured: silent
+  local out; out=$(cd "$t" && bash "$t/run.sh" 2>/dev/null | tail -1)
+  printf '%s' "$out" | jq -e '.wakeAgent == false and .data.status == "not-configured"' >/dev/null 2>&1 \
+    && pass || fail "$label/unconfigured: expected a silent not-configured, got: $out"
+
+  # first publish
+  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  printf '%s' "$out" | jq -e '.wakeAgent == false and .data.status == "published"' >/dev/null 2>&1 \
+    && pass || fail "$label/first-publish: expected published, got: $out"
+
+  # default branch untouched
+  [ "$(git -C "$t/remote.git" ls-tree -r --name-only main)" = "README.md" ] \
+    && pass || fail "$label: the repo's default branch was modified — it must never be"
+
+  # orphan: the metrics branch carries exactly one commit, no product history
+  [ "$(git -C "$t/remote.git" rev-list --count agent-metrics)" = "1" ] \
+    && pass || fail "$label: metrics branch is not an orphan (it inherited the repo's history)"
+
+  # nothing conversational published
+  if git -C "$t/remote.git" ls-tree -r --name-only agent-metrics | grep -q 'owner-instructions'; then
+    fail "$label: published a conversational ledger — only numeric series may be published"
+  else
+    pass
+  fi
+
+  # unchanged: silent, no new commit
+  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  printf '%s' "$out" | jq -e '.data.status == "ok"' >/dev/null 2>&1 \
+    && pass || fail "$label/unchanged: expected a quiet ok, got: $out"
+
+  # THE REGRESSION: an unpushed commit with a clean tree must still publish.
+  # Simulated by deleting the remote branch, leaving the local commit orphaned.
+  git -C "$t/remote.git" branch -D agent-metrics >/dev/null 2>&1
+  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  printf '%s' "$out" | jq -e '.data.status == "published"' >/dev/null 2>&1 \
+    && pass || fail "$label/unpushed-recovery: a clean tree with an unpushed commit must still push, got: $out"
+
+  # a diverged remote must be reported, never force-overwritten
+  local before
+  git -C "$t/seed" fetch -q origin agent-metrics
+  git -C "$t/seed" checkout -q -B agent-metrics FETCH_HEAD
+  echo tampered > "$t/seed/outside-change.txt"
+  git -C "$t/seed" add -A; git -C "$t/seed" commit -qm outside
+  git -C "$t/seed" push -q origin agent-metrics
+  before=$(git -C "$t/remote.git" rev-parse agent-metrics)
+  echo '[{"date":"2026-01-02"}]' > "$t/data/metrics-history.json"
+  printf '{"date":"2026-01-02","x":2}\n' >> "$t/data/social-metrics-history.jsonl"
+  out=$(cd "$t" && LEDGER_REPO=x bash "$t/run.sh" 2>/dev/null | tail -1)
+  # Either it published on top of the outside commit (a fast-forward, fine) or
+  # it reported a failure — what it must NEVER do is drop the outside commit.
+  if git -C "$t/remote.git" ls-tree -r --name-only agent-metrics | grep -q 'outside-change.txt'; then
+    pass
+  else
+    fail "$label/diverged: an outside commit was discarded — this task must never force-push"
+  fi
+  rm -rf "$t"
+}
+ledger_case "$ROOT/scripts/tasks/engineering/ledger-publish.sh" "ledger-publish(reviewer)"
+ledger_case "$ROOT/scripts/tasks/marketing/ledger-publish.sh" "ledger-publish(marketing)"
 
 echo
 echo "passed: $PASS  failed: $FAIL"

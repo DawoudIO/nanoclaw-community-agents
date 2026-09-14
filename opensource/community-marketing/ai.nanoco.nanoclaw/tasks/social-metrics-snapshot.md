@@ -49,9 +49,13 @@ not to treat it as an incident.
    itself (missing web fetch / `agent-browser`) rather than a network policy.
    Report that to your lead instead; a week of nulls caused by config is a
    bug, not data.
-3. Append one JSON line to your working copy,
-   `plugin-data/community-secretary/social-metrics-history.jsonl`:
+3. Append one JSON line to
+   `plugin-data/community-marketing/social-metrics-history.jsonl`:
    `{"date": "<today>", "<platform>": <count|null>, ...}` — append-only.
+   **This file is the series.** It is not a working copy of something kept
+   elsewhere: it is the only record, and `ledger-publish` commits it to the
+   marketing repo daily so it survives this container being rebuilt. Never
+   rewrite or reorder existing lines; only ever add one.
 4. **Compute deltas from the file you just appended to, and label them by
    the actual elapsed time, never a fixed "WoW"/"MoM" assumption.** This
    task's schedule isn't necessarily weekly — the owner may have it running
@@ -73,9 +77,8 @@ not to treat it as an incident.
 5. **Send the exact same JSON line to your lead, plus both deltas**, per
    `report-formats.md`'s follower-report skeleton — including the
    fastest-growing-platform line, not just the raw per-platform numbers. The
-   lead appends it to the durable ledger in its own workspace (which the
-   workspace backup captures) and **folds it into the same weekly message as
-   the GA4 traffic report**, not a separate one (see `report-formats.md` —
-   both are team-lead-tier, same week, one maintainer reading them together).
-   The series still ends up with three copies: your working cache, the
-   lead's backed-up ledger, and the posted channel history.
+   lead **folds it into the same weekly message as the GA4 traffic report**,
+   not a separate one (see `report-formats.md` — both are team-lead-tier, same
+   week, one maintainer reading them together). The lead does not keep its own
+   copy of the series: durability is `ledger-publish`'s job, and two ledgers
+   of the same numbers in two containers is how they drift apart.
