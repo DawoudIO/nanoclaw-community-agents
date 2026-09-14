@@ -149,20 +149,24 @@ the whole set is staggered onto its own minute; verify with:
 grep -h '^schedule:' */*/ai.nanoco.nanoclaw/tasks/*.md | sort | uniq -d
 ```
 
-## Shared repo mirror — one checkout, every agent can read it
+## Shared repo mirror — optional, advanced. Skip unless you're already comfortable with Docker host administration
 
-`repo-mirror-sync` writes to `/workspace/shared-repos`, not this agent's own
-`plugin-data/` — a host directory the owner mounts **read-write here and
-read-only into every other stamped agent** (Lead, Reviewer, Marketing), via
-NanoClaw's own mount mechanism (`ncl groups config add-mount`, gated by an
-owner-controlled allowlist — neither this nor any other agent can grant
-itself this access). One credentialed writer, everyone else reads the same
-checkout instead of independently re-fetching or re-cloning their own copy —
-this is what makes the Reviewer's `dependabot-pr-review`/`docs-currency-watch`/
-`security-advisory-sweep` able to grep real file contents instead of relaying
-through this agent or the lead for every question.
+`repo-mirror-sync` works fine with no mount at all — it just writes to a
+path only this agent can see, same as before. Every other agent already has
+a fully working path with zero extra setup: **live GitHub API reads**, the
+default for everything in this template set. The mount below is a pure
+optimization (fewer repeated live reads, faster broad `grep`-style
+searches) — it is not required for anything here to function, and setting
+it up wrong (which is easy to do — see below) costs you a debugging
+session, not a missing feature.
 
-**One-time owner setup, after all agents are stamped:**
+**Don't do this unless**: you're already fluent in Docker/host
+administration, and you're specifically hitting real friction from
+repeated live reads (rate limits, latency on broad searches) that live API
+calls genuinely can't solve. If that's not you, stop reading here — there
+is nothing missing from your install by skipping this section.
+
+**If you do want it — one-time owner setup, after all agents are stamped:**
 
 ```bash
 # 1. Authorize the host directory (owner-only, outside any container's reach)
@@ -171,17 +175,22 @@ mkdir -p shared-repos
 pnpm exec tsx setup/index.ts --step mounts --force -- \
   --json '{"allowedRoots":[{"path":"'"$(pwd)"'/shared-repos","allowReadWrite":true}],"blockedPatterns":[]}'
 
-# 2. Grant THIS agent (local ops) read-write — it's the only writer
+# 2. Grant THIS agent (local ops) read-write — it's the only writer.
+#    --container is a RELATIVE name, nested under a fixed /workspace/extra/
+#    prefix — NEVER an absolute path like /workspace/extra/shared-repos. Getting
+#    this wrong produces a mount that looks completely valid at every
+#    inspection point and simply never exists (nanocoai/nanoclaw#3706) —
+#    real install, real multi-hour debugging session before this was traced.
 ncl groups config add-mount --id <local-ops-group-id> \
-  --host "$(pwd)/shared-repos" --container /workspace/shared-repos
+  --host "$(pwd)/shared-repos" --container shared-repos
 
-# 3. Grant every other stamped agent read-only
+# 3. Grant every other stamped agent read-only (same relative --container value)
 ncl groups config add-mount --id <lead-group-id> \
-  --host "$(pwd)/shared-repos" --container /workspace/shared-repos --ro
+  --host "$(pwd)/shared-repos" --container shared-repos --ro
 ncl groups config add-mount --id <coding-group-id> \
-  --host "$(pwd)/shared-repos" --container /workspace/shared-repos --ro
+  --host "$(pwd)/shared-repos" --container shared-repos --ro
 ncl groups config add-mount --id <marketing-group-id> \
-  --host "$(pwd)/shared-repos" --container /workspace/shared-repos --ro
+  --host "$(pwd)/shared-repos" --container shared-repos --ro
 
 # 4. Apply — mounts only take effect after a restart
 ncl groups restart --id <local-ops-group-id>
@@ -191,7 +200,7 @@ ncl groups restart --id <marketing-group-id>
 ```
 
 **Freshness, not real-time.** `repo-mirror-sync` runs every 15 minutes
-(`:7/22/37/52`), and stamps `/workspace/shared-repos/.last-sync-epoch` (Unix
+(`:7/22/37/52`), and stamps `/workspace/extra/shared-repos/.last-sync-epoch` (Unix
 seconds, UTC) after each attempt — any agent reading the mirror for a
 judgment call should check that file's age first and say "as of the last
 sync" rather than implying the code is current to the second. This is a

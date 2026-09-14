@@ -355,7 +355,7 @@ MOCK
   local out
   out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
         bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" \
-                   -e "s#/workspace/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
+                   -e "s#/workspace/extra/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
   rm -rf "$sandbox"
   if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
     fail "$sname/$name: last line is not valid JSON: ${out:0:120}"
@@ -425,7 +425,7 @@ MOCK
   for i in $(seq 1 "$runs"); do
     out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
           bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" \
-                   -e "s#/workspace/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
+                   -e "s#/workspace/extra/shared-repos#$sandbox/shared-repos#g" "$sh") 2>/dev/null | tail -1)
   done
   rm -rf "$sandbox"
   local label="$sname/$fixture"

@@ -139,7 +139,7 @@ machine's own detected timezone, not UTC.
 ## Reads the shared repo mirror when it's set up
 
 `dependabot-pr-review` and `security-advisory-sweep` will grep
-`/workspace/shared-repos/<repo>/` directly for reachability and
+`/workspace/extra/shared-repos/<repo>/` directly for reachability and
 breaking-change judgment (checking `.last-sync-epoch`'s age first) if the
 local agent's shared mirror mount is set up — see
 `opensource/community-secretary/README.md`, "Shared repo mirror," for the one-time

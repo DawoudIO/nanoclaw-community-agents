@@ -296,7 +296,7 @@ for a recreate — anything marked *modifies install* needs re-applying after
 | `/add-ollama-provider` | **Not used this phase** — see SKILLS-ADOPTION.md | Would route the secretary to a host Ollama model | **Yes** — Dockerfile + `container.json` edits |
 | `/add-ollama` (tool) | **Proposed, undecided** | Only if translation volume proves expensive | **Yes** — copies an MCP server, rebuilds image |
 | `/add-dashboard` | **Deliberate non-default** | Only if clidash can't answer a real budget question | **Yes** — persistent process, `DASHBOARD_SECRET` |
-| `ncl groups config add-mount` | **Recommended once all four are stamped** | Shared repo mirror — see `community-secretary/README.md` | Config + operator-side mount allowlist |
+| `ncl groups config add-mount` | **Optional, advanced — skip unless you're comfortable with Docker host administration** | Shared repo mirror — see `community-secretary/README.md`. Requires editing a host allowlist file, running per-group mount commands with real RW/RO semantics, and a restart to apply. Everything works fine without it — each agent just makes its own live GitHub API reads instead of sharing one local checkout, at zero extra setup cost. Only worth the operational overhead if you're already fluent in Docker and specifically hitting rate limits or latency from repeated live reads | Config + operator-side mount allowlist |
 | `/update-skills` | **Break-glass only** | Never in steady state | **Yes**, desyncs from `platform-baseline.json` |
 
 Everything else in NanoClaw's skill catalog was reviewed and is either N/A

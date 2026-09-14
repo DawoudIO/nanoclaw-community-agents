@@ -783,7 +783,7 @@ what doesn't confirm.
 
 **Optional, mention once all stamping is confirmed: the shared repo mirror.**
 Local ops' `repo-mirror-sync` can write to a host directory
-(`/workspace/shared-repos`) that the other stamped agents read directly
+(`/workspace/extra/shared-repos`) that the other stamped agents read directly
 instead of hitting the GitHub API or relaying through you — it's what lets
 the Reviewer grep real file contents for reachability/breaking-change
 judgment. It needs group IDs for every stamped agent, so it can only happen

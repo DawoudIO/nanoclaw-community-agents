@@ -14,7 +14,7 @@ set -euo pipefail
 # GitHub API and still need a live call; this mirror only ever holds the
 # current tree of tracked branches.
 #
-# WHERE THIS WRITES: /workspace/shared-repos, NOT this agent's own
+# WHERE THIS WRITES: /workspace/extra/shared-repos, NOT this agent's own
 # plugin-data. That path is a host directory mounted read-write here and
 # read-only into the Reviewer/Lead/Marketing containers (`ncl groups config
 # add-mount`, owner-run, one time — see opensource/community-secretary/README.md,
@@ -30,7 +30,7 @@ set -euo pipefail
 # current code, a docs edit that needs review) OR on failure. Silent only
 # when literally nothing moved since the last run.
 DATA="/workspace/agent/plugin-data/community-secretary"
-MIRRORS="/workspace/shared-repos"
+MIRRORS="/workspace/extra/shared-repos"
 mkdir -p "$MIRRORS"
 if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 REPOS="${MIRROR_REPOS:-${COMMUNITY_REPOS:-}}"

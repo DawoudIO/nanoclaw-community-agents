@@ -142,7 +142,7 @@ reasons, and say which you did:
   is not in the shipped attack surface. It still gets patched eventually, but
   it is not an incident.
 - **Reachability.** Is the vulnerable function actually called? **Grep
-  `/workspace/shared-repos/<repo>/` if it exists** (the shared mirror local
+  `/workspace/extra/shared-repos/<repo>/` if it exists** (the shared mirror local
   ops keeps in sync — check `.last-sync-epoch`'s age and note it if you use
   this) rather than fetching individual files via the API one at a time.
   "Vulnerable version present but the affected API is never invoked" is a

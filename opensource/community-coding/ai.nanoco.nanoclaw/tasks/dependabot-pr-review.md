@@ -142,7 +142,7 @@ the number; a pile-up of unreviewed bumps is itself the finding.
   two versions and say what breaks. This is the single most useful thing you
   produce here, because it is the reason a maintainer has been avoiding the PR.
 - **Do we call the affected code?** Read the files that import the package —
-  **if `/workspace/shared-repos/<repo>/` exists (the shared mirror local ops
+  **if `/workspace/extra/shared-repos/<repo>/` exists (the shared mirror local ops
   keeps in sync — check `.last-sync-epoch`'s age first, and say "as of
   <sync time>" if you use it), grep it directly.** Otherwise fall back to the
   API, or ask your lead to have the local ops agent grep its mirror. "We

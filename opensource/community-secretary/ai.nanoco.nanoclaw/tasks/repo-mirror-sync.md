@@ -17,7 +17,7 @@ script: |
   # GitHub API and still need a live call; this mirror only ever holds the
   # current tree of tracked branches.
   #
-  # WHERE THIS WRITES: /workspace/shared-repos, NOT this agent's own
+  # WHERE THIS WRITES: /workspace/extra/shared-repos, NOT this agent's own
   # plugin-data. That path is a host directory mounted read-write here and
   # read-only into the Reviewer/Lead/Marketing containers (`ncl groups config
   # add-mount`, owner-run, one time — see opensource/community-secretary/README.md,
@@ -33,7 +33,7 @@ script: |
   # current code, a docs edit that needs review) OR on failure. Silent only
   # when literally nothing moved since the last run.
   DATA="/workspace/agent/plugin-data/community-secretary"
-  MIRRORS="/workspace/shared-repos"
+  MIRRORS="/workspace/extra/shared-repos"
   mkdir -p "$MIRRORS"
   if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
   REPOS="${MIRROR_REPOS:-${COMMUNITY_REPOS:-}}"
@@ -103,7 +103,7 @@ it; let the Reviewer do that. Most syncs are ordinary and deserve a one-line
 "nothing notable" at most, never a padded readout of every commit message.
 
 **`dirty-tree`**: something modified a mirror directly. Nothing — no task,
-no skill, no live session — should ever write into `/workspace/shared-repos`;
+no skill, no live session — should ever write into `/workspace/extra/shared-repos`;
 it's a read-only tracked-branch view, rebuilt by this gate alone. **Every
 other agent mounts this path read-only** (`ncl groups config add-mount`, set
 up once by the owner — see `opensource/community-secretary/README.md`, "Shared repo
@@ -119,7 +119,7 @@ protocol — that's the most likely cause on a fresh install. A private repo
 also needs a `github.com` (git) vault credential, the same class
 workspace-backup uses; public repos need none.
 
-**What this buys you, and what it doesn't.** `/workspace/shared-repos/<repo>/`
+**What this buys you, and what it doesn't.** `/workspace/extra/shared-repos/<repo>/`
 (one directory per entry in `MIRROR_REPOS` — the project's full repo map:
 product/docs/site/marketing/wiki, not just the repos triaged for issues/PRs)
 is a shallow, current-branch checkout — **any agent with the mount** (not
