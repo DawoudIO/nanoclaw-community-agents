@@ -17,27 +17,29 @@ without giving it a second identity.
 
 ## Why one voice
 
-Every extra identity that can post publicly is another thing a reader has to
-trust separately, and another seam an injected instruction can aim at — "reply as
-the other bot," "don't mention a sub-agent did this."
+Every extra identity that can post publicly is one more thing a reader has
+to trust, and one more target for an injected instruction — "reply as the
+other bot," "don't mention a sub-agent did this."
 
-The **Helper** (`opensource/community-helper`) has no channel wiring beyond
-the one narrow case below, so that whole class of attempt has almost nothing to
-attach to — it fails structurally rather than relying on an agent remembering a
-rule under pressure.
+- **The Helper has no channel wiring**, except one case below — this class
+  of attempt fails structurally, not by an agent remembering a rule under
+  pressure.
+- **The one exception is `unanswered-watch`.** It holds a channel wiring
+  because a holding acknowledgment has to appear where the unanswered
+  message is — but its scope is fixed tight:
 
-The **Helper**'s `unanswered-watch` is the one deliberate exception, and it's
-worth stating precisely rather than blurring: it *does* hold a channel wiring,
-because a holding acknowledgment has to appear where the unanswered message is.
-Its restriction is enforced by **scope** instead of by absence — the support
-channels only, the same bot identity so no reader sees a new party, and a fixed
-template it is forbidden to compose freely. What it posts is a receipt, never a
-resolution. Every actual answer is still only ever the manager's. Full reasoning in
-`skills/community-manager/references/single-voice-relay.md`.
+  | Constraint | Value |
+  |---|---|
+  | Where it can post | Support channels only |
+  | Identity it posts as | The manager's own bot — no reader sees a new party |
+  | What it can say | One fixed line, never composed freely |
 
-The reason that exception lives on a *different* agent at all: an agent sharing
-the manager's usage window cannot be the thing that covers for that window running
-out.
+  What it posts is a receipt, never a resolution — every real answer is
+  still only the manager's. Full reasoning in
+  `skills/community-manager/references/single-voice-relay.md`.
+- **That exception lives on a different agent on purpose:** an agent
+  sharing the manager's usage window can't also be the thing that covers
+  for that window running out.
 
 ## Layout
 
@@ -51,14 +53,15 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 7 tasks, all created paused
+│   └── tasks/                                         # 8 tasks, all created paused
 │       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
 │       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
 │       ├── github-first-response.md      # every 10 min: new, unanswered
 │       ├── owner-tldr.md                # the ONE daily digest to the owner
 │       ├── inbox-check.md                             # 2×/day shared-inbox triage, read-and-draft only
-│       └── weekly-identity-integrity-check.md         # asks before it ever locks anything
+│       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
+│       └── conversation-archive-prune.md              # pure housekeeping, never wakes the model
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)
 │   └── community-manager/
@@ -106,19 +109,25 @@ filled-in version from a real deployment.
 
 ## Configuration is conversational — the `welcome` skill
 
-On the owner's first DM, the `welcome` skill runs setup end to end: verifies
-the DM round trip, asks for the project's GitHub repo, scopes the goals,
-infers and confirms the rest, persists everything to
-`plugin-data/community-manager/` (`project-config.md` + `config.env` — the
-latter carries `COMMUNITY_REPOS` for the standalone triage gate), relays each
-stamped sub-agent's config into *its own* `config.env`, walks credential setup
-with real verification calls, and gates task activation on your explicit go.
-**Every FILL-THIS-IN marker in this template is an optional pre-stamp default** —
-the conversational config in plugin-data always wins at runtime.
+On the owner's first DM, the `welcome` skill runs setup end to end:
+
+1. Verifies the DM round trip.
+2. Asks for the project's GitHub repo, scopes the goals, infers and confirms
+   the rest.
+3. Persists everything to `plugin-data/community-manager/`
+   (`project-config.md` + `config.env` — the latter carries
+   `COMMUNITY_REPOS` for the standalone triage gate).
+4. Relays each stamped sub-agent's config into *its own* `config.env`.
+5. Walks credential setup with real verification calls.
+6. Gates task activation on your explicit go.
+
+**Every FILL-THIS-IN marker in this template is an optional pre-stamp
+default** — the conversational config in plugin-data always wins at
+runtime.
 
 The relay is not a convenience: an agent can only read
 `plugin-data/<its-own-name>/`, so every key has to be written into the owning
-agent's file, and there are three relays to get right:
+agent's file — this is the one relay to get right:
 
 | Sub-agent | Keys the manager relays |
 |---|---|
@@ -130,20 +139,23 @@ for the current split), so an unrelayed key here is the single largest source
 of "stamped and never does anything."
 
 This agent also owns its own `COMMUNITY_REPOS` plus an optional
-`RELEASE_WATCH_REPOS`, which narrows `release-announcement-watch` to a subset
-of it. `GITHUB_BOT_USERNAME` is set in both agents.
+`RELEASE_WATCH_REPOS`, which narrows `release-announcement-watch` to a
+subset of it. `GITHUB_BOT_USERNAME` is set in both agents.
 
 **The manager keeps no copy of the metrics series.** The Helper owns those
-files and publishes them itself. Two ledgers of the same numbers in two
-containers drift apart, and then nobody knows which is right — so the manager
-reports the numbers it is handed and stores none of them.
+files and publishes them itself — two ledgers of the same numbers in two
+containers would drift apart, and then nobody knows which is right. The
+manager reports the numbers it's handed and stores none of them.
 
-**What the manager would still lose in a rebuild**: `question-ledger.jsonl` (the
-repeat-question ledger behind `docs-gap-review`) and `owner-instructions.jsonl`
-(the ack ledger). Neither is published anywhere, deliberately — both contain
-community members' words and the owner's private direction, which don't belong
-in a repo branch. Treat them as genuinely disposable: `docs-gap-review` simply
-starts observing again after a rebuild, and the ack ledger only needs to
+**What the manager would still lose in a rebuild:**
+
+| File | What it holds | Why it's not published |
+|---|---|---|
+| `question-ledger.jsonl` | Repeat-question ledger behind `docs-gap-review` | Contains community members' words |
+| `owner-instructions.jsonl` | Ack ledger | Contains the owner's private direction |
+
+Treat both as genuinely disposable: `docs-gap-review` simply starts
+observing again after a rebuild, and the ack ledger only needs to
 outlive a session, not a repave.
 
 ## Full setup, from zero
@@ -175,30 +187,33 @@ the config its README lists, and resume deliberately — that's the
 rebuild-cheaply property: the whole system is a stamp plus a handful of
 `resume` calls, and tearing it down is deleting two groups.
 
-**If you stamp the Helper (`opensource/community-helper`), leave the manager's
-`daily-github-triage` paused.** It exists for manager-standalone deployments, and
-`github-ops-triage` covers the same ground at a higher cadence (every 6 hours
-versus a weekday digest). The reason this matters more than it used to: the two
-tasks now live in *different* agents, so they no longer share a cursor file —
-each tracks "already reported" in its own plugin-data, and neither can see that
-the other has already reported an issue. Running both double-reports, and
-nothing in the system will notice.
+**If you stamp the Helper, leave the manager's `daily-github-triage`
+paused.** `daily-github-triage` exists for manager-standalone deployments;
+`github-ops-triage` covers the same ground at a higher cadence (every 6
+hours versus a weekday digest). Running both double-reports every issue,
+silently:
+
+- They live in *different* agents now, so they don't share a cursor file.
+- Each tracks "already reported" only in its own plugin-data.
+- Neither can see that the other already reported an issue.
 
 **There is no workspace backup anywhere in this set, by design.** See the note
 under *Configuration* above: the only state worth preserving is published by
 `ledger-publish` on the Helper, and everything else is meant to be rebuilt.
 
-**Script dependencies:** `bash`, `curl`, `jq`, and `ncl`
-(`weekly-identity-integrity-check` reads `ncl tasks list --json`; without `ncl`
-its gate wakes the agent for a manual check instead of failing). Verify with
-`ncl tasks run <task-id>` before resuming. **Cron lines are written
-UTC-relative; the group's actual timezone decides the wall-clock fire
-time.** `ncl groups config update --timezone <IANA id>` sets it and takes
-effect immediately (confirmed against
-`src/modules/scheduling/recurrence.ts` and its test) — no
-cancel-and-recreate needed, before or after stamping. Unset, the group
-defaults to the install-wide default, which is your host machine's own
-detected timezone, not UTC.
+**Script dependencies:** `bash`, `curl`, `jq`, and `ncl`. Verify with `ncl
+tasks run <task-id>` before resuming.
+(`weekly-identity-integrity-check` reads `ncl tasks list --json` —
+without `ncl`, its gate wakes the agent for a manual check instead of
+failing.)
+
+**Cron lines are written UTC-relative; the group's actual timezone decides
+the wall-clock fire time.** `ncl groups config update --timezone <IANA id>`
+sets it and takes effect immediately, before or after stamping — no
+cancel-and-recreate needed (confirmed against
+`src/modules/scheduling/recurrence.ts` and its test). Unset, the group
+defaults to the install-wide default: your host machine's own detected
+timezone, not UTC.
 
 ## Credentials: via OneCLI, not env vars
 
@@ -215,19 +230,22 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 MCP server won't boot without the variable present; the real token is injected at
 request time. Never replace it with a real value.
 
-**Discord's bot token isn't something you add to the vault by hand** — `/add-discord`
-registers it as part of wiring the bot, not through this template's `mcp.json`.
-That said, don't be surprised to see it show up in the OneCLI dashboard anyway:
-on a real deployment it lands in the **Custom** tab as a generic secret (host
-`discord.com`, `Authorization` header), the same vault every other credential
-here uses — that's NanoClaw's own internal plumbing for its Discord adapter,
-not a step you perform yourself.
+**Discord's bot token isn't something you add to the vault by hand** —
+`/add-discord` registers it as part of wiring the bot, not through this
+template's `mcp.json`. It still shows up in the OneCLI dashboard, though —
+on a real deployment it lands in the **Custom** tab as a generic secret
+(host `discord.com`, `Authorization` header), the same vault every other
+credential here uses. That's NanoClaw's own internal plumbing for its
+Discord adapter — not a step you perform yourself.
 
-**Give each agent its own least-privilege token.** The manager's is the only one
-that comments and files issues; the Helper's is read-only across
-`COMMUNITY_REPOS` plus Contents+PRs write for draft security patches and
-Contents write on the ledger repo. Sharing one broad token across both defeats
-the point of splitting them.
+**Give each agent its own least-privilege token:**
+
+| Agent | Token scope |
+|---|---|
+| Manager | Comments and files issues — the only one that does |
+| Helper | Read-only across `COMMUNITY_REPOS`, plus Contents+PRs write for draft security patches and Contents write on the ledger repo |
+
+Sharing one broad token across both defeats the point of splitting them.
 
 **Both tokens match the same host (`api.github.com`), so use OneCLI's
 `selective` secret mode** — in `all` mode, every agent whose requests match the
@@ -243,13 +261,15 @@ onecli agents set-secret-mode --id <agent-id> --mode selective  # per agent
 
 ### Hard approval gates for sensitive actions
 
-The standing instructions tell each agent what not to do, and that's guidance the
-model follows — not enforcement. For anything you genuinely cannot allow, use
-OneCLI's request-hold/approval rules, which gate the **outbound HTTP request**
-(host + method + path) at the proxy, where no prompt can talk its way around it.
-Configure those in the OneCLI web UI; NanoClaw's host side is already wired to
-deliver a real button card (not a chat reply) to an approver — click-to-decide,
-not type-to-decide.
+Standing instructions tell each agent what not to do — that's guidance the
+model follows, not enforcement. For anything you genuinely cannot allow,
+use OneCLI's request-hold/approval rules instead: they gate the **outbound
+HTTP request** itself (host + method + path) at the proxy, where no prompt
+can talk its way around it.
+
+Configure those in the OneCLI web UI. NanoClaw's host side is already wired
+to deliver a real button card — not a chat reply — to an approver:
+click-to-decide, not type-to-decide.
 
 Worth gating this way: anything that publishes, sends mail, or closes/merges on
 GitHub.

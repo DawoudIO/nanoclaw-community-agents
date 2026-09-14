@@ -1,18 +1,19 @@
 # Community Helper Agent Template
 
-The **Helper**: the one headless sub-agent in this set, read-only everywhere
-except two narrow paths — it drafts security patch PRs, and it publishes a
-metrics history branch — running on **Claude Haiku**. It triages issues and
+The **Helper**: the one headless sub-agent in this set, running on **Claude
+Haiku**. Read-only everywhere except two narrow paths — it drafts security
+patch PRs, and it publishes a metrics history branch. It triages issues and
 PRs, assesses security advisories, tracks repo and contributor health, reads
-the project's traffic and follower numbers, and hands all of it to the manager
-rather than posting publicly.
+the project's traffic and follower numbers, and hands all of it to the
+manager rather than posting publicly.
 
-It carries every recurring job in this set that isn't talking to people. That
-concentration is deliberate: one headless agent means one credential scope to
-reason about, and it keeps tasks together with the state they read —
-`contributor-nudge` reads a ledger `dev-metrics-report` writes, and since no
-agent can read another agent's `plugin-data`, that pair only works inside one
-container.
+It carries every recurring job in this set that isn't talking to people.
+That concentration is deliberate:
+
+- **One headless agent means one credential scope** to reason about.
+- **It keeps tasks together with the state they read.** `contributor-nudge`
+  reads a ledger `dev-metrics-report` writes — since no agent can read
+  another agent's `plugin-data`, that pair only works inside one container.
 
 Pairs with **`opensource/community-manager`** (the manager). It works standalone,
 but the single-public-voice design assumes a manager exists to relay
@@ -59,7 +60,8 @@ community-helper/
 │           ├── reporting-to-manager.md              # the may/may-not boundary
 │           ├── triage-rules.md
 │           ├── security-handling.md
-│           └── metrics-and-telemetry.md
+│           ├── metrics-and-telemetry.md
+│           └── github-contents-api.md                # base64 read-modify-write gotcha
 └── README.md
 ```
 
@@ -185,20 +187,24 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained. Read everywhere, plus Contents+PRs write for security patches** — this agent never posts, so its token literally can't: Contents (read), Issues (read), Pull requests (read), all triaged repos. Add the **Dependabot alerts (read)** repository permission only if the security sweep is enabled. Never `read:org`, never any write scope, never a classic `repo`-scope PAT (that's inherently read/write). | github.com → Settings → Developer settings → Personal access tokens (fine-grained) |
 
-**On Dependabot.** If the repo has Dependabot security updates enabled,
-Dependabot opens the fix PR and this agent *reviews* it — semver delta, whether
-our code reaches the affected API, and a merge-or-hold call. If it is disabled,
-this agent drafts the bump instead. Either is fine; having both produces two PRs
-per CVE, which is why onboarding asks. Nothing here can turn the setting on —
-that needs Administration write, which no agent in this set holds.
+**On Dependabot** — the repo's setting decides this agent's role:
+
+| Dependabot security updates | This agent's role |
+|---|---|
+| Enabled | *Reviews* Dependabot's fix PR — semver delta, whether our code reaches the affected API, and a merge-or-hold call |
+| Disabled | *Drafts* the version bump itself |
+
+Either is fine on its own; having both produces two PRs per CVE, which is
+why onboarding asks. Nothing here can turn the setting on — that needs
+Administration write, which no agent in this set holds.
 
 This agent also holds the **GA4** credential now: OAuth on
 `analyticsdata.googleapis.com`, scoped **Viewer** on the property.
 `weekly-analytics-report` only ever calls `runReport` — a POST, but a read:
 it's a query verb that takes a JSON body. Do not enable
-`analyticsadmin.googleapis.com`; nothing here writes to GA4. (It would also
-need a PostHog key if `posthog-weekly-review` comes back — removed for now,
-see above.)
+`analyticsadmin.googleapis.com` — nothing here writes to GA4. (It would
+also need a PostHog key if `posthog-weekly-review` comes back — removed for
+now, see above.)
 
 It needs the **`github.com` (git) host** wired in addition to
 `api.github.com`, with push access to the ledger repo, because
@@ -223,40 +229,45 @@ public-facing mistake even if an instruction slips through.
 
 ## Costs
 
-Every task here is script-gated, and none has an ungated wake.
-`github-ops-triage` wakes only on new or updated issues and PRs;
-`security-advisory-sweep` only on a new alert. Any of them also wakes when its
-fetch fails outright — a broken fetch must never read as a quiet day. A
-genuinely quiet stretch costs a few API calls per run, not an agent turn.
+Nearly every task here is script-gated — a broken fetch always still wakes
+the agent, so a quiet day never masks a failure.
 
-`contributor-health-review` is the cheapest task here despite being the most
-expensive prompt, because its gate is a comparison rather than a poll. It runs
-weekly and wakes only when one of four things is true: the unmerged ratio or the
-top-author share moved **10 points or more** against last week's stored values;
-it is the **first run** and there is no baseline to diff against; a fetch
-failed; or **90 days** have passed with none of the above, which forces one
-quarterly look so bus-factor risk can't sit unexamined forever. The 10-point
-floor is deliberate — on repos this size a 1–2 point swing is sampling noise,
-and waking a model to narrate noise is how a useful signal becomes something
-the owner learns to skip. A steady quarter costs one wake.
+| Task | Wakes the agent when… |
+|---|---|
+| `github-ops-triage` | A new or updated issue/PR (or a fetch fails) |
+| `security-advisory-sweep` | A new alert (or a fetch fails) |
+| `dev-metrics-report` | Real movement — or weekly, so the channel never looks dead |
+| `ready-to-merge` | The approved-and-open set changes |
+| `repo-hygiene-audit` | A community health file is actually missing |
+| `good-first-issue-health` / `contributor-nudge` | There's something to report |
+| `ledger-publish` / `conversation-archive-prune` | Never, on success |
+| `social-metrics-snapshot` | **Always** — see below |
+| `unanswered-watch` | A message has gone unanswered past the grace window |
 
-**Nearly every task here is gated** — `dev-metrics-report` wakes only on real
-movement (or weekly, so the channel never looks dead), `ready-to-merge` only
-when the approved set changes, `repo-hygiene-audit` only when a community
-health file is actually missing, `good-first-issue-health` and
-`contributor-nudge` only when there is something to report. `ledger-publish`
-and `conversation-archive-prune` never wake the model on success at all.
+**`contributor-health-review` is the cheapest task here despite the most
+expensive prompt**, because its gate is a comparison, not a poll. It runs
+weekly and wakes only when one of four things is true:
 
-**The one ungated task is `social-metrics-snapshot`**, and it cannot be gated:
-reading a follower count off a profile page is the agent's own work, so it
-wakes every time it runs, by design. It and the manager's `inbox-check` are the
-only two ungated wakes left in the system.
+1. The unmerged ratio or top-author share moved **10 points or more**
+   against last week's stored values.
+2. It's the **first run** — no baseline to diff against yet.
+3. A fetch failed.
+4. **90 days** have passed with none of the above — one forced quarterly
+   look, so bus-factor risk can't sit unexamined forever.
 
-`unanswered-watch` is the one that runs most often — every ten minutes — and
-it is also the cheapest possible check: no network, no credentials, just a
-read of local session state. It wakes only when a human's message has actually
-gone unanswered past the grace window.
+The 10-point floor is deliberate: on repos this size a 1–2 point swing is
+sampling noise, and waking a model to narrate noise just trains the owner
+to skip the report. A steady quarter costs one wake.
 
-Holding this many gated tasks on Haiku is still a small footprint against the
-shared usage window, which is the point of putting the Helper on the cheap
-tier. `posthog-weekly-review` is removed for now — see above.
+**`social-metrics-snapshot` is the one task that can't be gated** — reading
+a follower count off a profile page *is* the agent's own work, so it wakes
+every run, by design. It and the manager's `inbox-check` are the only two
+ungated wakes left in the system.
+
+**`unanswered-watch` runs most often — every ten minutes** — but it's also
+the cheapest possible check: no network, no credentials, just a read of
+local session state.
+
+Holding this many gated tasks on Haiku is still a small footprint against
+the shared usage window, which is the point of putting the Helper on the
+cheap tier. `posthog-weekly-review` is removed for now — see above.

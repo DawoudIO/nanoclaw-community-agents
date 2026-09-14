@@ -1,9 +1,9 @@
 # Community Agent Set for NanoClaw
 
 Two agent templates that run an open-source project's community work as a
-pair with **one public voice**: awareness, response, proactive issue
-detection, and security — at low cost, before people give up on GitHub or
-Discord.
+pair, with **one public voice**. Together they watch, respond, catch
+problems early, and flag security issues — cheaply, before people give up
+on GitHub or Discord.
 
 | Template | Role | Model | Public voice |
 |---|---|---|---|
@@ -24,16 +24,16 @@ git clone https://github.com/DawoudIO/nanoclaw.git
 git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
 
 cd nanoclaw-community-agents
-bash scripts/install-templates.sh     # copies the 4 templates into ../nanoclaw/templates/
+bash scripts/install-templates.sh     # copies the 2 templates into ../nanoclaw/templates/
 
 cd ../nanoclaw
 ./nanoclaw.sh                         # "From local templates" → opensource/community-manager
 ```
 
 Then DM the agent — it interviews you for everything else. `nanoclaw.sh`
-handles the container, the vault, and your first agent; `bash
-scripts/install-templates.sh --check` tells you if your copy has drifted
-from this repo (re-run after every `git pull` here).
+handles the container, the vault, and your first agent. Run `bash
+scripts/install-templates.sh --check` after every `git pull` here, to catch
+a copy that's drifted from this repo.
 
 Read next, in this order:
 
@@ -47,38 +47,43 @@ Read next, in this order:
 ## How it's built
 
 - **Scripts do the work; agents do the judgment.** Recurring tasks are
-  script-gated — deterministic fetch/diff/threshold logic runs as bash with
-  no model involved, and the agent wakes only when there's something to
-  judge. `bash scripts/gen-task-table.sh` prints the current task table,
-  generated from the task files so it can't drift from what ships.
+  script-gated: plain bash checks run first, and the agent wakes only when
+  there's something to decide. `bash scripts/gen-task-table.sh` prints the
+  current task table, generated straight from the task files so it can't
+  go stale.
 - **One public voice, enforced structurally, not by instruction.** The
-  Helper's only channel wiring is the one `unanswered-watch` needs, and the
-  only thing it may put there is a fixed template it's forbidden to write
-  freely: the support channels only, under the manager's own bot identity — a
-  receipt,
-  never a resolution.
+  Helper has no channel access at all, with one exception: `unanswered-watch`,
+  its safety net for when the manager itself goes silent (rate-limited,
+  crashed, mis-wired). It watches support channels for a message that's sat
+  too long, then posts one fixed line, under the manager's own bot identity
+  so the community never sees a second voice. It can't write anything else.
+  It's a receipt, never a resolution — it answers nothing, it just proves
+  someone's still there.
 - **Agents never hold keys.** Every credential lives in the OneCLI vault and
   is injected at the egress proxy, outside the containers. An agent that
   asks you for a raw key is broken or compromised.
 - **Stateless by design.** Agents rebuild context from the project's repos
-  on cold start. The few things that can't be reconstructed (follower
-  counts, the question ledger) are append-only and covered by the workspace
-  backup.
+  on cold start. A few things genuinely can't be reconstructed — follower
+  counts, GA4 traffic, repo metrics history — so the Helper publishes those
+  daily, append-only, to a branch in the project's own repo. The manager's
+  question ledger is different: it holds community members' words, so it's
+  never published at all. That loss is accepted on purpose — it just
+  rebuilds from live traffic over the following weeks.
 - **Setup is a conversation.** You DM the manager; its `welcome` skill
   interviews you, and configuration is runtime data, not a template edit.
 
 ## Staying up to date
 
-The running system is a **sealed package, not a checkout** — never `git
-pull` inside a live sandbox; the runtime, DB schema, and adapters version
+The running system is a **sealed package, not a checkout**. Never `git
+pull` inside a live sandbox — the runtime, DB schema, and adapters version
 together, and there's no supported in-place upgrade.
 
 Upgrades are image pulls **pinned by digest**.
 [`platform-baseline.json`](platform-baseline.json) records the exact
-`sha256` this set was last verified against — check it against
-`versions.json`'s `agent-image` field by hand; there's no automated watcher
-for it. See `docs/OPERATIONS.md` → "Staying up to date" for the
-pull/restamp/restore procedure.
+`sha256` this set was last verified against. Compare it to `versions.json`'s
+`agent-image` field by hand — there's no automated watcher for this yet.
+See `docs/OPERATIONS.md` → "Staying up to date" for the full
+pull/restamp/restore steps.
 
 ## Other
 
