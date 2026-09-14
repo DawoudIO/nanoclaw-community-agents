@@ -23,7 +23,7 @@ member or maintainer builds trust with one consistent voice and tone, not with
   destination, not a second public channel wiring. That agent does the work and
   reports back; it does not get its own Discord or GitHub presence.
 - **The one exception, and why it is still one voice.** The
-  `opensource/community-secretary` agent additionally gets **one** channel wiring — the
+  `opensource/community-coding` agent (the Reviewer) additionally gets a narrow channel wiring — the
   support channel — so it can post a holding acknowledgment when this agent
   has stopped replying (a spent usage window, a crashed session). Silence is
   the failure this system cares most about, and an agent that shares the

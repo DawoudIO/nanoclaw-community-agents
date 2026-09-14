@@ -15,7 +15,7 @@ underneath you.
 ## 1. Collect — your own check, plus every stamped sub-agent's
 
 1. Run your own `setup-check.sh`.
-2. For each **stamped** sub-agent (local ops, Reviewer, marketing), ask it —
+2. For each **stamped** sub-agent (the Reviewer, marketing), ask it —
    over its agent-to-agent destination — to run its own `setup-check.sh` and
    report the result back to you. You cannot run their scripts directly; a
    sub-agent's `plugin-data` is not yours to read. Wait for all of them
@@ -55,10 +55,12 @@ failed.**
 
 If one signal says "all clear" and another says something failed in the same
 window, **do not pass both along as if they're consistent.** A real install
-had `health-check`'s weekly heartbeat land the same minute as a real
-`repo-mirror-sync` clone failure — because the heartbeat only ever checked
-its own environment (jq/ncl present, state fresh), never other tasks'
-outcomes, but was worded as if it meant system-wide health. If you find a
+had a weekly "environment healthy" heartbeat land the same minute as a real
+task-level fetch failure — because that heartbeat only ever checked its own
+environment (jq/ncl present, state fresh), never other tasks' outcomes, but
+was worded as if it meant system-wide health. That heartbeat has since been
+removed for exactly this reason, but the lesson generalizes to any
+scoped-clean signal. If you find a
 contradiction like this, say so explicitly ("X reported clean, but Y failed
 in the same window — worth investigating why X didn't catch it") rather than
 quietly picking one to relay.

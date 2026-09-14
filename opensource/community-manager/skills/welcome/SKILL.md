@@ -130,7 +130,7 @@ docs fix targets the wrong location.
 
 ## 3. Scope the goals — ask, never assume
 
-This template can do four jobs, but which ones this project wants is the
+This template can do four kinds of job, but which ones this project wants is the
 owner's call, not a default. Ask directly — "is X a goal? do you want help
 with Y?" — one compact menu:
 
@@ -139,10 +139,15 @@ pauses tasks in whichever group holds them:
 
 | Goal | If yes, these tasks become eligible |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* · `ready-to-merge` *(local)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `content-draft-cycle` *(marketing)* · `draft-cleanup` *(local)* · `social-metrics-snapshot` *(local)* · `weekly-analytics-report` *(local)* · `good-first-issue-health` *(local)* · `repo-hygiene-audit` *(local)* · `dev-metrics-report`'s new-contributor section *(local)* · `contributor-nudge` *(local)* · `contributor-health-review` *(Reviewer)* |
-| **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(local)* · `repo-mirror-sync` *(local)* (`posthog-weekly-review` *(Reviewer)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
+| **Community support** — replying to users, triaging issues/bugs | Lead's live replies + escalation · `daily-github-triage` *(lead, standalone only)* · `docs-gap-review` *(lead)* · `release-announcement-watch` *(lead)* · `github-ops-triage` *(Reviewer)* · `ready-to-merge` *(Reviewer)* |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(marketing)* · `weekly-analytics-report` *(marketing)* · `good-first-issue-health` *(Reviewer)* · `repo-hygiene-audit` *(Reviewer)* · `dev-metrics-report`'s new-contributor section *(Reviewer)* · `contributor-nudge` *(Reviewer)* · `contributor-health-review` *(Reviewer)* |
+| **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(Reviewer)* (`posthog-weekly-review` *(Reviewer)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
 | **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Reviewer)* · `dependabot-pr-review` *(Reviewer)* · the escalation paths in `escalation-paths.md` |
+
+**Content creation is not on this menu, and should not be offered.** Posts,
+announcements, blog entries and campaigns are handled by the owner outside this
+system. If the owner asks for content help, say plainly that this set measures
+and reports but does not write — then don't offer a draft as a consolation.
 
 Two placements in that menu surprise people, so say the reasoning out loud if
 the owner asks. **`ready-to-merge` is a support task**, not a metrics one: an
@@ -155,7 +160,16 @@ contributor either way.
 
 **Always offered regardless of goals** — these protect the system itself, not
 a goal: `unanswered-watch`, `github-first-response`, `owner-tldr`,
-`health-check`, `workspace-backup`, `weekly-identity-integrity-check`.
+`weekly-identity-integrity-check`, `ledger-publish`, and
+`conversation-archive-prune`.
+
+The last two are pure housekeeping and cost nothing, but say what
+`ledger-publish` is *for* rather than listing it: it commits the few history
+files that cannot be rebuilt (follower counts especially — no platform will
+ever tell you last Tuesday's number) into a branch of the marketing repo, so
+they survive this system being rebuilt. Without it those series restart at
+zero on every repave, permanently. That makes `MARKETING_REPO` worth asking
+for even from an owner who declines every growth goal.
 
 `github-first-response` is the GitHub half of responsiveness. Discord you
 answer live through your channel wiring, so it needs no task — but GitHub has
@@ -195,7 +209,7 @@ DM by default, which is the outcome we're avoiding. Urgent things (security, an 
 decision that blocks work) bypass the queue and arrive immediately; everything
 else waits for the digest.
 
-`unanswered-watch` is the one to never skip. It is the local agent's
+`unanswered-watch` is the one to never skip. It is the Reviewer's
 every-10-minutes check that no support message has been sitting unanswered
 past `ACK_GRACE_MINUTES`, and if one has, it posts a holding acknowledgment.
 It exists because response delay is the strongest predictor of whether a
@@ -203,7 +217,7 @@ first-time contributor comes back, and because *this* is what happens when
 the shared usage window runs out: the lead stops replying and the community
 hears nothing. Its gate has no network and no credentials, so *detecting* the need costs
 nothing regardless of the shared window's state — but for this phase, posting
-the acknowledgment is still a model wake on local ops, which shares the same
+the acknowledgment is still a model wake on the Reviewer, which shares the same
 cloud window as you. If the window is fully exhausted, both of you go quiet
 together; it's a cheap, high-value safety net, not an off-window guarantee.
 Offer it as protection for the north star, not as a feature.
@@ -219,15 +233,16 @@ Two things to get right here:
   both growth and detection; `good-first-issue-health` under growth but read
   by security-minded maintainers too). Eligible = **any** of its goals was
   chosen, never all of them.
-- **Declining a goal never orphans another goal's task.** The local agent is
-  the one this matters for, because its 11 tasks span every goal:
-  `weekly-analytics-report` and `social-metrics-snapshot` serve growth, while
-  `dev-metrics-report` and `repo-mirror-sync` serve
-  *detection*. So if detection is yes and growth is no, the local agent is
-  **not** dormant — relay it only the config those active tasks need, and say
-  which ones are live. Marketing is the opposite case: it owns exactly one
-  task, `content-draft-cycle`, which serves growth only, so declining growth
-  makes it genuinely dormant (and it is not stamped by default anyway).
+- **Declining a goal never orphans another goal's task.** The Reviewer is the
+  one this matters for, because its tasks span every goal: `good-first-issue-health`
+  and `contributor-nudge` serve growth, `dev-metrics-report` serves *detection*,
+  `security-advisory-sweep` serves security, `ready-to-merge` serves support. So
+  if security is yes and growth is no, the Reviewer is **not** dormant — relay
+  it only the config those active tasks need, and say which ones are live.
+  Marketing is the simpler case: both its reporting tasks serve growth only, so
+  declining growth leaves only its housekeeping running (and it is not stamped
+  by default anyway) — but if it is stamped, still relay `MARKETING_REPO`,
+  because the Reviewer publishes its own history there too.
   Dormancy (step 6) applies only when *every* goal that agent's tasks serve
   was declined.
 
@@ -316,12 +331,13 @@ asking for anything yet.
   intent-url (free, no keys, default), manual copy-paste, or paid API (X has no
   free tier since Feb 2026; pay-per-use ~$0.20/link-post — owner's explicit
   opt-in only)
-- **Optional analytics: GA4 property id** — "not now" is
-  a fine answer; the task silent-skips until configured. **If you have multiple 
-  GA4 properties**: Configure one `GA4_PROPERTY_ID` in local-ops config and reuse 
-  the same `weekly-analytics-report` task for all properties. Do not create 
-  separate report tasks per property — one task per report goal (growth/detection) 
-  is the pattern. The task handles all configured analytics in a single run.
+- **Optional analytics: GA4 property id** — "not now" is a fine answer; the
+  task silent-skips until configured. **If the project has several GA4
+  properties**, put them all in one `GA4_PROPERTIES` value in the marketing
+  agent's config (`id`, or `label:id,label:id`) and reuse the same
+  `weekly-analytics-report` task for all of them. Do not create separate
+  report tasks per property — one task per report goal is the pattern, and the
+  task covers every configured property in a single run.
 - **Dependabot — check `.github/dependabot.yml` before asking.** If it
   already has an active `version-updates` config, that answers the question:
   Dependabot opens its own fix PRs, and the Reviewer's job is reviewing that
@@ -523,23 +539,28 @@ Support-tier channels take `--engage-mode pattern --engage-pattern '.'`
 doesn't wait on per-sender approval — the owner DM is the one that stays
 locked to known senders.
 
-**Also silently wire the local agent to every support-tier channel — this
+**Also silently wire the Reviewer to every support-tier channel — this
 is what makes `unanswered-watch` actually work.** Every agent wired to a
 messaging group receives every message into its own session regardless of
 whether its engage mode ever triggers a reply (the router writes the row
 either way; only the wake decision differs) — so a wiring with
-`--engage-mode mention` on a channel nobody ever @-mentions "Local Agent"
-in gives the local agent a real, passive session history of every support
-message, with zero risk of it ever actively replying. Without this, the
-local agent has no session for these channels at all and cannot see
-whether anything went unanswered — `unanswered-watch` silently has nothing
-to check, which is exactly the bug that shipped before this was fixed.
+`--engage-mode mention` on a channel nobody ever @-mentions the Reviewer
+in gives it a real, passive session history of every support message, with
+zero risk of it ever actively replying. Without this, the Reviewer has no
+session for these channels at all and cannot see whether anything went
+unanswered — `unanswered-watch` silently has nothing to check, which is
+exactly the bug that shipped before this was fixed.
+
+The `destinations add` line is not optional either: the wiring lets it *see*
+the messages, and the destination is what it posts the holding line *through*.
+With the wiring but no destination, it detects the silence and then has
+nowhere to answer it.
 
 ```bash
 # per support-tier channel, in addition to the lead's own wiring above
 ./bin/ncl wirings create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
-    --agent-group-id <local-id> --engage-mode mention
-./bin/ncl destinations add --agent-group-id <local-id> --local-name <channel-name> \
+    --agent-group-id <coding-id> --engage-mode mention
+./bin/ncl destinations add --agent-group-id <coding-id> --local-name <channel-name> \
     --target-type channel --target-id <messaging-group-id>
 ```
 
@@ -605,11 +626,11 @@ one real approval card per stamp, plus one more per `jq` install**, not one
 card total. Don't imply otherwise:
 
 ```
-I'm about to stamp the three sub-agents based on your goals:
+I'm about to stamp the two sub-agents based on your goals:
 
-- Local Agent: metrics, mirrors, backups, holding acknowledgments
-- Engineering Agent: issue/PR triage, security assessments
-- Marketing Agent: content drafting
+- Engineering Agent (the Reviewer): issue/PR triage, security assessments,
+  repo and contributor health, and the holding acknowledgment when I go quiet
+- Marketing Agent: follower counts and web traffic (it writes no content)
 
 Approve all? [yes/no] — heads up: this surfaces one approval card per stamp
 (and one more for each agent that needs `jq` installed), not a single combined
@@ -623,11 +644,10 @@ Stamping sub-agents now (this takes about 30–60 seconds, no further messages
 until done) — you'll see a few separate approval cards land as it goes.
 ```
 
-Then stamp all three in sequence:
-1. Stamp local agent → install `jq`
-2. Stamp engineering agent → install `jq`
-3. Stamp marketing agent → install `jq`
-4. Relay config to each agent
+Then stamp both in sequence:
+1. Stamp engineering agent (the Reviewer) → install `jq`
+2. Stamp marketing agent → install `jq`
+3. Relay config to each agent
 
 Report when complete.
 
@@ -665,7 +685,6 @@ forms:
 # Stamp a sub-agent. NEVER pass --folder together with --template: the two are
 # mutually exclusive and the platform rejects the whole call ("--folder applies
 # only to bare creates"). A templated group's folder derives from --name.
-ncl groups create --template opensource/community-secretary        --name "<agent name>"
 ncl groups create --template opensource/community-coding --name "<agent name>"
 ncl groups create --template opensource/community-marketing --name "<agent name>"
 
@@ -681,25 +700,23 @@ right form, run `ncl <resource> --help` first: help is ungated and free, and
 one help call is cheaper than one wasted approval.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
-1. Use the template from the shared catalog (`opensource/community-secretary`, `opensource/community-coding`, `opensource/community-marketing`)
-2. **The local agent stamps on the cloud default (Haiku-4.5), same as the other sub-agents** — no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
+1. Use the template from the shared catalog (`opensource/community-coding`, `opensource/community-marketing`)
+2. **Both sub-agents stamp on the cloud default (Haiku-4.5)** — there is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
 3. Relay the config keys listed below to each agent
 4. Report the stamping result and each agent's status to the owner
 
-**Wiring the destination pairs: hand the owner one block, don't issue six
+**Wiring the destination pairs: hand the owner one block, don't issue four
 gated calls.** Relaying config needs a `parent` destination on each sub-agent
 pointing at you, and a named one on you pointing back — two per sub-agent, so
-six for three sub-agents. Each `destinations add` you issue yourself is its
+four for both sub-agents. Each `destinations add` you issue yourself is its
 own approval card. Run host-side by the owner they cost **zero** cards, and
 the operator sees the whole agent topology in one place instead of
-approving six fragments. Ask once, with the block ready to paste:
+approving four fragments. Ask once, with the block ready to paste:
 
 ```
 Stamped. To let me talk to them, paste this from your nanoclaw install
 directory — one block, no approval cards:
 
-  ./bin/ncl destinations add --agent-group-id <local-id>     --local-name parent --target-type agent --target-id <lead-id>
-  ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name local --target-type agent --target-id <local-id>
   ./bin/ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
   ./bin/ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
   ./bin/ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
@@ -716,7 +733,7 @@ channel, and the add fails. Hence `marketing-agent` above. If a name collides,
 suffix `-agent` rather than reusing or renaming the channel destination.
 
 Substitute the real group ids from each stamp response before sending. If the
-owner would rather you just did it, issue them yourself and warn that it's six
+owner would rather you just did it, issue them yourself and warn that it's four
 separate cards. A missing pair doesn't error — the sub-agent's reports simply
 reach nobody — so confirm the block actually ran before relaying.
 
@@ -725,78 +742,52 @@ keys listed below **by name** over agent-to-agent destinations once stamped; eac
 sub-agent writes its own `config.env` + `project-config.md` and confirms. A key
 you don't relay is a feature that silently never runs.
 
-**local** → `plugin-data/community-secretary/config.env` — **relay this one first.**
-It owns 12 of the 26 tasks, more than the other three combined, so an
-unrelayed key here is the largest single source of "nothing is happening":
+**coding** (the Reviewer) → `plugin-data/community-coding/config.env` —
+**relay this one first.** It owns most of the tasks in the set, so an unrelayed
+key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `COMMUNITY_REPOS` | repos it reads | `dev-metrics-report`, `good-first-issue-health`, `repo-hygiene-audit` |
-| `MIRROR_REPOS` | the **full** repo map from step 2 — product/docs/site/marketing, including ones sharing a repo or a subpath | `repo-mirror-sync` keeps all of them checked out whether or not they're triaged. Optional: falls back to `COMMUNITY_REPOS`, so relay it only to mirror *more* than the triaged set |
-| `CONTENT_REPO` | content repo | `draft-cleanup`. Note this key goes to **both** local and marketing, for different tasks |
-| `GA4_PROPERTY_ID` | numeric id, or omit | `weekly-analytics-report`. If you have multiple GA4 properties, configure one ID here and the same task reports on all properties — don't create separate tasks per property. |
-| `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
+| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch`, `dev-metrics-report`, `ready-to-merge`, `good-first-issue-health`, `repo-hygiene-audit`, `contributor-nudge` — all go quiet without it |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a lead that was about to answer |
-| `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
-
-Plus in prose: that it reports **everything through you** — it has no owner
-DM — and that its acknowledgment channel must be the one the community
-actually posts in.
-
-**coding** (the Reviewer) → `plugin-data/community-coding/config.env`:
-
-| Key | Value | Why it matters |
-|---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch` — all go quiet without it |
+| `MARKETING_REPO` | the marketing repo | `ledger-publish` commits `metrics-history.json` to a branch there. Unset means that series is lost at the next rebuild, and it is not cheaply rebuildable |
 | `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
+| `DOCS_REPO` | the docs repo, if the project has one | `docs-currency-watch` stays silent forever without it rather than inventing a target |
+| `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
+| `LEDGER_BRANCH` | optional; default `agent-metrics` | the branch `ledger-publish` writes to. Only relay it if the owner wants a different name |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 
-Plus in prose: default branch, label policy, and **`docs_style`** — the
-coding agent's `triage-rules.md` enforces it on every docs issue/PR it
-drafts, so an unrelayed answer means an unconfigured assumption.
+Plus in prose: default branch, label policy, **`docs_style`** (its
+`triage-rules.md` enforces it on every docs issue/PR it drafts, so an
+unrelayed answer means an unconfigured assumption), that it reports
+**everything through you** — it has no owner DM — and that its holding-ack
+wiring must cover the channels the community actually posts in (§5c).
 
-It gets **no** `MIRROR_REPOS` or `GFI_LABEL` — those belong to the local
-agent with their tasks. (`POSTHOG_PROJECT_ID`/`POSTHOG_HOST` would relay here
-too if `posthog-weekly-review` comes back — removed for now, see
-SKILLS-ADOPTION.md.)
+(`POSTHOG_PROJECT_ID`/`POSTHOG_HOST` would relay here too if
+`posthog-weekly-review` comes back — removed for now, see SKILLS-ADOPTION.md.)
 
 **marketing** → `plugin-data/community-marketing/config.env`:
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `CONTENT_REPO` | content repo | `content-draft-cycle` won't run at all without it |
-| `RELEASE_WATCH_REPO` | the repo whose releases trigger content (usually product) | without it `content-draft-cycle` silently loses its release trigger and only ever fires on the weekly floor |
-| `BRAND_SOURCE_REPO` | brand/strategy repo, **if different from `CONTENT_REPO`** | its setup-check verifies the token can actually reach it |
+| `MARKETING_REPO` | the marketing repo | `ledger-publish` commits the follower and traffic series to a branch there. The same value goes to the Reviewer too — two agents cannot share a config file |
+| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `weekly-analytics-report`. One task run covers every property — never create separate tasks per property |
+| `LEDGER_BRANCH` | optional; default `agent-metrics` | as above; if you relay a custom value, relay the *same* one to both agents or the history splits across two branches |
 | `GITHUB_BOT_USERNAME` | the bot account | same dead-check problem |
 
-No `GA4_PROPERTY_ID` — analytics moved to the local agent. Marketing is also
-**not stamped at install by default**, so if it was never stamped, skip this
-relay entirely rather than waiting on a confirmation that cannot arrive.
+Marketing is **not stamped at install by default**, so if it was never
+stamped, skip this relay entirely rather than waiting on a confirmation that
+cannot arrive.
 
-Plus in prose: site repo, social profile URLs and per-platform posting
-mechanism, and — **required, not optional** —
-`target_audience` and `tone` verbatim from step 4. Marketing's persona
-forbids it from treating its own bracketed defaults as real config, so
-without the relay it has no audience to write for and its no-jargon rule has
-nothing to anchor to.
+Plus in prose: the social profile URLs (read-only — it posts nowhere), and
+`target_audience` verbatim from step 4 so its reports say whether the project
+is reaching the people the owner named. **Do not relay content/brand/tone
+config** — it writes nothing, so there is nothing for those to shape.
 
 A sub-agent whose goals were all declined in step 3 gets a dormancy note
 instead of config: "your goals aren't active for this project — stay idle,
 your tasks stay paused." Wait for confirmations from the active ones; chase
 what doesn't confirm.
-
-**Optional, mention once all stamping is confirmed: the shared repo mirror.**
-Local ops' `repo-mirror-sync` can write to a host directory
-(`/workspace/extra/shared-repos`) that the other stamped agents read directly
-instead of hitting the GitHub API or relaying through you — it's what lets
-the Reviewer grep real file contents for reachability/breaking-change
-judgment. It needs group IDs for every stamped agent, so it can only happen
-now, after stamping, not earlier. It's a real owner-run setup step (mount
-allowlist + `ncl groups config add-mount` per agent + a restart each), not
-something you can do autonomously — point the owner at
-`opensource/community-secretary/README.md`'s "Shared repo mirror" section for the
-exact commands, and say plainly it's optional: nothing breaks without it,
-each agent just falls back to the API or a relay through you.
 
 ## 7. Walk the credential setup — then verify it, don't assume it
 
@@ -854,9 +845,8 @@ keys go into the OneCLI vault dashboard only:
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
-| GitHub work (lead + sub-agents) | 4 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
-| Backup push + mirror fetches | 1 `github.com` (git) entry, the **local** agent's | `workspace-backup` pushes with it; `repo-mirror-sync` fetches with it |
-| Workspace backup push | `github.com` (git, separate from REST) | step 8 below |
+| GitHub work (lead + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
+| Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to the marketing repo, for both sub-agents. Wiring only the REST host leaves the publish failing with `push-failed` |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
 | Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the lead's own group** — `inbox-check` is the lead's task. A platform config change, not something you can do from in here; point the owner at the template README |
@@ -886,14 +876,39 @@ already correctly addressed by the gateway. Turn it into a Discord card button
 same self-check for their own services and hand you any `connect_url` they
 receive — they have no channel to post a card through themselves.
 
-## 8. Offer workspace backup — and set it up yourself
+## 8. Set up the metrics-history publish — it is the only durable state
 
-Ask whether the owner wants the daily workspace backup (recommended: it's the
-durable home of this config and the follower series). If yes: they create an
-empty repo and the `github.com` vault entry; **you do the rest in your own
-workspace** — `git init`, `git remote add origin …`, `git config` identity, a
-`.gitignore` (exclude `conversations/`), then run the backup task once
-(`ncl tasks run`) and report the commit landing or the exact failure.
+**There is no workspace backup in this set, deliberately.** An earlier version
+had each agent push its whole workspace to a backup repo daily; it was removed
+because nothing ever read it back. This system is meant to be rebuilt from the
+templates every few months, and a restore that never happens is a write-only
+cost.
+
+What replaced it is narrower and does get read: `ledger-publish` commits only
+the files that genuinely cannot be rebuilt into a branch of the marketing repo.
+There are three, and the distinction is worth stating to the owner in one line
+each, because it is the difference between "we can regenerate that" and "that
+is gone":
+
+- **follower counts** (marketing) — unrecoverable, full stop. Every platform
+  exposes today's number and nothing else. A day not recorded is gone.
+- **GA4 traffic** (marketing) — re-queryable inside the property's retention
+  window (14 months by default), permanently gone beyond it.
+- **repo metrics history** (the Reviewer) — reconstructible in theory, but
+  only by paging every stargazer and every issue's comments. Treat it as gone.
+
+Everything else each agent writes is a cache that rebuilds itself, and the
+lead's own ledgers (community questions, owner instructions) are deliberately
+never published — they contain people's words and the owner's private
+direction, which don't belong in a repo branch.
+
+To set it up: the owner confirms which repo to use (normally the marketing
+repo) and creates the `github.com` (git) vault entry with push access to it.
+Then relay `MARKETING_REPO` to **both** sub-agents, run each one's
+`ledger-publish` once (`ncl tasks run`), and report the branch landing or the
+exact failure. The branch (`agent-metrics` by default) is created as an orphan
+branch, so it carries only these files and never touches the repo's default
+branch or its CI.
 
 ## 9. Activation — one agent at a time, one task at a time, verified as you go
 
@@ -906,8 +921,8 @@ next morning, asking "why didn't anything run overnight." **Never let
 activation depend on a single moment that's easy for the owner (or you) to
 lose track of.** Instead, activation is incremental and self-verifying:
 
-For **each agent** in this order — **you (the lead) first, then local ops,
-then the Reviewer, then marketing** (skip any not stamped):
+For **each agent** in this order — **you (the lead) first, then the Reviewer,
+then marketing** (skip any not stamped):
 
 1. **State what this agent is and does**, one line, if you haven't already
    in this conversation (you likely have, back in step 6 — don't repeat

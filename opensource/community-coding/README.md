@@ -1,23 +1,23 @@
 # Community Coding Agent Template
 
 The **Reviewer** of the set: a headless GitHub-ops sub-agent, read-only
-everywhere except one path — it drafts security patch PRs — and a
-running on **Claude Haiku**. It triages issues and PRs, assesses security
-advisories, and interprets contributor-health trends — handing all of it to a
-lead support agent rather than posting publicly.
+everywhere except two narrow paths — it drafts security patch PRs, and it
+publishes a metrics history branch — running on **Claude Haiku**. It triages
+issues and PRs, assesses security advisories, tracks repo and contributor
+health, and hands all of it to a lead support agent rather than posting
+publicly.
 
-It is deliberately narrow. It does **not** compute dev metrics, review product
-telemetry, or do docs-gap review; all of that moved to
-`opensource/community-secretary`, which runs a local model and pays no subscription cost
-to narrate numbers a script already computed. What's left here is the work that
-actually needs judgment — about code, about severity, and about what a moving
-number *means* — which is why it keeps a cloud model, and why that model is the
-cheap one.
+It carries the bulk of this set's recurring GitHub work. That concentration is
+deliberate: when the fourth "narration" agent was retired, its tasks went to
+whichever agent already owned the surrounding domain, and for anything shaped
+like an issue, a PR, or a repo, that is this one. Co-location also matters
+mechanically — `contributor-nudge` reads a ledger `dev-metrics-report` writes,
+and since no agent can read another agent's plugin-data, the pair only works
+inside one container.
 
-Pairs with **`opensource/community-manager`** (the lead); its siblings are
-**`opensource/community-secretary`** and **`opensource/community-marketing`**. It works
-standalone, but the single-public-voice design assumes a lead agent exists to
-relay through.
+Pairs with **`opensource/community-manager`** (the lead); its sibling is
+**`opensource/community-marketing`** (measurement). It works standalone, but
+the single-public-voice design assumes a lead agent exists to relay through.
 
 ## Why headless
 
@@ -42,7 +42,15 @@ community-coding/
 │       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
 │       ├── dependabot-pr-review.md               # what does this bump cost us?
 │       ├── docs-currency-watch.md                # merged PR -> version-tagged docs PR
-│       └── contributor-health-review.md          # weekly, wakes on a real trend move
+│       ├── contributor-health-review.md          # weekly, wakes on a real trend move
+│       ├── unanswered-watch.md                   # the one task here that posts publicly
+│       ├── dev-metrics-report.md                 # daily counts; builds the contributor ledger
+│       ├── contributor-nudge.md                  # 20-30 day re-engagement window
+│       ├── ready-to-merge.md                     # approved-and-open PRs, 2×/day
+│       ├── good-first-issue-health.md            # onboarding-pipeline supply
+│       ├── repo-hygiene-audit.md                 # CONTRIBUTING/CoC/templates present?
+│       ├── ledger-publish.md                     # commits metrics-history to the marketing repo
+│       └── conversation-archive-prune.md         # pure housekeeping, never wakes the model
 ├── skills/
 │   └── coding-ops/
 │       ├── SKILL.md
@@ -54,24 +62,20 @@ community-coding/
 └── README.md
 ```
 
-**Where the other tasks went.** `dev-metrics-report`,
-`good-first-issue-health`, `repo-hygiene-audit` and `repo-mirror-sync` are now
-`opensource/community-secretary` tasks. `docs-gap-review` and
-`daily-github-triage` are the lead's — `docs-gap-review` reads a ledger only
-the lead writes, and since no agent can read another agent's plugin-data, it was
-permanently dead while it lived here.
+**`docs-gap-review` and `daily-github-triage` are the lead's**, not this
+agent's — `docs-gap-review` reads a ledger only the lead writes, and since no
+agent can read another agent's plugin-data, it was permanently dead while it
+lived here. That constraint is worth remembering before moving any task
+between agents: a task and the state it reads have to share a container.
 
-**And one metrics task came back.** `contributor-health-review` was split out of
-the local agent's `dev-metrics-report` and landed here, which looks like a
-reversal and isn't: the line was never "metrics live on the local tier," it was
-"narration lives on the local tier." Reporting that stars went up is narration.
-Deciding whether a rising close-without-merge rate means low-quality
-submissions arriving or maintainers quietly burning out — opposite problems,
-opposite responses, the same number — is judgment, and so is naming a
-contributor as a delegation candidate. The fetching and the arithmetic stay
-scripted; only the interpreting moved. The sibling half of that same split,
-`ready-to-merge`, stayed local for the mirror-image reason: a list of approved
-PRs is decided by the search, not by the reader.
+**`unanswered-watch` is the exception to "headless".** It is the only task in
+this template that posts into a public channel, and only ever the same fixed
+holding line ("logged, a maintainer will pick it up"), under the shared bot
+identity the lead already uses — so the community sees one continuous voice
+even while the lead is rate-limited or down. It answers nothing, promises no
+timeline, and reports every acknowledgment upward so the real reply still
+happens. It needs a silent wiring to each support channel to see the messages
+at all; `welcome/SKILL.md` §5c sets that up.
 
 ## Stamp it
 
@@ -101,12 +105,38 @@ stamped agent to write it:
 ```bash
 # groups/<folder>/plugin-data/community-coding/config.env
 COMMUNITY_REPOS="owner/repo1 owner/repo2"        # advisory sweep, issue/PR triage,
-                                                 # contributor-health review
+                                                 # dev metrics, GFI health, hygiene
+                                                 # audit, contributor-health review
 SECURITY_WATCH_REPOS="owner/repo1"               # optional — narrows
                                                  # security-advisory-sweep to a
                                                  # subset of COMMUNITY_REPOS
                                                  # (falls back to it if unset)
+DOCS_REPO="owner/docs"                           # optional — docs-currency-watch
+                                                 # stays silent forever if unset
+MARKETING_REPO="owner/marketing"                 # ledger-publish: where the metrics
+                                                 # history branch is committed.
+                                                 # Same repo the marketing agent
+                                                 # publishes to; see below.
+LEDGER_BRANCH="agent-metrics"                    # optional — default shown. An
+                                                 # orphan branch; the repo's
+                                                 # default branch is never touched
+ACK_GRACE_MINUTES="20"                           # unanswered-watch: how long a
+                                                 # message may sit unanswered
+                                                 # before the holding reply goes
+GFI_LABEL="good first issue"                     # optional — only if the project
+                                                 # uses a different beginner label
 ```
+
+`ACK_GRACE_MINUTES` is the one value worth thinking about rather than
+defaulting: too long and the silence it exists to prevent happens anyway; too
+short and it interrupts a lead that was about to answer. 20 minutes is the
+shipped default.
+
+**`MARKETING_REPO` has to be set in two places** — here and in the marketing
+agent's own config.env. Two agents cannot share a config file (each reads only
+its own plugin-data), so the same value is written twice. Both publish to the
+same branch under different subdirectories, so one place holds the whole
+project's number history.
 
 **`posthog-weekly-review` is removed for now** — it never got working end to
 end. If it comes back, it belongs here (product-telemetry anomalies need a
@@ -136,17 +166,6 @@ sets it and takes effect immediately (confirmed against
 Unset, the group defaults to the install-wide default, which is your host
 machine's own detected timezone, not UTC.
 
-## Reads the shared repo mirror when it's set up
-
-`dependabot-pr-review` and `security-advisory-sweep` will grep
-`/workspace/extra/shared-repos/<repo>/` directly for reachability and
-breaking-change judgment (checking `.last-sync-epoch`'s age first) if the
-local agent's shared mirror mount is set up — see
-`opensource/community-secretary/README.md`, "Shared repo mirror," for the one-time
-owner setup. Without it, both tasks fall back to the GitHub API or ask the
-lead to relay a grep from local ops. Optional either way; nothing here
-requires it.
-
 ## Credentials: via OneCLI, not env vars
 
 No API keys live in this template. The OneCLI gateway holds credentials in its
@@ -163,10 +182,15 @@ this agent drafts the bump instead. Either is fine; having both produces two PRs
 per CVE, which is why onboarding asks. Nothing here can turn the setting on —
 that needs Administration write, which no agent in this set holds.
 
-This agent needs **no GA4 access** — GA4 traffic narration is the local
-agent's; that credential belongs to `opensource/community-secretary`, see that
-template's README. (It would also need a PostHog key if
-`posthog-weekly-review` comes back — removed for now, see above.)
+This agent needs **no GA4 access** — web traffic belongs to
+`opensource/community-marketing`, along with its Viewer-scoped credential. (It
+would also need a PostHog key if `posthog-weekly-review` comes back — removed
+for now, see above.)
+
+It does need the **`github.com` (git) host** wired in addition to
+`api.github.com`, with push access to the marketing repo, because
+`ledger-publish` pushes a branch. Those are two separate vault entry classes:
+wiring only the REST host leaves the publish failing with `push-failed`.
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at
@@ -195,8 +219,19 @@ floor is deliberate — on repos this size a 1–2 point swing is sampling noise
 and waking a model to narrate noise is how a useful signal becomes something
 the owner learns to skip. A steady quarter costs one wake.
 
-A short list of gated tasks on Haiku is a small footprint against the shared
-usage window, which is the point of putting the Reviewer on the cheap tier.
-Dev metrics, GFI health, hygiene audit, and mirror sync moved to the local
-agent (also on the cheap tier, but bearing narration rather than judgment).
-`posthog-weekly-review` is removed for now — see above.
+**Every task here is gated, including the ones that arrived from the retired
+fourth agent** — `dev-metrics-report` wakes only on real movement (or weekly,
+so the channel never looks dead), `ready-to-merge` only when the approved set
+changes, `repo-hygiene-audit` only when a community health file is actually
+missing, `good-first-issue-health` and `contributor-nudge` only when there is
+something to report. `ledger-publish` and `conversation-archive-prune` never
+wake the model on success at all.
+
+`unanswered-watch` is the one that runs most often — every ten minutes — and
+it is also the cheapest possible check: no network, no credentials, just a
+read of local session state. It wakes only when a human's message has actually
+gone unanswered past the grace window.
+
+Holding this many gated tasks on Haiku is still a small footprint against the
+shared usage window, which is the point of putting the Reviewer on the cheap
+tier. `posthog-weekly-review` is removed for now — see above.

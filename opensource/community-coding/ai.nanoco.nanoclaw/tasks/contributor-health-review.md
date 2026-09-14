@@ -155,8 +155,8 @@ script: |
 ---
 
 Maintainer load and PR throughput. Two numbers per repo, and both are
-meaningless on their own — the interpretation is the deliverable, which is
-why this task lives with you and not with the local ops agent.
+meaningless on their own — the interpretation is the deliverable, which is why
+this is its own weekly task rather than two more lines in the daily digest.
 
 **If `status` is `partial-fetch-failure`**: name the repos in
 `degraded_repos` and interpret only the rest. A missing repo is not a healthy

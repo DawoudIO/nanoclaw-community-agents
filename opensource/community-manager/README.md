@@ -1,8 +1,8 @@
 # Community Manager Agent Template
 
-The lead agent in a four-template set for running an open-source project's
+The lead agent in a three-template set for running an open-source project's
 community: answer users and contributors on Discord and GitHub as one consistent
-identity, triage what comes in, and relay the work of three headless sub-agents —
+identity, triage what comes in, and relay the work of two headless sub-agents —
 while being the only thing in the system with a **full** public voice.
 
 **This set:**
@@ -10,12 +10,11 @@ while being the only thing in the system with a **full** public voice.
 | Template | Role | Public voice? |
 |---|---|---|
 | `opensource/community-manager` (this one) | Lead: community replies, GitHub triage, escalation, relays sub-agents | **Yes — the only full one** |
-| `opensource/community-secretary` | Local-model ops: holding acknowledgments, repo mirrors, narration of pre-computed numbers | Holding acknowledgments only |
-| `opensource/community-coding` | Issue/PR triage and security advisory sweeps | No |
-| `opensource/community-marketing` | Content drafting (1 task) | No |
+| `opensource/community-coding` | The Reviewer: issue/PR triage, security advisories, repo and contributor health | Holding acknowledgments only |
+| `opensource/community-marketing` | Measurement: follower counts and web traffic. Writes no content | No |
 
-The lead works standalone. Add any of the three sub-agents when you want that
-work done without giving it a second identity.
+The lead works standalone. Add either sub-agent when you want that work done
+without giving it a second identity.
 
 ## Why one voice
 
@@ -28,14 +27,18 @@ For the **Reviewer** (`opensource/community-coding`) and **Marketing**
 attach to: neither has any channel wiring, so it fails structurally rather than
 relying on an agent remembering a rule under pressure.
 
-The **local ops agent** is the one deliberate exception, and it's worth stating
-precisely rather than blurring: it *does* hold one channel wiring, because a
-holding acknowledgment has to appear where the unanswered message is. Its
-restriction is enforced by **scope** instead of by absence — one channel,
-read-only credentials everywhere else, no write access, and a fixed template it
-is forbidden to compose freely. What it posts is a receipt, never a resolution.
-Every actual answer is still only ever the lead's. Full reasoning in
+The **Reviewer**'s `unanswered-watch` is the one deliberate exception, and it's
+worth stating precisely rather than blurring: it *does* hold a channel wiring,
+because a holding acknowledgment has to appear where the unanswered message is.
+Its restriction is enforced by **scope** instead of by absence — the support
+channels only, the same bot identity so no reader sees a new party, and a fixed
+template it is forbidden to compose freely. What it posts is a receipt, never a
+resolution. Every actual answer is still only ever the lead's. Full reasoning in
 `skills/community-manager/references/single-voice-relay.md`.
+
+The reason that exception lives on a *different* agent at all: an agent sharing
+the lead's usage window cannot be the thing that covers for that window running
+out.
 
 ## Layout
 
@@ -72,14 +75,22 @@ community-manager/
 └── README.md
 ```
 
-`health-check` and `workspace-backup` used to live here; both are now
-`opensource/community-secretary` tasks, because each only narrates what its gate script
-already computed and needs neither the lead's model nor its voice.
-`docs-gap-review` moved the other way, into this template: it reads
-`question-ledger.jsonl`, which only the lead writes, and no agent can read
-another agent's plugin-data — so in the Reviewer it was permanently dead.
-`daily-github-triage` likewise belongs to the lead (see the note under *Full
-setup* about leaving it paused).
+`docs-gap-review` lives here for a mechanical reason worth remembering before
+moving any task between agents: it reads `question-ledger.jsonl`, which only
+the lead writes, and no agent can read another agent's plugin-data — so in the
+Reviewer it was permanently dead. `daily-github-triage` likewise belongs to the
+lead (see the note under *Full setup* about leaving it paused).
+
+`health-check` and `workspace-backup` used to live in this set and are now
+**gone entirely**, not moved. The health check could never fix anything it
+found, and its "the system is alive" signal was a weekly heartbeat whose
+*absence* the owner had to notice — a dead container cannot report its own
+death. The backup wrote a daily copy of a container's workspace that nothing
+ever read back: this set is rebuilt from the templates every few months and
+nothing reimports container state. What replaced the backup is narrower and
+actually load-bearing: `ledger-publish` (on the Reviewer and Marketing) commits
+only the series that genuinely cannot be rebuilt into a branch of the project's
+marketing repo.
 
 ## Channel tiers
 
@@ -113,32 +124,36 @@ agent's file, and there are three relays to get right:
 
 | Sub-agent | Keys the lead relays |
 |---|---|
-| `opensource/community-secretary` | `COMMUNITY_REPOS`, `MIRROR_REPOS`, `CONTENT_REPO`, `GA4_PROPERTY_ID`, `GFI_LABEL`, `ACK_GRACE_MINUTES` |
-| `opensource/community-coding` | `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS`) |
-| `opensource/community-marketing` | `CONTENT_REPO`, `RELEASE_WATCH_REPO` |
+| `opensource/community-coding` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `MARKETING_REPO` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
+| `opensource/community-marketing` | `MARKETING_REPO`, `GA4_PROPERTIES` (+ optional `LEDGER_BRANCH`) |
 
-This agent also owns its own optional `RELEASE_WATCH_REPOS` (narrows
-`release-announcement-watch` to a subset of `COMMUNITY_REPOS`, distinct from
-marketing's singular `RELEASE_WATCH_REPO` above — easy to confuse, unrelated
-keys).
+The Reviewer's is by far the larger payload — it owns most of the tasks in the
+set (run `bash scripts/gen-task-table.sh --counts` for the current split) — so
+it's the relay most likely to end up half-done.
 
-The local agent's is by far the largest payload — it owns the largest single
-share of the tasks in the set (run `bash scripts/gen-task-table.sh --counts`
-for the current split) — so it's the relay most likely to end up half-done. Note that
-`CONTENT_REPO` is relayed to **both** local (for `draft-cleanup`) and marketing
-(for `content-draft-cycle`); the same value has to exist in two files.
-`GITHUB_BOT_USERNAME` is set in all four agents.
+This agent also owns its own optional `RELEASE_WATCH_REPOS`, which narrows
+`release-announcement-watch` to a subset of `COMMUNITY_REPOS`.
+`GITHUB_BOT_USERNAME` is set in all three agents.
 
-This agent is also the **durable home of the follower-count series**: when the
-local ops agent hands over its weekly snapshot line, the lead appends it to
-`plugin-data/community-manager/social-metrics-history.jsonl`.
+**`MARKETING_REPO` is relayed to both sub-agents**, because each publishes its
+own unrecoverable series to a branch there and two agents cannot share a config
+file. The same value has to exist in two files; if one publish is silently
+missing later, a half-done relay is the first thing to check.
 
-**Open question — the lead's own ledgers aren't backed up.** `workspace-backup`
-is a `opensource/community-secretary` task and captures the **local** agent's workspace,
-so the lead's append-only files (`social-metrics-history.jsonl` and
-`question-ledger.jsonl`) are not covered by it. Nothing in the set currently
-covers them. Treat that as the state you would actually lose in a rebuild, and
-decide deliberately how to cover it — don't assume a backup exists here.
+**The lead keeps no copy of the metrics series.** An earlier version had it
+appending the follower counts into its own
+`social-metrics-history.jsonl` as a second durable copy; that is deliberately
+gone. The marketing agent owns that file and publishes it itself, because two
+ledgers of the same numbers in two containers drift apart and then nobody knows
+which is right.
+
+**What the lead would still lose in a rebuild**: `question-ledger.jsonl` (the
+repeat-question ledger behind `docs-gap-review`) and `owner-instructions.jsonl`
+(the ack ledger). Neither is published anywhere, deliberately — both contain
+community members' words and the owner's private direction, which don't belong
+in a repo branch. Treat them as genuinely disposable: `docs-gap-review` simply
+starts observing again after a rebuild, and the ack ledger only needs to
+outlive a session, not a repave.
 
 ## Full setup, from zero
 
@@ -147,25 +162,23 @@ decide deliberately how to cover it — don't assume a backup exists here.
 ncl groups create --template opensource/community-manager --name "Community Manager"
 
 # 2. Stamp whichever sub-agents you want
-ncl groups create --template opensource/community-secretary --name "Community Secretary"
 ncl groups create --template opensource/community-coding --name "Community Coding"
 
 #    Marketing is NOT stamped at install by default — it is the deferred one.
-#    Stamp it when you actually want a drafting queue:
+#    Stamp it when you want the follower/traffic series tracked:
 ncl groups create --template opensource/community-marketing --name "Community Marketing"
 
 # 3. Wire sub-agents to the lead — agent-to-agent
-ncl destinations add --agent-group-id <local-id>     --local-name parent --target-type agent --target-id <lead-id>
-ncl destinations add --agent-group-id <lead-id>      --local-name local --target-type agent --target-id <local-id>
 ncl destinations add --agent-group-id <coding-id>    --local-name parent --target-type agent --target-id <lead-id>
 ncl destinations add --agent-group-id <lead-id>      --local-name coding --target-type agent --target-id <coding-id>
 ncl destinations add --agent-group-id <marketing-id> --local-name parent --target-type agent --target-id <lead-id>
 ncl destinations add --agent-group-id <lead-id>      --local-name marketing-agent --target-type agent --target-id <marketing-id>
 
 # 4. Wire the LEAD to your Discord channels and GitHub repos, per your
-#    platform's channel management. The local ops agent additionally needs
-#    exactly ONE channel (holding acknowledgments) — see its README.
-#    Coding and marketing get no channel wiring at all.
+#    platform's channel management. The Reviewer additionally needs a SILENT
+#    wiring to each support channel so unanswered-watch can see messages and
+#    post its holding line — see welcome/SKILL.md 5c for the exact commands.
+#    Marketing gets no channel wiring at all.
 
 # 5. Connect credentials in OneCLI (tables below), then review and resume tasks
 ncl tasks list --status paused
@@ -173,15 +186,10 @@ ncl tasks run <task-id>       # test scripted tasks first
 ncl tasks resume <task-id>
 ```
 
-If you stamped the local ops agent, **point it at a local model before resuming
-anything** — stamped without that override it runs on the cloud provider and
-shares this agent's usage window, which defeats the entire reason it exists. Its
-README has the two commands.
-
-Every task in all four templates is created **paused**. Read each one, fill in
+Every task in all three templates is created **paused**. Read each one, fill in
 the config its README lists, and resume deliberately — that's the
 rebuild-cheaply property: the whole system is a stamp plus a handful of
-`resume` calls, and tearing it down is deleting four groups.
+`resume` calls, and tearing it down is deleting three groups.
 
 **If you stamp the Reviewer (`opensource/community-coding`), leave the lead's
 `daily-github-triage` paused.** It exists for lead-standalone deployments, and
@@ -192,9 +200,10 @@ each tracks "already reported" in its own plugin-data, and neither can see that
 the other has already reported an issue. Running both double-reports, and
 nothing in the system will notice.
 
-**Workspace backup is no longer set up here** — `workspace-backup` is a
-`opensource/community-secretary` task, and its setup lives in
-[that template's README](../../opensource/community-secretary/README.md).
+**There is no workspace backup anywhere in this set, by design.** See the note
+under *Configuration* above: the only state worth preserving is published by
+`ledger-publish` on the two sub-agents, and everything else is meant to be
+rebuilt.
 
 **Script dependencies:** `bash`, `curl`, `jq`, and `ncl`
 (`weekly-identity-integrity-check` reads `ncl tasks list --json`; without `ncl`
@@ -216,7 +225,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and `release-announcement-watch`: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The backup repo is **not** in this agent's scope; that write belongs to the local ops agent's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and `release-announcement-watch`: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The marketing repo is **not** in this agent's scope; that write belongs to the sub-agents' tokens. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 | Shared inbox (e.g. Gmail) *(optional)* | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** (`gmail.readonly`) for `inbox-check`. This agent never sends mail — the send is always a human's, so do not grant send or modify scopes. An inbox is a support channel, which is why it belongs to the agent that owns support escalation. | Google Cloud console → OAuth consent + credentials |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
@@ -231,17 +240,18 @@ on a real deployment it lands in the **Custom** tab as a generic secret (host
 here uses — that's NanoClaw's own internal plumbing for its Discord adapter,
 not a step you perform yourself.
 
-**Give each agent its own least-privilege token.** The Reviewer gets a read-only
-GitHub token; the marketing sub-agent a token scoped to the content repo only;
-the local ops agent read on `COMMUNITY_REPOS` + `MIRROR_REPOS` plus Contents
-**write on its backup repo only**. Sharing one broad token across all four
-defeats the point of splitting them.
+**Give each agent its own least-privilege token.** The Reviewer gets a token
+that is read-only across `COMMUNITY_REPOS`, plus Contents+PRs write for
+security patches and Contents write on the marketing repo for
+`ledger-publish`; the marketing sub-agent gets one scoped to the marketing repo
+only. Sharing one broad token across all three defeats the point of splitting
+them.
 
-**All four tokens match the same host (`api.github.com`), so use OneCLI's
+**All three tokens match the same host (`api.github.com`), so use OneCLI's
 `selective` secret mode** — in `all` mode, every agent whose requests match the
-host gets whichever secret matches first, which collapses your four scoped
-tokens back into shared access. Set each agent to selective and assign it only
-its own secret:
+host gets whichever secret matches first, which collapses your scoped tokens
+back into shared access. Set each agent to selective and assign it only its own
+secret:
 
 ```bash
 onecli agents list                                              # find agent ids

@@ -141,13 +141,14 @@ reasons, and say which you did:
 - **`scope: "development"`** is the biggest discount. A build-time dependency
   is not in the shipped attack surface. It still gets patched eventually, but
   it is not an incident.
-- **Reachability.** Is the vulnerable function actually called? **Grep
-  `/workspace/extra/shared-repos/<repo>/` if it exists** (the shared mirror local
-  ops keeps in sync — check `.last-sync-epoch`'s age and note it if you use
-  this) rather than fetching individual files via the API one at a time.
+- **Reachability.** Is the vulnerable function actually called? Use GitHub's
+  code search (`GET /search/code` scoped to the repo) to find call sites
+  rather than fetching individual files via the API one at a time.
   "Vulnerable version present but the affected API is never invoked" is a
   legitimate, defensible downgrade — write down the path you checked so a
-  human can disagree with a specific claim rather than a vibe.
+  human can disagree with a specific claim rather than a vibe, and say
+  explicitly when a search came back empty in a way you could not confirm
+  (an empty code-search result is weaker evidence than a read file).
 - **Exploitability in context.** A DoS in a CLI a maintainer runs locally is
   not the same as one in a request path.
 - **Project rules.** If `project-config.md` sets a security policy — a minimum

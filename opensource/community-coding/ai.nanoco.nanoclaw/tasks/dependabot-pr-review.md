@@ -141,13 +141,12 @@ the number; a pile-up of unreviewed bumps is itself the finding.
   breaking change wearing a security label. Read the release notes between the
   two versions and say what breaks. This is the single most useful thing you
   produce here, because it is the reason a maintainer has been avoiding the PR.
-- **Do we call the affected code?** Read the files that import the package —
-  **if `/workspace/extra/shared-repos/<repo>/` exists (the shared mirror local ops
-  keeps in sync — check `.last-sync-epoch`'s age first, and say "as of
-  <sync time>" if you use it), grep it directly.** Otherwise fall back to the
-  API, or ask your lead to have the local ops agent grep its mirror. "We
-  import this in two places, neither touches the changed API" is worth more
-  than any severity score.
+- **Do we call the affected code?** Read the files that import the package.
+  Use GitHub's code search (`GET /search/code` scoped to the repo) to find the
+  import sites rather than fetching candidate files one at a time. "We import
+  this in two places, neither touches the changed API" is worth more than any
+  severity score — and if you could not establish it, say so plainly instead
+  of implying you checked more of the tree than you did.
 - **Read the diff, not the title.** A lockfile-only change is routine. A bump
   that drags in transitive majors is not, and the title won't tell you.
 - **`security_backed: false`** means this is a routine version update, not a
