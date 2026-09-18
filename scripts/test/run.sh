@@ -1013,13 +1013,13 @@ GITCFG
   git -C "$t/seed" remote add origin "$t/remote.git"; git -C "$t/seed" push -q origin main
 
   mkdir -p "$t/data"
-  echo '[{"date":"2026-01-01"}]' > "$t/data/metrics-history.json"
+  printf 'date,repo,stars,forks,open_issues,open_prs,new_contrib_7d,await_issues,await_oldest,rel_latest,dl_latest\n2026-01-01,acme/demo,1,2,3,4,0,5,,v1,10\n' > "$t/data/metrics-history.csv"
   # The live follower series is the CSV; the .jsonl is the frozen pre-CSV
   # archive. BOTH must publish — shipping only the current format would
   # silently orphan the older half of the one series nothing can rebuild.
   printf 'date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes\n2026-01-01,190,,17,34,88,,,\n' \
     > "$t/data/social-metrics-history.csv"
-  printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.jsonl"
+  printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.csvl"
   printf 'date,activeUsers,sessions,pageViews,engagementRate\n2026-01-01,10,12,30,0.5\n' > "$t/data/traffic-history-main.csv"
   # a file that must never be published, whichever agent runs
   echo 'private' > "$t/data/owner-instructions.jsonl"
@@ -1048,7 +1048,7 @@ GITCFG
   # all three curated series published, and nothing conversational
   published=$(git -C "$t/remote.git" ls-tree -r --name-only agent-metrics)
   missing=""
-  for want in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl traffic-history-main.csv; do
+  for want in metrics-history.csv social-metrics-history.csv social-metrics-history.csvl traffic-history-main.csv; do
     printf '%s' "$published" | grep -q "$want" || missing="$missing $want"
   done
   [ -z "$missing" ] && pass || fail "$label: curated series not published:$missing"
@@ -1078,7 +1078,7 @@ GITCFG
   git -C "$t/seed" add -A; git -C "$t/seed" commit -qm outside
   git -C "$t/seed" push -q origin agent-metrics
   before=$(git -C "$t/remote.git" rev-parse agent-metrics)
-  echo '[{"date":"2026-01-02"}]' > "$t/data/metrics-history.json"
+  printf '2026-01-02,acme/demo,2,2,3,4,0,5,,v1,11\n' >> "$t/data/metrics-history.csv"
   printf '2026-01-02,191,,17,35,89,,,\n' >> "$t/data/social-metrics-history.csv"
   out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
   # Either it published on top of the outside commit (a fast-forward, fine) or

@@ -22,8 +22,7 @@ if [ -z "$REPOS" ]; then
   echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-helper/config.env"}}'
   exit 0
 fi
-HIST="$DATA/metrics-history.json"
-if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
+HIST="$DATA/metrics-history.csv"
 NOW_EPOCH=$(date +%s)
 CUTOFF_EPOCH=$(( NOW_EPOCH - 604800 ))
 SINCE_DATE=$(date -u -d "@$CUTOFF_EPOCH" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF_EPOCH" +%Y-%m-%d 2>/dev/null || echo "")
@@ -142,16 +141,56 @@ wait
 # digest). Don't add them back here.
 TODAY=$(cat "$TMP"/*.json | jq -c -s 'map({(.repo): {stars, forks, open_issues, open_prs, releases, new_contributors_7d, awaiting_first_response}}) | add // {}')
 rm -rf "$TMP"
-jq -c --argjson m "$TODAY" --arg d "$(date -u +%Y-%m-%d)" \
-  '. + [{date: $d, metrics: $m}] | .[-30:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+
+# History is CSV, one row per repo per day, and it is WRITE-ONLY from this
+# gate's point of view — nothing here ever reads it back (the wake gate uses
+# last-reported below instead). It exists for the agent's trend reporting and
+# for ledger-publish, both of which read it directly, which is exactly why
+# the format matters: a JSON array costs the whole file on every read.
+#
+# The nested parts flatten: `awaiting_first_response` becomes two columns,
+# and the `releases` ARRAY collapses to the latest release's tag and download
+# count. That drops per-release breakdown *history* — deliberately. Nothing
+# reads it (current release data always comes fresh from the API each run),
+# and downloads-over-time survives as one column per day.
+[ -s "$HIST" ] || echo 'date,repo,stars,forks,open_issues,open_prs,new_contrib_7d,await_issues,await_oldest,rel_latest,dl_latest' > "$HIST"
+printf '%s' "$TODAY" | jq -r --arg d "$(date -u +%Y-%m-%d)" '
+  to_entries[] | .key as $r | .value as $v
+  | [$d, $r, ($v.stars // ""), ($v.forks // ""), ($v.open_issues // ""), ($v.open_prs // ""),
+     ($v.new_contributors_7d | if . == null then "" else length end),
+     ($v.awaiting_first_response.issues // ""), ($v.awaiting_first_response.oldest_issue_since // ""),
+     ($v.releases[0].tag // $v.releases[0].name // ""), ($v.releases[0].downloads // "")]
+  | @csv' | tr -d '"' >> "$HIST" 2>/dev/null || true
+# ~30 days across a handful of repos; header kept on top.
+{ head -n 1 "$HIST"; tail -n 300 "$HIST" | grep -v '^date,'; } > "$HIST.tmp" 2>/dev/null \
+  && mv "$HIST.tmp" "$HIST"
 
 # "previous" is the last snapshot the agent actually REPORTED, not just
 # yesterday's — so when the wake gate below suppresses a few quiet days,
 # the deltas in the next report span the whole gap instead of losing the
 # suppressed days' movement forever. Updated only on a wake.
-LASTREP_F="$DATA/last-reported-metrics.json"
-PREV=$(cat "$LASTREP_F" 2>/dev/null || echo '{}')
-printf '%s' "$PREV" | jq -e . >/dev/null 2>&1 || PREV='{}'
+#
+# Also CSV now, read back with awk into the same repo-keyed object the output
+# contract already promised. The agent computes a delta for every number it
+# reports, so this has to round-trip the whole scalar set, not just the two
+# fields the wake gate compares — an empty cell becomes a real null so a
+# missing reading can never be mistaken for a measured zero.
+LASTREP_F="$DATA/last-reported-metrics.csv"
+# The format lives in a BEGIN variable rather than inline: BSD awk (macOS,
+# where this suite runs) rejects a newline directly after `sprintf(`, while
+# GNU awk in the container accepts it — so an inline multi-line call would
+# have worked in production and failed only on a developer's machine.
+PREV=$(awk -F, '
+  function n(x) { return (x == "" ? "null" : x) }
+  function s(x) { return (x == "" ? "null" : "\"" x "\"") }
+  BEGIN { FMT = "\"%s\":{\"stars\":%s,\"forks\":%s,\"open_issues\":%s,\"open_prs\":%s,\"new_contrib_7d\":%s,\"awaiting_first_response\":{\"issues\":%s,\"oldest_issue_since\":%s},\"rel_latest\":%s,\"dl_latest\":%s}" }
+  NR == 1 && $1 == "repo" { next }
+  NF >= 10 {
+    row = sprintf(FMT, $1, n($2), n($3), n($4), n($5), n($6), n($7), s($8), s($9), n($10))
+    out = out (out == "" ? "" : ",") row
+  }
+  END { printf "{%s}", out }' "$LASTREP_F" 2>/dev/null || echo '{}')
+[ -z "$PREV" ] && PREV='{}'
 
 # A fetch outage must never read as a quiet day: if any repo's core count
 # (open_issues) came back null this run, the token/policy problem gets
@@ -185,7 +224,16 @@ WAKE=false
 if [ "$NOTABLE" = "true" ] || [ "$HAS_DEGRADED" = "true" ] || [ "$DAYS_SINCE_WAKE" -ge 7 ]; then
   WAKE=true
   date -u +%Y-%m-%d > "$LASTWAKE_F"
-  printf '%s' "$TODAY" > "$LASTREP_F"
+  # Same scalar set the awk reader above expects, in the same column order.
+  { echo 'repo,stars,forks,open_issues,open_prs,new_contrib_7d,await_issues,await_oldest,rel_latest,dl_latest'
+    printf '%s' "$TODAY" | jq -r '
+      to_entries[] | .key as $r | .value as $v
+      | [$r, ($v.stars // ""), ($v.forks // ""), ($v.open_issues // ""), ($v.open_prs // ""),
+         ($v.new_contributors_7d | if . == null then "" else length end),
+         ($v.awaiting_first_response.issues // ""), ($v.awaiting_first_response.oldest_issue_since // ""),
+         ($v.releases[0].tag // $v.releases[0].name // ""), ($v.releases[0].downloads // "")]
+      | @csv' | tr -d '"'
+  } > "$LASTREP_F" 2>/dev/null || true
 fi
 printf '{"wakeAgent": %s, "data": {"today": %s, "previous": %s, "degraded_repos": %s, "quiet_heartbeat": %s}}\n' \
   "$WAKE" "$TODAY" "$PREV" "$DEGRADED" "$([ "$NOTABLE" = "false" ] && [ "$HAS_DEGRADED" = "false" ] && echo true || echo false)"

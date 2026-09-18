@@ -14,7 +14,7 @@ set -euo pipefail
 #     no API, page, or export anywhere that will say what the count was last
 #     Tuesday. A day that goes unrecorded is gone for good, at any price. This
 #     is the strongest single reason this task exists.
-#     `social-metrics-history.jsonl` is the frozen pre-CSV archive of the same
+#     `social-metrics-history.csvl` is the frozen pre-CSV archive of the same
 #     series and ships alongside it for exactly the same reason.
 #
 #   traffic-history-*.csv        PARTLY. GA4 can be re-queried for any date
@@ -23,7 +23,7 @@ set -euo pipefail
 #     existed. Recoverable short-term, permanently gone past that horizon —
 #     which is exactly what the year-over-year comparison needs.
 #
-#   metrics-history.json          EFFECTIVELY NO. GitHub returns the CURRENT
+#   metrics-history.csv          EFFECTIVELY NO. GitHub returns the CURRENT
 #     star and fork count; reconstructing past values means paging every
 #     stargazer with the special `star+json` Accept header, plus every issue's
 #     comment timestamps for `awaiting_first_response`. Possible in principle,
@@ -114,7 +114,7 @@ esac
 # publishing only the current format would silently orphan the older half of
 # the one series in this system that can never be rebuilt.
 PRESENT=()
-for f in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl; do
+for f in metrics-history.csv social-metrics-history.csv social-metrics-history.csvl; do
   if [ -f "$DATA/$f" ]; then PRESENT+=("$f"); fi
 done
 for f in "$DATA"/traffic-history-*.csv; do
