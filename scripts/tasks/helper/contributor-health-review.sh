@@ -110,12 +110,37 @@ HAS_DEGRADED=$(printf '%s' "$DEGRADED" | jq 'length > 0')
 # Trend memory: this task exists to catch DRIFT, so it needs last week's
 # values to compare against. Append-only history, capped at ~1 year of
 # weekly points.
-HIST="$DATA/contributor-health-history.json"
-[ -f "$HIST" ] || echo '[]' > "$HIST"
-jq -e . "$HIST" >/dev/null 2>&1 || echo '[]' > "$HIST"
-PREV=$(jq -c '.[-1].repos // []' "$HIST" 2>/dev/null || echo '[]')
-jq -c --argjson r "$ALL" --arg d "$(date -u +%Y-%m-%d)" \
-  '. + [{date: $d, repos: $r}] | .[-52:]' "$HIST" > "$HIST.tmp" 2>/dev/null \
+# CSV: date,repo,unmerged_ratio,top_author_share_pct — one row per repo per
+# run. Only those two numbers are ever compared against, so the history holds
+# exactly them rather than a nested copy of the whole assessment.
+HIST="$DATA/contributor-health-history.csv"
+[ -s "$HIST" ] || echo 'date,repo,unmerged_ratio,top_author_share_pct' > "$HIST"
+
+# Last run's rows = every row carrying the most recent date, which on an
+# append-ordered file is the date on the final line. awk builds the small JSON
+# array the comparison joins against. An empty field becomes a real null,
+# never 0 — "not measured" and "measured as zero" must never merge, or a
+# degraded fetch reads as a 100-point swing.
+LAST_DATE=$(tail -n 1 "$HIST" | cut -d, -f1)
+PREV='[]'
+case "$LAST_DATE" in
+  [0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9])
+    PREV=$(awk -F, -v d="$LAST_DATE" '
+      NR == 1 && $1 == "date" { next }
+      $1 == d && NF >= 4 {
+        r = ($3 == "" ? "null" : $3); s = ($4 == "" ? "null" : $4)
+        out = out (out == "" ? "" : ",") sprintf("{\"repo\":\"%s\",\"ratio\":%s,\"share\":%s}", $2, r, s)
+      }
+      END { printf "[%s]", out }' "$HIST" 2>/dev/null || echo '[]')
+    ;;
+esac
+[ -z "$PREV" ] && PREV='[]'
+
+printf '%s' "$ALL" | jq -r --arg d "$(date -u +%Y-%m-%d)" \
+  '.[] | [$d, .repo, (.closed_prs_30d.unmerged_ratio // ""), (.concentration.top_author_share_pct // "")] | @csv' \
+  | tr -d '"' >> "$HIST" 2>/dev/null || true
+# ~52 weekly points across a handful of repos; header kept on top.
+{ head -n 1 "$HIST"; tail -n 520 "$HIST" | grep -v '^date,'; } > "$HIST.tmp" 2>/dev/null \
   && mv "$HIST.tmp" "$HIST" || rm -f "$HIST.tmp"
 
 # Wake only on a real move. Thresholds are deliberate and stated here rather
@@ -125,14 +150,14 @@ MOVED=$(jq -c -n --argjson t "$ALL" --argjson p "$PREV" '
   [ $t[] as $cur
     | ($p[] | select(.repo == $cur.repo)) as $old
     | select(
-        (($cur.closed_prs_30d.unmerged_ratio != null) and ($old.closed_prs_30d.unmerged_ratio != null)
-          and (((($cur.closed_prs_30d.unmerged_ratio | tonumber) - ($old.closed_prs_30d.unmerged_ratio | tonumber)) | fabs) >= 0.10))
-        or (($cur.concentration.top_author_share_pct != null) and ($old.concentration.top_author_share_pct != null)
-          and ((($cur.concentration.top_author_share_pct - $old.concentration.top_author_share_pct) | fabs) >= 10))
+        (($cur.closed_prs_30d.unmerged_ratio != null) and ($old.ratio != null)
+          and (((($cur.closed_prs_30d.unmerged_ratio | tonumber) - ($old.ratio | tonumber)) | fabs) >= 0.10))
+        or (($cur.concentration.top_author_share_pct != null) and ($old.share != null)
+          and ((($cur.concentration.top_author_share_pct - $old.share) | fabs) >= 10))
       )
     | {repo: $cur.repo,
-       ratio_now: $cur.closed_prs_30d.unmerged_ratio, ratio_before: $old.closed_prs_30d.unmerged_ratio,
-       share_now: $cur.concentration.top_author_share_pct, share_before: $old.concentration.top_author_share_pct} ]' \
+       ratio_now: $cur.closed_prs_30d.unmerged_ratio, ratio_before: $old.ratio,
+       share_now: $cur.concentration.top_author_share_pct, share_before: $old.share} ]' \
   2>/dev/null || echo '[]')
 HAS_MOVED=$(printf '%s' "$MOVED" | jq 'length > 0' 2>/dev/null || echo false)
 FIRST_RUN=$(printf '%s' "$PREV" | jq 'length == 0')

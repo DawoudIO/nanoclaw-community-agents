@@ -56,12 +56,11 @@ for PAIR in "${PAIRS[@]}"; do
     PROPERTY_ID="$PAIR"
     LABEL="property-${PROPERTY_ID}"
   fi
-  # LABEL becomes part of a filename below (traffic-history-$LABEL.json) and
+  # LABEL becomes part of a filename below (traffic-history-$LABEL.csv) and
   # travels into ledger-publish.sh's own file list — a "../.." or a space in
   # GA4_PROPERTIES must not become a path escape or a word-split filename.
   LABEL=$(printf '%s' "$LABEL" | tr -c 'A-Za-z0-9_-' '_')
-  HIST="$DATA/traffic-history-${LABEL}.json"
-  if [ ! -f "$HIST" ]; then echo '[]' > "$HIST"; fi
+  HIST="$DATA/traffic-history-${LABEL}.csv"
 
   # --- Query 1: current vs. prior-week AND prior-month windows, compared
   # directly by GA4 itself (three named dateRanges in one request,
@@ -113,18 +112,43 @@ for PAIR in "${PAIRS[@]}"; do
   PREV_WEEK=$(extract_row "previous_week")
   PREV_MONTH=$(extract_row "previous_month")
 
-  # YoY from the ledger: nearest dated entry within ±10 days of 364 days ago.
-  # A brand-new install has no such entry — that's "not enough history yet",
+  # YoY from the ledger: nearest dated row within ±10 days of 364 days ago.
+  # A brand-new install has no such row — that's "not enough history yet",
   # not a failure.
-  PREV_YEAR=$(jq -c --arg d "$(date -u +%Y-%m-%d)" '
-    (($d | strptime("%Y-%m-%d") | mktime) - (364*86400)) as $target
-    | [ .[] | . as $e | ($e.date | strptime("%Y-%m-%d") | mktime) as $t
-        | select(($t - $target | fabs) <= (10*86400)) | $e ]
-    | sort_by(($target - (.date | strptime("%Y-%m-%d") | mktime)) | fabs)
-    | (.[0].metrics // {})' "$HIST" 2>/dev/null || echo '{}')
+  #
+  # Ledger is CSV: date,activeUsers,sessions,pageViews,engagementRate. One awk
+  # pass picks the closest row by day distance. Dates are bare YYYY-MM-DD, so
+  # they sort lexicographically but can't be subtracted — hence days(), the
+  # standard days-from-civil conversion, rather than a date(1) call per row.
+  TARGET_DAYS=$(( ( $(date -u +%s) - 364*86400 ) / 86400 ))
+  PREV_YEAR=$(awk -F, -v target="$TARGET_DAYS" '
+    function days(d) {
+      split(d, p, "-"); y = p[1]+0; m = p[2]+0; dd = p[3]+0
+      if (m <= 2) { y--; em = m + 9 } else { em = m - 3 }
+      era = int(y/400); yoe = y - era*400
+      doy = int((153*em + 2)/5) + dd - 1
+      doe = yoe*365 + int(yoe/4) - int(yoe/100) + doy
+      return era*146097 + doe - 719468
+    }
+    NR == 1 && $1 == "date" { next }
+    NF >= 5 && $1 ~ /^[0-9][0-9][0-9][0-9]-/ {
+      diff = days($1) - target; if (diff < 0) diff = -diff
+      if (diff <= 10 && (best == "" || diff < best)) {
+        best = diff
+        out = sprintf("{\"activeUsers\":%s,\"sessions\":%s,\"pageViews\":%s,\"engagementRate\":%s}", $2, $3, $4, $5)
+      }
+    }
+    END { print (out == "" ? "{}" : out) }' "$HIST" 2>/dev/null || echo '{}')
+  [ -z "$PREV_YEAR" ] && PREV_YEAR='{}'
 
-  jq -c --argjson m "$WEEK" --arg d "$(date -u +%Y-%m-%d)" \
-    '. + [{date: $d, metrics: $m}] | .[-370:]' "$HIST" > "$HIST.tmp" && mv "$HIST.tmp" "$HIST"
+  # Create-on-first-write with the header; append one row per run.
+  [ -s "$HIST" ] || echo 'date,activeUsers,sessions,pageViews,engagementRate' > "$HIST"
+  printf '%s' "$WEEK" | jq -r --arg d "$(date -u +%Y-%m-%d)" \
+    '[$d, .activeUsers, .sessions, .pageViews, .engagementRate] | @csv' \
+    | tr -d '"' >> "$HIST" 2>/dev/null || true
+  # Bounded at ~a year of rows, header kept on top.
+  { head -n 1 "$HIST"; tail -n 370 "$HIST" | grep -v '^date,'; } > "$HIST.tmp" 2>/dev/null \
+    && mv "$HIST.tmp" "$HIST"
 
   # --- Query 2: dimensional breakdown — geography, language, browser, AI
   # referral, and social-media attribution, all from one query; jq buckets

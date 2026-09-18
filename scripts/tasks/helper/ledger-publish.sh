@@ -17,7 +17,7 @@ set -euo pipefail
 #     `social-metrics-history.jsonl` is the frozen pre-CSV archive of the same
 #     series and ships alongside it for exactly the same reason.
 #
-#   traffic-history-*.json        PARTLY. GA4 can be re-queried for any date
+#   traffic-history-*.csv        PARTLY. GA4 can be re-queried for any date
 #     inside the property's retention window (14 months by default, and
 #     configurable down to 2) and nothing at all from before the property
 #     existed. Recoverable short-term, permanently gone past that horizon —
@@ -117,7 +117,7 @@ PRESENT=()
 for f in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl; do
   if [ -f "$DATA/$f" ]; then PRESENT+=("$f"); fi
 done
-for f in "$DATA"/traffic-history-*.json; do
+for f in "$DATA"/traffic-history-*.csv; do
   if [ -f "$f" ]; then PRESENT+=("$(basename "$f")"); fi
 done
 if [ "${#PRESENT[@]}" -eq 0 ]; then

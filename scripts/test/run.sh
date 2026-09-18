@@ -1020,7 +1020,7 @@ GITCFG
   printf 'date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes\n2026-01-01,190,,17,34,88,,,\n' \
     > "$t/data/social-metrics-history.csv"
   printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.jsonl"
-  echo '{"s":1}' > "$t/data/traffic-history-main.json"
+  printf 'date,activeUsers,sessions,pageViews,engagementRate\n2026-01-01,10,12,30,0.5\n' > "$t/data/traffic-history-main.csv"
   # a file that must never be published, whichever agent runs
   echo 'private' > "$t/data/owner-instructions.jsonl"
 
@@ -1048,7 +1048,7 @@ GITCFG
   # all three curated series published, and nothing conversational
   published=$(git -C "$t/remote.git" ls-tree -r --name-only agent-metrics)
   missing=""
-  for want in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl traffic-history-main.json; do
+  for want in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl traffic-history-main.csv; do
     printf '%s' "$published" | grep -q "$want" || missing="$missing $want"
   done
   [ -z "$missing" ] && pass || fail "$label: curated series not published:$missing"
