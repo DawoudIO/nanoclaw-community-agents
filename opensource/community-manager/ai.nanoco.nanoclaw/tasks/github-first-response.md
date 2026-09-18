@@ -45,6 +45,23 @@ script: |
   GRACE_MIN="${FIRST_RESPONSE_GRACE_MINUTES:-15}"
   case "$GRACE_MIN" in ''|*[!0-9]*) GRACE_MIN=15;; esac
 
+  # Bounded retry: how long to wait, and how many times to retry, before
+  # re-surfacing an item that was already handed to the agent once. Exists
+  # because "seen" is marked BEFORE the agent replies (see below) — if the
+  # agent invocation dies between those two steps (a real incident: #9836 was
+  # marked seen right as an org-wide spend-limit outage killed the reply, and
+  # sat unanswered for 2 days since nothing ever re-checked it), the item was
+  # gone for good. The retry window is bounded specifically so this can't
+  # regress into the 144x/day re-wake cost "seen" exists to avoid: a genuinely
+  # answered item drops out of GitHub's own comments:0 search and never
+  # retries regardless of this window, so only a truly-still-unanswered item
+  # can ever resurface.
+  RETRY_MIN="${FIRST_RESPONSE_RETRY_MINUTES:-45}"
+  case "$RETRY_MIN" in ''|*[!0-9]*) RETRY_MIN=45;; esac
+  MAX_RETRIES="${FIRST_RESPONSE_MAX_RETRIES:-3}"
+  case "$MAX_RETRIES" in ''|*[!0-9]*) MAX_RETRIES=3;; esac
+  RETRY_SEC=$((RETRY_MIN * 60))
+
   NOW_EPOCH=$(date +%s)
   # Only look at the last 3 days. Anything older that is still unanswered is a
   # backlog problem, and backlog belongs to triage — this task must not
@@ -56,7 +73,7 @@ script: |
     exit 0
   fi
 
-  SEEN="$DATA/first-response-seen.txt"
+  SEEN="$DATA/first-response-seen.jsonl"
   touch "$SEEN"
   TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
   i=0
@@ -111,13 +128,27 @@ script: |
   DEGRADED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.ok == false) | {repo, reason}]')
   HAS_DEGRADED=$(printf '%s' "$DEGRADED" | jq 'length > 0')
 
-  # Past the grace period, and not already handed to the agent once.
-  SEEN_JSON=$(jq -R -s -c 'split("\n") | map(select(length > 0))' < "$SEEN" 2>/dev/null || echo '[]')
-  NEW=$(jq -c -n --argjson a "$ALL" --argjson seen "$SEEN_JSON" --argjson g "$GRACE_MIN" '
-    [ $a[] | .repo as $r | .items[]
-      | select(.age_min >= $g)
-      | select((($r + "#" + (.number|tostring)) | IN($seen[])) | not)
-      | . + {repo: $r} ]' 2>/dev/null || echo '[]')
+  # Past the grace period, and either never seen or eligible for a bounded
+  # retry. $SEEN holds one JSON object per line: {"key","seen_at","retries"}.
+  # Tolerant of blank/malformed lines (a fresh or legacy file) via `try...catch`.
+  SEEN_JSON=$(jq -R -s -c '
+    split("\n") | map(select(length > 0)) | map(try fromjson catch empty)
+    ' < "$SEEN" 2>/dev/null || echo '[]')
+  NEW=$(jq -c -n --argjson a "$ALL" --argjson seen "$SEEN_JSON" --argjson g "$GRACE_MIN" \
+    --argjson now "$NOW_EPOCH" --argjson retry_sec "$RETRY_SEC" --argjson max_retries "$MAX_RETRIES" '
+    ($seen | map({(.key): .}) | add // {}) as $bykey
+    | [ $a[] | .repo as $r | .items[]
+        | select(.age_min >= $g)
+        | ($r + "#" + (.number|tostring)) as $k
+        | ($bykey[$k]) as $s
+        | if $s == null then
+            . + {repo: $r, retry: false, retries: 0, _key: $k}
+          elif (($now - $s.seen_at) >= $retry_sec) and ($s.retries < $max_retries) then
+            . + {repo: $r, retry: true, retries: ($s.retries + 1), _key: $k}
+          else
+            empty
+          end
+      ]' 2>/dev/null || echo '[]')
   COUNT=$(printf '%s' "$NEW" | jq 'length')
 
   WAKE=false
@@ -127,16 +158,26 @@ script: |
   # lost wake costs one missed first response, while a failure to ack would mean
   # re-waking the agent for the same issue 144 times a day. That is the opposite
   # trade-off from the slower gates, and it is the right one at this cadence.
+  #
+  # BUT an ack this early has no way to tell "the agent replied" from "the
+  # agent's invocation died before replying" — and the latter used to mean the
+  # item was gone forever (see #9836 above). So $SEEN now also records WHEN an
+  # item was acked and how many times, and an item past RETRY_SEC with retries
+  # left resurfaces exactly once per window — bounded, not infinite, and only
+  # for items GitHub's own comments:0 filter still calls unanswered.
   if [ "$COUNT" -gt 0 ]; then
-    printf '%s' "$NEW" | jq -r '.[] | "\(.repo)#\(.number)"' >> "$SEEN" 2>/dev/null || true
-    # keep the ledger bounded — three days of items is plenty of memory
+    printf '%s' "$NEW" | jq -c --argjson now "$NOW_EPOCH" '.[] | {key: ._key, seen_at: $now, retries: .retries}' \
+      >> "$SEEN" 2>/dev/null || true
+    # keep the ledger bounded — three days of items, a few retries each, is
+    # still plenty of memory at 500 lines
     tail -n 500 "$SEEN" > "$SEEN.t" 2>/dev/null && mv "$SEEN.t" "$SEEN"
   fi
 
-  printf '{"wakeAgent": %s, "data": {"status": "%s", "count": %s, "grace_minutes": %s, "items": %s, "degraded_repos": %s}}\n' \
+  PUBLIC_NEW=$(printf '%s' "$NEW" | jq -c 'map(del(._key))')
+  printf '{"wakeAgent": %s, "data": {"status": "%s", "count": %s, "grace_minutes": %s, "retry_minutes": %s, "max_retries": %s, "items": %s, "degraded_repos": %s}}\n' \
     "$WAKE" \
     "$([ "$HAS_DEGRADED" = "true" ] && echo partial-fetch-failure || { [ "$COUNT" -gt 0 ] && echo needs-first-response || echo all-answered; })" \
-    "$COUNT" "$GRACE_MIN" "$NEW" "$DEGRADED"
+    "$COUNT" "$GRACE_MIN" "$RETRY_MIN" "$MAX_RETRIES" "$PUBLIC_NEW" "$DEGRADED"
 ---
 
 Someone opened an issue or PR and nobody has replied. That is the whole scope.

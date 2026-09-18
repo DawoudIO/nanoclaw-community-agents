@@ -742,6 +742,38 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
   'COMMUNITY_REPOS="acme/crm"' 2
+
+# github-first-response: BOUNDED RETRY regression (traced from #9836, which
+# was acked ("seen") right as an org-wide spend-limit outage killed the reply
+# and then never resurfaced — see the comment in the script). An item seen
+# well past the retry window, with retries still available, must resurface
+# marked as a retry.
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new true \
+  '(.data.count == 1) and (.data.items[0].retry == true) and (.data.items[0].retries == 1)' \
+  'COMMUNITY_REPOS="acme/crm"' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   OLD=$(( $(date +%s) - 3600 ));
+   echo "{\"key\":\"acme/crm#501\",\"seen_at\":$OLD,\"retries\":0}" >> "$D/first-response-seen.jsonl"'
+
+# ...but an item seen only moments ago must stay suppressed, even though it
+# is past the grace period and GitHub still shows it as comments:0 — the
+# retry window, not just the grace period, gates a resurface.
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
+  '(.data.status == "all-answered") and (.data.count == 0)' \
+  'COMMUNITY_REPOS="acme/crm"' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   echo "{\"key\":\"acme/crm#501\",\"seen_at\":$(date +%s),\"retries\":0}" >> "$D/first-response-seen.jsonl"'
+
+# ...and once retries are exhausted, the item must stop resurfacing here at
+# all — backlog belongs to triage from that point on, per the task's own
+# stated design, not to a gate that would otherwise retry forever.
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
+  '(.data.status == "all-answered") and (.data.count == 0)' \
+  'COMMUNITY_REPOS="acme/crm"' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   OLD=$(( $(date +%s) - 3600 ));
+   echo "{\"key\":\"acme/crm#501\",\"seen_at\":$OLD,\"retries\":3}" >> "$D/first-response-seen.jsonl"'
+
 # security-advisory-sweep: three alerts of mixed severity and scope. Asserts
 # the enrichment the agent depends on — worst-first ordering, the severity
 # rollup, and `scope`, which is the first input to "are we genuinely
