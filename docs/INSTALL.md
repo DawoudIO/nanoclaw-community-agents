@@ -567,13 +567,20 @@ Resume order, safe → side-effect-adjacent:
    credential are in place: `ledger-publish`. Run it once by hand and confirm
    the branch actually lands — this is the one task whose silent failure costs
    data rather than a report.
-5. **Ungated tasks last** — nothing stops them burning a wake on an
-   unconfigured service: `social-metrics-snapshot` (only once a
-   page-reading tool is confirmed in the Helper's container — Claude's
-   built-in web fetch or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser))
-   and the manager's `inbox-check` (only once an email MCP is connected).
-6. **The weekly reports**: `weekly-analytics-report`.
-7. **Never run both** the manager's `daily-github-triage` and the helper
+5. **The manager's `inbox-check`**, once the Gmail read-only credential is
+   wired AND an email MCP is connected to the manager's own group. Its gate
+   needs `INBOX_ENABLED="true"` in the manager's `config.env` — without that
+   key the task stays silent forever, which is the right default for the
+   many projects with no shared inbox. Optional knobs: `INBOX_QUERY`
+   (default `is:unread newer_than:7d`), `INBOX_RETRY_HOURS` (24),
+   `INBOX_MAX_RETRIES` (2).
+6. **The always-wake task last** — nothing stops it burning a wake on an
+   unconfigured service: `social-metrics-snapshot`, only once a page-reading
+   tool is confirmed in the Helper's container (Claude's built-in web fetch
+   or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser)).
+7. **The weekly reports**: `weekly-analytics-report` — also an every-run
+   wake, but weekly and on Haiku, so it's the cheap one.
+8. **Never run both** the manager's `daily-github-triage` and the helper
    agent's `github-ops-triage` — the former is the manager's standalone
    fallback; running both double-reports every issue. Pause it when you
    stamp the helper.

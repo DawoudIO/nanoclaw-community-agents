@@ -787,6 +787,43 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
    OLD=$(( $(date +%s) - 3600 ));
    echo "{\"key\":\"acme/crm#501\",\"seen_at\":$OLD,\"retries\":3}" >> "$D/first-response-seen.jsonl"'
 
+# inbox-check: this task had NO gate until now — it woke the Sonnet-tier
+# manager twice a day on an empty inbox, the most expensive guaranteed wake
+# in the system. Unconfigured must stay silent forever (most projects have no
+# shared inbox, and a permanent 401 reported twice daily is worse than
+# nothing).
+assert_gate "$ROOT/scripts/tasks/manager/inbox-check.sh" "unconfigured" "false" ""
+
+# A broken fetch must WAKE, never read as an empty inbox — this is the one
+# gate where a swallowed failure could hide a security disclosure. No fixture
+# matches, so the mock curl returns HTTP 000.
+assert_gate "$ROOT/scripts/tasks/manager/inbox-check.sh" \
+  "fetch-fails-must-wake" "true" 'INBOX_ENABLED="true"'
+
+# An empty inbox is the common case and must cost nothing. Gmail omits the
+# `messages` key entirely on a zero-match query (rather than returning an
+# empty array), which is exactly the shape this fixture encodes.
+assert_scenario "$ROOT/scripts/tasks/manager/inbox-check.sh" inbox-empty false \
+  '(.data.status == "empty") and (.data.unread == 0)' \
+  'INBOX_ENABLED="true"'
+
+# Two unread messages: hand over ids only — never subjects, senders or
+# bodies. The gate's JSON is mirrored verbatim into a telemetry log on disk,
+# so mail content here would persist private mail outside the agent context.
+assert_scenario "$ROOT/scripts/tasks/manager/inbox-check.sh" inbox-unread true \
+  '(.data.status == "needs-triage") and (.data.count == 2) and (.data.unread == 2)
+   and ([.data.messages[].id] | sort == ["m1","m2"])
+   and (.data.messages[0].retry == false)
+   and ([.data.messages[] | has("subject") or has("from") or has("snippet")] | any | not)' \
+  'INBOX_ENABLED="true"'
+
+# Run 2, same fixture: THE 0-TOKEN ASSERTION. The token is read-only, so this
+# agent cannot mark mail read — without the seen ledger the same unread
+# message would re-wake the manager twice a day forever.
+assert_scenario "$ROOT/scripts/tasks/manager/inbox-check.sh" inbox-unread false \
+  '(.data.status == "all-handed-over") and (.data.unread == 2)' \
+  'INBOX_ENABLED="true"' 2
+
 # security-advisory-sweep: three alerts of mixed severity and scope. Asserts
 # the enrichment the agent depends on — worst-first ordering, the severity
 # rollup, and `scope`, which is the first input to "are we genuinely

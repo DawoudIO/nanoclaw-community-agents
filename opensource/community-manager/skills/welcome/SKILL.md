@@ -844,7 +844,7 @@ keys go into the OneCLI vault dashboard only:
 | Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Helper. Wiring only the REST host leaves the publish failing with `push-failed` while every other GitHub call works |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
-| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the manager's own group** — `inbox-check` is the manager's task. A platform config change, not something you can do from in here; point the owner at the template README |
+| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the manager's own group** — `inbox-check` is the manager's task. A platform config change, not something you can do from in here; point the owner at the template README. Its gate also needs `INBOX_ENABLED="true"` in your own `config.env` — that part IS yours to write, and until it's set the task stays silent (correctly: most projects have no shared inbox) |
 
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:

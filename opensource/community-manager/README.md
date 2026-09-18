@@ -142,6 +142,17 @@ This agent also owns its own `COMMUNITY_REPOS` plus an optional
 `RELEASE_WATCH_REPOS`, which narrows `release-announcement-watch` to a
 subset of it. `GITHUB_BOT_USERNAME` is set in both agents.
 
+`inbox-check` is opt-in and off by default: its gate needs
+**`INBOX_ENABLED="true"`** before it will fire at all, which is the right
+default for the many projects with no shared inbox — unset, the task costs
+nothing forever instead of reporting a permanent 401 twice a day. Optional:
+`INBOX_QUERY` (default `is:unread newer_than:7d`), `INBOX_MAX_RESULTS`
+(25), `INBOX_RETRY_HOURS` (24), `INBOX_MAX_RETRIES` (2). The gate hands over
+**message IDs only** — never subjects, senders, or bodies: a shared inbox is
+where vulnerability disclosures arrive, and every gate's JSON is mirrored to
+a local telemetry log, so mail content there would persist to disk outside
+the agent's context. The agent reads the mail itself through its email MCP.
+
 **The manager keeps no copy of the metrics series.** The Helper owns those
 files and publishes them itself — two ledgers of the same numbers in two
 containers would drift apart, and then nobody knows which is right. The

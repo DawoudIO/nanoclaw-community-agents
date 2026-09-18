@@ -58,23 +58,39 @@ extract_script() {
 # Rewrite a task .md with the script block replaced by the given .sh file.
 # Everything from `script: |` to the closing `---` is discarded and replaced,
 # so a re-sync repairs a corrupted block instead of layering on top of it.
+#
+# If the file has NO `script: |` key yet, the block is CREATED just before the
+# closing `---`. That case is not hypothetical: adding a gate to a task that
+# never had one (inbox-check, which ran ungated) hit a silent no-op here —
+# this function copied the file unchanged while the caller still printed
+# "synced", and only `--check` caught it, one step too late. Appending also
+# keeps `script:` as the LAST frontmatter key, which extract_script requires:
+# it reads from `script: |` to the closing `---`, so any key after it would
+# be swallowed into the script body.
 inject_script() {
   local md="$1" sh="$2" tmp
   tmp=$(mktemp)
   awk -v shfile="$sh" '
-    BEGIN { fm=0; skipping=0 }
-    /^---$/ {
-      fm++
-      if (fm==2) skipping=0
-      print; next
-    }
-    fm==1 && /^script: \|$/ {
+    function emit_block() {
       print "script: |"
       while ((getline line < shfile) > 0) {
         if (line == "") print ""
         else print "  " line
       }
       close(shfile)
+    }
+    BEGIN { fm=0; skipping=0; injected=0 }
+    /^---$/ {
+      fm++
+      if (fm==2) {
+        skipping=0
+        if (!injected) { emit_block(); injected=1 }
+      }
+      print; next
+    }
+    fm==1 && /^script: \|$/ {
+      emit_block()
+      injected=1
       skipping=1; next
     }
     fm==1 && skipping { next }

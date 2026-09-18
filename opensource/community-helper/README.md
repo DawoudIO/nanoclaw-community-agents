@@ -291,9 +291,9 @@ one thing it exists to produce. The ceiling is one Haiku wake per week,
 which is not worth optimizing away. (`dev-metrics-report` is the opposite
 case: daily, so it gates on real movement and keeps a weekly heartbeat.)
 
-Together with the manager's `inbox-check`, those are the only three wakes
-in the system that a quiet day doesn't suppress. Everything else here is
-genuinely 0-token when there's nothing to judge.
+Those two are the only wakes in the system a quiet day doesn't suppress
+(the manager's `inbox-check` was the third until it got a gate). Everything
+else here is genuinely 0-token when there's nothing to judge.
 
 **`unanswered-watch` runs most often — every ten minutes** — but it's also
 the cheapest possible check: no network, no credentials, just a read of
