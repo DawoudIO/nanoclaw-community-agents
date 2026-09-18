@@ -1,5 +1,5 @@
 ---
-schedule: "23 13 * * 0"
+schedule: "23 13 * * *"
 ---
 Record this week's social follower counts — the one genuinely stateful asset
 in this system: a time series that can't be re-scraped retroactively, unlike

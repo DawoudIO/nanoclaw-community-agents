@@ -157,8 +157,15 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # can install jq on them itself while stamping — these two lines are only
 # needed if you pre-stamped a sub-agent above.
 ./bin/ncl groups config add-package --id <manager-id> --apt jq
+# Run the SETUP interview on Haiku, not Sonnet. The interview is structured
+# Q&A plus CLI calls — it does not need the manager's steady-state model, and
+# onboarding is long enough (credentials, wiring, per-task activation) that
+# the difference is real. Set it here so it lands in the same restart as jq,
+# costing no extra one. §4 switches it to Sonnet once the interview is done.
+./bin/ncl groups config update --id <manager-id> --model haiku
 ./bin/ncl groups restart --id <manager-id> --rebuild
-# …and once per sub-agent you stamped above, with its own <id>.
+# …and once per sub-agent you stamped above, with its own <id>. Sub-agents
+# stay on Haiku permanently — no switch, they are headless by design.
 
 # Wire sub-agents to the manager — agent-to-agent, NEVER to a channel. One pair
 # per sub-agent: `parent` on the child pointing at the manager, a named
@@ -562,6 +569,47 @@ Resume order, safe → side-effect-adjacent:
    agent's `github-ops-triage` — the former is the manager's standalone
    fallback; running both double-reports every issue. Pause it when you
    stamp the helper.
+
+### The manager switches itself to Sonnet — expect one restart
+
+Setup ran on Haiku (§1). Steady-state work is the opposite shape: judging
+whether a stranger's bug report is a duplicate, writing the one public reply
+the project makes, deciding what to escalate. That's the manager's standard
+tier — and **the manager promotes itself, as the last act of the welcome
+interview** (`welcome/SKILL.md` §11), once setup is genuinely complete and
+its closing summary is delivered.
+
+So on the conversational path you don't run anything here. What you should
+see: a short "switching to Sonnet now, the session will drop for a few
+seconds" message, then a brief silence, then a manager that answers again on
+Sonnet. **A session that goes quiet right after setup is the expected
+behavior, not a crash.** Config and memory live in plugin-data and survive
+the restart.
+
+If you took the manual path, or the agent couldn't reach `ncl`, do it
+yourself — both lines, in that order:
+
+```bash
+./bin/ncl groups config update --id <manager-id> --model sonnet
+./bin/ncl groups restart --id <manager-id>
+```
+
+`config update` only writes the row — confirmed in
+`src/cli/resources/groups.ts`, whose own help says changes "do NOT take
+effect until you run `ncl groups restart`." Skip the restart and the config
+reads Sonnet while every wake still bills Haiku, which is the failure mode
+you'd never notice from the outside. No `--rebuild` (that's for package
+changes).
+
+Either way, confirm it landed before the smoke test — you want the smoke
+test exercising the model that will actually answer people:
+
+```bash
+./bin/ncl groups config get --id <manager-id>     # model should read sonnet
+```
+
+The Helper stays on Haiku permanently — headless triage, narration, and
+threshold-watching is exactly what the cheap tier is for.
 
 Smoke-test: post in a support-tier channel (expect an unprompted reply),
 @mention the manager in a dev-tier channel (expect a reply only because you

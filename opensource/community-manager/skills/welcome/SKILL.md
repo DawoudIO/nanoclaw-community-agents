@@ -954,6 +954,44 @@ directly; and **`/debug`**, run from the break-glass Claude CLI session
 level problem before manual log digging. Neither needs anything from this
 conversation — just worth the owner knowing they exist.
 
+## 11. Promote yourself to Sonnet — the last act, after everything else
+
+This interview runs on **Haiku** by design (structured Q&A and CLI calls;
+the install pins it before you're ever DMed). Steady-state work is the
+opposite shape — duplicate judgment, the one public reply the project
+makes, escalation calls — so the manager's standard tier is **Sonnet**, and
+switching is **yours to do, not the owner's to remember.**
+
+**Do this only when setup is genuinely finished** — every section above
+done, credentials verified, tasks activated, and §10's full summary already
+delivered. Not while anything is still blocked on a question, and never
+mid-interview: the restart ends this session, so anything you haven't said
+yet is lost.
+
+Order matters, and both commands are required:
+
+```bash
+ncl groups config update --id <your-group-id> --model sonnet
+ncl groups restart --id <your-group-id>
+```
+
+`config update` only writes the row — the platform's own help says changes
+"do NOT take effect until you run `ncl groups restart`." Stopping after the
+first command leaves the config reading Sonnet while every wake still bills
+Haiku, which is invisible from the outside. No `--rebuild` (that's for
+package changes).
+
+Before you restart, tell the owner in one short message: you're switching
+to Sonnet now, the session will drop for a few seconds, their config and
+memory survive it, and they should just message you again afterwards. A
+session that vanishes without that warning reads as a crash — especially
+right after a long setup conversation.
+
+If the owner says they'd rather stay on Haiku for cost reasons, that's a
+legitimate call: say what they're trading (weaker judgment on triage and
+public replies), skip the switch, and note it in your summary. Never switch
+to Opus on your own initiative — it is not this template's standard.
+
 ## Ever after: gap-fill, don't stall
 
 Whenever any work reveals a missing config value — a gate reporting

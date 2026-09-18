@@ -164,22 +164,35 @@ outlive a session, not a repave.
 # 1. Stamp the manager
 ncl groups create --template opensource/community-manager --name "Community Manager"
 
-# 2. Stamp the Helper, if you want its work done
+# 2. Run the setup interview on Haiku — it's Q&A and CLI calls, not judgment
+#    work, and onboarding is long. Set it before you DM, together with the jq
+#    install so both land in one restart (see docs/INSTALL.md §1).
+ncl groups config update --id <manager-id> --model haiku
+
+# 3. Stamp the Helper, if you want its work done (stays on Haiku for good)
 ncl groups create --template opensource/community-helper --name "Community Helper"
 
-# 3. Wire it to the manager — agent-to-agent
+# 4. Wire it to the manager — agent-to-agent
 ncl destinations add --agent-group-id <helper-id>    --local-name parent --target-type agent --target-id <manager-id>
 ncl destinations add --agent-group-id <manager-id>      --local-name helper --target-type agent --target-id <helper-id>
 
-# 4. Wire the MANAGER to your Discord channels and GitHub repos, per your
+# 5. Wire the MANAGER to your Discord channels and GitHub repos, per your
 #    platform's channel management. The Helper additionally needs a SILENT
 #    wiring to each support channel so unanswered-watch can see messages and
 #    post its holding line — see welcome/SKILL.md 5c for the exact commands.
 
-# 5. Connect credentials in OneCLI (tables below), then review and resume tasks
+# 6. Connect credentials in OneCLI (tables below), then review and resume tasks
 ncl tasks list --status paused
 ncl tasks run <task-id>       # test scripted tasks first
 ncl tasks resume <task-id>
+
+# 7. The manager promotes ITSELF to Sonnet as the last act of the welcome
+#    interview (welcome/SKILL.md §11) and restarts to apply it — expect one
+#    short session drop, not a crash. These two lines are the manual
+#    fallback only. BOTH are needed: config update just writes the row, the
+#    restart is what applies it, or it reads Sonnet and still bills Haiku.
+ncl groups config update --id <manager-id> --model sonnet
+ncl groups restart --id <manager-id>
 ```
 
 Every task in both templates is created **paused**. Read each one, fill in

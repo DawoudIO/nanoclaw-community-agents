@@ -214,8 +214,14 @@ the owner can change them there or later via group config):
 
 | Agent | Default | Why |
 |---|---|---|
-| Manager | Sonnet-class | Public-facing judgment: tone, escalation calls, security routing |
+| Manager | Sonnet-class **in steady state, Haiku-class during setup** | Public-facing judgment: tone, escalation calls, security routing. The welcome interview is structured Q&A and CLI calls, so it runs on Haiku and the manager promotes itself at the end of onboarding (`welcome/SKILL.md` §11) |
 | Helper | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the manager before publishing — except the one fixed holding line it may post itself, which it cannot compose freely. Upgrade only if quality disappoints |
+
+**A model change needs a restart to take effect** — `ncl groups config
+update --model …` only writes the row (the platform's own CLI help says so).
+Without `ncl groups restart`, the config reads one tier while every wake
+still bills the old one, and nothing surfaces the discrepancy. Check with
+`ncl groups config get --id <group-id>` after any tier change.
 
 **Decided: no local model for the Helper — Haiku stays.** Compared against
 Haiku (not Sonnet), the case collapses: the Helper's tasks together wake
@@ -263,8 +269,10 @@ Pause in this order — lowest value first, across both agents:
    of months; a weekly read loses almost nothing.
 5. `release-announcement-watch` → reduce from every 3h to daily.
 6. `github-ops-triage` → reduce to 2×/day.
-7. `weekly-analytics-report` / `social-metrics-snapshot` → these are already
-   weekly, but if you pause one, pause the **analytics** report, never the
+7. `weekly-analytics-report` is already weekly; `social-metrics-snapshot`
+   ships daily by default (an ungated task, so it's the one to reduce first
+   if budget is tight — weekly is enough for most projects). If you pause
+   one instead of slowing it down, pause the **analytics** report, never the
    follower snapshot: GA4 can be re-queried for a missed week, and follower
    counts cannot be recovered at all.
 8. `security-advisory-sweep` → reduce to 2×/day. Last of the cloud tier
@@ -375,7 +383,7 @@ is a judgment about a person. Narration went local; judgment stayed cloud.
 | `github-ops-triage` (4×/day) | only on new/updated items | helper PAT + `COMMUNITY_REPOS` | silent skip |
 | `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | helper PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | helper PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
-| `social-metrics-snapshot` (weekly) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts + a real page-reading capability in the container | leave paused until the platforms are configured and allowlisted — it guards the one series nothing can rebuild |
+| `social-metrics-snapshot` (daily) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts + a real page-reading capability in the container | leave paused until the platforms are configured and allowlisted — it guards the one series nothing can rebuild |
 | `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTIES` + allowlist | silent skip |
 | `ledger-publish` (daily) | **never on success** — only on a publish failure | `LEDGER_REPO` + a `github.com` (git) push credential | silent skip, and all three series then live only in this container |
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
@@ -419,7 +427,7 @@ the round minutes because it's the task the north star depends on:
 | `ready-to-merge` | Helper | **2× daily** | 09:47, 17:47 | yes |
 | `repo-hygiene-audit` | Helper | **daily** | 10:55 | yes |
 | `security-advisory-sweep` | Helper | **every 4h** | every 4h at :45 | yes |
-| `social-metrics-snapshot` | Helper | **weekly** | 13:23, Sun | no |
+| `social-metrics-snapshot` | Helper | **daily** | 13:23 | no |
 | `unanswered-watch` | Helper | **every 10 min** | on the 10-minute mark | yes |
 | `weekly-analytics-report` | Helper | **weekly** | 14:19, Sun | yes |
 
@@ -450,7 +458,7 @@ integrity check before your own workday, dev metrics ahead of your dev
 channel's hours, inbox checks at your real start/end of day.
 
 **The two ungated tasks are `inbox-check` (manager, 2×/day) and
-`social-metrics-snapshot` (the Helper, weekly)** — those are the only two that
+`social-metrics-snapshot` (the Helper, daily)** — those are the only two that
 wake their model on every fire, and they're capped at a few fires/day for
 exactly that reason. The script gate is what lets the frequent tasks exceed
 that cap safely: `unanswered-watch` at 144×/day, `owner-tldr` at 12×,
