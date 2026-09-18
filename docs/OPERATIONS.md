@@ -169,6 +169,38 @@ Running out mid-install loses nothing: the sandbox state volume persists, and
 stopped. **But on a shared window, do the install when you don't need Claude
 Code for anything else that day.**
 
+### A long-running owner DM is the one thing this design doesn't bound
+
+Every scheduled task in this set is either genuinely 0-token on a quiet day
+or bounded to a small, known ceiling (see the cost tables in each template's
+README) — that's the point of gating. **The owner's own direct conversation
+with the manager is the one exception**, because it has to respond to real
+messages and can't be gated the same way a scheduled task is.
+
+That matters because there is **no supported way to reset an ongoing
+conversation's accumulated cost** short of tearing down the whole agent
+group. Confirmed directly against the platform source: `ncl groups restart`
+respawns the container but reuses the same session row, and `ncl sessions`
+exposes only `list`/`get`/`history` — no reset or rotate. A long single-
+sitting exchange re-reads its entire accumulated history (plus the persona
+prefix) from cache on every turn, and that cost compounds with turn count,
+not with elapsed time. A measured real example: a 1,109-turn conversation
+spanning a few days billed on the order of $15-20 on its own from cache
+reads alone — on a tight monthly budget, one unusually long conversation can
+be the majority of it.
+
+**The practical mitigation, since no reset primitive exists**: keep owner-DM
+exchanges focused and let them end naturally rather than treating one thread
+as a running command line across many days. If a conversation feels
+long-running, check `token-audit.sh` (ships at the manager's template
+root — see the operator's toolkit above) for the real turn count and cache
+totals before assuming a specific task is the cost driver; on a long enough
+thread it usually isn't. Claude Code's own auto-compaction
+(`CLAUDE_CODE_AUTO_COMPACT_WINDOW`, default 165000 tokens) bounds *marginal*
+per-turn cost once a conversation's context crosses that size, but it
+doesn't undo tokens already spent and doesn't cap turn count directly — it
+softens the problem, it doesn't solve it.
+
 ## Right-sizing the agents
 
 **Both agents currently draw on your window** (see the trap section
