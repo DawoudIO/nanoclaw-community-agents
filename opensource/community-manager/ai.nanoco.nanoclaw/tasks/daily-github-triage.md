@@ -53,9 +53,12 @@ script: |
 Standalone-mode triage (leave this task paused if the helper is
 stamped — its own triage covers this at higher cadence).
 
-**If `status` is `fetch-failed`**: don't triage — report it to the owner.
-`401/403` symptoms mean the token isn't wired (vault entry or selective-mode
-assignment); the cursor was deliberately not advanced, so nothing is lost.
+**If `status` is `fetch-failed`**: don't triage — report it to the **owner's
+DM, never the digest's channel** (see `references/report-formats.md` §
+"First decide WHERE a report goes" — a process error is never channel
+content, even from a task whose normal output is one). `401/403` symptoms
+mean the token isn't wired (vault entry or selective-mode assignment); the
+cursor was deliberately not advanced, so nothing is lost.
 
 Otherwise, work `scriptOutput.items` — issues and PRs created or updated since
 `scriptOutput.since`. If `truncated_repos` is non-empty, say so in the digest:

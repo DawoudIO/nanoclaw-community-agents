@@ -50,9 +50,15 @@ script: |
     printf '{"wakeAgent": true, "data": {"since": "%s", "truncated_repos": "%s", "items": %s}}\n' "${SINCE:-first-run}" "${TRUNC# }" "$ITEMS"
   fi
 ---
-**If `status` is `fetch-failed`**: don't triage — report to your manager. A
-`401/403` symptom means your token isn't wired (vault entry or selective-mode
-assignment); the cursor wasn't advanced, so the window will be re-fetched.
+**If `status` is `fetch-failed`**: don't triage — report it to your manager as
+a process error, flagged explicitly as such (not folded into the next
+digest): say plainly "this is a process error, not a triage finding" rather
+than leaving it for the manager to infer from the payload shape. Your
+manager routes process errors to the owner's DM, never a channel — that's
+its call to make once it knows which kind of report this is, which is why
+naming it matters. A `401/403` symptom means your token isn't wired (vault
+entry or selective-mode assignment); the cursor wasn't advanced, so the
+window will be re-fetched.
 
 Otherwise: triage pass over `scriptOutput.items` — issues and PRs created or
 updated since `scriptOutput.since` (read anything you need in depth, but don't

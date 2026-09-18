@@ -20,11 +20,25 @@ Route by audience, not by which agent produced it:
 | Traffic/analytics, follower counts, content drafts | team-lead tier | its own schedule |
 | Repo hygiene, docs gaps | developer tier | its own schedule |
 | **Escalations, decisions, system-broken, anything needing the owner** | **owner DM** | see the digest below |
+| **Any process/fetch error** — a scripted task's gate reporting `fetch-failed`, an auth/token problem, a crash, or any other "this task itself is broken" condition | **owner DM — never a channel** | immediately, never batched into a digest |
 
 **A report with a channel goes to that channel now, in full.** Do not queue it,
 and never post the same content twice. Channel reports are the project talking
 to its community; the digest is the system talking to its operator — different
 audiences, different cadence.
+
+**A process error is never channel content, even when it happens inside a task
+whose successful output normally goes to a channel.** `github-ops-triage`'s
+digest goes to the developer channel — but if its gate reports
+`status: fetch-failed`, that's not a triage finding, it's the system telling
+the owner one of its own parts is broken, and it goes to the owner DM instead
+of that channel. The distinction is what the message is ABOUT, not which task
+produced it: a token that stopped working, a repo that 403s, an unhandled
+crash are never something a channel's readers can act on — only the owner
+can. Never post an error to the same channel a task's normal digest would use
+"so people know why it's quiet" — quiet is not itself alarming, and a raw
+error string in a public or team channel exposes internals (a repo name, a
+stack trace, a token scope) that don't belong in front of that audience.
 
 The owner is not cut out of channel reports, just not duplicated into: when a
 channel report goes out, enqueue **one line** noting it happened (with a link
@@ -144,19 +158,58 @@ per `escalation-paths.md` — the batching rule is for routine wrap-ups only.
 
 ## Daily/weekly digest (from a scripted triage task)
 
+**One fixed name, always.** Every run of `github-ops-triage` posts under the
+literal string `GitHub triage` — never `Triage digest`, `Triage sweep`,
+`Digest — <date>`, or any other rewording. A reader scanning a busy channel
+over weeks pattern-matches on the header; a title that drifts run to run
+costs them re-reading it every single time, for zero information gain. Same
+rule for every other scripted-triage task — pick the task's one name when you
+first write its prompt, then never vary it.
+
 ```
-**<Digest name> — <date>**
+**GitHub triage — <N> items, <M> need you**
 
-<One section per category that actually has something. Skip empty categories
-entirely rather than writing "None" under each — a quiet day should look short,
-not padded.>
+<M items, each one line: what it is and why it needs a human, nothing more>
+- #1234 — <reporter> disputes <maintainer>'s fix; still open after 2 replies
 
-**<Category>**
-- <item> — <one-line why it matters>
+<optional: one line naming what was skipped, if anything>
+Skipped: <repo> (fetch truncated at 50, oldest updates not seen)
+
+Routine, no action: <count> owner PRs, <count> dependabot/locale-bot, <count> already answered by first-response
 ```
 
-If literally nothing needs attention, reply with one line saying so — never
-expand a quiet day into a report that only exists to look thorough.
+If `M` is 0, stop after the header line — no "nothing needing action" essay
+below it. If `N` is also 0, don't post at all; that cycle produced nothing a
+reader benefits from seeing (this should already be the gate's own
+`wakeAgent: false` outcome — a posted "0 items" message means the gate
+fired when it shouldn't have, which is a bug in the task, not a digest to
+write around).
+
+**State exceptions, not defaults.** Every one of these is true on almost
+every run and costs a full sentence to restate as if it were news: "checked
+against existing issue history, no duplicates," "nothing security-shaped,"
+"no labelling gaps." Write NONE of them when they're true — their absence
+IS the statement. Write the sentence only on the run where it's false: "#123
+turned out to be a duplicate of #98, said so" or "#456 is security-shaped,
+routed to the security channel and owner per policy." A reader who sees the
+reassurance line every cycle stops reading it by the third repeat, so it
+stops functioning as a check on the ones that matter.
+
+**Batch routine noise into one count, never one bullet per item.** A
+dependabot bump, a locale-sync bot PR, a PR that only got automated-review
+commentary, an issue that's the repo owner's own work — none of these need
+a sentence identifying which specific PR number it was. "3 dependabot
+bumps, 2 locale PRs, 1 owner-authored issue — no action" is the whole
+report for all six; six individual bullets saying the same "no action" is
+not more informative, only longer.
+
+**Only name a specific item when its judgment is what's being reported** —
+a real duplicate close, a security route, a stale item finally answered, a
+genuine open question a reader should weigh in on. If first-response
+already gave an item a thorough reply and nothing about that reply needs a
+second look, it belongs in the routine count, not a named bullet — "already
+answered by first-response" is itself a category, not a reason to narrate
+each one.
 
 ## Dev report skeleton (field-proven format)
 
