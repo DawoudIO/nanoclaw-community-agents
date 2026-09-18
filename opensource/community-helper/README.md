@@ -34,6 +34,8 @@ on the agent remembering a rule. See the manager template's
 community-helper/
 ├── plugin.json
 ├── mcp.json                                     # GitHub MCP, placeholder token
+├── setup-check.sh                                # run via Bash: mechanical setup self-check
+├── token-audit.sh                                # run via Bash: zero-token usage/cost breakdown
 ├── ai.nanoco.nanoclaw/
 │   ├── context/
 │   │   └── instructions.md                       # standing brief: draft, never post

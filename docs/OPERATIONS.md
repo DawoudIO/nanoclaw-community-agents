@@ -510,7 +510,7 @@ and riskier change for what's meant to be a casual, adjust-as-you-go log,
 not a source of truth. There's no scheduled task that reads or reports on
 this file; reviewing it is a manual, human habit.
 
-## The operator's toolkit — two scripts worth knowing about
+## The operator's toolkit — three scripts worth knowing about
 
 These run on your machine against this repo or a live install. Neither is an
 agent job; both exist because the alternatives were "read prose and hope" and
@@ -560,6 +560,32 @@ per-session DBs after hitting this exact class of bug there once). For the
 exact step-by-step — finding the real data directory, what to capture for
 the team — see
 [DB-HEALTH-CHECK-RUNBOOK.md](DB-HEALTH-CHECK-RUNBOOK.md).
+
+## `token-audit.sh` — the one tool that ships INSIDE the agent, not beside it
+
+Unlike the three scripts above, `token-audit.sh` isn't something you run —
+it's a template-root file (next to `setup-check.sh`) that stamps into every
+group's folder and runs **in the agent's own container**, invoked by the
+agent itself via Bash when the owner asks "where is our budget going."
+
+Real per-session token counts (input, output, cache read, cache creation)
+straight from the transcript's own `usage` fields, plus a byte/line
+inventory of the static context files (persona, memory) and any
+JSON/JSONL `plugin-data` worth converting to CSV. Pure `jq` over a local
+file — no LLM call, so the question costs nothing to answer and can be
+re-run anytime without spending the budget it's trying to explain.
+
+**It deliberately stops at token counts and never computes a dollar
+figure** — that was a real mistake once: an agent reading this script's own
+accurate token counts then quoted a cost from its training memory, and it
+landed on the *previous* Sonnet generation's price per token (about 1.5x
+the actual current rate), because pricing changes faster than a model's
+training data does. The script's own final section tells the agent that
+directly: look up the current published rate at answer time, never from
+memory, or point the owner at the Admin API's usage/cost report if they
+have an admin credential — that's ground truth, this script's counts are
+the reliable second-best source, and a recalled price table is not a
+source at all.
 
 ## Adding a new external capability — the three-layer recipe
 
