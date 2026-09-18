@@ -824,6 +824,86 @@ assert_scenario "$ROOT/scripts/tasks/manager/inbox-check.sh" inbox-unread false 
   '(.data.status == "all-handed-over") and (.data.unread == 2)' \
   'INBOX_ENABLED="true"' 2
 
+# weekly-identity-integrity-check: previously had NO behavioral coverage at
+# all (it was named in this file's own HONEST LIMITS list). Now that its
+# baseline is a per-task CSV of prompt hashes rather than one global hash of
+# everything, the thing worth asserting is that drift is LOCALISED — the old
+# design could only say "something changed".
+#
+# `ncl` is stubbed via a seed-written shim on PATH, and for the drift case it
+# returns different task prompts on its second call, which is what lets a
+# single fixture exercise baseline-then-drift.
+# `ncl` is stubbed with fixed output; the BASELINE is pre-seeded directly as
+# CSV, which is what lets each case run once instead of needing a stub that
+# changes behaviour between calls. H() computes a prompt hash exactly the way
+# the gate does (sha256 of jq's @base64), so the seeds stay honest if that
+# ever changes.
+IDENTITY_STUB='mkdir -p "$SANDBOX/bin"
+printf "#!/bin/bash\ncat %s/live.json\n" "$SANDBOX" > "$SANDBOX/bin/ncl"
+chmod +x "$SANDBOX/bin/ncl"
+printf %s "[{\"id\":\"t1\",\"prompt\":\"alpha\"},{\"id\":\"t2\",\"prompt\":\"beta\"}]" > "$SANDBOX/live.json"
+H() { printf %s "$(printf %s "$1" | base64)" | sha256sum | cut -d" " -f1; }
+D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D"'
+
+# No baseline yet: record it and do NOT wake — a baseline is not news.
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures false \
+  '.data.status == "baseline-initialized"' '' 1 \
+  "$IDENTITY_STUB"
+
+# Baseline matches the live prompts exactly: the quiet weekly case, no wake.
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures false \
+  '.data.status == "no-drift"' '' 1 \
+  "$IDENTITY_STUB
+   { echo task_id,prompt_sha256; echo t1,\$(H alpha); echo t2,\$(H beta); } > \"\$D/task-prompt-hashes.csv\""
+
+# One tampered prompt must wake AND name the drifted task. That specificity
+# is the whole point of the per-task hash CSV — the previous single global
+# hash could only ever report that *something* had changed.
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures true \
+  '(.data.status == "drift") and (.data.drifted == "t2")
+   and (.data.added == "") and (.data.removed == "")' '' 1 \
+  "$IDENTITY_STUB
+   { echo task_id,prompt_sha256; echo t1,\$(H alpha); echo t2,\$(H SOMETHING-ELSE); } > \"\$D/task-prompt-hashes.csv\""
+
+# A task that DISAPPEARED is as much a tamper signal as a changed one, and was
+# previously indistinguishable: a removed task just changed the global hash.
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures true \
+  '(.data.status == "drift") and (.data.removed == "t2") and (.data.added == "t3")' '' 1 \
+  "$IDENTITY_STUB
+   printf %s '[{\"id\":\"t1\",\"prompt\":\"alpha\"},{\"id\":\"t3\",\"prompt\":\"gamma\"}]' > \"\$SANDBOX/live.json\"
+   { echo task_id,prompt_sha256; echo t1,\$(H alpha); echo t2,\$(H beta); } > \"\$D/task-prompt-hashes.csv\""
+
+# The acked baseline must NOT be self-healed on drift: a lost wake has to
+# re-alert next week rather than silently baselining a tampered prompt as
+# good. This needs to inspect FILE STATE after the run, which assert_scenario
+# can't do (it only sees stdout), so it runs its own sandbox — same reason
+# ledger_case below does.
+identity_no_selfheal() {
+  local sh="$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh"
+  local t; t=$(mktemp -d)
+  local d="$t/plugin-data/community-manager"
+  mkdir -p "$d" "$t/bin"
+  printf '#!/bin/bash\ncat %s/live.json\n' "$t" > "$t/bin/ncl"; chmod +x "$t/bin/ncl"
+  printf '%s' '[{"id":"t1","prompt":"alpha"},{"id":"t2","prompt":"beta"}]' > "$t/live.json"
+  local old_hash; old_hash=$(printf %s "$(printf %s OLD-ACKED | base64)" | sha256sum | cut -d' ' -f1)
+  { echo 'task_id,prompt_sha256'; echo "t1,whatever"; echo "t2,$old_hash"; } > "$d/task-prompt-hashes.csv"
+
+  local out
+  out=$(cd "$t" && PATH="$t/bin:$PATH" bash <(sed -e "s#/workspace/agent/plugin-data#$t/plugin-data#g" "$sh") 2>/dev/null | tail -1)
+
+  if ! printf '%s' "$out" | jq -e '.data.status == "drift"' >/dev/null 2>&1; then
+    fail "identity/no-selfheal: expected drift, got: ${out:0:120}"; rm -rf "$t"; return
+  fi
+  # The acked file must still carry the OLD hash...
+  if grep -q ",$old_hash\$" "$d/task-prompt-hashes.csv"; then pass
+  else fail "identity/no-selfheal: the acked baseline was overwritten on drift — a lost wake would never re-alert"; fi
+  # ...and the new hashes must land in a SIDECAR, not the baseline.
+  if [ -s "$d/task-prompt-hashes.csv.new" ]; then pass
+  else fail "identity/no-selfheal: no .new sidecar written, so the agent has nothing to review"; fi
+  rm -rf "$t"
+}
+identity_no_selfheal
+
 # security-advisory-sweep: three alerts of mixed severity and scope. Asserts
 # the enrichment the agent depends on — worst-first ordering, the severity
 # rollup, and `scope`, which is the first input to "are we genuinely

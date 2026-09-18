@@ -21,24 +21,80 @@ if ! command -v ncl >/dev/null 2>&1 || ! command -v jq >/dev/null 2>&1; then
   exit 0
 fi
 LIVE=$(ncl tasks list --json 2>/dev/null || echo '')
-SNAP=$(printf '%s' "$LIVE" | jq -S -c '[.[] | {id: (.id // .series // "unknown"), prompt: (.prompt // "")}]' 2>/dev/null || echo '')
-if [ -z "$SNAP" ] || [ "$SNAP" = "null" ] || [ "$SNAP" = "[]" ]; then
+# jq here, deliberately: this is `ncl`'s JSON output, not a file we wrote.
+# Hand-parsing an API/CLI JSON payload with grep is the fragile-parser trap —
+# grep belongs on OUR OWN csv state, below, where the shape is fixed.
+LIVE_TSV=$(printf '%s' "$LIVE" | jq -r '.[] | [(.id // .series // "unknown"), ((.prompt // "") | @base64)] | @tsv' 2>/dev/null || echo '')
+if [ -z "$LIVE_TSV" ]; then
   echo '{"wakeAgent": true, "data": {"status": "manual", "reason": "task list JSON shape not as expected - run the check by hand and note the shape in UPSTREAM-ISSUES"}}'
   exit 0
 fi
-HASH=$(printf '%s' "$SNAP" | sha256sum | cut -d' ' -f1)
-BASE_F="$DATA/task-prompt-baseline"
-SNAP_F="$DATA/task-prompt-snapshot.json"
-OLD=$(cut -d' ' -f1 "$BASE_F" 2>/dev/null || echo "")
-if [ -z "$OLD" ]; then
-  printf '%s %s\n' "$HASH" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" > "$BASE_F"
-  printf '%s' "$SNAP" > "$SNAP_F"
+
+# One sha256 per task rather than one global hash over everything. The old
+# single-hash design could only ever report "something drifted"; per-task
+# hashes name WHICH prompt changed, which is the actionable half of a tamper
+# alert. Hashing the base64 is equivalent to hashing the prompt (1:1 mapping)
+# and saves decoding it back.
+#
+# Storing hashes, not prompt text, also means this file stops carrying a
+# second copy of every prompt. The trade is deliberate: on drift you learn
+# which task changed but not the old text — and the right thing to diff
+# against was never this local copy anyway, it's the task file in the
+# template repo, which is the actual source of truth for what a prompt
+# should say.
+HASH_F="$DATA/task-prompt-hashes.csv"
+NEW_CSV="task_id,prompt_sha256"
+while IFS=$'\t' read -r id b64; do
+  [ -z "$id" ] && continue
+  h=$(printf '%s' "$b64" | sha256sum | cut -d' ' -f1)
+  NEW_CSV="$NEW_CSV
+$id,$h"
+done <<EOF
+$LIVE_TSV
+EOF
+
+if [ ! -s "$HASH_F" ]; then
+  printf '%s\n' "$NEW_CSV" > "$HASH_F"
   echo '{"wakeAgent": false, "data": {"status": "baseline-initialized"}}'
   exit 0
 fi
-if [ "$HASH" = "$OLD" ]; then
+
+# Compare with awk in ONE pass over both files — no jq, no per-task grep
+# subprocess. Drifted = id present in both with a different hash; added and
+# removed are reported separately because an unexpectedly REMOVED task is as
+# much a tamper signal as a changed one.
+DRIFT=$(printf '%s\n' "$NEW_CSV" | awk -F, -v basefile="$HASH_F" '
+  BEGIN {
+    while ((getline line < basefile) > 0) {
+      split(line, f, ",")
+      if (f[1] == "task_id") continue
+      base[f[1]] = f[2]
+    }
+    close(basefile)
+  }
+  NR == 1 { next }
+  {
+    seen[$1] = 1
+    if (!($1 in base)) { added = added " " $1 }
+    else if (base[$1] != $2) { drifted = drifted " " $1 }
+  }
+  END {
+    for (k in base) if (!(k in seen)) removed = removed " " k
+    sub(/^ /, "", drifted); sub(/^ /, "", added); sub(/^ /, "", removed)
+    print drifted "|" added "|" removed
+  }')
+DRIFTED_IDS=$(printf '%s' "$DRIFT" | cut -d'|' -f1)
+ADDED_IDS=$(printf '%s' "$DRIFT" | cut -d'|' -f2)
+REMOVED_IDS=$(printf '%s' "$DRIFT" | cut -d'|' -f3)
+
+if [ -z "$DRIFTED_IDS$ADDED_IDS$REMOVED_IDS" ]; then
   echo '{"wakeAgent": false, "data": {"status": "no-drift"}}'
   exit 0
 fi
-printf '%s' "$SNAP" > "$SNAP_F.new"
-printf '{"wakeAgent": true, "data": {"status": "drift", "new_hash": "%s", "current": "plugin-data/community-manager/task-prompt-snapshot.json.new", "last_acked": "plugin-data/community-manager/task-prompt-snapshot.json"}}\n' "$HASH"
+
+# NOT self-healed: the new hashes go to a .new file and the acked baseline is
+# left alone, so a lost wake re-alerts next week instead of silently
+# baselining tampered prompts as good.
+printf '%s\n' "$NEW_CSV" > "$HASH_F.new"
+printf '{"wakeAgent": true, "data": {"status": "drift", "drifted": "%s", "added": "%s", "removed": "%s", "current": "plugin-data/community-manager/task-prompt-hashes.csv.new", "last_acked": "plugin-data/community-manager/task-prompt-hashes.csv"}}\n' \
+  "$DRIFTED_IDS" "$ADDED_IDS" "$REMOVED_IDS"
