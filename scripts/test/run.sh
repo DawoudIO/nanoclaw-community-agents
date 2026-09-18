@@ -975,6 +975,33 @@ DOCS_REPO="acme/docs"' 2
 ledger_case() {
   local sh="$1" label="$2"
   local t; t=$(mktemp -d)
+
+  # HERMETIC GIT, and this is not optional hygiene — it was a real flaky
+  # failure. Setting commit.gpgsign=false on the seed repo is not enough,
+  # because ledger-publish creates its OWN clone internally and that one
+  # inherits the HOST's global config. On a machine with commit signing on
+  # (e.g. 1Password SSH signing), every commit the script made failed with
+  # "the tree changed but the commit was refused" whenever the agent happened
+  # to be locked — so this suite passed or failed depending on whether a
+  # password manager was unlocked, and the count varied run to run.
+  #
+  # GIT_CONFIG_GLOBAL/SYSTEM (git >= 2.32) point every git process spawned
+  # from here at a throwaway config instead, so the result depends only on
+  # the code under test.
+  cat > "$t/gitconfig" <<'GITCFG'
+[user]
+  name = ledger test
+  email = ledger@test.invalid
+[commit]
+  gpgsign = false
+[tag]
+  gpgsign = false
+[init]
+  defaultBranch = main
+GITCFG
+  export GIT_CONFIG_GLOBAL="$t/gitconfig"
+  export GIT_CONFIG_SYSTEM=/dev/null
+
   git init -q --bare "$t/remote.git"
   git init -q "$t/seed"
   git -C "$t/seed" config user.email t@t; git -C "$t/seed" config user.name t
@@ -1060,6 +1087,9 @@ ledger_case() {
     fail "$label/diverged: an outside commit was discarded — this task must never force-push"
   fi
   rm -rf "$t"
+  # Scoped to this function: the throwaway config must not leak into later
+  # sections, which run real git against the real repo.
+  unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 }
 ledger_case "$ROOT/scripts/tasks/helper/ledger-publish.sh" "ledger-publish"
 
