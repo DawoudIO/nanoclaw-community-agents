@@ -9,11 +9,13 @@ set -euo pipefail
 # and the test that earns a file a place here is not "does it look like
 # history" — it is "could a script rebuild this from scratch tomorrow?"
 #
-#   social-metrics-history.jsonl  NO, never. Facebook, LinkedIn, Instagram and
+#   social-metrics-history.csv    NO, never. Facebook, LinkedIn, Instagram and
 #     YouTube each expose the CURRENT follower count and nothing else. There is
 #     no API, page, or export anywhere that will say what the count was last
 #     Tuesday. A day that goes unrecorded is gone for good, at any price. This
 #     is the strongest single reason this task exists.
+#     `social-metrics-history.jsonl` is the frozen pre-CSV archive of the same
+#     series and ships alongside it for exactly the same reason.
 #
 #   traffic-history-*.json        PARTLY. GA4 can be re-queried for any date
 #     inside the property's retention window (14 months by default, and
@@ -106,8 +108,13 @@ esac
 # A real array, not a space-joined string: a filename containing a space
 # (e.g. a GA4 label that slipped past its own sanitization) must never
 # word-split into two bogus `cp` arguments below.
+# social-metrics-history.csv is the live follower series; the .jsonl is the
+# frozen pre-CSV archive, and it still ships because it holds real readings
+# that cannot be re-fetched from anywhere. Both are listed deliberately —
+# publishing only the current format would silently orphan the older half of
+# the one series in this system that can never be rebuilt.
 PRESENT=()
-for f in metrics-history.json social-metrics-history.jsonl; do
+for f in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl; do
   if [ -f "$DATA/$f" ]; then PRESENT+=("$f"); fi
 done
 for f in "$DATA"/traffic-history-*.json; do

@@ -49,15 +49,67 @@ not to treat it as an incident.
    itself (missing web fetch / `agent-browser`) rather than a network policy.
    Report that to your manager instead; a week of nulls caused by config is a
    bug, not data.
-3. Append one JSON line to
-   `plugin-data/community-helper/social-metrics-history.jsonl`:
-   `{"date": "<today>", "<platform>": <count|null>, ...}` — append-only.
+3. Append **exactly one CSV line** to
+   `plugin-data/community-helper/social-metrics-history.csv`.
+
    **This file is the series.** It is not a working copy of something kept
    elsewhere: it is the only record, and `ledger-publish` commits it to the
    marketing repo daily so it survives this container being rebuilt. Never
-   rewrite or reorder existing lines; only ever add one.
-4. **Compute deltas from the file you just appended to, and label them by
-   the actual elapsed time, never a fixed "WoW"/"MoM" assumption.** This
+   rewrite, re-order, or re-format existing lines; only ever add one. The
+   sole exception is an explicit backfill instruction from your manager.
+
+   CSV rather than JSON for one reason: **tokens.** A dated row you can
+   `tail`/`grep` costs a few dozen tokens to read; a JSON array costs the
+   whole file every time you need one comparison.
+
+   Header (write it only when creating the file, never again):
+   ```
+   date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes
+   ```
+   Row format — **position is the contract, field names never appear**:
+   ```
+   YYYY-MM-DD,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes
+   ```
+   | Column | Is |
+   |---|---|
+   | `tw_f` `fb_f` `ig_f` `li_f` | X/Twitter, Facebook, Instagram, LinkedIn followers |
+   | `dc_m` | Discord **member** count — there is no online-count column, deliberately; see the Discord note above |
+   | `yt_o` `yt_n` | YouTube subscribers, old and new channel, never collapsed into one |
+   | `notes` | Under 5 words, e.g. `fb login wall`, `dc API timeout`. Blank if nothing happened |
+
+   Write rules, all load-bearing:
+   - **An unreadable platform is an empty field between commas** —
+     `190,,17,34`. Never the text `null`, `none`, `N/A`, or a `0`, and never
+     last run's number carried forward as if fresh. A blank means "not read";
+     a `0` means "genuinely zero", and conflating them corrupts every delta
+     computed across that row forever.
+   - **Never pad a short row.** If a platform doesn't exist for this project,
+     its field stays empty for the life of the series — the column count must
+     stay constant or position-matching breaks.
+   - **No commas in `notes`.** It would shift every field after it. If a note
+     needs one, rewrite the note.
+   - The all-unreachable case from rule 2 above still applies: do **not**
+     append an all-blank row. Report the config problem instead.
+4. **Read only the rows you are comparing — never the whole file.** This is
+   the point of the CSV: the series grows forever, so reading it entire costs
+   more every single day, for two rows' worth of actual information. Fetch
+   the two rows you need with shell, not by loading the file into context:
+   ```bash
+   D="$HOME/plugin-data/community-helper"   # or the absolute plugin-data path
+   tail -n 1 "$D/social-metrics-history.csv"        # the row you just wrote
+   grep "^2026-09-10," "$D/social-metrics-history.csv"   # a specific date
+   # nearest row at/just before a target date, without reading the rest:
+   awk -F, -v d=2026-08-21 '$1<=d' "$D/social-metrics-history.csv" | tail -n 1
+   ```
+   Note the trailing comma in the `grep` pattern — `^2026-09-1` would also
+   match the 10th through 19th. Anchor on `^<date>,` every time.
+
+   If a target date has no row (a missed run, a day the container was down),
+   take the nearest earlier row and say which date you actually used — never
+   silently treat a 9-day gap as 7 days.
+
+5. **Label every delta by the actual elapsed time, never a fixed "WoW"/"MoM"
+   assumption.** This
    task's schedule isn't necessarily weekly — the owner may have it running
    daily, and "WoW" printed on a 1-day delta is a real, observed mislabeling
    bug (the numbers were fine, the label was a lie about the window). Look
@@ -74,7 +126,9 @@ not to treat it as an incident.
    The rule is the same one the weekly-analytics-report uses: state the
    real window, never a label that assumes a cadence this task might not
    actually be running on.
-5. **Send the exact same JSON line to your manager, plus both deltas**, per
+6. **Send your manager the numbers plus both deltas** — as readable
+   per-platform values, not the raw CSV row (a positional row with blank
+   fields is unreadable to a human, and the manager is writing for one). Per
    `report-formats.md`'s follower-report skeleton — including the
    fastest-growing-platform line, not just the raw per-platform numbers. The
    manager **folds it into the same weekly message as the GA4 traffic report**,
@@ -82,3 +136,29 @@ not to treat it as an incident.
    week, one maintainer reading them together). The manager does not keep its own
    copy of the series: durability is `ledger-publish`'s job, and two ledgers
    of the same numbers in two containers is how they drift apart.
+
+## One-time migration from the old JSONL series
+
+This task previously appended to `social-metrics-history.jsonl`. If that file
+exists and `social-metrics-history.csv` does not, **convert it once, before
+appending today's row** — those weeks of follower counts cannot be re-read
+from anywhere, so losing them by starting fresh is permanent:
+
+```bash
+D="/workspace/agent/plugin-data/community-helper"
+[ -f "$D/social-metrics-history.jsonl" ] && [ ! -f "$D/social-metrics-history.csv" ] && {
+  echo 'date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes' > "$D/social-metrics-history.csv"
+  jq -r '[.date, (.twitter//.x//""), (.facebook//""), (.instagram//""),
+          (.linkedin//""), (.discord//.discord_members//""),
+          (.youtube_old//.youtube//""), (.youtube_new//""), "backfilled"]
+         | @csv' "$D/social-metrics-history.jsonl" \
+    | sed 's/"//g' >> "$D/social-metrics-history.csv"
+}
+```
+
+Check the key names in the actual file first — the JSONL was written with
+whatever keys each run used, so verify against a real line rather than
+trusting the mapping above, and report what you found. Any Discord
+*online* count in the old data is dropped on purpose; it was never a
+cumulative metric. **Keep the `.jsonl` in place afterwards as a frozen
+archive** — do not delete it, and never append to it again.

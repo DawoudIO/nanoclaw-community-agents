@@ -905,6 +905,11 @@ ledger_case() {
 
   mkdir -p "$t/data"
   echo '[{"date":"2026-01-01"}]' > "$t/data/metrics-history.json"
+  # The live follower series is the CSV; the .jsonl is the frozen pre-CSV
+  # archive. BOTH must publish — shipping only the current format would
+  # silently orphan the older half of the one series nothing can rebuild.
+  printf 'date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes\n2026-01-01,190,,17,34,88,,,\n' \
+    > "$t/data/social-metrics-history.csv"
   printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.jsonl"
   echo '{"s":1}' > "$t/data/traffic-history-main.json"
   # a file that must never be published, whichever agent runs
@@ -934,7 +939,7 @@ ledger_case() {
   # all three curated series published, and nothing conversational
   published=$(git -C "$t/remote.git" ls-tree -r --name-only agent-metrics)
   missing=""
-  for want in metrics-history.json social-metrics-history.jsonl traffic-history-main.json; do
+  for want in metrics-history.json social-metrics-history.csv social-metrics-history.jsonl traffic-history-main.json; do
     printf '%s' "$published" | grep -q "$want" || missing="$missing $want"
   done
   [ -z "$missing" ] && pass || fail "$label: curated series not published:$missing"
@@ -965,7 +970,7 @@ ledger_case() {
   git -C "$t/seed" push -q origin agent-metrics
   before=$(git -C "$t/remote.git" rev-parse agent-metrics)
   echo '[{"date":"2026-01-02"}]' > "$t/data/metrics-history.json"
-  printf '{"date":"2026-01-02","x":2}\n' >> "$t/data/social-metrics-history.jsonl"
+  printf '2026-01-02,191,,17,35,89,,,\n' >> "$t/data/social-metrics-history.csv"
   out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
   # Either it published on top of the outside commit (a fast-forward, fine) or
   # it reported a failure — what it must NEVER do is drop the outside commit.
