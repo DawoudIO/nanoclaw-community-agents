@@ -137,6 +137,40 @@ not to treat it as an incident.
    copy of the series: durability is `ledger-publish`'s job, and two ledgers
    of the same numbers in two containers is how they drift apart.
 
+## Day one: no file yet is the normal case, not a gap
+
+Nothing ships this file — templates carry no `plugin-data`, and stamping
+deliberately never touches it (the platform's own `groups create` help:
+"memory, plugin-data/, user-added MCP servers, wiring, and sessions are never
+touched"). So on the first run you **create it**: write the header line, then
+today's row. Write the header only at creation, never again.
+
+A missing file is not an incident and never worth reporting as one. An empty
+series means the first short-window delta is unavailable and the longer one
+stays unavailable for ~28 days — say that plainly in the report ("first
+reading, no baseline yet") rather than comparing against nothing or implying
+a trend exists.
+
+**If the owner hands you a historical CSV**, they drop it into the group
+folder on the host (`groups/<folder>/plugin-data/community-helper/`) before
+tasks resume — the same route as `config.env`. Validate before you append to
+it, and report rather than repair:
+- the header must match this schema exactly, column for column;
+- every `date` must parse as `YYYY-MM-DD`, and rows must be in ascending
+  date order with no duplicates;
+- counts must be integers or empty — never `0` standing in for "unknown".
+
+If any of that fails, **do not append and do not rewrite it.** Report what's
+wrong to your manager and leave the file exactly as delivered. Appending
+today's row to a malformed series is how a whole history becomes
+untrustworthy, and the owner's copy may be the only copy.
+
+**Never ask the owner for data the system can rebuild itself** — GA4 traffic
+is re-queryable for past dates, repo counts are re-fetchable as current
+values, and every cache regenerates on the next run. Follower counts are the
+one exception worth asking about, because no API, page, or export anywhere
+will say what the count was last Tuesday.
+
 ## One-time migration from the old JSONL series
 
 This task previously appended to `social-metrics-history.jsonl`. If that file

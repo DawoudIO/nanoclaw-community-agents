@@ -78,9 +78,13 @@ script: |
   # Signature is per-repo open_count plus the SET of stale issue numbers —
   # not their timestamps: an item that gets touched stops being stale and
   # leaves the set on its own, so numbers are sufficient and don't churn.
-  SIG_F="$DATA/gfi-health-last.json"
+  SIG_F="$DATA/gfi-health-last.csv"
   HB_F="$DATA/gfi-health-last-wake"
-  SIG=$(printf '%s' "$ALL" | jq -c '[.[] | {repo, open_count, stale: ([.unassigned_stale[]?.number] | sort)}] | sort_by(.repo)' 2>/dev/null || echo '[]')
+  # CSV, one row per repo: repo,open_count,space-joined sorted stale numbers.
+  # jq is still what parses the GitHub response above (it's an API payload), but
+  # the STATE we write is a fixed-shape table, so comparing it is a plain string
+  # compare against the previous file — no parser on the read path at all.
+  SIG=$(printf '%s' "$ALL" | jq -r '.[] | [.repo, .open_count, ([.unassigned_stale[]?.number] | sort | join(" "))] | @csv' 2>/dev/null | tr -d '"' | sort || echo '')
   PREV=$(cat "$SIG_F" 2>/dev/null || echo "")
   LAST_WAKE=$(cat "$HB_F" 2>/dev/null || echo 0)
   case "$LAST_WAKE" in ''|*[!0-9]*) LAST_WAKE=0;; esac

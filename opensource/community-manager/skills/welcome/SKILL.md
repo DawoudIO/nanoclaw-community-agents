@@ -902,6 +902,34 @@ with push access to it. Then relay `LEDGER_REPO`, run `ledger-publish` once
 branch, so it carries only these files and never touches the repo's default
 branch or its CI.
 
+### Existing history — ask about exactly one thing
+
+**Day one has no history files, and that is correct.** Nothing ships them:
+templates carry no `plugin-data`, and stamping never touches it. Each task
+creates its own file on first write. Do not ask the owner to supply anything
+the system can rebuild, and do not treat an empty series as a setup gap.
+
+| Series | Ask the owner? |
+|---|---|
+| **Follower counts** | **Yes — the one worth asking.** No API, page, or export anywhere reports what a follower count was last Tuesday. If they have any record of it, it is the only chance to keep that history. |
+| GA4 traffic | **No.** Re-queryable for past dates inside the property's retention window, so the system can fill it in itself. |
+| Repo metrics (stars/forks/issues) | **No.** Current values are always re-fetchable; the series just starts today and goes forward. Mention it in passing at most. |
+| Everything else | **Never.** Cursors, seen-ledgers and snapshots all regenerate on the next run. |
+
+If they do have follower history, it goes in as CSV, matching the schema in
+`social-metrics-snapshot`'s task body exactly. They drop it into the group
+folder on the host — `groups/<folder>/plugin-data/community-helper/` — before
+that task resumes, the same route as `config.env`; you cannot receive a file
+through chat. Then have the Helper **validate it before appending** (header
+match, dates ascending and parseable, no duplicate dates, counts integer or
+empty) and report problems rather than repairing them. Their copy may be the
+only copy, so a malformed file gets reported and left alone, never rewritten.
+
+One asymmetry worth stating to the owner in a line: a follower number not
+recorded today is gone permanently, whereas every other number here can be
+recovered. That is the whole reason this one task is worth activating even
+before the rest.
+
 ## 9. Activation — one agent at a time, one task at a time, verified as you go
 
 **This replaces "resume everything on one final go."** A real install did
