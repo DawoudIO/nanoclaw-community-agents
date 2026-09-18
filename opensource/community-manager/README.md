@@ -178,7 +178,7 @@ ncl groups create --template opensource/community-manager --name "Community Mana
 # 2. Run the setup interview on Haiku — it's Q&A and CLI calls, not judgment
 #    work, and onboarding is long. Set it before you DM, together with the jq
 #    install so both land in one restart (see docs/INSTALL.md §1).
-ncl groups config update --id <manager-id> --model haiku
+ncl groups config update --id <manager-id> --model claude-haiku-4-5
 
 # 3. Stamp the Helper, if you want its work done (stays on Haiku for good)
 ncl groups create --template opensource/community-helper --name "Community Helper"
@@ -202,7 +202,7 @@ ncl tasks resume <task-id>
 #    short session drop, not a crash. These two lines are the manual
 #    fallback only. BOTH are needed: config update just writes the row, the
 #    restart is what applies it, or it reads Sonnet and still bills Haiku.
-ncl groups config update --id <manager-id> --model sonnet
+ncl groups config update --id <manager-id> --model claude-sonnet-5
 ncl groups restart --id <manager-id>
 ```
 

@@ -162,7 +162,7 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # onboarding is long enough (credentials, wiring, per-task activation) that
 # the difference is real. Set it here so it lands in the same restart as jq,
 # costing no extra one. §4 switches it to Sonnet once the interview is done.
-./bin/ncl groups config update --id <manager-id> --model haiku
+./bin/ncl groups config update --id <manager-id> --model claude-haiku-4-5
 ./bin/ncl groups restart --id <manager-id> --rebuild
 # …and once per sub-agent you stamped above, with its own <id>. PIN THE
 # HELPER TO HAIKU TOO — an unpinned group does NOT default to Haiku: with
@@ -171,7 +171,7 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # Sonnet-class one. NanoClaw's src/config.ts says so outright. So an
 # unpinned Helper bills Sonnet rates for every wake while every cost figure
 # in this kit assumes Haiku, and nothing anywhere reports the difference.
-./bin/ncl groups config update --id <helper-id> --model haiku
+./bin/ncl groups config update --id <helper-id> --model claude-haiku-4-5
 ./bin/ncl groups config get    --id <helper-id>   # confirm: model = haiku
 # The Helper stays on Haiku permanently — no later switch, headless by design.
 
@@ -605,7 +605,7 @@ If you took the manual path, or the agent couldn't reach `ncl`, do it
 yourself — both lines, in that order:
 
 ```bash
-./bin/ncl groups config update --id <manager-id> --model sonnet
+./bin/ncl groups config update --id <manager-id> --model claude-sonnet-5
 ./bin/ncl groups restart --id <manager-id>
 ```
 

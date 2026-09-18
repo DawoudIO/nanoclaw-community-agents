@@ -683,7 +683,7 @@ ncl groups create --template opensource/community-helper --name "<agent name>"
 # PIN IT TO HAIKU. `groups create` has no --model flag, and an unpinned group
 # does NOT default to Haiku — see the warning below. Set this before the
 # restart so it lands in the same one as jq.
-ncl groups config update --id <sub-agent-id> --model haiku
+ncl groups config update --id <sub-agent-id> --model claude-haiku-4-5
 
 # Install jq on a stamped sub-agent. APT, never npm.
 ncl groups config add-package --id <sub-agent-id> --apt jq
@@ -711,7 +711,7 @@ one help call is cheaper than one wasted approval.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`opensource/community-helper`)
-2. **Pin it to Haiku yourself** with `ncl groups config update --model haiku` (see the command block and warning above) — stamping does *not* land on Haiku by default, and an unpinned Helper quietly bills Sonnet rates. There is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
+2. **Pin it to Haiku yourself** with `ncl groups config update --model claude-haiku-4-5` (see the command block and warning above) — stamping does *not* land on Haiku by default, and an unpinned Helper quietly bills Sonnet rates. There is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
 3. Relay the config keys listed below
 4. Report the stamping result and the agent's status to the owner
 
@@ -1017,7 +1017,7 @@ yet is lost.
 Order matters, and both commands are required:
 
 ```bash
-ncl groups config update --id <your-group-id> --model sonnet
+ncl groups config update --id <your-group-id> --model claude-sonnet-5
 ncl groups restart --id <your-group-id>
 ```
 

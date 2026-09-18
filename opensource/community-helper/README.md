@@ -85,7 +85,7 @@ at all; `welcome/SKILL.md` §5c sets that up.
 ```bash
 ncl groups create --template opensource/community-helper --name "Community Helper"
 # Pin the tier — stamping does NOT default to Haiku (see below)
-ncl groups config update --id <this-agent-id> --model haiku
+ncl groups config update --id <this-agent-id> --model claude-haiku-4-5
 ncl groups restart --id <this-agent-id>
 ```
 
