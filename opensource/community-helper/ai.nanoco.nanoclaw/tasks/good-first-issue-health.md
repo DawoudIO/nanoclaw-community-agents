@@ -64,11 +64,53 @@ script: |
   ALL=$(cat "$TMP"/*.json | jq -c -s '.')
   rm -rf "$TMP"
   FAILED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="fetch-failed") | .repo]')
-  if [ "$(printf '%s' "$FAILED" | jq 'length')" -gt 0 ]; then
-    printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": %s, "label": "%s", "results": %s}}\n' "$FAILED" "$LABEL" "$ALL"
-  else
-    printf '{"wakeAgent": true, "data": {"status": "ok", "label": "%s", "results": %s}}\n' "$LABEL" "$ALL"
-  fi
+  HAS_FAILED=false
+  [ "$(printf '%s' "$FAILED" | jq 'length')" -gt 0 ] && HAS_FAILED=true
+
+  # --- the gate: a quiet onboarding pipeline must cost nothing ---------------
+  # This task used to wake the model on EVERY run, which made it one of only
+  # two "gated" tasks that never actually suppressed anything — while the
+  # README claimed it woke "only when there is something to report." A starved
+  # pipeline is by definition slow-moving (the staleness cutoff alone is 14
+  # days), so week-over-week the honest answer is usually "identical to last
+  # week," and narrating that costs a wake for no decision.
+  #
+  # Signature is per-repo open_count plus the SET of stale issue numbers —
+  # not their timestamps: an item that gets touched stops being stale and
+  # leaves the set on its own, so numbers are sufficient and don't churn.
+  SIG_F="$DATA/gfi-health-last.json"
+  HB_F="$DATA/gfi-health-last-wake"
+  SIG=$(printf '%s' "$ALL" | jq -c '[.[] | {repo, open_count, stale: ([.unassigned_stale[]?.number] | sort)}] | sort_by(.repo)' 2>/dev/null || echo '[]')
+  PREV=$(cat "$SIG_F" 2>/dev/null || echo "")
+  LAST_WAKE=$(cat "$HB_F" 2>/dev/null || echo 0)
+  case "$LAST_WAKE" in ''|*[!0-9]*) LAST_WAKE=0;; esac
+  NOW_EPOCH=$(date +%s)
+  DAYS_SINCE=$(( (NOW_EPOCH - LAST_WAKE) / 86400 ))
+
+  FIRST_RUN=false; [ -z "$PREV" ] && FIRST_RUN=true
+  CHANGED=false; [ "$SIG" != "$PREV" ] && CHANGED=true
+
+  # A 28-day heartbeat (4 runs of a weekly task) forces one look even when
+  # nothing moves, so a permanently empty pipeline can't sit unexamined
+  # forever — the same reason contributor-health-review carries a 90-day one.
+  WAKE=false
+  [ "$CHANGED" = "true" ] && WAKE=true
+  [ "$HAS_FAILED" = "true" ] && WAKE=true
+  [ "$DAYS_SINCE" -ge 28 ] && WAKE=true
+
+  # Advance the baseline ONLY on a fully successful fetch — a partial
+  # observation must never become the thing later runs diff against, or one
+  # failed repo silently redefines "normal".
+  if [ "$HAS_FAILED" = "false" ]; then printf '%s' "$SIG" > "$SIG_F" 2>/dev/null || true; fi
+  [ "$WAKE" = "true" ] && { printf '%s' "$NOW_EPOCH" > "$HB_F" 2>/dev/null || true; }
+
+  STATUS=ok
+  [ "$HAS_FAILED" = "true" ] && STATUS=fetch-failed
+  [ "$WAKE" = "false" ] && STATUS=quiet
+  printf '{"wakeAgent": %s, "data": {"status": "%s", "label": "%s", "failed_repos": %s, "first_run": %s, "quiet_heartbeat": %s, "results": %s}}\n' \
+    "$WAKE" "$STATUS" "$LABEL" "$FAILED" "$FIRST_RUN" \
+    "$([ "$WAKE" = "true" ] && [ "$CHANGED" = "false" ] && [ "$HAS_FAILED" = "false" ] && echo true || echo false)" \
+    "$ALL"
 ---
 Weekly good-first-issue funnel check. `scriptOutput.label` is the exact label
 text searched (`GFI_LABEL` in config.env, default `"good first issue"` —

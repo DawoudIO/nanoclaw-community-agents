@@ -571,8 +571,21 @@ assert_scenario "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" gfi-stal
   '.data.results[0] as $r
    | ($r.open_count == 150) and ($r.truncated == true)
      and ($r.unassigned_stale | length == 1)
-     and ($r.unassigned_stale[0].number == 10)' \
+     and ($r.unassigned_stale[0].number == 10)
+     and (.data.first_run == true)' \
   'COMMUNITY_REPOS="acme/demo"'
+
+# good-first-issue-health, run 2: THE 0-TOKEN ASSERTION. This gate used to
+# wake on every single run while the docs claimed it only woke when there was
+# something to report — one of two "script-gated" tasks that never actually
+# suppressed anything. Same fixture twice means an identical pipeline, which
+# must cost no wake at all; a starved pipeline is slow-moving by nature (the
+# staleness cutoff alone is 14 days), so "same as last week" is the common
+# case and narrating it is pure cost.
+assert_scenario "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" gfi-stale false \
+  '(.data.status == "quiet") and (.data.first_run == false)
+   and (.data.failed_repos | length == 0)' \
+  'COMMUNITY_REPOS="acme/demo"' 2
 
 # release-announcement-watch: run 1 seeds the baseline WITHOUT announcing (a
 # fresh install must not retroactively announce shipped releases)...

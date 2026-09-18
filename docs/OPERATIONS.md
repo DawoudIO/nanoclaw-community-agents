@@ -217,11 +217,23 @@ the owner can change them there or later via group config):
 | Manager | Sonnet-class **in steady state, Haiku-class during setup** | Public-facing judgment: tone, escalation calls, security routing. The welcome interview is structured Q&A and CLI calls, so it runs on Haiku and the manager promotes itself at the end of onboarding (`welcome/SKILL.md` §11) |
 | Helper | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the manager before publishing — except the one fixed holding line it may post itself, which it cannot compose freely. Upgrade only if quality disappoints |
 
-**A model change needs a restart to take effect** — `ncl groups config
-update --model …` only writes the row (the platform's own CLI help says so).
-Without `ncl groups restart`, the config reads one tier while every wake
-still bills the old one, and nothing surfaces the discrepancy. Check with
-`ncl groups config get --id <group-id>` after any tier change.
+**Neither tier is automatic — pin both, and restart.** Two separate traps
+here, each invisible from the outside:
+
+1. **An unpinned group is not Haiku.** With no model of its own it falls
+   back to `NANOCLAW_DEFAULT_MODEL`, which no installer sets; unset, the
+   platform sends no model and the provider SDK picks its own default — a
+   Sonnet-class one (`src/config.ts`: "Unset means the provider SDK's own
+   default, which is what every existing install gets"). So an unpinned
+   Helper bills Sonnet rates against every figure on this page.
+2. **A pin does nothing until a restart.** `ncl groups config update
+   --model …` only writes the row (the platform's own CLI help says so).
+   Without `ncl groups restart` the config reads one tier while every wake
+   bills the other.
+
+Check the effective value with `ncl groups config get --id <group-id>`
+after any tier change — it is the only thing that reports what a group will
+actually run on.
 
 **Decided: no local model for the Helper — Haiku stays.** Compared against
 Haiku (not Sonnet), the case collapses: the Helper's tasks together wake

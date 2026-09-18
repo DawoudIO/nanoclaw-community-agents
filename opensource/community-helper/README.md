@@ -84,7 +84,21 @@ at all; `welcome/SKILL.md` §5c sets that up.
 
 ```bash
 ncl groups create --template opensource/community-helper --name "Community Helper"
+# Pin the tier — stamping does NOT default to Haiku (see below)
+ncl groups config update --id <this-agent-id> --model haiku
+ncl groups restart --id <this-agent-id>
 ```
+
+**That pin is not optional bookkeeping.** `groups create` takes no
+`--model`, and a group with none of its own falls back to the install-wide
+`NANOCLAW_DEFAULT_MODEL` — which no installer sets. Unset, the platform
+sends no model at all and the provider SDK uses its own default, a
+Sonnet-class model (NanoClaw's `src/config.ts`: "Unset means the provider
+SDK's own default, which is what every existing install gets"). Every cost
+figure on this page assumes Haiku, so an unpinned Helper silently spends
+several times what this template claims, and nothing surfaces the
+mismatch. Verify with `ncl groups config get --id <this-agent-id>`, and
+remember a tier change needs the restart to take effect.
 
 Then wire it to the manager — an agent-to-agent destination, not a channel:
 
@@ -239,10 +253,15 @@ the agent, so a quiet day never masks a failure.
 | `dev-metrics-report` | Real movement — or weekly, so the channel never looks dead |
 | `ready-to-merge` | The approved-and-open set changes |
 | `repo-hygiene-audit` | A community health file is actually missing |
-| `good-first-issue-health` / `contributor-nudge` | There's something to report |
+| `good-first-issue-health` | The open count or the stale set changes — plus a 28-day heartbeat |
+| `contributor-nudge` | There's someone in the re-engagement window to report |
+| `dependabot-pr-review` | A bump not yet reviewed at its current head SHA |
+| `docs-currency-watch` | A merged PR nobody has assessed yet |
+| `contributor-health-review` | A 10-point move, the first run, or a 90-day heartbeat |
 | `ledger-publish` / `conversation-archive-prune` | Never, on success |
-| `social-metrics-snapshot` | **Always** — see below |
 | `unanswered-watch` | A message has gone unanswered past the grace window |
+| `social-metrics-snapshot` | **Always** — it can't be gated, see below |
+| `weekly-analytics-report` | **Always** — it's a report, not a watcher, see below |
 
 **`contributor-health-review` is the cheapest task here despite the most
 expensive prompt**, because its gate is a comparison, not a poll. It runs
@@ -259,10 +278,22 @@ The 10-point floor is deliberate: on repos this size a 1–2 point swing is
 sampling noise, and waking a model to narrate noise just trains the owner
 to skip the report. A steady quarter costs one wake.
 
-**`social-metrics-snapshot` is the one task that can't be gated** — reading
-a follower count off a profile page *is* the agent's own work, so it wakes
-every run, by design. It and the manager's `inbox-check` are the only two
-ungated wakes left in the system.
+**Two tasks here wake on every run, for different reasons.**
+
+`social-metrics-snapshot` *can't* be gated: reading a follower count off a
+profile page **is** the agent's own work, so there is nothing for a bash
+gate to check first. It wakes every run by design.
+
+`weekly-analytics-report` *could* be gated but deliberately isn't — it's a
+**reporter, not a watcher**. Its deliverable is the narrated weekly traffic
+read, so suppressing it on "traffic didn't move much" would withhold the
+one thing it exists to produce. The ceiling is one Haiku wake per week,
+which is not worth optimizing away. (`dev-metrics-report` is the opposite
+case: daily, so it gates on real movement and keeps a weekly heartbeat.)
+
+Together with the manager's `inbox-check`, those are the only three wakes
+in the system that a quiet day doesn't suppress. Everything else here is
+genuinely 0-token when there's nothing to judge.
 
 **`unanswered-watch` runs most often — every ten minutes** — but it's also
 the cheapest possible check: no network, no credentials, just a read of

@@ -164,8 +164,16 @@ pick anything readable, e.g. `"AcmeCRM Manager"`.
 # costing no extra one. §4 switches it to Sonnet once the interview is done.
 ./bin/ncl groups config update --id <manager-id> --model haiku
 ./bin/ncl groups restart --id <manager-id> --rebuild
-# …and once per sub-agent you stamped above, with its own <id>. Sub-agents
-# stay on Haiku permanently — no switch, they are headless by design.
+# …and once per sub-agent you stamped above, with its own <id>. PIN THE
+# HELPER TO HAIKU TOO — an unpinned group does NOT default to Haiku: with
+# NANOCLAW_DEFAULT_MODEL unset (the normal case, no installer sets it) the
+# platform sends no model and the provider SDK picks its own default, a
+# Sonnet-class one. NanoClaw's src/config.ts says so outright. So an
+# unpinned Helper bills Sonnet rates for every wake while every cost figure
+# in this kit assumes Haiku, and nothing anywhere reports the difference.
+./bin/ncl groups config update --id <helper-id> --model haiku
+./bin/ncl groups config get    --id <helper-id>   # confirm: model = haiku
+# The Helper stays on Haiku permanently — no later switch, headless by design.
 
 # Wire sub-agents to the manager — agent-to-agent, NEVER to a channel. One pair
 # per sub-agent: `parent` on the child pointing at the manager, a named

@@ -680,10 +680,28 @@ forms:
 # only to bare creates"). A templated group's folder derives from --name.
 ncl groups create --template opensource/community-helper --name "<agent name>"
 
+# PIN IT TO HAIKU. `groups create` has no --model flag, and an unpinned group
+# does NOT default to Haiku — see the warning below. Set this before the
+# restart so it lands in the same one as jq.
+ncl groups config update --id <sub-agent-id> --model haiku
+
 # Install jq on a stamped sub-agent. APT, never npm.
 ncl groups config add-package --id <sub-agent-id> --apt jq
 ncl groups restart --id <sub-agent-id> --rebuild
 ```
+
+**Pin the model explicitly — "the default" is not Haiku.** An agent group
+with no model of its own falls back to the install-wide
+`NANOCLAW_DEFAULT_MODEL`, and when *that* is unset (the normal case — no
+installer sets it) the platform passes no model at all, so the provider SDK
+picks its own default: a Sonnet-class model, not Haiku. NanoClaw's own
+source says so (`src/config.ts`: "Unset means the provider SDK's own
+default, which is what every existing install gets"). An unpinned Helper
+therefore bills Sonnet rates for every one of its dozens of weekly wakes
+while every cost estimate in this kit assumes Haiku — invisibly, because
+nothing reports the effective model. Confirm it with
+`ncl groups config get --id <sub-agent-id>` after the restart, and never
+assume a tier you did not set.
 
 If a gated call fails, read the error and fix the *invocation* before
 re-requesting — never re-submit the same form hoping for a different result,
@@ -693,7 +711,7 @@ one help call is cheaper than one wasted approval.
 
 **Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
 1. Use the template from the shared catalog (`opensource/community-helper`)
-2. **It stamps on the cloud default (Haiku-4.5)** — there is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
+2. **Pin it to Haiku yourself** with `ncl groups config update --model haiku` (see the command block and warning above) — stamping does *not* land on Haiku by default, and an unpinned Helper quietly bills Sonnet rates. There is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
 3. Relay the config keys listed below
 4. Report the stamping result and the agent's status to the owner
 
