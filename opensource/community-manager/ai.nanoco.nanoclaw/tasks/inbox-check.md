@@ -103,11 +103,18 @@ script: |
     exit 0
   fi
 
-  SEEN="$DATA/inbox-seen.jsonl"
+  SEEN="$DATA/inbox-seen.csv"
   touch "$SEEN"
-  SEEN_JSON=$(jq -R -s -c '
-    split("\n") | map(select(length > 0)) | map(try fromjson catch empty)
-    ' < "$SEEN" 2>/dev/null || echo '[]')
+  # CSV — `id,seen_at,retries`, read with awk, no JSON parser. Gmail message ids
+  # are hex-ish tokens with no commas, so position is the whole contract. Last
+  # row wins for a repeated id (acks append, newest is furthest down).
+  SEEN_JSON=$(awk -F, 'NF>=3 && $1!="id" { seen[$1]=$2 "," $3 }
+    END { printf "["; first=1
+          for (k in seen) { split(seen[k], v, ",")
+            if (!first) printf ","; first=0
+            printf "{\"id\":\"%s\",\"seen_at\":%s,\"retries\":%s}", k, v[1], v[2] }
+          printf "]" }' "$SEEN" 2>/dev/null || echo '[]')
+  [ -z "$SEEN_JSON" ] && SEEN_JSON='[]'
 
   NEW=$(jq -c -n --argjson ids "$IDS" --argjson seen "$SEEN_JSON" \
     --argjson now "$NOW_EPOCH" --argjson retry_sec "$RETRY_SEC" --argjson max_retries "$MAX_RETRIES" '
@@ -131,9 +138,12 @@ script: |
   fi
 
   # Ack before handing over, bounded by the retry policy above.
-  printf '%s' "$NEW" | jq -c --argjson now "$NOW_EPOCH" '.[] | {id, seen_at: $now, retries}' \
-    >> "$SEEN" 2>/dev/null || true
-  tail -n 500 "$SEEN" > "$SEEN.t" 2>/dev/null && mv "$SEEN.t" "$SEEN"
+  [ -s "$SEEN" ] || echo 'id,seen_at,retries' > "$SEEN"
+  printf '%s' "$NEW" | jq -r --argjson now "$NOW_EPOCH" '.[] | [.id, $now, .retries] | @csv' \
+    | tr -d '"' >> "$SEEN" 2>/dev/null || true
+  # Bounded, header preserved on top while trimming.
+  { head -n 1 "$SEEN"; tail -n 500 "$SEEN" | grep -v '^id,'; } > "$SEEN.t" 2>/dev/null \
+    && mv "$SEEN.t" "$SEEN"
 
   printf '{"wakeAgent": true, "data": {"status": "needs-triage", "count": %s, "unread": %s, "query": "%s", "retry_hours": %s, "messages": %s}}\n' \
     "$COUNT" "$TOTAL" "$QUERY" "$RETRY_HOURS" "$NEW"
@@ -162,7 +172,7 @@ implication. Summarize and hand up; don't draft a reply that reads like a
 decision has been made.
 **You can draft a reply** — routine questions with a known answer, per
 `references/inbox-triage.md`. Draft it, hand it to the owner, don't send.
-Log the topic to `question-ledger.jsonl` exactly as you would for a
+Log the topic to `question-ledger.csv` exactly as you would for a
 Discord support conversation — email questions repeat too, and
 `docs-gap-review` is blind to anything you don't log.
 **Spam or automated noise** — count it, don't summarize each one.

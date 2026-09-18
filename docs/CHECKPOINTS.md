@@ -130,7 +130,7 @@ Ten minutes, the morning after go-live:
   window, and the trap in it). Over budget → pause in the documented order,
   which is cloud-tier only; pausing local tasks saves nothing on that meter.
   Never delete agents.
-- **Question ledger is accumulating**: `plugin-data/community-manager/question-ledger.jsonl`
+- **Question ledger is accumulating**: `plugin-data/community-manager/question-ledger.csv`
   has one line per resolved support conversation. If it's empty after a
   month of real support traffic, the manager isn't logging — correct it. If
   `docs-gap-review` fired, its first docs proposal is the system's

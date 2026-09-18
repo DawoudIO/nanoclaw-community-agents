@@ -616,8 +616,9 @@ assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures tru
   '' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-   for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
-   for i in 1 2; do echo "{\"date\":\"$NOW\",\"topic\":\"how-to-backup\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done'
+   echo date,topic,channel > "$D/question-ledger.csv";
+   for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support" >> "$D/question-ledger.csv"; done;
+   for i in 1 2; do echo "$NOW,how-to-backup,#support" >> "$D/question-ledger.csv"; done'
 
 # docs-gap-review: a topic already proposed must not re-surface (the ack
 # ledger is what stops the same docs page being proposed every week).
@@ -625,7 +626,8 @@ assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures fal
   '.data.status == "quiet"' '' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-   for i in 1 2 3 4; do echo "{\"date\":\"$NOW\",\"topic\":\"csv-import-fails\",\"channel\":\"#support\"}" >> "$D/question-ledger.jsonl"; done;
+   echo date,topic,channel > "$D/question-ledger.csv";
+   for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support" >> "$D/question-ledger.csv"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'
 
 # owner-tldr: the digest gate. Empty queue must NOT wake — a quiet day is the
@@ -766,7 +768,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
   'COMMUNITY_REPOS="acme/crm"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    OLD=$(( $(date +%s) - 3600 ));
-   echo "{\"key\":\"acme/crm#501\",\"seen_at\":$OLD,\"retries\":0}" >> "$D/first-response-seen.jsonl"'
+   { echo key,seen_at,retries; echo "acme/crm#501,$OLD,0"; } > "$D/first-response-seen.csv"'
 
 # ...but an item seen only moments ago must stay suppressed, even though it
 # is past the grace period and GitHub still shows it as comments:0 — the
@@ -775,7 +777,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
   '(.data.status == "all-answered") and (.data.count == 0)' \
   'COMMUNITY_REPOS="acme/crm"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
-   echo "{\"key\":\"acme/crm#501\",\"seen_at\":$(date +%s),\"retries\":0}" >> "$D/first-response-seen.jsonl"'
+   { echo key,seen_at,retries; echo "acme/crm#501,$(date +%s),0"; } > "$D/first-response-seen.csv"'
 
 # ...and once retries are exhausted, the item must stop resurfacing here at
 # all — backlog belongs to triage from that point on, per the task's own
@@ -785,7 +787,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
   'COMMUNITY_REPOS="acme/crm"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    OLD=$(( $(date +%s) - 3600 ));
-   echo "{\"key\":\"acme/crm#501\",\"seen_at\":$OLD,\"retries\":3}" >> "$D/first-response-seen.jsonl"'
+   { echo key,seen_at,retries; echo "acme/crm#501,$OLD,3"; } > "$D/first-response-seen.csv"'
 
 # inbox-check: this task had NO gate until now — it woke the Sonnet-tier
 # manager twice a day on an empty inbox, the most expensive guaranteed wake

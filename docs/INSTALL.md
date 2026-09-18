@@ -130,7 +130,7 @@ copy, that stays with you and whoever you work with — this set measures and
 reports.
 
 (`docs-gap-review` sits with the manager, not the helper, because it reads the
-manager's own `question-ledger.jsonl` — an agent can't read another's
+manager's own `question-ledger.csv` — an agent can't read another's
 `plugin-data/`.)
 
 **Not a one-way door.** Stamp just the manager today; add others later. To

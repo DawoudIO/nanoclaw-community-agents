@@ -101,14 +101,25 @@ delayed. A usage limit delays the TLDR; it never loses it.
 After a support conversation in any support-tier channel resolves, do two
 things:
 
-**1. Append a topic line to the question ledger** (always, immediately):
-one JSON line to `plugin-data/community-manager/question-ledger.jsonl` —
-`{"date": "<full ISO8601 datetime, e.g. 2026-08-21T14:03:00Z>", "topic":
-"<kebab-case-slug>", "channel": "<channel>"}`. Reuse an existing slug when
-the topic matches one you've logged before — the `docs-gap-review` task
-clusters these lines to find questions worth a docs page, and three
-differently-worded slugs for the same question defeat it. Full timestamps,
-not bare dates — the gate's date parsing requires them.
+**1. Append a topic row to the question ledger** (always, immediately):
+one CSV row to `plugin-data/community-manager/question-ledger.csv`, with the
+header `date,topic,channel` written only when you create the file:
+
+```
+2026-08-21T14:03:00Z,csv-import-fails,#support
+```
+
+Three rules, each load-bearing:
+- **Full ISO8601 timestamps, never bare dates.** The gate compares dates as
+  strings instead of parsing them, which works only because ISO8601 sorts
+  lexicographically. A bare `2026-08-21` sorts before every timestamped row
+  of that same day and silently falls outside windows it belongs in.
+- **Reuse an existing slug** when the topic matches one you've logged before.
+  `docs-gap-review` clusters these rows to find questions worth a docs page,
+  and three differently-worded slugs for one question defeat it.
+- **No commas in any field.** Kebab-case slugs and channel names have none
+  naturally, and a comma would shift every field after it; replace one with
+  `-` if it ever comes up.
 
 **2. Summarize to the owner — as a daily batch, not a DM per conversation.**
 A notification stream to the one person this system exists to unburden is a

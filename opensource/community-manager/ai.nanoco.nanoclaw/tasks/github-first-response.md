@@ -73,7 +73,7 @@ script: |
     exit 0
   fi
 
-  SEEN="$DATA/first-response-seen.jsonl"
+  SEEN="$DATA/first-response-seen.csv"
   touch "$SEEN"
   TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
   i=0
@@ -129,11 +129,22 @@ script: |
   HAS_DEGRADED=$(printf '%s' "$DEGRADED" | jq 'length > 0')
 
   # Past the grace period, and either never seen or eligible for a bounded
-  # retry. $SEEN holds one JSON object per line: {"key","seen_at","retries"}.
-  # Tolerant of blank/malformed lines (a fresh or legacy file) via `try...catch`.
-  SEEN_JSON=$(jq -R -s -c '
-    split("\n") | map(select(length > 0)) | map(try fromjson catch empty)
-    ' < "$SEEN" 2>/dev/null || echo '[]')
+  # retry. $SEEN is CSV — `key,seen_at,retries`, one row per ack — read with
+  # awk rather than a JSON parser. Keys are `owner/repo#123`, which cannot
+  # contain a comma, so no quoting is needed and position is the whole contract.
+  #
+  # Last row wins for a repeated key: acks append, so the newest entry for a key
+  # is the furthest down the file. awk overwrites as it goes, which gives that
+  # for free in one pass.
+  SEEN_JSON=$(awk -F, 'NF>=3 && $1!="key" { seen[$1]=$2 "," $3 }
+    END { printf "["; first=1
+          for (k in seen) { split(seen[k], v, ",")
+            if (!first) printf ","; first=0
+            printf "{\"key\":\"%s\",\"seen_at\":%s,\"retries\":%s}", k, v[1], v[2] }
+          printf "]" }' "$SEEN" 2>/dev/null || echo '[]')
+  [ -z "$SEEN_JSON" ] && SEEN_JSON='[]'
+  # jq still does the JOIN against the GitHub payload below, because $ALL is an
+  # API response — but the state it joins against is now a flat table.
   NEW=$(jq -c -n --argjson a "$ALL" --argjson seen "$SEEN_JSON" --argjson g "$GRACE_MIN" \
     --argjson now "$NOW_EPOCH" --argjson retry_sec "$RETRY_SEC" --argjson max_retries "$MAX_RETRIES" '
     ($seen | map({(.key): .}) | add // {}) as $bykey
@@ -166,11 +177,13 @@ script: |
   # left resurfaces exactly once per window — bounded, not infinite, and only
   # for items GitHub's own comments:0 filter still calls unanswered.
   if [ "$COUNT" -gt 0 ]; then
-    printf '%s' "$NEW" | jq -c --argjson now "$NOW_EPOCH" '.[] | {key: ._key, seen_at: $now, retries: .retries}' \
-      >> "$SEEN" 2>/dev/null || true
+    [ -s "$SEEN" ] || echo 'key,seen_at,retries' > "$SEEN"
+    printf '%s' "$NEW" | jq -r --argjson now "$NOW_EPOCH" '.[] | [._key, $now, .retries] | @csv' \
+      | tr -d '"' >> "$SEEN" 2>/dev/null || true
     # keep the ledger bounded — three days of items, a few retries each, is
-    # still plenty of memory at 500 lines
-    tail -n 500 "$SEEN" > "$SEEN.t" 2>/dev/null && mv "$SEEN.t" "$SEEN"
+    # still plenty of memory at 500 rows. Keep the header on top while trimming.
+    { head -n 1 "$SEEN"; tail -n 500 "$SEEN" | grep -v '^key,'; } > "$SEEN.t" 2>/dev/null \
+      && mv "$SEEN.t" "$SEEN"
   fi
 
   PUBLIC_NEW=$(printf '%s' "$NEW" | jq -c 'map(del(._key))')

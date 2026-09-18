@@ -372,7 +372,7 @@ public voice:
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
 | `daily-github-triage` (weekdays) | only on new/updated items | manager PAT + `COMMUNITY_REPOS` in `plugin-data/community-manager/config.env` | silent skip. **This is the manager's standalone-mode fallback** — leave it paused when the Helper is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Helper |
-| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.jsonl`, built up by normal support work | safe — quiet until the ledger has data |
+| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
 | `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
 | `inbox-check` (2×/day) | only on unread mail not yet handed over (or a fetch failure — a broken mailbox fetch must never read as an empty inbox) | `INBOX_ENABLED="true"` + Gmail OAuth (`gmail.readonly`) + allowlist, plus an email MCP in the manager's group to read the mail itself | silent skip — unset `INBOX_ENABLED` means the task never fires |
@@ -650,7 +650,7 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
      losing these is noise, not data loss: the system re-nudges someone it
      already nudged and re-acknowledges a message it already acknowledged,
      once.
-   - `question-ledger.jsonl` (the manager) — `docs-gap-review`'s only input. It
+   - `question-ledger.csv` (the manager) — `docs-gap-review`'s only input. It
      rebuilds from live traffic over weeks, so a rebuild resets that clock.
    - `owner-instructions.jsonl` and `public-actions.log` (the manager) — the ack
      and public-action records. These are deliberately never published: they

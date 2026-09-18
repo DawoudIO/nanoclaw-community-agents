@@ -78,7 +78,7 @@ community-manager/
 ```
 
 `docs-gap-review` lives here for a mechanical reason worth remembering before
-moving any task between agents: it reads `question-ledger.jsonl`, which only
+moving any task between agents: it reads `question-ledger.csv`, which only
 the manager writes, and no agent can read another agent's plugin-data — so in the
 Helper it was permanently dead. `daily-github-triage` likewise belongs to the
 manager (see the note under *Full setup* about leaving it paused).
@@ -162,7 +162,7 @@ manager reports the numbers it's handed and stores none of them.
 
 | File | What it holds | Why it's not published |
 |---|---|---|
-| `question-ledger.jsonl` | Repeat-question ledger behind `docs-gap-review` | Contains community members' words |
+| `question-ledger.csv` | Repeat-question ledger behind `docs-gap-review` | Contains community members' words |
 | `owner-instructions.jsonl` | Ack ledger | Contains the owner's private direction |
 
 Treat both as genuinely disposable: `docs-gap-review` simply starts
