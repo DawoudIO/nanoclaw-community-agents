@@ -55,9 +55,8 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 8 tasks, all created paused
+│   └── tasks/                                         # 7 tasks, all created paused
 │       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
-│       ├── release-announcement-watch.md              # script-gated, posts new stable releases to announcements
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
 │       ├── github-first-response.md      # every 10 min: new, unanswered
 │       ├── owner-tldr.md                # the ONE daily digest to the owner
@@ -141,7 +140,7 @@ for the current split), so an unrelayed key here is the single largest source
 of "stamped and never does anything."
 
 This agent also owns its own `COMMUNITY_REPOS` plus an optional
-`RELEASE_WATCH_REPOS`, which narrows `release-announcement-watch` to a
+`RELEASE_WATCH_REPOS`, which narrows the release-announcement skill to a
 subset of it. `GITHUB_BOT_USERNAME` is set in both agents.
 
 `inbox-check` is opt-in and off by default: its gate needs
@@ -249,7 +248,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and `release-announcement-watch`: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and the release-announcement skill: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 | Shared inbox (e.g. Gmail) *(optional)* | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** (`gmail.readonly`) for `inbox-check`. This agent never sends mail — the send is always a human's, so do not grant send or modify scopes. An inbox is a support channel, which is why it belongs to the agent that owns support escalation. | Google Cloud console → OAuth consent + credentials |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The

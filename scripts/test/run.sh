@@ -463,8 +463,7 @@ MOCK
 }
 
 # Unconfigured: every config-gated script must exit clean without waking.
-for sh in "$ROOT"/scripts/tasks/helper/*.sh \
-          "$ROOT"/scripts/tasks/manager/release-announcement-watch.sh; do
+for sh in "$ROOT"/scripts/tasks/helper/*.sh; do
   assert_gate "$sh" "unconfigured" "false" ""
 done
 
@@ -476,8 +475,6 @@ assert_gate "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" \
 assert_gate "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" \
-  "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/helper/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
@@ -586,24 +583,6 @@ assert_scenario "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" gfi-stal
   '(.data.status == "quiet") and (.data.first_run == false)
    and (.data.failed_repos | length == 0)' \
   'COMMUNITY_REPOS="acme/demo"' 2
-
-# release-announcement-watch: run 1 seeds the baseline WITHOUT announcing (a
-# fresh install must not retroactively announce shipped releases)...
-assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-new false \
-  '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"'
-# ...and stays quiet on run 2 because the AGENT, not the script, advances the
-# baseline — so the same release must keep re-surfacing as un-acked, never
-# silently vanish. Same fixture, so the tag is unchanged: still no wake.
-assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-new false \
-  '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"' 2
-
-# release-announcement-watch: a repo with zero releases ever (a docs site,
-# a content repo) returns 404 on /releases/latest — must read as "quiet",
-# NEVER as "fetch-failed". This is the exact bug a real install hit: curl -f
-# discarded the body on any HTTP error, so a legitimate 404 was
-# indistinguishable from a real auth/network failure.
-assert_scenario "$ROOT/scripts/tasks/manager/release-announcement-watch.sh" release-no-releases false \
-  '.data.status == "quiet"' 'COMMUNITY_REPOS="acme/demo"'
 
 # docs-gap-review: pure local-file logic, previously the ONLY gate with no
 # behavioral coverage at all. Ledger seeded with one topic 4× inside the

@@ -47,6 +47,11 @@ script: |
   TMP=$(mktemp -d)
   trap 'rm -rf "$TMP"' EXIT
   i=0
+  PIDS=()   # deadlock fix: exec > >(tee ...) puts a background subshell in this shell's
+  # own job table, so a BARE 'wait' below would also wait on it -- and it
+  # cannot exit until this script's stdout closes, which cannot happen until
+  # the script exits, which is blocked on that same wait. Track only the
+  # per-repo PIDs and wait on those explicitly.
   for REPO in $REPOS; do
     (
       curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
@@ -69,9 +74,10 @@ script: |
       [ -z "$OUT" ] && OUT=$(jq -c -n --arg r "$REPO" '{repo: $r, count: null, truncated: false, prs: []}')
       printf '%s\n' "$OUT" > "$TMP/$i.json"
     ) &
+    PIDS+=("$!")
     i=$((i+1))
   done
-  wait
+  wait "${PIDS[@]}"
 
   # No .json at all (every subshell died) must still produce valid JSON.
   if ! ls "$TMP"/*.json >/dev/null 2>&1; then

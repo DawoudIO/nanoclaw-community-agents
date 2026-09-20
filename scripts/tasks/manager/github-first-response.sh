@@ -74,6 +74,11 @@ SEEN="$DATA/first-response-seen.csv"
 touch "$SEEN"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 i=0
+PIDS=()   # deadlock fix: exec > >(tee ...) puts a background subshell in this shell's
+# own job table, so a BARE 'wait' below would also wait on it -- and it
+# cannot exit until this script's stdout closes, which cannot happen until
+# the script exits, which is blocked on that same wait. Track only the
+# per-repo PIDs and wait on those explicitly.
 for REPO in $REPOS; do
   (
     # comments:0 is the whole trick — GitHub's search does the "nobody has
@@ -113,9 +118,10 @@ for REPO in $REPOS; do
     fi
     printf '%s\n' "$OUT" > "$TMP/$i.json"
   ) &
+  PIDS+=("$!")
   i=$((i+1))
 done
-wait
+wait "${PIDS[@]}"
 
 if ! ls "$TMP"/*.json >/dev/null 2>&1; then
   echo '{"wakeAgent": true, "data": {"status": "fetch-failed", "hint": "no repo produced a result — check the token and the sandbox network policy"}}'

@@ -553,7 +553,7 @@ Resume order, safe → side-effect-adjacent:
    `weekly-identity-integrity-check` and `owner-tldr` (manager — jq only).
    `conversation-archive-prune` on every stamped agent can go here too; it is
    pure filesystem housekeeping and never wakes a model.
-2. **Manager's live response**: `github-first-response`, `release-announcement-watch`
+2. **Manager's live response**: `github-first-response`
    — safe once `COMMUNITY_REPOS` is set. `docs-gap-review` is safe from day
    one; it stays quiet until support work fills its ledger.
 3. **The Helper's gates**, once §3's relay has landed: `github-ops-triage`,

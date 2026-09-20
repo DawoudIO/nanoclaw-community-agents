@@ -94,7 +94,7 @@ gets gated.
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
 | Issues | **Read + Write** | reads `GET /repos/{repo}/issues` (`daily-github-triage`); writes = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
 | Pull requests | Read + Write | commenting on PRs in those same live replies; the issues endpoint also returns PRs |
-| Contents | Read | `GET /repos/{repo}/releases/latest` (`release-announcement-watch`) |
+| Contents | Read | `GET /repos/{repo}/releases/latest` (the owner-invoked release-announcement skill) |
 
 Repo list: everything in `COMMUNITY_REPOS`. **Never** `admin:*`,
 `delete_repo`, `read:org`, or workflow scopes — nothing reads org membership

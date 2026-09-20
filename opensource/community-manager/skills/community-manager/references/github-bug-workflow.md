@@ -58,7 +58,7 @@ notifications inside the agent's own judgment, or have no repo-admin access
 to add workflow secrets. Offer it during onboarding; only propose adding it
 if the owner says yes.
 
-**New releases** get their own script-gated task (`release-announcement-watch`)
+**New releases** are announced by an owner-invoked skill (the owner asks; there is no polling task)
 that announces stable releases to the team-lead tier's announcements channel —
 that one you don't set up in CI; it's agent-owned because a good announcement
 needs framing (highlights, contributor credit), not just a raw event relay.

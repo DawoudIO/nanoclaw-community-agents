@@ -139,7 +139,7 @@ pauses tasks in whichever group holds them:
 
 | Goal | If yes, these tasks become eligible |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `daily-github-triage` *(manager, standalone only)* · `docs-gap-review` *(manager)* · `release-announcement-watch` *(manager)* · `github-ops-triage` *(Helper)* · `ready-to-merge` *(Helper)* |
+| **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `daily-github-triage` *(manager, standalone only)* · `docs-gap-review` *(manager)* · the release-announcement skill *(manager, owner-invoked)* · `github-ops-triage` *(Helper)* · `ready-to-merge` *(Helper)* |
 | **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(Helper)* · `weekly-analytics-report` *(Helper)* · `good-first-issue-health` *(Helper)* · `repo-hygiene-audit` *(Helper)* · `dev-metrics-report`'s new-contributor section *(Helper)* · `contributor-nudge` *(Helper)* · `contributor-health-review` *(Helper)* |
 | **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(Helper)* (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
 | **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · `dependabot-pr-review` *(Helper)* · the escalation paths in `escalation-paths.md` |
@@ -280,7 +280,7 @@ asking for anything yet.
   per-sender approval; only this DM stays locked to known senders. **If the
   team-lead tier has more than one channel** (e.g. a marketing-coordination
   channel and a separate announcements channel), ask specifically which one
-  is *the* announcements channel — `release-announcement-watch` and the
+  is *the* announcements channel — the release-announcement skill and the
   blog→announcement growth-playbook rule both need one unambiguous target,
   not "somewhere in team-lead."
 - **Auto-approve Discord members** — **CRITICAL for SLA**: "Should new Discord
@@ -405,8 +405,8 @@ one per line, quoted:
 
 | Key | From | Read by |
 |---|---|---|
-| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `daily-github-triage`, `release-announcement-watch`, own setup-check |
-| `RELEASE_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `release-announcement-watch` — ask if the owner wants release announcements scoped to just the main product repo rather than the whole map (docs/content repos rarely cut releases, and without this they wake this gate every 3h for nothing). Falls back to `COMMUNITY_REPOS` if unset |
+| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `daily-github-triage`, the release-announcement skill, own setup-check |
+| `RELEASE_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | the owner-invoked release-announcement skill — ask if the owner wants release announcements scoped to just the main product repo rather than the whole map. Falls back to `COMMUNITY_REPOS` if unset |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
 **`COMMUNITY_REPOS` itself should be narrower than "the full repo map,"

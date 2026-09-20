@@ -31,6 +31,11 @@ script: |
   STALE_CUTOFF=$(( $(date +%s) - 1209600 ))
   TMP=$(mktemp -d)
   i=0
+  PIDS=()   # deadlock fix: exec > >(tee ...) puts a background subshell in this shell's
+  # own job table, so a BARE 'wait' below would also wait on it -- and it
+  # cannot exit until this script's stdout closes, which cannot happen until
+  # the script exits, which is blocked on that same wait. Track only the
+  # per-repo PIDs and wait on those explicitly.
   for REPO in $REPOS; do
     (
       # sort=updated&order=asc: the least-recently-touched issues come first,
@@ -58,9 +63,10 @@ script: |
       }' > "$TMP/$i.json" 2>/dev/null \
         || printf '{"repo": "%s", "status": "fetch-failed"}\n' "$REPO" > "$TMP/$i.json"
     ) &
+    PIDS+=("$!")
     i=$((i+1))
   done
-  wait
+  wait "${PIDS[@]}"
   ALL=$(cat "$TMP"/*.json | jq -c -s '.')
   rm -rf "$TMP"
   FAILED=$(printf '%s' "$ALL" | jq -c '[.[] | select(.status=="fetch-failed") | .repo]')

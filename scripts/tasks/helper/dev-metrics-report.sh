@@ -28,6 +28,11 @@ CUTOFF_EPOCH=$(( NOW_EPOCH - 604800 ))
 SINCE_DATE=$(date -u -d "@$CUTOFF_EPOCH" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF_EPOCH" +%Y-%m-%d 2>/dev/null || echo "")
 TMP=$(mktemp -d)
 i=0
+PIDS=()   # deadlock fix: exec > >(tee ...) puts a background subshell in this shell's
+# own job table, so a BARE 'wait' below would also wait on it -- and it
+# cannot exit until this script's stdout closes, which cannot happen until
+# the script exits, which is blocked on that same wait. Track only the
+# per-repo PIDs and wait on those explicitly.
 for REPO in $REPOS; do
   (
     # Calls fire concurrently (not sequentially) so one repo's total wall
@@ -130,9 +135,10 @@ for REPO in $REPOS; do
     printf '{"repo": "%s", "stars": %s, "forks": %s, "open_issues": %s, "open_prs": %s, "releases": %s, "new_contributors_7d": %s, "awaiting_first_response": {"issues": %s, "oldest_issue_since": "%s", "prs": %s, "oldest_pr_since": "%s"}}\n' \
       "$REPO" "$STARS" "$FORKS" "$OI" "$OP" "$REL" "$NEWCONTRIB" "$ZC_ISSUES" "$OLDEST_ZC_ISSUE" "$ZC_PRS" "$OLDEST_ZC_PR" > "$TMP/$i.json"
   ) &
+  PIDS+=("$!")
   i=$((i+1))
 done
-wait
+wait "${PIDS[@]}"
 #
 # Approved-PR and maintainer-load signals are NOT here, deliberately: they
 # live in ready-to-merge (time-sensitive, needs its own twice-daily cadence)

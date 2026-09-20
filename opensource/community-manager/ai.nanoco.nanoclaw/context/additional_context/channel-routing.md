@@ -63,7 +63,7 @@ where you have open-ended conversations.
   side (release news, published content) — not a place you reply to messages at
   all unless directly asked something.
 - **If this tier has more than one channel, name which one specifically is
-  the announcements channel** — `release-announcement-watch` and the
+  the announcements channel** — the release-announcement skill and the
   blog→announcement rule both post there, and "team-lead tier" alone doesn't
   say which channel that is when there's more than one.
 - Channels: _\[list yours here, e.g. #marketers, #announcements\]_

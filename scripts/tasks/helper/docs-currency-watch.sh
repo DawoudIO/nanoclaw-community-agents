@@ -99,6 +99,11 @@ fi
 # possible, and it is why the batch is capped.
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 i=0
+PIDS=()   # deadlock fix: exec > >(tee ...) puts a background subshell in this shell's
+# own job table, so a BARE 'wait' below would also wait on it -- and it
+# cannot exit until this script's stdout closes, which cannot happen until
+# the script exits, which is blocked on that same wait. Track only the
+# per-repo PIDs and wait on those explicitly.
 for N in $(printf '%s' "$BATCH" | jq -r '.[].number'); do
   (
     FILES=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
@@ -121,9 +126,10 @@ for N in $(printf '%s' "$BATCH" | jq -r '.[].number'); do
         || printf '{"number": %s, "files": null, "touched_docs": null}\n' "$N" > "$TMP/$i.json"
     fi
   ) &
+  PIDS+=("$!")
   i=$((i+1))
 done
-wait
+wait "${PIDS[@]}"
 
 DETAIL=$(cat "$TMP"/*.json 2>/dev/null | jq -c -s '.' 2>/dev/null || echo '[]')
 MERGED=$(jq -c -n --argjson b "$BATCH" --argjson d "$DETAIL" '

@@ -102,6 +102,11 @@ script: |
   # possible, and it is why the batch is capped.
   TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
   i=0
+  PIDS=()   # deadlock fix: exec > >(tee ...) puts a background subshell in this shell's
+  # own job table, so a BARE 'wait' below would also wait on it -- and it
+  # cannot exit until this script's stdout closes, which cannot happen until
+  # the script exits, which is blocked on that same wait. Track only the
+  # per-repo PIDs and wait on those explicitly.
   for N in $(printf '%s' "$BATCH" | jq -r '.[].number'); do
     (
       FILES=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
@@ -124,9 +129,10 @@ script: |
           || printf '{"number": %s, "files": null, "touched_docs": null}\n' "$N" > "$TMP/$i.json"
       fi
     ) &
+    PIDS+=("$!")
     i=$((i+1))
   done
-  wait
+  wait "${PIDS[@]}"
 
   DETAIL=$(cat "$TMP"/*.json 2>/dev/null | jq -c -s '.' 2>/dev/null || echo '[]')
   MERGED=$(jq -c -n --argjson b "$BATCH" --argjson d "$DETAIL" '
@@ -201,7 +207,7 @@ So every docs PR you open carries the version it belongs to:
 
 **When the release ships, these get merged** — that is the whole point of the
 version tag: at release time someone filters open docs PRs by milestone and
-merges the set. The manager's `release-announcement-watch` surfaces them on a new
+merges the set. The manager's owner-invoked release-announcement skill surfaces them on a new
 release. You do not merge them yourself.
 
 **If the version is already released** (the merge predates or matches
