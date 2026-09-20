@@ -222,7 +222,7 @@ cloud window as you. If the window is fully exhausted, both of you go quiet
 together; it's a cheap, high-value safety net, not an off-window guarantee.
 Offer it as protection for the north star, not as a feature.
 
-**Not goal-scoped**: `inbox-check` — the manager's own task. An inbox is a
+**Not goal-scoped**: `inbox-check` — the Helper's task. An inbox is a
 support channel on a different transport, so the same escalation rules apply;
 offered only if the project has a shared inbox and an email tool is
 connected.
@@ -763,6 +763,7 @@ key here is the largest single source of "nothing is happening":
 | `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
 | `LEDGER_BRANCH` | optional; default `agent-metrics` | the branch `ledger-publish` writes to. Only relay it if the owner wants a different name |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
+| `INBOX_ENABLED` | `"true"` only if the project has a shared inbox AND the Gmail read-only credential + an email MCP are wired **to the Helper's group** | `inbox-check` never fires without it — the correct default for the many projects with no shared inbox. Optional companions: `INBOX_QUERY` (default `is:unread newer_than:7d`), `INBOX_MAX_RESULTS` (default 25) |
 
 Plus in prose: default branch, label policy, **`docs_style`** (its
 `triage-rules.md` enforces it on every docs issue/PR it drafts, so an
@@ -844,7 +845,7 @@ keys go into the OneCLI vault dashboard only:
 | Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Helper. Wiring only the REST host leaves the publish failing with `push-failed` while every other GitHub call works |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
-| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the manager's own group** — `inbox-check` is the manager's task. A platform config change, not something you can do from in here; point the owner at the template README. Its gate also needs `INBOX_ENABLED="true"` in your own `config.env` — that part IS yours to write, and until it's set the task stays silent (correctly: most projects have no shared inbox) |
+| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the Helper's group** — `inbox-check` is the Helper's task. A platform config change, not something you can do from in here; point the owner at the template README. Its gate also needs `INBOX_ENABLED="true"` relayed into the **Helper's** `config.env` — that part IS yours to write, and until it's set the task stays silent (correctly: most projects have no shared inbox) |
 
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:

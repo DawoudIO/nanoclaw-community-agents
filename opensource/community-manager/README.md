@@ -55,12 +55,11 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 7 tasks, all created paused
+│   └── tasks/                                         # 6 tasks, all created paused
 │       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
 │       ├── github-first-response.md      # every 10 min: new, unanswered
 │       ├── owner-tldr.md                # the ONE daily digest to the owner
-│       ├── inbox-check.md                             # 2×/day shared-inbox triage, read-and-draft only
 │       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
 │       └── conversation-archive-prune.md              # pure housekeeping, never wakes the model
 ├── skills/
@@ -73,7 +72,6 @@ community-manager/
 │           ├── task-integrity.md
 │           ├── discord-mechanics.md                   # cards, loops, bilingual replies
 │           ├── github-bug-workflow.md                 # chat report → issue → label routing
-│           ├── inbox-triage.md                        # shared-inbox handling rules
 │           └── report-formats.md                      # pre-packaged report layouts
 └── README.md
 ```
@@ -132,7 +130,7 @@ agent's file — this is the one relay to get right:
 
 | Sub-agent | Keys the manager relays |
 |---|---|
-| `opensource/community-helper` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
+| `opensource/community-helper` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`, `INBOX_ENABLED`, `INBOX_QUERY`, `INBOX_MAX_RESULTS`) |
 
 There is only one relay now, and it carries nearly every key in the system —
 the Helper owns most of the tasks (run `bash scripts/gen-task-table.sh --counts`
@@ -249,7 +247,6 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and the release-announcement skill: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
-| Shared inbox (e.g. Gmail) *(optional)* | `gmail.googleapis.com` | OAuth 2.0 Bearer | **Read-only** (`gmail.readonly`) for `inbox-check`. This agent never sends mail — the send is always a human's, so do not grant send or modify scopes. An inbox is a support channel, which is why it belongs to the agent that owns support escalation. | Google Cloud console → OAuth consent + credentials |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at

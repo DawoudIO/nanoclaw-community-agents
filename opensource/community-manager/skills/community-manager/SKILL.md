@@ -26,8 +26,6 @@ in NanoClaw's destination/wiring setup.
    engage-mode in `project-config.md` (tier semantics defined in
    `additional_context/channel-routing.md`).
 2. **A GitHub issue or PR, or a bug report from chat** → `references/github-bug-workflow.md`.
-   **Mail in the shared inbox** → `references/inbox-triage.md` (same
-   escalation rules as any channel — check for a security disclosure first).
 3. **Anything that might be a security report, abuse, or a call only a
    maintainer should make** → `references/escalation-paths.md`. Read this before
    replying, not after.

@@ -49,6 +49,7 @@ community-helper/
 │       ├── dev-metrics-report.md                 # daily counts; builds the contributor ledger
 │       ├── contributor-nudge.md                  # 20-30 day re-engagement window
 │       ├── ready-to-merge.md                     # approved-and-open PRs, 2×/day
+│       ├── inbox-check.md                        # 2×/day shared-inbox triage, read-and-draft only
 │       ├── good-first-issue-health.md            # onboarding-pipeline supply
 │       ├── repo-hygiene-audit.md                 # CONTRIBUTING/CoC/templates present?
 │       ├── social-metrics-snapshot.md            # follower counts — the unrecoverable series
@@ -62,6 +63,7 @@ community-helper/
 │           ├── reporting-to-manager.md              # the may/may-not boundary
 │           ├── triage-rules.md
 │           ├── security-handling.md
+│           ├── inbox-triage.md                        # shared-inbox handling rules
 │           ├── metrics-and-telemetry.md
 │           └── github-contents-api.md                # base64 read-modify-write gotcha
 └── README.md
@@ -261,6 +263,7 @@ the agent, so a quiet day never masks a failure.
 | `docs-currency-watch` | A merged PR nobody has assessed yet |
 | `contributor-health-review` | A 10-point move, the first run, or a 90-day heartbeat |
 | `ledger-publish` / `conversation-archive-prune` | Never, on success |
+| `inbox-check` | Unread mail nobody has handed over yet (or a fetch failure) — opt-in via `INBOX_ENABLED` |
 | `unanswered-watch` | A message has gone unanswered past the grace window |
 | `social-metrics-snapshot` | **Always** — it can't be gated, see below |
 | `weekly-analytics-report` | **Always** — it's a report, not a watcher, see below |
@@ -294,7 +297,7 @@ which is not worth optimizing away. (`dev-metrics-report` is the opposite
 case: daily, so it gates on real movement and keeps a weekly heartbeat.)
 
 Those two are the only wakes in the system a quiet day doesn't suppress
-(the manager's `inbox-check` was the third until it got a gate). Everything
+(`inbox-check` was the third until it got a gate). Everything
 else here is genuinely 0-token when there's nothing to judge.
 
 **`unanswered-watch` runs most often — every ten minutes** — but it's also

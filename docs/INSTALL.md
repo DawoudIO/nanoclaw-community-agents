@@ -402,7 +402,7 @@ added, and nothing more.
 | Agent | Granted | Host | Used by |
 |---|---|---|---|
 | Manager | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
-| Manager | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
+| Helper | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
 | Helper | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health, dev metrics, GFI health, hygiene audit |
 | Helper | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the metrics-history branch) |
 | Helper | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
@@ -567,9 +567,9 @@ Resume order, safe → side-effect-adjacent:
    credential are in place: `ledger-publish`. Run it once by hand and confirm
    the branch actually lands — this is the one task whose silent failure costs
    data rather than a report.
-5. **The manager's `inbox-check`**, once the Gmail read-only credential is
+5. **The Helper's `inbox-check`**, once the Gmail read-only credential is
    wired AND an email MCP is connected to the manager's own group. Its gate
-   needs `INBOX_ENABLED="true"` in the manager's `config.env` — without that
+   needs `INBOX_ENABLED="true"` in the Helper's `config.env` — without that
    key the task stays silent forever, which is the right default for the
    many projects with no shared inbox. Optional knobs: `INBOX_QUERY`
    (default `is:unread newer_than:7d`), `INBOX_RETRY_HOURS` (24),

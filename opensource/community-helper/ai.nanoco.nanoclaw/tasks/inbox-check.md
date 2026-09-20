@@ -25,8 +25,8 @@ script: |
   # verbatim into a local telemetry log, so a subject line here would persist
   # private mail content to disk outside the agent's own context. The agent
   # reads the actual mail through its email MCP, where the escalation rules in
-  # references/escalation-paths.md apply.
-  DATA="/workspace/agent/plugin-data/community-manager"
+  # references/security-handling.md apply.
+  DATA="/workspace/agent/plugin-data/community-helper"
   mkdir -p "$DATA"
 
   # --- local telemetry (best-effort; never blocks the gate) -------------------
@@ -45,7 +45,7 @@ script: |
   # lives in the OneCLI vault; a bash gate cannot see the vault, so enabling is
   # an explicit config key rather than something detectable.
   if [ "${INBOX_ENABLED:-}" != "true" ]; then
-    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set INBOX_ENABLED=\"true\" in plugin-data/community-manager/config.env once the Gmail read-only credential is wired"}}'
+    echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set INBOX_ENABLED=\"true\" in plugin-data/community-helper/config.env once the Gmail read-only credential is wired"}}'
     exit 0
   fi
 
@@ -148,35 +148,47 @@ script: |
   printf '{"wakeAgent": true, "data": {"status": "needs-triage", "count": %s, "unread": %s, "query": "%s", "retry_hours": %s, "messages": %s}}\n' \
     "$COUNT" "$TOTAL" "$QUERY" "$RETRY_HOURS" "$NEW"
 ---
-Check the project's shared inbox and triage what's there. This is your work,
-not a sub-agent's: an inbox is a support channel with a different transport,
-and the same escalation rules apply to it as to Discord.
+Check the project's shared inbox and triage what's there. An inbox is a
+support channel with a different transport, so the same escalation rules
+apply to it as to Discord — but you are headless: you read, assess, and hand
+up. Every outbound word here is the manager's, exactly as with your other
+reports.
 
 **Security or vulnerability disclosure — check for this FIRST, before
 anything else.** A shared project inbox is a normal place for someone to
 send a vulnerability report, especially if it's the address in
 `SECURITY.md` or your docs. If anything looks like a security disclosure:
-route it per `references/escalation-paths.md` (private, owner + the named
-backstop, never a public channel and never a public issue), and do not
+route it per `references/security-handling.md` (private, straight to the
+manager for the owner + the named backstop, never a public channel and never
+a public issue), and do not
 summarize its detail into any digest that lands somewhere public. Treat an
 ambiguous case as security until you're sure it isn't.
 
 **Abuse, harassment, or anything with a legal edge** — same as any other
-channel: don't adjudicate, route it per `escalation-paths.md`, don't quote
-the content onward.
+channel: don't adjudicate, route it per `references/security-handling.md`,
+don't quote the content onward.
 
 Then the ordinary triage:
 
 **Needs a human** — anything with a decision, a commitment, or a relationship
 implication. Summarize and hand up; don't draft a reply that reads like a
 decision has been made.
-**You can draft a reply** — routine questions with a known answer, per
-`references/inbox-triage.md`. Draft it, hand it to the owner, don't send.
-Log the topic to `question-ledger.csv` exactly as you would for a
-Discord support conversation — email questions repeat too, and
-`docs-gap-review` is blind to anything you don't log.
+**A reply can be drafted** — routine questions with a known answer, per
+`references/inbox-triage.md`. Draft it and hand it to your manager; you
+never send, and you have no path to the owner of your own.
+
+**Name the topic of every question you hand up, as a kebab-case slug.** You
+cannot write `question-ledger.csv` yourself — it lives in the manager's
+plugin-data and no agent can write another's. But `docs-gap-review` clusters
+that ledger to find questions worth a docs page, and it is blind to anything
+that never reaches it. So the slug has to travel in your handover and the
+manager appends it. Say so explicitly ("log this to the question ledger:
+`<slug>`") rather than assuming it is inferred — an email question that
+repeats five times and never gets logged is a docs gap nobody will ever
+see.
 **Spam or automated noise** — count it, don't summarize each one.
 
 Never send, reply, forward, or delete anything. This task reads and drafts
-only — the send is always a human's. If the inbox is quiet, one line saying
+only — the send is always a human's, and it reaches them through the
+manager. If the inbox is quiet, one line saying
 so is the whole report.

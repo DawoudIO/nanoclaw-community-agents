@@ -22,8 +22,8 @@ set -uo pipefail
 # verbatim into a local telemetry log, so a subject line here would persist
 # private mail content to disk outside the agent's own context. The agent
 # reads the actual mail through its email MCP, where the escalation rules in
-# references/escalation-paths.md apply.
-DATA="/workspace/agent/plugin-data/community-manager"
+# references/security-handling.md apply.
+DATA="/workspace/agent/plugin-data/community-helper"
 mkdir -p "$DATA"
 
 # --- local telemetry (best-effort; never blocks the gate) -------------------
@@ -42,7 +42,7 @@ if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
 # lives in the OneCLI vault; a bash gate cannot see the vault, so enabling is
 # an explicit config key rather than something detectable.
 if [ "${INBOX_ENABLED:-}" != "true" ]; then
-  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set INBOX_ENABLED=\"true\" in plugin-data/community-manager/config.env once the Gmail read-only credential is wired"}}'
+  echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set INBOX_ENABLED=\"true\" in plugin-data/community-helper/config.env once the Gmail read-only credential is wired"}}'
   exit 0
 fi
 
