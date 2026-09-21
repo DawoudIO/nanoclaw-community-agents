@@ -120,6 +120,20 @@ repo. Tomorrow's rebuild is the first time any of this reaches production.
   `published-unverified` in its output. A push that returns 0 and a row a
   human can see on the branch are different claims; this system once had
   to verify the second by hand.
+- **`github-first-response` covers follow-up comments**, not only new items:
+  an outsider leaving the latest comment on an open thread with no answer
+  since now wakes the Manager (`kind: "follow-up"`, keyed on the comment id
+  so a later comment re-triggers). Requires `GITHUB_BOT_USERNAME`, otherwise
+  the gate could not tell its own replies from theirs and follow-up
+  detection stays off and says so. Maintainers' own new issues no longer
+  surface — the task is "every outsider message gets an answer".
+- **Risk-reality read on security reports** (`escalation-paths.md`): before
+  the owner spends an evening on a vulnerability report, the Manager checks
+  the claimed code path exists, what the preconditions really are, whether
+  there is a reproducible proof of concept, and whether the stated severity
+  matches — and sends the owner a grounded / plausible-unverified / inflated
+  / not-a-vulnerability read. Owner DM only; the reporter only ever sees the
+  neutral private-disclosure redirect.
 - **`owner-instruction-watch`** (Manager, weekly): the dropped-ack safety
   net the persona always claimed but never had — flags any `received`
   owner instruction in the ledger with no `done`/`blocked`/`dropped` after

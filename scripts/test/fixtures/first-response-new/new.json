@@ -1,5 +1,5 @@
 {
- "total_count": 2,
+ "total_count": 3,
  "items": [
   {
    "number": 501,
@@ -21,6 +21,17 @@
    "pull_request": {
     "url": "x"
    }
+  },
+  {
+   "number": 503,
+   "title": "Owner's own tracking issue",
+   "user": {
+    "login": "owner",
+    "type": "User"
+   },
+   "author_association": "OWNER",
+   "html_url": "https://github.com/acme/crm/issues/503",
+   "created_at": "2020-01-01T00:00:00Z"
   }
  ]
 }

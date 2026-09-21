@@ -753,7 +753,9 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
 # github-first-response: two brand-new unanswered items, but only ONE is past
 # the 15-minute grace. The fresh one must NOT surface — replying 2 minutes
 # after someone opens a PR reads as a bot, which is the whole reason the grace
-# exists. Asserts the filter, not just the fetch.
+# exists. A third item opened by the OWNER is present and must never surface:
+# maintainers' own issues are not waiting for a first reply. Asserts the
+# filter, not just the fetch.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new true \
   '(.data.status == "needs-first-response")
    and (.data.count == 1)
@@ -762,6 +764,36 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
    and (.data.grace_minutes == 15)
    and (.data.degraded_repos | length == 0)' \
   'COMMUNITY_REPOS="acme/crm"'
+
+# github-first-response: FOLLOW-UP coverage. Six threads with recent comments;
+# exactly one has an outsider as the latest commenter, past grace, still open.
+# Excluded on purpose: our own bot answered last (602), a maintainer answered
+# last (603), CI's bot answered last (604), the thread is closed (605), the
+# comment is inside the grace window (606). The new-item search returns
+# nothing, so count==1 proves the follow-up path alone.
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-followup true \
+  '(.data.status == "needs-first-response")
+   and (.data.count == 1)
+   and (.data.followups == "enabled")
+   and (.data.items[0].kind == "follow-up")
+   and (.data.items[0].number == 601)
+   and (.data.items[0].author == "newcomer2")
+   and (.data.items[0].title == "Import fails on 7.7.0")
+   and (.data.items[0].url | endswith("#issuecomment-12"))' \
+  'COMMUNITY_REPOS="acme/crm"
+GITHUB_BOT_USERNAME="Helper-Bot"'
+
+# Without GITHUB_BOT_USERNAME the gate cannot tell its own replies from theirs,
+# so follow-up detection must stay OFF and say so — never loop on itself.
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-followup false \
+  '(.data.count == 0) and (.data.followups | startswith("disabled"))' \
+  'COMMUNITY_REPOS="acme/crm"'
+
+# A second run must not hand the same follow-up over again (keyed on comment id).
+assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-followup false \
+  '.data.count == 0' \
+  'COMMUNITY_REPOS="acme/crm"
+GITHUB_BOT_USERNAME="helper-bot"' 2
 
 # github-first-response, run 2: the same item must not surface again. At six
 # runs an hour, a gate that re-reports the same issue would wake the manager 144
