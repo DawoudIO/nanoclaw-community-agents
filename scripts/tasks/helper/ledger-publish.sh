@@ -29,7 +29,7 @@ set -euo pipefail
 #     comment timestamps for `awaiting_first_response`. Possible in principle,
 #     a multi-thousand-call reconstruction in practice.
 #
-# `contributor-health-history.json` deliberately does NOT ship here, and the
+# `contributor-health-history.csv` deliberately does NOT ship here, and the
 # reason is worth keeping: it is a rollup over a 90-day window of PR merge and
 # close data, all of which is immutable and permanently queryable. Its value
 # "as of" any past date can be recomputed by re-running the same arithmetic.
