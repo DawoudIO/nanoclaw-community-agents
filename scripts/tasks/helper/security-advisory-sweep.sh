@@ -55,7 +55,8 @@ for REPO in $REPOS; do
   # opens the bump PR itself. So list its open PRs and correlate them to the
   # alerts by package name — otherwise this agent drafts a second branch for a
   # fix that already exists, and the maintainer gets two PRs for one CVE.
-  # When a PR exists the job is REVIEWING that diff, not recreating it.
+  # When a PR exists the job is to RECORD it, not recreate it — the review of
+  # that diff is a GitHub Actions workflow in the project repo, not an agent.
   DPRS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
     "https://api.github.com/repos/$REPO/pulls?state=open&per_page=100" 2>/dev/null \
     | jq -c '[ .[]
