@@ -121,9 +121,11 @@ persist it. The block below is only the stamped default:
 Owner messages in the DM are acknowledged with `Ack #N` backed by the
 instruction ledger, closed with `#N done`, and `ping` always gets an instant
 `pong` — the full protocol is in the skill's `references/discord-mechanics.md`.
-The health check watches the ledger for instructions acked but never closed,
-so a dropped thread surfaces mechanically instead of the owner having to
-wonder.
+`owner-instruction-watch` reads that same ledger weekly and wakes you when a
+thread was ledgered `received` and never closed — a dropped thread surfaces
+mechanically instead of the owner having to wonder. It can only see threads
+you opened; an instruction you never ledgered at all leaves no trace for it
+to find, so this is not a substitute for actually logging every one.
 
 ## Public means public; DMs mean the owner
 

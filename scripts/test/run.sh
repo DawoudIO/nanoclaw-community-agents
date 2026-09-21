@@ -609,6 +609,39 @@ assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures fal
    for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support" >> "$D/question-ledger.csv"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'
 
+# owner-instruction-watch: the dropped-ack safety net the persona already
+# claims exists (instructions.md says so) but nothing implemented before
+# this task. Day one: no ledger yet must never look like a false-positive
+# stale thread.
+assert_scenario "$ROOT/scripts/tasks/manager/owner-instruction-watch.sh" no-fixtures false \
+  '.data.status == "no-ledger-yet"' '' 1 \
+  'true'
+
+# A `received` with no closing event, past the 24h default, must surface —
+# and the gist field's own comma must not corrupt the parse (the whole
+# reason this ledger stays JSONL instead of the CSV default).
+assert_scenario "$ROOT/scripts/tasks/manager/owner-instruction-watch.sh" no-fixtures true \
+  '(.data.status == "stale-threads")
+   and (.data.detail.count == 1)
+   and (.data.detail.open[0].id == "1")' \
+  '' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   OLD=$(date -u -d "@$(( $(date +%s) - 108000 ))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r $(( $(date +%s) - 108000 )) +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"id\": 1, \"ts\": \"$OLD\", \"event\": \"received\", \"gist\": \"has, a comma, on purpose\"}" > "$D/owner-instructions.jsonl"'
+
+# A closed thread (done/blocked/dropped) and a recent-but-open thread must
+# both stay quiet — closing beats staleness, and staleness has a real floor.
+assert_scenario "$ROOT/scripts/tasks/manager/owner-instruction-watch.sh" no-fixtures false \
+  '.data.status == "quiet"' '' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   OLD=$(date -u -d "@$(( $(date +%s) - 108000 ))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r $(( $(date +%s) - 108000 )) +%Y-%m-%dT%H:%M:%SZ);
+   RECENT=$(date -u -d "@$(( $(date +%s) - 3600 ))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -r $(( $(date +%s) - 3600 )) +%Y-%m-%dT%H:%M:%SZ);
+   {
+     echo "{\"id\": 1, \"ts\": \"$OLD\", \"event\": \"received\", \"gist\": \"closed one\"}";
+     echo "{\"id\": 1, \"ts\": \"$OLD\", \"event\": \"blocked\", \"gist\": \"waiting on owner\"}";
+     echo "{\"id\": 2, \"ts\": \"$RECENT\", \"event\": \"received\", \"gist\": \"too new to flag\"}";
+   } > "$D/owner-instructions.jsonl"'
+
 # owner-tldr: the digest gate. Empty queue must NOT wake — a quiet day is the
 # common case and must cost nothing.
 assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures false \

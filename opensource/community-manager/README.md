@@ -55,12 +55,13 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 6 tasks, all created paused
+│   └── tasks/                                         # 7 tasks, all created paused
 │       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
 │       ├── github-first-response.md      # every 10 min: new, unanswered
 │       ├── owner-tldr.md                # the ONE daily digest to the owner
 │       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
+│       ├── owner-instruction-watch.md                 # the dropped-ack watch the persona already promised
 │       └── conversation-archive-prune.md              # pure housekeeping, never wakes the model
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)

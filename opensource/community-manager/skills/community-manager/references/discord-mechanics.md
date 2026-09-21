@@ -152,8 +152,8 @@ decayed. The protocol:
    one of three events: `"done"` (`#<id> done — <what changed>`), `"blocked"`
    (needs something external before it can proceed), or `"dropped"`
    (deliberately abandoned — superseded, owner said never mind, no longer
-   relevant; say why). All three satisfy the health check's dropped-thread
-   watch; `received` alone, for over 24h, is what it flags.
+   relevant; say why). All three satisfy `owner-instruction-watch`'s
+   dropped-thread check; `received` alone, for over 24h, is what it flags.
 2. **The ack is exempt from any no-duplicate-message concern.** A five-word
    ack followed later by the full reply is correct; silence while working is
    the failure mode, never the duplicate.
