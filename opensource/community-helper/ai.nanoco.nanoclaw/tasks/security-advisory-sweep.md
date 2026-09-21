@@ -58,7 +58,8 @@ script: |
     # opens the bump PR itself. So list its open PRs and correlate them to the
     # alerts by package name — otherwise this agent drafts a second branch for a
     # fix that already exists, and the maintainer gets two PRs for one CVE.
-    # When a PR exists the job is REVIEWING that diff, not recreating it.
+    # When a PR exists the job is to RECORD it, not recreate it — the review of
+    # that diff is a GitHub Actions workflow in the project repo, not an agent.
     DPRS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
       "https://api.github.com/repos/$REPO/pulls?state=open&per_page=100" 2>/dev/null \
       | jq -c '[ .[]
@@ -186,9 +187,9 @@ for a fix that already exists gives the maintainer two PRs for one CVE.
 ### `has_fix_pr: true` — someone else is already fixing it
 
 Record it and move on. **Do not open a second branch**, and do not review the
-diff here — reviewing Dependabot's proposal is `dependabot-pr-review`'s job,
-which is a separate task precisely so this one stays about "are we affected"
-rather than also becoming "is that bump safe". Note in your report that the
+diff here — Dependabot PR review runs as a GitHub Actions workflow in the
+project repo, not as an agent task, which keeps this one about "are we
+affected" rather than also becoming "is that bump safe". Note in your report that the
 advisory is covered by PR #N so the owner can see it is handled.
 
 ### `has_fix_pr: false` — draft it yourself
@@ -235,7 +236,8 @@ losses.
 ## Routing
 
 Hand your manager: the verdict per advisory, which ones are already covered by a
-Dependabot PR (number only — the review comes from `dependabot-pr-review`),
+Dependabot PR (number only — the review is the project repo's GitHub Actions
+workflow's job, not yours),
 the draft PR links for ones you created, and anything you declined to patch
 with the reason. A `critical` or `high` with a **confirmed**
 verdict and runtime scope is owner-urgent — it bypasses the daily digest.

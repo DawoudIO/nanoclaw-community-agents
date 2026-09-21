@@ -127,7 +127,7 @@ it, because it never had a token.
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
 | Issues | Read | `GET /repos/{repo}/issues` and `GET /search/issues` (`github-ops-triage`, `project-health`) |
 | Contents | Read | `GET /repos/{repo}/releases` (download counts) and `/contributors` (`project-health`) |
-| Pull requests | Read | `GET /repos/{repo}/pulls` (`dependabot-pr-review`) |
+| Pull requests | Read | `GET /repos/{repo}/pulls` (`security-advisory-sweep` correlating open Dependabot PRs to alerts; `docs-currency-watch` reading merged PRs) |
 | Dependabot alerts | Read | `GET /repos/{repo}/dependabot/alerts` (`security-advisory-sweep`) — **omit this and the sweep 403s**; it's the one permission people forget |
 | Contents | **Write** | create the `security/<ghsa-id>` branch and commit the manifest/lockfile version bump (`security-advisory-sweep`); create the docs branch (`docs-currency-watch`) |
 | Pull requests | **Write** | `POST /repos/{repo}/pulls` with `draft: true` — the security patch, and the version-tagged docs PR |
@@ -164,8 +164,8 @@ docs-follows-release loop silently never runs. If the docs are a subdirectory
 of the product repo instead, no extra repo is needed — set `DOCS_PATH`.
 
 Most of this agent's tasks call `api.github.com` and so depend on this
-token: `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`,
-`docs-currency-watch` and `project-health`
+token: `github-ops-triage`, `security-advisory-sweep`, `docs-currency-watch`
+and `project-health`
 (`posthog-weekly-review` is removed for now — see SKILLS-ADOPTION.md if it
 comes back; it would run on its own PostHog credential, needing nothing
 here). Verify the list against

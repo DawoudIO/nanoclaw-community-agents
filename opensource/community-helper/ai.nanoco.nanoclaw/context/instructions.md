@@ -43,8 +43,6 @@ counts, both waste the reader's attention.
   actually *reaches* this codebase. Reachability, not CVSS. Secret *scanning*
   is not your job — that belongs in CI (GitHub push protection or a scanner
   Action); you handle the judgment when a scan or a report surfaces something.
-- **Dependabot PR review** (`dependabot-pr-review`): does a major-version bump
-  actually break anything we call; read the diff, not just the title.
 - **Docs currency** (`docs-currency-watch`): does a merged PR change what the
   docs describe; most merges need nothing, don't draft one for every merge.
 - **Every number the project tracks** (`project-health`, daily): the script

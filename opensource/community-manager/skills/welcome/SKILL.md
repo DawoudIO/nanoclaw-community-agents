@@ -142,7 +142,7 @@ pauses tasks in whichever group holds them:
 | **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `docs-gap-review` *(manager)* · release announcements posted when the owner hands you one *(manager; the text comes from the project repo's own release skill)* · `github-ops-triage` *(Helper, weekly)* |
 | **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `project-health` *(Helper)* — its social follower series, GA4 traffic, new-contributor list, return-nudges and contributor-health numbers |
 | **Proactive issue detection** — finding problems before users report them | `project-health` *(Helper)* — its awaiting-first-response backlog and unmerged-ratio trend (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
-| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · `dependabot-pr-review` *(Helper)* · the escalation paths in `escalation-paths.md` |
+| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · the escalation paths in `escalation-paths.md` |
 
 **Content creation is not on this menu, and should not be offered.** Posts,
 announcements, blog entries and campaigns are handled by the owner outside this
@@ -241,9 +241,8 @@ Two things to get right here:
   never all of them.
 - **Declining a goal never orphans another goal's task.** This matters for the
   Helper specifically, because its tasks span every goal: `project-health`
-  serves growth and *detection*, `security-advisory-sweep` and
-  `dependabot-pr-review` serve security, `github-ops-triage` serves
-  support. So if security is yes and growth is no, it is **not**
+  serves growth and *detection*, `security-advisory-sweep` serves
+  security, `github-ops-triage` serves support. So if security is yes and growth is no, it is **not**
   dormant — relay it only the config those active tasks need, and say which
   ones are live. With one sub-agent holding everything, dormancy (step 6) now
   only applies if *every* goal was declined, which in practice means the owner
@@ -343,11 +342,13 @@ asking for anything yet.
   every configured property in a single run.
 - **Dependabot — check `.github/dependabot.yml` before asking.** If it
   already has an active `version-updates` config, that answers the question:
-  Dependabot opens its own fix PRs, and the Helper's job is reviewing that
-  diff (major bump? does our code touch the affected API? safe to merge?).
+  Dependabot opens its own fix PRs, and the Helper only records them against
+  alerts so it never drafts a duplicate. Dependabot PR review runs as a
+  GitHub Actions workflow in the project repo, not as an agent task; the
+  agents do not review or comment on Dependabot PRs.
   State what you found and confirm rather than asking from scratch — "I see
-  Dependabot is already configured for npm/pip/etc. — I'll have the Helper
-  review its PRs rather than draft its own bumps, unless you want it
+  Dependabot is already configured for npm/pip/etc. — the Helper will
+  leave the bumps to it rather than draft its own, unless you want it
   otherwise." If the file is absent or has no `version-updates` block, then
   ask: "Do you want Dependabot opening the fix PR when it reports a
   vulnerability (recommended), or should the Helper draft the bump itself?"
@@ -758,7 +759,7 @@ key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`, `project-health` — all go quiet without it |
+| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `docs-currency-watch`, `project-health` — all go quiet without it |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a manager that was about to answer |
 | `LEDGER_REPO` | normally the project's marketing repo, never the product repo | every `project-health` run commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
 | `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `project-health`'s traffic section. One task run covers every property — never create separate tasks per property |

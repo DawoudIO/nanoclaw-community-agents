@@ -169,6 +169,10 @@ repo. Tomorrow's rebuild is the first time any of this reaches production.
     digest.
   - `release-announcement-watch` (earlier in this release): a skill in the
     project repo the owner invokes when they cut a release, not a poll.
+- **`dependabot-pr-review`** moved out to a GitHub Actions workflow in the
+  project repo (event-driven on `pull_request_target` for Dependabot PRs),
+  taking the count to 13. A scheduled agent wake to review long-lived PRs
+  was the wrong shape when the PR event itself can trigger the review.
 - **`GFI_LABEL`** config var — nothing reads it any more.
 
 ### Changed

@@ -123,7 +123,7 @@ capability:
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
 | **Manager** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only full one** | Always |
-| **Helper** (`opensource/community-helper`) — the Helper | Everything headless: issue/PR triage, security advisories, Dependabot review, docs-currency, dev metrics, contributor health, web traffic, follower counts, and the holding acknowledgment when the manager is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the manager |
+| **Helper** (`opensource/community-helper`) — the Helper | Everything headless: issue/PR triage, security advisories, docs-currency, dev metrics, contributor health, web traffic, follower counts, and the holding acknowledgment when the manager is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the manager |
 
 **Nothing here writes content.** If you want posts, announcements or campaign
 copy, that stays with you and whoever you work with — this set measures and
@@ -403,7 +403,7 @@ added, and nothing more.
 |---|---|---|---|
 | Manager | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
 | Helper | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
-| Helper | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, `project-health` (repo numbers, contributor health, return nudges) |
+| Helper | GitHub PAT | `api.github.com` | ops triage, advisory sweep, docs-currency, `project-health` (repo numbers, contributor health, return nudges) |
 | Helper | same PAT, git protocol | `github.com` | `project-health` (pushes the metrics-history branch) |
 | Helper | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
 | Helper | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `project-health` (traffic, post day only) |
@@ -559,7 +559,7 @@ Resume order, safe → side-effect-adjacent:
    — safe once `COMMUNITY_REPOS` is set. `docs-gap-review` is safe from day
    one; it stays quiet until support work fills its ledger.
 3. **The Helper's gates**, once §3's relay has landed: `github-ops-triage`,
-   `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`.
+   `security-advisory-sweep`, `docs-currency-watch`.
    Each exits `not-configured` silently if its key is missing — resume, then
    check they did something.
 4. **`project-health`**, once `LEDGER_REPO` and the `github.com` (git)

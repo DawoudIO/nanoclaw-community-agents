@@ -43,7 +43,6 @@ community-helper/
 │   └── tasks/                                    # all created paused
 │       ├── github-ops-triage.md                  # weekly issue + PR triage digest
 │       ├── security-advisory-sweep.md            # scripted gate: only wakes on new alerts
-│       ├── dependabot-pr-review.md               # what does this bump cost us?
 │       ├── docs-currency-watch.md                # merged PR -> version-tagged docs PR
 │       ├── unanswered-watch.md                   # the one task here that posts publicly
 │       ├── inbox-check.md                        # 2×/day shared-inbox triage, read-and-draft only
@@ -218,7 +217,7 @@ vault and injects them into outbound HTTPS calls at the proxy boundary.
 
 | Dependabot security updates | This agent's role |
 |---|---|
-| Enabled | *Reviews* Dependabot's fix PR — semver delta, whether our code reaches the affected API, and a merge-or-hold call |
+| Enabled | *Records* Dependabot's fix PR against the alert and leaves the diff alone — Dependabot PR review runs as a GitHub Actions workflow in the project repo, not as an agent task; the agents do not review or comment on Dependabot PRs |
 | Disabled | *Drafts* the version bump itself |
 
 Either is fine on its own; having both produces two PRs per CVE, which is
@@ -264,7 +263,6 @@ the agent, so a quiet day never masks a failure.
 |---|---|
 | `github-ops-triage` | Weekly: a new or updated issue/PR since last sweep (or a fetch fails) |
 | `security-advisory-sweep` | A new alert (or a fetch fails) |
-| `dependabot-pr-review` | A bump not yet reviewed at its current head SHA |
 | `docs-currency-watch` | A merged PR nobody has assessed yet |
 | `project-health` | Daily for the follower row (off with `SOCIAL_DAILY=false`); always on post day; always when a repo's fetch failed |
 | `inbox-check` | Unread mail nobody has handed over yet (or a fetch failure) — opt-in via `INBOX_ENABLED` |
