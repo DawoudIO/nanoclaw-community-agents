@@ -65,6 +65,10 @@ case "$RETRY_MIN" in ''|*[!0-9]*) RETRY_MIN=45;; esac
 MAX_RETRIES="${FIRST_RESPONSE_MAX_RETRIES:-3}"
 case "$MAX_RETRIES" in ''|*[!0-9]*) MAX_RETRIES=3;; esac
 RETRY_SEC=$((RETRY_MIN * 60))
+# Follow-up comments need to know which login is US, or the gate would wake to
+# answer its own reply forever. Unset → follow-up detection stays off and says so.
+BOT="${GITHUB_BOT_USERNAME:-}"
+MAINT='["OWNER","MEMBER","COLLABORATOR"]'
 
 NOW_EPOCH=$(date +%s)
 # Only look at the last 3 days. Anything older that is still unanswered is a
@@ -113,15 +117,54 @@ for REPO in $REPOS; do
       # were actually transient blips with no way to tell which from a bug.
       OUT=$(jq -c -n --arg r "$REPO" --arg reason "HTTP $HTTP_CODE" '{repo: $r, ok: false, items: [], reason: $reason}')
     else
-      OUT=$(jq -c --arg r "$REPO" --argjson now "$NOW_EPOCH" 'if .items then
+      # Outsiders only: a maintainer's own issue is not waiting for a first reply.
+      OUT=$(jq -c --arg r "$REPO" --argjson now "$NOW_EPOCH" --argjson maint "$MAINT" 'if .items then
           {repo: $r, ok: true,
-           items: [.items[] | {
+           items: [.items[]
+             | select(((.author_association // "NONE") | IN($maint[])) | not)
+             | select((.user.type // "User") != "Bot")
+             | {
              number, title: (.title[0:140]), author: .user.login, url: .html_url,
              type: (if .pull_request then "pr" else "issue" end),
-             created_at,
+             kind: "new", created_at,
              age_min: ((($now - ((.created_at | fromdateiso8601?) // $now)) / 60) | floor)}]}
         else {repo: $r, ok: false, items: [], reason: "unexpected response shape"} end' <<< "$RESP" 2>/dev/null || echo "")
       [ -z "$OUT" ] && OUT=$(jq -c -n --arg r "$REPO" '{repo: $r, ok: false, items: [], reason: "unparseable response"}')
+    fi
+
+    # Follow-up comments: an outsider wrote the LATEST comment on a thread and
+    # nobody has answered since. Repo-wide comment listing (one call), newest
+    # comment per thread, keep the ones an outsider left. One extra call per
+    # candidate confirms the thread is still open and fetches its title.
+    if [ -n "$BOT" ]; then
+      CRAW=$(curl -sS --max-time 8 -H "Accept: application/vnd.github+json" \
+        "https://api.github.com/repos/$REPO/issues/comments?since=$SINCE&sort=created&direction=desc&per_page=100" 2>/dev/null) || CRAW=""
+      CANDS=$(jq -c --arg bot "$BOT" --argjson g "$GRACE_MIN" --argjson now "$NOW_EPOCH" --argjson maint "$MAINT" 'if type=="array" then
+          [ .[] | select(.user != null and .issue_url != null and .created_at != null) ]
+          | group_by(.issue_url) | map(max_by(.created_at))
+          | map(select(((.author_association // "NONE") | IN($maint[])) | not))
+          | map(select((.user.type // "User") != "Bot"))
+          | map(select(((.user.login // "") | ascii_downcase) != ($bot | ascii_downcase)))
+          | map({issue_url, comment_id: .id, url: .html_url, author: .user.login, created_at,
+                 age_min: ((($now - ((.created_at | fromdateiso8601?) // $now)) / 60) | floor)})
+          | map(select(.age_min >= $g))
+          | .[0:10]
+        else [] end' <<< "$CRAW" 2>/dev/null || echo '[]')
+      [ -z "$CANDS" ] && CANDS='[]'
+      FU='[]'
+      while IFS= read -r C; do
+        [ -z "$C" ] && continue
+        IURL=$(printf '%s' "$C" | jq -r '.issue_url')
+        ISSUE=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" "$IURL" 2>/dev/null || echo '{}')
+        STATE=$(printf '%s' "$ISSUE" | jq -r '.state // "unknown"' 2>/dev/null || echo unknown)
+        [ "$STATE" = "closed" ] && continue
+        FU=$(jq -c -n --argjson a "$FU" --argjson c "$C" --argjson i "$ISSUE" --arg st "$STATE" \
+          '$a + [{number: ($i.number // ($c.issue_url | split("/") | last | tonumber? // null)),
+                  title: (($i.title // "") | .[0:140]), author: $c.author, url: $c.url,
+                  type: (if $i.pull_request then "pr" else "issue" end), kind: "follow-up",
+                  comment_id: $c.comment_id, thread_state: $st, created_at: $c.created_at, age_min: $c.age_min}]' 2>/dev/null || printf '%s' "$FU")
+      done < <(printf '%s' "$CANDS" | jq -c '.[]' 2>/dev/null)
+      OUT=$(jq -c --argjson fu "$FU" '.items += $fu' <<< "$OUT" 2>/dev/null || printf '%s' "$OUT")
     fi
     printf '%s\n' "$OUT" > "$TMP/$i.json"
   ) &
@@ -160,7 +203,7 @@ NEW=$(jq -c -n --argjson a "$ALL" --argjson seen "$SEEN_JSON" --argjson g "$GRAC
   ($seen | map({(.key): .}) | add // {}) as $bykey
   | [ $a[] | .repo as $r | .items[]
       | select(.age_min >= $g)
-      | ($r + "#" + (.number|tostring)) as $k
+      | ($r + "#" + (.number|tostring) + (if .kind == "follow-up" then "@c" + (.comment_id|tostring) else "" end)) as $k
       | ($bykey[$k]) as $s
       | if $s == null then
           . + {repo: $r, retry: false, retries: 0, _key: $k}
@@ -197,7 +240,8 @@ if [ "$COUNT" -gt 0 ]; then
 fi
 
 PUBLIC_NEW=$(printf '%s' "$NEW" | jq -c 'map(del(._key))')
-printf '{"wakeAgent": %s, "data": {"status": "%s", "count": %s, "grace_minutes": %s, "retry_minutes": %s, "max_retries": %s, "items": %s, "degraded_repos": %s}}\n' \
+FOLLOWUPS=$([ -n "$BOT" ] && echo '"enabled"' || echo '"disabled: set GITHUB_BOT_USERNAME so the gate can tell your own replies from theirs"')
+printf '{"wakeAgent": %s, "data": {"status": "%s", "count": %s, "grace_minutes": %s, "retry_minutes": %s, "max_retries": %s, "followups": %s, "items": %s, "degraded_repos": %s}}\n' \
   "$WAKE" \
   "$([ "$HAS_DEGRADED" = "true" ] && echo partial-fetch-failure || { [ "$COUNT" -gt 0 ] && echo needs-first-response || echo all-answered; })" \
-  "$COUNT" "$GRACE_MIN" "$RETRY_MIN" "$MAX_RETRIES" "$PUBLIC_NEW" "$DEGRADED"
+  "$COUNT" "$GRACE_MIN" "$RETRY_MIN" "$MAX_RETRIES" "$FOLLOWUPS" "$PUBLIC_NEW" "$DEGRADED"
