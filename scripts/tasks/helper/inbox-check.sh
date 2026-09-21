@@ -35,7 +35,14 @@ mkdir -p "$DATA"
 # or exit code. IDs only, never mail content — see the header.
 mkdir -p "$DATA/telemetry" 2>/dev/null || true
 exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$DATA/telemetry/inbox-check.jsonl" 2>/dev/null) 2>/dev/null)
-if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
+# config.env is parsed, never sourced: the model writes into this same
+# directory, so a line planted here must stay a string, never become code.
+if [ -f "$DATA/config.env" ]; then
+  while IFS='=' read -r k v; do
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    export "$k=$v"
+  done < <(grep -E '^[A-Z][A-Z0-9_]*=' "$DATA/config.env")
+fi
 
 # Opt-in, because most projects have no shared inbox and this task must stay
 # silent forever rather than reporting a permanent 401 at them. The credential

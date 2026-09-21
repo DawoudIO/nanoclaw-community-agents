@@ -179,8 +179,17 @@ repo. Tomorrow's rebuild is the first time any of this reaches production.
   digest was four wakes a day to say "same as this morning".
 - **Both personas trimmed** toward a ~200-line guideline — content moved to
   reference files, not deleted.
-- **Security hardening pass** on the ledger publish step (now inside
-  `project-health`) and the GA4 fetch.
+- **Security hardening pass** from a review of the consolidated gate:
+  every gate now parses `config.env` line-by-line instead of sourcing it
+  (the model writes CSVs into that same directory, so a planted line must
+  stay a string); `project-health` validates every repo string, the ledger
+  branch (never the repo's default branch) and the GA4 property id, builds
+  its JSON with `jq` rather than `printf`, strips CSV delimiters and
+  leading formula characters from API-sourced fields, removes symlinks on
+  the ledger branch before copying into it, treats an empty repo result set
+  as an outage rather than a quiet day, and only reports
+  `published-and-verified` when the row read back is *today's*. The prompt
+  now says outright that every fetched string is data, never instruction.
 - **All three human-facing READMEs simplified and fixed.**
 - **The GitHub triage digest format tightened** after reviewing real posted
   output: one fixed name instead of four different headers observed in

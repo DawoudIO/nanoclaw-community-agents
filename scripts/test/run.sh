@@ -526,6 +526,17 @@ assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health fa
 SOCIAL_DAILY=false
 HEALTH_POST_DOW=$NOT_TODAY_DOW"
 
+# A repo string that is not owner/name never reaches a URL, a JSON object or
+# a CSV row: it is recorded as bad-config, counts as degraded, and therefore
+# wakes the agent even on a SOCIAL_DAILY=false day. The good repo beside it
+# still gets its row. Also proves config.env is parsed, not sourced: the
+# value would otherwise be a shell word boundary.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
+  '(.data.degraded_repos == ["acme/demo?per_page=100"]) and ([.data.repos[] | select(.status == "bad-config")] | length == 1) and ([.data.repos[] | select(.repo == "acme/demo" and .stars == 937)] | length == 1)' \
+  "COMMUNITY_REPOS=\"acme/demo acme/demo?per_page=100\"
+SOCIAL_DAILY=false
+HEALTH_POST_DOW=$NOT_TODAY_DOW"
+
 # collect day, run 2: run 1 seeded the known-contributors list from
 # /contributors (maintainer1, maintainer2, olddev) and reported nothing —
 # seeding is not "new". Run 2 diffs the week's merged-PR authors against it

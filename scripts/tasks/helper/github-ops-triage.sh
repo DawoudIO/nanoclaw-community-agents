@@ -16,7 +16,14 @@ mkdir -p "$DATA"
 # or exit code.
 mkdir -p "$DATA/telemetry" 2>/dev/null || true
 exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$DATA/telemetry/github-ops-triage.jsonl" 2>/dev/null) 2>/dev/null)
-if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
+# config.env is parsed, never sourced: the model writes into this same
+# directory, so a line planted here must stay a string, never become code.
+if [ -f "$DATA/config.env" ]; then
+  while IFS='=' read -r k v; do
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    export "$k=$v"
+  done < <(grep -E '^[A-Z][A-Z0-9_]*=' "$DATA/config.env")
+fi
 REPOS="${COMMUNITY_REPOS:-}"
 if [ -z "$REPOS" ]; then
   echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-helper/config.env"}}'
