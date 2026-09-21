@@ -139,9 +139,9 @@ pauses tasks in whichever group holds them:
 
 | Goal | If yes, these tasks become eligible |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `daily-github-triage` *(manager, standalone only)* · `docs-gap-review` *(manager)* · the release-announcement skill *(manager, owner-invoked)* · `github-ops-triage` *(Helper)* · `ready-to-merge` *(Helper)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `social-metrics-snapshot` *(Helper)* · `weekly-analytics-report` *(Helper)* · `good-first-issue-health` *(Helper)* · `repo-hygiene-audit` *(Helper)* · `dev-metrics-report`'s new-contributor section *(Helper)* · `contributor-nudge` *(Helper)* · `contributor-health-review` *(Helper)* |
-| **Proactive issue detection** — finding problems before users report them | `dev-metrics-report` *(Helper)* (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
+| **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `docs-gap-review` *(manager)* · release announcements posted when the owner hands you one *(manager; the text comes from the project repo's own release skill)* · `github-ops-triage` *(Helper, weekly)* |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `project-health` *(Helper)* — its social follower series, GA4 traffic, new-contributor list, return-nudges and contributor-health numbers |
+| **Proactive issue detection** — finding problems before users report them | `project-health` *(Helper)* — its awaiting-first-response backlog and unmerged-ratio trend (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
 | **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · `dependabot-pr-review` *(Helper)* · the escalation paths in `escalation-paths.md` |
 
 **Content creation is not on this menu, and should not be offered.** Posts,
@@ -149,33 +149,39 @@ announcements, blog entries and campaigns are handled by the owner outside this
 system. If the owner asks for content help, say plainly that this set measures
 and reports but does not write — then don't offer a draft as a consolation.
 
-Two placements in that menu surprise people, so say the reasoning out loud if
-the owner asks. **`ready-to-merge` is a support task**, not a metrics one: an
-approved PR left sitting is a responsiveness failure, and the contributor is
-waiting on a human exactly as a question-asker is — the only difference is that
-this one already did the work. **`contributor-health-review` sits under growth**
-because contributor retention and maintainer load are one problem seen from two
-ends; a close-without-merge rate that keeps climbing costs you the next
-contributor either way.
+Two things in that menu surprise people, so say the reasoning out loud if
+the owner asks. **`project-health` appears twice** because it is one task
+carrying every number the project tracks: growth reads its follower, traffic
+and new-contributor lines; detection reads its backlog and unmerged-ratio
+lines. Contributor health sits under growth because contributor retention and
+maintainer load are one problem seen from two ends; a close-without-merge
+rate that keeps climbing costs you the next contributor either way. **Nothing
+here checks approved-but-unmerged PRs, stale good-first-issues, or missing
+community-health files.** Those are the `repo-health` skill in the project's
+own repo — point-in-time checks, run on demand by whatever agent the
+maintainer points at it. If the owner asks for them, say exactly that:
+"that's a repo-health skill check, run it in the repo."
 
 **Always offered regardless of goals** — these protect the system itself, not
 a goal: `unanswered-watch`, `github-first-response`, `owner-tldr`,
-`weekly-identity-integrity-check`, `ledger-publish`, and
-`conversation-archive-prune`.
+`weekly-identity-integrity-check`, and `conversation-archive-prune`.
 
-The last two are pure housekeeping and cost nothing, but say what
-`ledger-publish` is *for* rather than listing it: it commits the few history
+One more is worth offering even to an owner who declines every growth goal:
+`project-health` runs daily, but most days it only *collects* — the script
+appends the GitHub rows itself and the Helper wakes just long enough to read
+the social follower pages and append one row, posting nothing (`SOCIAL_DAILY=false`
+makes those days cost no tokens at all). Every run also commits the history
 files that cannot be rebuilt (follower counts especially — no platform will
-ever tell you last Tuesday's number) into a branch of the project's repo, so
-they survive this system being rebuilt. Without it those series restart at
-zero on every repave, permanently. That makes `LEDGER_REPO` worth asking
-for even from an owner who declines every growth goal.
+ever tell you last Tuesday's number) to a branch of `LEDGER_REPO`, so they
+survive this system being rebuilt. Without it those series restart at zero on
+every repave, permanently. That makes `LEDGER_REPO` worth asking for
+regardless of goals.
 
 `github-first-response` is the GitHub half of responsiveness. Discord you
 answer live through your channel wiring, so it needs no task — but GitHub has
 no live wiring here, so this polls every 10 minutes for issues and PRs nobody
 has replied to. Time-to-first-response is the metric the north star actually
-rests on, and the 6-hourly triage digest is far too slow to carry it. Ask
+rests on, and the Helper's weekly `github-ops-triage` digest is far too slow to carry it. Ask
 whether the default 15-minute grace is right for this project: it exists so you
 don't beat a maintainer who is already typing.
 
@@ -199,9 +205,10 @@ genuinely urgent findings never touch the queue at all, at any hour. The waking
 window is 15 hours from the digest hour — an escalation at 3am would be read at
 7am anyway, so it waits and rides the morning brief instead.
 
-**Also tell them what does NOT come to their DM.** Dev metrics, ready-to-merge,
-GFI health and contributor health go to the developer channel; advisories to the
-security channel; releases and content to announcements. That is deliberate —
+**Also tell them what does NOT come to their DM.** `project-health`'s weekly
+dev numbers go to the developer channel and its social + traffic numbers to
+the team-lead channel; advisories to the security channel; releases and
+content to announcements. That is deliberate —
 those reports are for the people who act on them, and duplicating them into the
 owner's DM buries them and clutters the DM at once. Ask which channel is which
 now (`channel-routing.md`), because a report with nowhere to go ends up in the
@@ -229,16 +236,14 @@ connected.
 
 Two things to get right here:
 
-- **A task can serve more than one goal** (`dev-metrics-report` appears under
-  both growth and detection; `good-first-issue-health` under growth but read
-  by security-minded maintainers too). Eligible = **any** of its goals was
-  chosen, never all of them.
+- **A task can serve more than one goal** (`project-health` appears under
+  both growth and detection). Eligible = **any** of its goals was chosen,
+  never all of them.
 - **Declining a goal never orphans another goal's task.** This matters for the
-  Helper specifically, because its tasks span every goal:
-  `good-first-issue-health`, `contributor-nudge`, `social-metrics-snapshot`
-  and `weekly-analytics-report` serve growth, `dev-metrics-report` serves
-  *detection*, `security-advisory-sweep` serves security, `ready-to-merge`
-  serves support. So if security is yes and growth is no, it is **not**
+  Helper specifically, because its tasks span every goal: `project-health`
+  serves growth and *detection*, `security-advisory-sweep` and
+  `dependabot-pr-review` serve security, `github-ops-triage` serves
+  support. So if security is yes and growth is no, it is **not**
   dormant — relay it only the config those active tasks need, and say which
   ones are live. With one sub-agent holding everything, dormancy (step 6) now
   only applies if *every* goal was declined, which in practice means the owner
@@ -280,8 +285,9 @@ asking for anything yet.
   per-sender approval; only this DM stays locked to known senders. **If the
   team-lead tier has more than one channel** (e.g. a marketing-coordination
   channel and a separate announcements channel), ask specifically which one
-  is *the* announcements channel — the release-announcement skill and the
-  blog→announcement growth-playbook rule both need one unambiguous target,
+  is *the* announcements channel — release announcements (posted when the
+  owner hands you one) and the blog→announcement growth-playbook rule both
+  need one unambiguous target,
   not "somewhere in team-lead."
 - **Auto-approve Discord members** — **CRITICAL for SLA**: "Should new Discord
   community members get instant replies without waiting for your approval?"
@@ -332,10 +338,9 @@ asking for anything yet.
 - **Optional analytics: GA4 property id** — "not now" is a fine answer; the
   task silent-skips until configured. **If the project has several GA4
   properties**, put them all in one `GA4_PROPERTIES` value in the Helper's
-  config (`id`, or `label:id,label:id`) and reuse the same
-  `weekly-analytics-report` task for all of them. Do not create separate
-  report tasks per property — one task per report goal is the pattern, and the
-  task covers every configured property in a single run.
+  config (`id`, or `label:id,label:id`); `project-health` reads them all.
+  Do not create separate report tasks per property — the one task covers
+  every configured property in a single run.
 - **Dependabot — check `.github/dependabot.yml` before asking.** If it
   already has an active `version-updates` config, that answers the question:
   Dependabot opens its own fix PRs, and the Helper's job is reviewing that
@@ -405,12 +410,11 @@ one per line, quoted:
 
 | Key | From | Read by |
 |---|---|---|
-| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `daily-github-triage`, the release-announcement skill, own setup-check |
-| `RELEASE_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | the owner-invoked release-announcement skill — ask if the owner wants release announcements scoped to just the main product repo rather than the whole map. Falls back to `COMMUNITY_REPOS` if unset |
+| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, own setup-check |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
 **`COMMUNITY_REPOS` itself should be narrower than "the full repo map,"
-same principle as `RELEASE_WATCH_REPOS`/`SECURITY_WATCH_REPOS` below — just
+same principle as `SECURITY_WATCH_REPOS` below — just
 applied one level up.** This key drives *your own* first-response/triage
 polling (every 10 minutes for `github-first-response`), so include only
 repos that actually receive **external, community-filed** issues/PRs.
@@ -754,14 +758,15 @@ key here is the largest single source of "nothing is happening":
 
 | Key | Value | Why it matters |
 |---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch`, `dev-metrics-report`, `ready-to-merge`, `good-first-issue-health`, `repo-hygiene-audit`, `contributor-nudge` — all go quiet without it |
+| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`, `project-health` — all go quiet without it |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a manager that was about to answer |
-| `LEDGER_REPO` | normally the project's marketing repo, never the product repo | `ledger-publish` commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
-| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `weekly-analytics-report`. One task run covers every property — never create separate tasks per property |
+| `LEDGER_REPO` | normally the project's marketing repo, never the product repo | every `project-health` run commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
+| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `project-health`'s traffic section. One task run covers every property — never create separate tasks per property |
 | `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
 | `DOCS_REPO` | the docs repo, if the project has one | `docs-currency-watch` stays silent forever without it rather than inventing a target |
-| `GFI_LABEL` | only if the project's beginner label isn't `good first issue` | `good-first-issue-health` finds nothing under the wrong label |
-| `LEDGER_BRANCH` | optional; default `agent-metrics` | the branch `ledger-publish` writes to. Only relay it if the owner wants a different name |
+| `LEDGER_BRANCH` | optional; default `agent-metrics` | the branch `project-health` publishes to. Only relay it if the owner wants a different name |
+| `HEALTH_POST_DOW` | optional; `0`=Sun … `6`=Sat, default `1` (Monday) | the one day a week `project-health` posts instead of only collecting. Only relay it if the owner wants a different day |
+| `SOCIAL_DAILY` | optional; default on | set `"false"` if the owner would rather skip the daily follower read: collect days then cost no tokens, at the price of a weekly-only follower series |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 | `INBOX_ENABLED` | `"true"` only if the project has a shared inbox AND the Gmail read-only credential + an email MCP are wired **to the Helper's group** | `inbox-check` never fires without it — the correct default for the many projects with no shared inbox. Optional companions: `INBOX_QUERY` (default `is:unread newer_than:7d`), `INBOX_MAX_RESULTS` (default 25) |
 
@@ -842,7 +847,7 @@ keys go into the OneCLI vault dashboard only:
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
 | GitHub work (manager + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
-| Metrics-history push (`ledger-publish`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Helper. Wiring only the REST host leaves the publish failing with `push-failed` while every other GitHub call works |
+| Metrics-history push (`project-health`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Helper. Wiring only the REST host leaves `ledger.status` at `push-failed` while every other GitHub call works |
 | GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
 | Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
 | Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the Helper's group** — `inbox-check` is the Helper's task. A platform config change, not something you can do from in here; point the owner at the template README. Its gate also needs `INBOX_ENABLED="true"` relayed into the **Helper's** `config.env` — that part IS yours to write, and until it's set the task stays silent (correctly: most projects have no shared inbox) |
@@ -878,9 +883,9 @@ receive — they have no channel to post a card through themselves.
 meant to be rebuilt from the templates, and a restore nobody runs is a
 write-only cost.
 
-What exists instead is narrower and does get read: `ledger-publish` commits
-only the files that genuinely cannot be rebuilt, into a branch of the
-project's repo. There are three, and the distinction is worth stating to the
+What exists instead is narrower and does get read: every `project-health`
+run commits only the files that genuinely cannot be rebuilt, into a branch of
+the project's repo, and reads today's row back to prove it landed. There are three, and the distinction is worth stating to the
 owner in one line each, because it is the difference between "we can
 regenerate that" and "that is gone":
 
@@ -898,8 +903,11 @@ direction, which don't belong in a repo branch.
 
 To set it up: the owner confirms which repo to use (normally the marketing
 repo, never the product repo) and creates the `github.com` (git) vault entry
-with push access to it. Then relay `LEDGER_REPO`, run `ledger-publish` once
-(`ncl tasks run`), and report the branch landing or the exact failure. The branch (`agent-metrics` by default) is created as an orphan
+with push access to it. Then relay `LEDGER_REPO`; the next `project-health`
+run publishes, and its `ledger.status` says whether the row landed
+(`published-and-verified`) or exactly why not (`push-failed`,
+`clone-failed`, `bad-config`, `not-configured`) — report that verbatim rather
+than "set up". The branch (`agent-metrics` by default) is created as an orphan
 branch, so it carries only these files and never touches the repo's default
 branch or its CI.
 
@@ -918,7 +926,8 @@ the system can rebuild, and do not treat an empty series as a setup gap.
 | Everything else | **Never.** Cursors, seen-ledgers and snapshots all regenerate on the next run. |
 
 If they do have follower history, it goes in as CSV, matching the schema in
-`social-metrics-snapshot`'s task body exactly. They drop it into the group
+`project-health`'s task body exactly
+(`date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes`). They drop it into the group
 folder on the host — `groups/<folder>/plugin-data/community-helper/` — before
 that task resumes, the same route as `config.env`; you cannot receive a file
 through chat. Then have the Helper **validate it before appending** (header
@@ -971,9 +980,8 @@ For **each agent** in this order — **you (the manager) first, then the Helper*
    next agent. Tasks whose goal wasn't chosen stay paused; say so as part of
    "healthy," not as a gap.
 
-Never resume `daily-github-triage` if the helper is stamped
-(redundant). If the owner wants to skip straight to activating everything at
-once anyway, that's their call to make explicitly — don't default to it.
+If the owner wants to skip straight to activating everything at once anyway,
+that's their call to make explicitly — don't default to it.
 
 ## 10. Close the loop
 

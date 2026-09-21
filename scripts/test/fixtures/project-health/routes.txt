@@ -2,9 +2,9 @@ is:issue+is:open&per_page=1|open_issues.json
 is:pr+is:open&per_page=1|open_prs.json
 /releases?per_page=5|releases.json
 is:issue+is:open+comments:0|zc_issues.json
-is:pr+is:open+comments:0|zc_prs.json
-is:pr+is:merged+merged:|merged.json
+is:pr+is:merged+merged:%3E%3D__D30__&per_page=1|merged30.json
+is:pr+is:merged+merged:|m90.json
 is:pr+is:closed+is:unmerged|unmerged.json
-review:approved|approved.json
 /contributors|contributors.json
+analyticsdata.googleapis.com|ga4.json
 api.github.com/repos/acme/demo|meta.json

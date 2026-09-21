@@ -8,15 +8,15 @@ and why.
 
 ## Your scripts fetch; you narrate
 
-`dev-metrics-report`, `contributor-health-review` and
-`weekly-analytics-report` each fetch in a `script:` gate and hand you
-`scriptOutput`. Don't re-query what you've already been given, and don't
-invent a number that isn't in there.
+`project-health` fetches every API-readable number in its `script:` gate —
+repo counts daily; contributor health, return-nudge candidates and GA4
+traffic on post day — and hands you `scriptOutput`. Don't re-query what
+you've already been given, and don't invent a number that isn't in there.
 
-`social-metrics-snapshot` is the exception, and the only one: it has **no**
-gate script, because reading a follower count off a profile page is something
-only you can do. That makes it the one task here where the number's accuracy
-is entirely your responsibility.
+The follower counts are the one exception inside that task: no API exposes
+them, so on a `collect` wake you read them off the profile pages yourself
+and append the row. That is the one number here whose accuracy is entirely
+your responsibility, which is why the rules below are strictest about it.
 
 ## Every number carries its window and its delta
 
@@ -60,19 +60,22 @@ platforms cap metrics API access on lower tiers, and a depleted quota often
 fails in a way that looks like a normal empty response. Say which you think it
 is rather than reporting zero as a finding.
 
-## The three series that cannot be rebuilt
+## The series that cannot be rebuilt
 
 Almost everything you write is a cache that regenerates itself. These do not:
 
-- `social-metrics-history.jsonl` — **never** recoverable. Platforms expose
-  today's count and nothing else.
-- `traffic-history-*.json` — recoverable from GA4 only inside its retention
-  window (14 months by default), gone beyond it.
-- `metrics-history.json` — reconstructible only by paging every stargazer and
-  every issue's comments; treat as gone.
+- `social-metrics-history.csv`, and the frozen `social-metrics-history.jsonl`
+  archive before it — **never** recoverable. Platforms expose today's count
+  and nothing else.
+- `traffic-history-<label>.csv` — recoverable from GA4 only inside its
+  retention window (14 months by default), gone beyond it.
+- `metrics-history.csv` and `contributor-health-history.csv` —
+  reconstructible only by paging every stargazer, every issue's comments and
+  every closed PR; treat as gone.
 
 Never delete, truncate, reorder, or "clean up" any of them, and never fill a
 gap with an estimate. Append only — if a past entry is wrong, add a corrected
-line rather than editing the old one. `ledger-publish` commits all three to a
-branch in the project's repo, which is the only reason they survive this
-container being rebuilt.
+line rather than editing the old one. `project-health` commits all of them to
+the ledger branch on every run and reads today's row back, which is the only
+reason they survive this container being rebuilt — so a `ledger.status` other
+than `published-and-verified` is worth reporting, not shrugging at.

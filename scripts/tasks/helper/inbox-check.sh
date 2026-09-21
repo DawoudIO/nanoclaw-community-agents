@@ -11,7 +11,7 @@ set -uo pipefail
 #
 # The gate was assumed impossible on the theory that a mailbox is only
 # reachable through the agent's email MCP. That was wrong:
-# weekly-analytics-report already proves a bash gate can call a Google API
+# project-health (GA4) already proves a bash gate can call a Google API
 # through the same proxy that injects the agent's own bearer, so Gmail's REST
 # API is reachable here on the identical path.
 #
@@ -29,13 +29,20 @@ mkdir -p "$DATA"
 # --- local telemetry (best-effort; never blocks the gate) -------------------
 # Mirrors this gate's one-line JSON output to a local per-task log so the
 # owner can review wake/error patterns weekly and adjust gates or budgets.
-# Not published anywhere (unlike ledger-publish's series) and not a source
+# Not published anywhere (unlike project-health's series) and not a source
 # of truth -- a background pipe means a very fast exit can occasionally drop
 # the last line, an accepted trade for never risking the gate's real output
 # or exit code. IDs only, never mail content — see the header.
 mkdir -p "$DATA/telemetry" 2>/dev/null || true
 exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$DATA/telemetry/inbox-check.jsonl" 2>/dev/null) 2>/dev/null)
-if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
+# config.env is parsed, never sourced: the model writes into this same
+# directory, so a line planted here must stay a string, never become code.
+if [ -f "$DATA/config.env" ]; then
+  while IFS='=' read -r k v; do
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    export "$k=$v"
+  done < <(grep -E '^[A-Z][A-Z0-9_]*=' "$DATA/config.env")
+fi
 
 # Opt-in, because most projects have no shared inbox and this task must stay
 # silent forever rather than reporting a permanent 401 at them. The credential

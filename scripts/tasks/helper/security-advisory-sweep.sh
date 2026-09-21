@@ -14,13 +14,20 @@ mkdir -p "$DATA"
 # --- local telemetry (best-effort; never blocks the gate) -------------------
 # Mirrors this gate's one-line JSON output to a local per-task log so the
 # owner can review wake/error patterns weekly and adjust gates or budgets.
-# Not published anywhere (unlike ledger-publish's series) and not a source
+# Not published anywhere (unlike project-health's series) and not a source
 # of truth -- a background pipe means a very fast exit can occasionally drop
 # the last line, an accepted trade for never risking the gate's real output
 # or exit code.
 mkdir -p "$DATA/telemetry" 2>/dev/null || true
 exec > >(tee >(sed -u "s/^{/{\"_ts\":\"$(date -u +%FT%TZ)\",/" >> "$DATA/telemetry/security-advisory-sweep.jsonl" 2>/dev/null) 2>/dev/null)
-if [ -f "$DATA/config.env" ]; then . "$DATA/config.env"; fi
+# config.env is parsed, never sourced: the model writes into this same
+# directory, so a line planted here must stay a string, never become code.
+if [ -f "$DATA/config.env" ]; then
+  while IFS='=' read -r k v; do
+    v="${v%\"}"; v="${v#\"}"; v="${v%\'}"; v="${v#\'}"
+    export "$k=$v"
+  done < <(grep -E '^[A-Z][A-Z0-9_]*=' "$DATA/config.env")
+fi
 # SECURITY_WATCH_REPOS is an OPTIONAL narrower override, falling back to
 # COMMUNITY_REPOS. A docs site or content repo rarely has dependencies worth
 # a security sweep, and the Dependabot alerts (read) permission has to be

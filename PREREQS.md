@@ -22,10 +22,10 @@ is aimed at catching that mistake *before* it happens, not after.
 | **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the manager simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. Both agents draw on this same window; a local (Ollama) model for the sub-agent is possible but not adopted — see [SKILLS-ADOPTION.md](SKILLS-ADOPTION.md) |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
 | Manager GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS`. Not classic, not `read:org` |
-| Helper GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only Issues+PRs over `COMMUNITY_REPOS`, + Dependabot alerts if enabling the sweep, + Contents/PRs write for draft security patches, + Contents write on `LEDGER_REPO` for `ledger-publish` |
-| **`github.com` (git) credential** | same tokens, registered against the git host | A **separate vault entry class** from `api.github.com`. Both sub-agents push the metrics-history branch with it; wiring only the REST host leaves `ledger-publish` failing with `push-failed` while everything else works |
+| Helper GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only Issues+PRs over `COMMUNITY_REPOS`, + Dependabot alerts if enabling the sweep, + Contents/PRs write for draft security patches, + Contents write on `LEDGER_REPO` for `project-health`'s ledger push |
+| **`github.com` (git) credential** | same token, registered against the git host | A **separate vault entry class** from `api.github.com`. The Helper pushes the metrics-history branch with it every `project-health` run; wiring only the REST host leaves that run reporting `ledger.status: push-failed` while everything else works |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Helper** (`weekly-analytics-report`) — the manager gets no analytics access |
+| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Helper** (`project-health`, post day only) — the manager gets no analytics access |
 | Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §2 for the exact `serve` command |
 
@@ -55,8 +55,8 @@ here needs classic. Note that a fine-grained token's repo list gates
 a repo left off the list fails silently rather than falling back to public
 access. That's the single most common misconfiguration in this system.
 
-**Almost every gate SCRIPT is a read** — `ledger-publish` is the one
-exception, and it writes only to its own metrics branch. Everything else that
+**Almost every gate SCRIPT is a read** — `project-health`'s ledger push is
+the one exception, and it writes only to its own metrics branch. Everything else that
 writes does so in an agent's live actions after a gate wakes it, which is why,
 of the two tokens, write is narrow and unevenly distributed:
 
@@ -76,7 +76,7 @@ anything mergeable without a human — and its metrics write lands on a
 dedicated orphan branch that no human workflow builds from.
 
 There is exactly one `POST` in the whole system, it belongs to the Helper
-(`weekly-analytics-report`), and it is **not** a write:
+(`project-health`, post day only), and it is **not** a write:
 GA4's `analyticsdata.googleapis.com/v1beta/properties/{id}:runReport`. That
 API takes its query (date range, which metrics) as a JSON body, so Google
 made the query verb a POST — it returns rows and mutates nothing. The
@@ -92,28 +92,24 @@ gets gated.
 | Permission | Level | Justified by |
 |---|---|---|
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
-| Issues | **Read + Write** | reads `GET /repos/{repo}/issues` (`daily-github-triage`); writes = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
+| Issues | **Read + Write** | reads `GET /search/issues` (`github-first-response`); writes = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
 | Pull requests | Read + Write | commenting on PRs in those same live replies; the issues endpoint also returns PRs |
-| Contents | Read | `GET /repos/{repo}/releases/latest` (the owner-invoked release-announcement skill) |
 
 Repo list: everything in `COMMUNITY_REPOS`. **Never** `admin:*`,
 `delete_repo`, `read:org`, or workflow scopes — nothing reads org membership
 (listing an org's repos during onboarding needs no such scope) and nothing
 touches Actions.
 
-One nuance on the Issues row worth knowing before you cut it smaller:
-`daily-github-triage` is the manager's **standalone-mode fallback** and is
-normally left paused when the Helper is stamped, because `github-ops-triage`
-covers the same ground at higher cadence. Pausing that task does *not* let you
-drop the write permission — the manager needs Issues and PRs write for its live
-replies regardless, which is the larger justification of the two.
+One nuance on the Issues row worth knowing before you cut it smaller: the
+read is the smaller justification of the two. Even with `github-first-response`
+paused, the manager needs Issues and PRs write for its live replies.
 
 ### Helper — `opensource/community-helper`
 
 **Read everywhere; write in exactly two narrow places — draft PRs, and its
 own metrics branch.** This agent drafts a dependency-bump PR when it confirms
 an advisory genuinely affects the project, so it needs enough write to create
-a branch and open a draft PR. Separately, `ledger-publish` pushes a metrics
+a branch and open a draft PR. Separately, `project-health` pushes a metrics
 branch to `LEDGER_REPO`. Nothing beyond those two.
 
 It carries nearly every task in the set, so this is the token whose repo list
@@ -129,14 +125,14 @@ it, because it never had a token.
 | Permission | Level | Justified by |
 |---|---|---|
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
-| Issues | Read | `GET /repos/{repo}/issues` and `GET /search/issues` (`github-ops-triage`, `good-first-issue-health`, `dev-metrics-report`, `ready-to-merge`, `contributor-nudge`) |
-| Contents | Read | `GET /repos/{repo}/releases` (download counts) and `/community/profile` (`repo-hygiene-audit`), `/contributors` (`dev-metrics-report`) |
-| Pull requests | Read | `GET /repos/{repo}/pulls` (`dependabot-pr-review`, `contributor-health-review`) |
+| Issues | Read | `GET /repos/{repo}/issues` and `GET /search/issues` (`github-ops-triage`, `project-health`) |
+| Contents | Read | `GET /repos/{repo}/releases` (download counts) and `/contributors` (`project-health`) |
+| Pull requests | Read | `GET /repos/{repo}/pulls` (`dependabot-pr-review`) |
 | Dependabot alerts | Read | `GET /repos/{repo}/dependabot/alerts` (`security-advisory-sweep`) — **omit this and the sweep 403s**; it's the one permission people forget |
 | Contents | **Write** | create the `security/<ghsa-id>` branch and commit the manifest/lockfile version bump (`security-advisory-sweep`); create the docs branch (`docs-currency-watch`) |
 | Pull requests | **Write** | `POST /repos/{repo}/pulls` with `draft: true` — the security patch, and the version-tagged docs PR |
 | Issues | Read → **also needed on `DOCS_REPO`** | `docs-currency-watch` reads merged PRs on the product repo and opens a PR on the docs repo |
-| Contents (**`LEDGER_REPO` only**) | **Write** | `ledger-publish` pushes the metrics-history branch over `github.com` git — a *separate vault entry* from `api.github.com` |
+| Contents (**`LEDGER_REPO` only**) | **Write** | `project-health` pushes the metrics-history branch over `github.com` git — a *separate vault entry* from `api.github.com` |
 
 **Why this is still least-privilege.** Contents write is the permission that
 lets an agent change a repo, so it deserves the scrutiny: it is here because
@@ -168,22 +164,17 @@ docs-follows-release loop silently never runs. If the docs are a subdirectory
 of the product repo instead, no extra repo is needed — set `DOCS_PATH`.
 
 Most of this agent's tasks call `api.github.com` and so depend on this
-token: `github-ops-triage`, `security-advisory-sweep`,
-`contributor-health-review`, `dependabot-pr-review`, `docs-currency-watch`,
-`dev-metrics-report`, `ready-to-merge`, `good-first-issue-health`,
-`repo-hygiene-audit` and `contributor-nudge`
+token: `github-ops-triage`, `security-advisory-sweep`, `dependabot-pr-review`,
+`docs-currency-watch` and `project-health`
 (`posthog-weekly-review` is removed for now — see SKILLS-ADOPTION.md if it
 comes back; it would run on its own PostHog credential, needing nothing
 here). Verify the list against
 `grep -l api.github.com scripts/tasks/helper/*.sh` rather than trusting
 this paragraph — it is the kind of list that goes stale on every split.
 
-All of this agent's GitHub work depends on this one token. Verify the task
-list against `grep -l api.github.com scripts/tasks/helper/*.sh` rather
-than trusting a paragraph — it is the kind of list that goes stale.
-
-**Two non-GitHub things also live on this agent and nowhere else:** the GA4
-OAuth connection (`analyticsdata.googleapis.com`, `weekly-analytics-report`),
+**Two non-GitHub things also live on this agent and nowhere else**, both
+inside `project-health`: the GA4 OAuth connection
+(`analyticsdata.googleapis.com`, post day only),
 and the public social-profile reads (`x.com`, `www.linkedin.com`, …) which
 need **no credential at all** but do need sandbox allowlist entries plus a
 real page-reading capability in the container. If `agent-access` reports GA4

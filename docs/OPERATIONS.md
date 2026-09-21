@@ -119,9 +119,8 @@ window**, so budget them together:
   model wake at all on a fresh install — those are free (run
   `bash scripts/gen-task-table.sh --counts` for the current split).
   `docs-gap-review` exits `no-ledger-yet` (also free, and stays that way for
-  weeks), and `ledger-publish` / `conversation-archive-prune` never wake a
-  model on success at any point in their lives. Only the gates you actually
-  configured can cost you anything.
+  weeks), and `conversation-archive-prune` never wakes a model at any point
+  in its life. Only the gates you actually configured can cost you anything.
 - **Smoke tests**: 3–4 real manager interactions.
 
 ### Measured context floors (per model wake, this template set)
@@ -219,9 +218,9 @@ which shares this window; the detection is what stays free. That combination
 is the point: the task the north star depends on had to be the one thing
 that can't be knocked over by an outage, even if it can be slowed by an
 exhausted window. And the daily
-`dev-metrics-report` doesn't just skip when unconfigured, it skips on any run
-where nothing actually changed, with a heartbeat forcing an occasional wake so
-the channel never goes silent long enough to look dead. That makes the team
+`project-health` does every fetch in bash and wakes the model only for what
+bash can't read — the social follower pages — plus one weekly post; set
+`SOCIAL_DAILY=false` and six days out of seven are 0-token. That makes the team
 elastic: stamp what you need, then tune budget by which tasks you activate —
 never by deleting agents.
 
@@ -296,34 +295,21 @@ budget.
 
 Pause in this order — lowest value first, across both agents:
 
-1. `daily-github-triage` — if the Helper is stamped it's already redundant
-   with `github-ops-triage`; it should be paused anyway.
-2. `inbox-check` — now gated (it wakes only on unread mail nobody has handed
+1. `inbox-check` — now gated (it wakes only on unread mail nobody has handed
    over yet), but it is still the manager's task, so each wake it *does* take
    is a Sonnet-tier one. Pause it early if the shared inbox is busy;
    `INBOX_QUERY` narrowing it is the softer option.
-3. `contributor-health-review` — a reasonable early pause: nothing it reports
-   is time-sensitive. It reads 30- and 90-day windows weekly, and the signals
-   it tracks (unmerged ratio, contribution concentration) move over months, so
-   a few skipped weeks change the picture by nothing. One cost worth knowing:
-   its history only gains a point on a run, so after a pause the next run
-   diffs against the last week it actually ran — the first post-resume "move"
-   will look larger than any single week's drift really was.
-4. `repo-hygiene-audit` → reduce from daily to weekly. It runs daily to catch
-   a newly added repo quickly, but the absences it reports change on the scale
-   of months; a weekly read loses almost nothing.
-5. `github-ops-triage` → reduce to 2×/day.
-7. `weekly-analytics-report` is already weekly; `social-metrics-snapshot`
-   ships daily by default (an ungated task, so it's the one to reduce first
-   if budget is tight — weekly is enough for most projects). If you pause
-   one instead of slowing it down, pause the **analytics** report, never the
-   follower snapshot: GA4 can be re-queried for a missed week, and follower
-   counts cannot be recovered at all.
-8. `security-advisory-sweep` → reduce to 2×/day. Last of the cloud tier
+2. `project-health` → set `SOCIAL_DAILY=false`. That turns off the one small
+   collect-day wake (reading follower pages) and leaves the weekly post; the
+   bash fetches, the CSV rows and the ledger push carry on at zero tokens.
+   Weekly follower resolution is enough for most projects. **Slow it, never
+   pause it** — see below.
+3. `security-advisory-sweep` → reduce to 2×/day. Last of the cloud tier
    deliberately: a late advisory is a worse outcome than a late digest.
 
-`docs-gap-review` and `weekly-identity-integrity-check` are weekly and gated to
-near-silence, so pausing them is effort without savings.
+`github-ops-triage`, `docs-gap-review` and `weekly-identity-integrity-check`
+are weekly and gated to near-silence, so pausing them is effort without
+savings.
 
 **Never pause, at any ceiling — cheap and irreplaceable, even though they now
 share the meter:**
@@ -336,22 +322,21 @@ share the meter:**
   templated, only fires when something's actually unanswered) and pausing it
   removes the one thing that keeps a window exhaustion from reading to the
   community as silence. There is no budget argument for pausing it.
-- **`ledger-publish`.** It never wakes a model on success, so
-  pausing it saves literally nothing — while every paused day is a day of an
-  unrecoverable series that will not exist after the next rebuild. This is the
-  clearest "no upside" pause in the set.
-- **`conversation-archive-prune`** (all agents). Also never wakes a model, and
+- **`project-health`.** With `SOCIAL_DAILY=false` its collect days cost
+  nothing, so pausing saves one Haiku wake a week — while every paused day is
+  a day with no row in the follower series (nothing can re-read yesterday's
+  count) and no ledger push. This is the clearest "no upside" pause in the
+  set.
+- **`conversation-archive-prune`** (all agents). Never wakes a model, and
   it is what keeps a known platform bug from filling the container's disk (see
   UPSTREAM-ISSUES.md #38). Pausing it trades nothing for an eventual crash
   loop.
-- **`ready-to-merge`.** Cheap and the best value-per-token in the set: it
-  produces a *list* rather than an assessment, runs
-  twice a day, and only wakes when the set of approved PRs actually changes (an
-  unchanged set resurfaces once a week, not every run). What it costs you is a
-  few API calls; what it prevents is a contributor's already-approved work
-  sitting unmerged, which is the most discouraging way for a contribution to
-  end. There is no ceiling at which pausing this is the right trade.
 - **Community replies.** They are the job.
+
+Approved-but-unmerged PRs, stale good-first-issues and missing
+community-health files are no longer scheduled at all — they are
+point-in-time checks, so they live in the project repo's `repo-health`
+skill and run on demand, by whatever agent you point at it.
 
 ## How fast each surface actually is
 
@@ -363,7 +348,7 @@ have different mechanics:
 | **Discord** | **Live.** The manager is wired to the channels and answers events as they arrive — no cron involved | realtime |
 | Discord, when the manager is down | `unanswered-watch` on the Helper posts a holding ack | ≤10 min; detection is free, the ack itself is a cheap Haiku wake sharing the window for this phase |
 | **GitHub** | No live wiring in this design, so it polls: `github-first-response` finds new unanswered items | ≤10 min + grace |
-| GitHub triage (duplicates, staleness, labels) | `github-ops-triage` digest | 6h — deliberately slow |
+| GitHub triage (duplicates, staleness, labels) | `github-ops-triage` digest | weekly (Mon 14:35 UTC) — deliberately slow; `github-first-response` is the fast path |
 | Everything else | its own gated schedule, posted to the channel that cares | see the table below |
 | **The owner's DM** | `owner-tldr` digest, plus urgent bypass | **07:00 the owner's local time**, or ~4h for "we may be blind" while they're awake |
 
@@ -397,12 +382,11 @@ unconfigured burns turns on every fire. And **"wakes model" means a different
 meter depending on the agent** — a Local-ops wake spends host RAM, never the
 shared Claude window.
 
-**Manager** (`opensource/community-manager`) — 7 tasks, the only agent with a full
+**Manager** (`opensource/community-manager`) — 6 tasks, the only agent with a full
 public voice:
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
-| `daily-github-triage` (weekdays) | only on new/updated items | manager PAT + `COMMUNITY_REPOS` in `plugin-data/community-manager/config.env` | silent skip. **This is the manager's standalone-mode fallback** — leave it paused when the Helper is stamped, because `github-ops-triage` covers the same ground at higher cadence. Resume it if you ever run without the Helper |
 | `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
 | `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
@@ -412,23 +396,18 @@ public voice:
 **Helper** (`opensource/community-helper`) — read-only except for drafting
 security patch PRs and docs PRs (branch + draft PR, never merged), never posts
 publicly. Config in `plugin-data/community-helper/config.env`.
-`contributor-health-review` gets its own weekly slot for the
-same reason `posthog-weekly-review` was, before it was removed for never
-getting working end to end (see SKILLS-ADOPTION.md if it comes back): each is
-the *interpretation* half of a metric. The same unmerged-PR ratio means
-opposite things depending on why it moved, and naming a delegation candidate
-is a judgment about a person. Narration went local; judgment stayed cloud.
+`project-health` keeps the *interpretation* half of the numbers on a model
+wake — the same unmerged-PR ratio means opposite things depending on why it
+moved, and naming a delegation candidate is a judgment about a person — but
+only once a week; every fetch and every CSV row is bash.
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
 | `docs-currency-watch` (every 6h) | only on merged PRs not yet assessed | helper PAT (Contents+PRs **write**) + `PRODUCT_REPO`/`COMMUNITY_REPOS` + `DOCS_REPO` | silent skip — no `DOCS_REPO` means the project has no docs site and the task never fires |
-| `contributor-health-review` (Wed) | only on a 10-point move in the unmerged ratio or the top-author share, on the first run (no baseline to diff against), on a fetch failure, or a 90-day heartbeat | helper PAT + `COMMUNITY_REPOS` | silent skip |
-| `github-ops-triage` (4×/day) | only on new/updated items | helper PAT + `COMMUNITY_REPOS` | silent skip |
+| `github-ops-triage` (Mon) | only on new/updated items | helper PAT + `COMMUNITY_REPOS` | silent skip |
 | `dependabot-pr-review` (every 6h) | only on a Dependabot PR not yet reviewed at its current head SHA (a rebase brings it back) | helper PAT + `COMMUNITY_REPOS` | silent skip |
 | `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it reviews that diff rather than opening a duplicate | helper PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
-| `social-metrics-snapshot` (daily) | **every run** (ungated) | public profile pages (**no credentials**) + sandbox allowlist entries for the platform hosts + a real page-reading capability in the container | leave paused until the platforms are configured and allowlisted — it guards the one series nothing can rebuild |
-| `weekly-analytics-report` (Sun) | weekly | GA4 OAuth + `GA4_PROPERTIES` + allowlist | silent skip |
-| `ledger-publish` (daily) | **never on success** — only on a publish failure | `LEDGER_REPO` + a `github.com` (git) push credential | silent skip, and all three series then live only in this container |
+| `project-health` (daily; posts on `HEALTH_POST_DOW`, default Mon) | collect days: one small wake to read follower pages (`SOCIAL_DAILY=false` → never); post day: always; any day a repo's fetch failed | helper PAT + `COMMUNITY_REPOS`. Optional, each adding a series: `LEDGER_REPO` (+ `LEDGER_BRANCH`, `LEDGER_PATH`) with a `github.com` (git) push credential for durable history; `GA4_PROPERTIES` + GA4 OAuth for traffic; allowlisted social hosts + a page-reading capability for followers. `NUDGE_MAX_CHECKS` caps return-nudge lookups | silent skip without `COMMUNITY_REPOS`. Without `LEDGER_REPO` it runs but reports `ledger.status: not-configured` — every series then lives only in this container |
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
 
 **Shipped times (written in UTC; fire in each group's configured
@@ -451,31 +430,21 @@ the round minutes because it's the task the north star depends on:
 | Task | Agent | Cadence | When (UTC) | Gated |
 |------|-------|---------|------------|-------|
 | `conversation-archive-prune` | Manager | **daily** | 05:17 | yes |
-| `daily-github-triage` | Manager | **weekdays** | 13:13, Mon–Fri | yes |
 | `docs-gap-review` | Manager | **weekly** | 15:15, Tue | yes |
 | `github-first-response` | Manager | **6× hourly** | :4/14/24/34/44/54 each hour | yes |
 | `owner-instruction-watch` | Manager | **weekly** | 16:23, Mon | yes |
 | `owner-tldr` | Manager | **every 2h** | every 2h at :41 | yes |
 | `weekly-identity-integrity-check` | Manager | **weekly** | 15:45, Mon | yes |
-| `contributor-health-review` | Helper | **weekly** | 11:26, Wed | yes |
-| `contributor-nudge` | Helper | **daily** | 09:18 | yes |
 | `conversation-archive-prune` | Helper | **daily** | 05:38 | yes |
 | `dependabot-pr-review` | Helper | **every 6h** | every 6h at :11 | yes |
-| `dev-metrics-report` | Helper | **daily** | 12:15 | yes |
 | `docs-currency-watch` | Helper | **every 6h** | every 6h at :29 | yes |
-| `github-ops-triage` | Helper | **every 6h** | every 6h at :35 | yes |
-| `good-first-issue-health` | Helper | **weekly** | 16:16, Mon | yes |
+| `github-ops-triage` | Helper | **weekly** | 14:35, Mon | yes |
 | `inbox-check` | Helper | **2× daily** | 06:55, 16:55 | yes |
-| `ledger-publish` | Helper | **daily** | 06:38 | yes |
-| `ready-to-merge` | Helper | **2× daily** | 09:47, 17:47 | yes |
-| `repo-hygiene-audit` | Helper | **daily** | 10:55 | yes |
+| `project-health` | Helper | **daily** | 13:17 | yes |
 | `security-advisory-sweep` | Helper | **every 4h** | every 4h at :45 | yes |
-| `social-metrics-snapshot` | Helper | **daily** | 13:23 | no |
 | `unanswered-watch` | Helper | **every 10 min** | on the 10-minute mark | yes |
-| `weekly-analytics-report` | Helper | **weekly** | 14:19, Sun | yes |
-_23 tasks across 2 agents; 22 script-gated (ungated: social-metrics-snapshot)_
-_Generated by `scripts/gen-task-table.sh` — do not hand-edit._
-_Generated by `scripts/gen-task-table.sh` — do not hand-edit._
+
+_14 tasks across 2 agents; 14 script-gated_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
 
 **This table is generated — do not hand-edit it.** It was hand-maintained
@@ -498,28 +467,28 @@ bash scripts/test/run.sh        # fails on any two tasks sharing a firing slot
 ```
 
 Rules of thumb: put the
-integrity check before your own workday, dev metrics ahead of your dev
-channel's hours, inbox checks at your real start/end of day.
+integrity check before your own workday, `project-health` ahead of your dev
+channel's hours on its post day, inbox checks at your real start/end of day.
 
-**One task wakes its model on every fire: `social-metrics-snapshot` (the
-Helper, daily).** It can't be gated — reading a follower count off a profile
-page *is* the agent's own work, so there's nothing a bash gate could check
-first. `weekly-analytics-report` also wakes every run, but by choice rather
-than necessity: it's a report, not a watcher, and its whole deliverable is
-the weekly narration (one Haiku wake/week).
+**No task wakes its model on every fire.** The closest is `project-health`:
+on collect days it wakes once, briefly, to read follower counts off profile
+pages — the one thing a bash gate can't do — and `SOCIAL_DAILY=false` turns
+even that off; on its post day it wakes by design, because the deliverable
+is the weekly status (one Haiku wake/week).
 
-Everything else is 0-token when there's nothing to judge — **20 of 23 tasks,
-and ~99% of all scheduled runs**, because the two highest-frequency tasks are
-both gated: `unanswered-watch` at 144×/day and `github-first-response` at
-144×/day, plus `owner-tldr` at 12× and `security-advisory-sweep` at 6×, all
-costing nothing on the runs where the gate finds nothing to say. Out of
-~338 scheduled executions a day, only ~3 are guaranteed to spend tokens.
+Everything else is 0-token when there's nothing to judge — **all 14 tasks
+are gated, and ~99% of all scheduled runs cost nothing**, because the two
+highest-frequency tasks are both gated: `unanswered-watch` at 144×/day and
+`github-first-response` at 144×/day, plus `owner-tldr` at 12× and
+`security-advisory-sweep` at 6×, all costing nothing on the runs where the
+gate finds nothing to say. Out of ~320 scheduled executions a day, at most
+one is guaranteed to spend tokens.
 
 ## Local telemetry — one file per task, worth a weekly look
 
 Every gate script mirrors its own one-line JSON output to a local file:
 `plugin-data/<agent-folder>/telemetry/<task-name>.jsonl`, one line per run.
-This is **not** part of `ledger-publish`'s published series — it's local,
+This is **not** part of the ledger `project-health` publishes — it's local,
 disposable, and exists purely so you can see wake/error patterns over time
 and adjust a gate's threshold, cadence, or config if something looks off.
 
@@ -684,19 +653,23 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
 1. **Confirm the metrics branch is current, and understand that it is the
    only thing that survives.** There is no workspace backup in this set, by
    design: a restore nobody runs is a write-only cost. What persists is what
-   `ledger-publish` pushed to `LEDGER_REPO`'s `agent-metrics` branch:
-   - `agent-metrics/social-metrics-history.jsonl` — the follower series.
-     Unrecoverable by any other means: every platform exposes today's count
-     and nothing else.
-   - `agent-metrics/traffic-history-*.json` — GA4 traffic. Re-queryable
-     inside the property's retention window (14 months by default), gone
-     beyond it.
-   - `agent-metrics/metrics-history.json` — repo metrics. Rebuildable only by
-     paging every stargazer and every issue's comments; treat as gone.
+   `project-health` pushed to `LEDGER_REPO`'s `agent-metrics` branch
+   (`LEDGER_BRANCH`), under `agent-metrics/` (`LEDGER_PATH`):
+   - `social-metrics-history.csv`, plus the frozen pre-CSV archive
+     `social-metrics-history.jsonl` — the follower series. Unrecoverable by
+     any other means: every platform exposes today's count and nothing else.
+   - `traffic-history-<label>.csv` — GA4 traffic. Re-queryable inside the
+     property's retention window (14 months by default), gone beyond it.
+   - `metrics-history.csv` and `contributor-health-history.csv` — repo
+     metrics. Rebuildable only by paging every stargazer and every issue's
+     comments; treat as gone.
 
-   Check the branch's last commit date before you tear anything down. If
-   `ledger-publish` has been failing quietly, this is the moment that costs
-   you — not the moment you notice.
+   Check the branch's last commit date before you tear anything down — or
+   `tasks get` on the last `project-health` run and read `ledger.status`: it
+   reads today's row back from GitHub itself, so anything other than
+   `published-and-verified` means the branch is behind. If it has been
+   failing quietly, this is the moment that costs you — not the moment you
+   notice.
 
    **Everything else is accepted loss, deliberately.** Each agent's
    `plugin-data/` dies with its container:
@@ -747,7 +720,7 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
    the live install predates that file, run
    `bash scripts/export-answers.sh` to reconstruct one *before* you tear the
    install down. The history series need no restore step at all: they live in
-   the ledger repo, and the next `ledger-publish` run appends to what is
+   the ledger repo, and the next `project-health` run appends to what is
    already there rather than starting over — as long as `LEDGER_REPO` points
    at the same repo and branch it did before.
 7. Smoke tests per INSTALL.md §4, and re-test anything in UPSTREAM-ISSUES.md
