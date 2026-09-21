@@ -21,11 +21,12 @@
 # HONEST LIMITS, so nobody mistakes green for complete:
 #   - Fixtures cover a handful of scenarios, not every gate. Uncovered on the
 #     success path: security-advisory-sweep, github-ops-triage,
-#     daily-github-triage, weekly-analytics-report, repo-hygiene-audit,
 #     weekly-identity-integrity-check.
-#   - ledger-publish's git behavior (orphan branch creation, unpushed-commit
-#     recovery, refusal to force) is verified against a real local bare repo
-#     rather than mocked; see 2d.
+#   - project-health's ledger step (orphan branch creation, read-back of
+#     today's row, unpushed-commit recovery, refusal to force) is verified
+#     against a real local bare repo rather than mocked; see 2d. Its social
+#     half (the model reading follower pages) is a prompt, not a script, and
+#     is not covered here.
 #   - Fixtures are hand-written, so they encode what we BELIEVE each API
 #     returns. They catch our own logic errors, not upstream API changes —
 #     only a real install does that.
@@ -306,23 +307,28 @@ done
 #
 # WHY: a fixture with a hardcoded date is tested against a gate that compares
 # against `now`, so the fixture silently changes meaning as real time passes.
-# This bit: `good-first-issue-health` treats an unassigned issue untouched for
-# 14 days as stale, and its fixture's deliberately-NOT-stale issue was dated
-# 2026-08-20 — fine when written, quietly stale months later, so the test
-# asserted one stale issue and found two. Placeholders keep a fixture's
+# This bit (in a since-removed staleness gate): a fixture issue dated
+# 2026-08-20 was deliberately NOT stale when written, quietly crossed the
+# 14-day threshold months later, and the test asserted one stale issue and
+# found two. Placeholders keep a fixture's
 # *meaning* fixed instead of its literal value.
 #
 #   __RECENT_ISO__  — 2 days ago: inside every freshness window in this kit
 #   __STALE_ISO__   — 120 days ago: outside every staleness window
+#   __D30__         — 30 days ago as YYYY-MM-DD: the exact `merged:>=` date
+#                     project-health puts in its 30-day search URL, so a
+#                     routes.txt pattern can tell that query apart from the
+#                     7- and 90-day ones that differ only by date
 render_fixtures() {
-  local src="$1" dst="$2" recent stale
+  local src="$1" dst="$2" recent stale d30
   [ -d "$src" ] || return 0
   mkdir -p "$dst"
   recent=$(date -u -v-2d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '2 days ago' +%Y-%m-%dT%H:%M:%SZ)
   stale=$(date -u -v-120d +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d '120 days ago' +%Y-%m-%dT%H:%M:%SZ)
+  d30=$(date -u -v-30d +%Y-%m-%d 2>/dev/null || date -u -d '30 days ago' +%Y-%m-%d)
   for f in "$src"/*; do
     [ -f "$f" ] || continue
-    sed -e "s#__RECENT_ISO__#$recent#g" -e "s#__STALE_ISO__#$stale#g" "$f" > "$dst/$(basename "$f")"
+    sed -e "s#__RECENT_ISO__#$recent#g" -e "s#__STALE_ISO__#$stale#g" -e "s#__D30__#$d30#g" "$f" > "$dst/$(basename "$f")"
   done
 }
 
@@ -472,117 +478,100 @@ done
 # for every URL because no fixtures matched.
 assert_gate "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" \
-  "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" \
-  "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/helper/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-assert_gate "$ROOT/scripts/tasks/manager/daily-github-triage.sh" \
-  "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
+# project-health: even with the social wake switched off, a day where every
+# GitHub fetch failed must wake — degraded_repos overrides SOCIAL_DAILY=false.
+assert_gate "$ROOT/scripts/tasks/helper/project-health.sh" \
+  "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"
+SOCIAL_DAILY=false'
 
 # --- 2c. success-path assertions -------------------------------------------
 # These check the SHAPE the task prompts actually read. A renamed or dropped
 # field here is a broken task even though the gate still emits valid JSON and
 # the right wakeAgent — which is exactly what the failure-only tests miss.
 
-# dev-metrics-report: every field its prompt references, in the nesting the
-# prompt describes. `count` (14) deliberately exceeds the listed prs (2) so
-# the "N approved PRs waiting, oldest 10 listed" truncation path is covered.
-assert_scenario "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" dev-metrics-full true \
-  '.data.today["acme/demo"] as $t
-   | ($t.stars == 937) and ($t.forks == 558)
-     and ($t.open_issues == 42) and ($t.open_prs == 7)
-     and ($t.releases[0].downloads == 1000)
-     and ($t.awaiting_first_response.issues == 5)
-     and ($t.awaiting_first_response.oldest_issue_since == "2026-06-01T00:00:00Z")
-     and (.data.degraded_repos | length == 0)
-     and (($t | has("closed_prs_30d")) | not)
-     and ((.data | has("ready_to_merge")) | not)
-     and ((.data | has("contribution_concentration")) | not)' \
-  'COMMUNITY_REPOS="acme/demo"'
-# The three `has(...) | not` assertions are the split's regression test: those
-# fields moved to ready-to-merge and contributor-health-review, so if one
-# reappears here the split has been partially reverted and two tasks are
-# reporting the same thing.
+# project-health: the one metrics task. Its mode is decided by the weekday,
+# so the tests pin HEALTH_POST_DOW to "today" or "not today" rather than
+# passing or failing depending on which day the suite happens to run.
+TODAY_DOW=$(date -u +%w); NOT_TODAY_DOW=$(( (TODAY_DOW + 1) % 7 ))
 
-# ready-to-merge: 14 approved PRs waiting with only the 2 oldest listed, so
-# the truncation path is covered. First run has no prior set, so every PR is
-# "newly ready" and the gate must wake.
-assert_scenario "$ROOT/scripts/tasks/helper/ready-to-merge.sh" ready-to-merge-waiting true \
-  '(.data.status == "ready")
-   and (.data.total == 14)
-   and (.data.repos[0].truncated == true)
-   and (.data.repos[0].prs | length == 2)
-   and (.data.repos[0].prs[0].author == "contribA")
-   and (.data.newly_ready | length == 2)
-   and (.data.resurfaced == false)
-   and (.data.degraded_repos | length == 0)' \
-  'COMMUNITY_REPOS="acme/demo"'
-
-# ready-to-merge, run 2: identical approved set, so the "changed" gate must
-# SUPPRESS rather than re-report the same PRs the next morning. This is the
-# difference between useful and nagging, and it only exists from run 2 on.
-assert_scenario "$ROOT/scripts/tasks/helper/ready-to-merge.sh" ready-to-merge-waiting false \
-  '(.data.resurfaced == true) and (.data.newly_ready | length == 0)' \
-  'COMMUNITY_REPOS="acme/demo"' 2
-
-# contributor-health-review: the Helper's half of the split. Asserts the
-# histogram maths the script does so the agent never has to — 20/6/4 across
-# three authors is a 67% top-author share and exactly two candidates at the
-# 5-merged floor. first_run must be true (no history to diff yet) and must
-# wake, because a baseline is worth one report.
-assert_scenario "$ROOT/scripts/tasks/helper/contributor-health-review.sh" contributor-health-move true \
+# collect day: every GitHub field the prompt reads, in the nesting it reads
+# it; everything post-only (health, nudges, traffic) must be empty even with
+# GA4 configured, because collect day is the cheap wake — nothing to compose.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
   '.data.repos[0] as $r
-   | ($r.closed_prs_30d.merged == 20)
-     and ($r.closed_prs_30d.unmerged == 4)
-     and ($r.closed_prs_30d.unmerged_ratio == 0.17)
-     and ($r.concentration.distinct_authors_90d == 3)
-     and ($r.concentration.top_author == "maintainer")
-     and ($r.concentration.top_author_share_pct == 67)
-     and ($r.concentration.candidates | length == 2)
-     and (.data.first_run == true)
-     and (.data.degraded_repos | length == 0)' \
-  'COMMUNITY_REPOS="acme/demo"'
+   | (.data.mode == "collect")
+     and ($r.repo == "acme/demo")
+     and ($r.stars == 937) and ($r.forks == 558)
+     and ($r.open_issues == 42) and ($r.open_prs == 7)
+     and ($r.releases[0].downloads == 1000)
+     and ($r.awaiting_issues == 5)
+     and ($r.awaiting_oldest == "2026-06-01T00:00:00Z")
+     and ($r.new_contributors_7d == [])
+     and ($r.health == null)
+     and (.data.nudges == []) and (.data.traffic == [])
+     and (.data.degraded_repos | length == 0)
+     and (.data.ledger.status == "not-configured")' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+GA4_PROPERTIES=\"main:123\"
+HEALTH_POST_DOW=$NOT_TODAY_DOW"
 
-# contributor-health-review, run 2: byte-identical numbers, so nothing
-# "moved" and the quarterly heartbeat has not elapsed — must suppress.
-assert_scenario "$ROOT/scripts/tasks/helper/contributor-health-review.sh" contributor-health-move false \
-  '(.data.quiet_heartbeat == true) and (.data.moved | length == 0) and (.data.first_run == false)' \
-  'COMMUNITY_REPOS="acme/demo"' 2
+# collect day, SOCIAL_DAILY=false: THE 0-TOKEN ASSERTION. With no social
+# row to append and nothing to post, the run must not wake at all — the CSV
+# rows are written by bash either way.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health false \
+  '(.data.mode == "collect") and (.data.degraded_repos | length == 0)' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+SOCIAL_DAILY=false
+HEALTH_POST_DOW=$NOT_TODAY_DOW"
 
-# dev-metrics-report, run 2: nothing changed between runs, and no approved PRs
-# this time, so the wake gate must SUPPRESS. Untestable without multi-run.
-assert_scenario "$ROOT/scripts/tasks/helper/dev-metrics-report.sh" dev-metrics-quiet false \
-  '.data.quiet_heartbeat == true' 'COMMUNITY_REPOS="acme/demo"' 2
+# collect day, run 2: run 1 seeded the known-contributors list from
+# /contributors (maintainer1, maintainer2, olddev) and reported nothing —
+# seeding is not "new". Run 2 diffs the week's merged-PR authors against it
+# and must surface exactly the three names that weren't there.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
+  '(.data.repos[0].new_contributors_7d | sort) == ["contribA","contribB","maintainer"]' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+HEALTH_POST_DOW=$NOT_TODAY_DOW" 2
+
+# post day: the contributor-health maths the script does so the agent never
+# has to — 20/6/4 merged across three authors is a 67% top-author share and
+# exactly two candidates at the 5-merged floor; 4 unmerged of 24 closed is
+# 0.17. GA4's three date ranges come back as current/previous_week/
+# previous_month so WoW and MoM are GA4's own windows, not two CSV rows.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
+  '.data.repos[0].health as $h
+   | (.data.mode == "post")
+     and ($h.merged_30d == 20) and ($h.unmerged_30d == 4)
+     and ($h.unmerged_ratio == 0.17)
+     and ($h.concentration.distinct_authors_90d == 3)
+     and ($h.concentration.top_author == "maintainer")
+     and ($h.concentration.top_author_share_pct == 67)
+     and ($h.concentration.candidates | length == 2)
+     and (.data.traffic[0].label == "main")
+     and (.data.traffic[0].status == "ok")
+     and (.data.traffic[0].current.activeUsers == 120)
+     and (.data.traffic[0].previous_week.activeUsers == 100)
+     and (.data.traffic[0].previous_month.sessions == 110)' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+GA4_PROPERTIES=\"main:123\"
+HEALTH_POST_DOW=$TODAY_DOW"
+
+# post day, GA4 unreachable: the traffic entry must say so rather than
+# vanish — a missing series and a failed fetch are different reports.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
+  '(.data.traffic[0].status == "fetch-failed") and (.data.traffic[0].property_id == "999")' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+GA4_PROPERTIES=\"999\"
+HEALTH_POST_DOW=$TODAY_DOW" 1 \
+  'sed -i.bak "/analyticsdata/d" "$SANDBOX/.fixtures/routes.txt"'
 
 # posthog-weekly-review is removed for now (never got working end to end).
 # If it comes back, restore this scenario: byte-identical insight results
 # across two runs must suppress, and previous_result must be populated from
 # history on run 2 — the exact bug the 28-day heartbeat fix addressed, since a
 # 7-day heartbeat on a weekly cron made this assertion impossible to satisfy.
-
-# good-first-issue-health: only the unassigned AND stale issue is listed;
-# truncated must be true because total_count (150) > items returned (3).
-assert_scenario "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" gfi-stale true \
-  '.data.results[0] as $r
-   | ($r.open_count == 150) and ($r.truncated == true)
-     and ($r.unassigned_stale | length == 1)
-     and ($r.unassigned_stale[0].number == 10)
-     and (.data.first_run == true)' \
-  'COMMUNITY_REPOS="acme/demo"'
-
-# good-first-issue-health, run 2: THE 0-TOKEN ASSERTION. This gate used to
-# wake on every single run while the docs claimed it only woke when there was
-# something to report — one of two "script-gated" tasks that never actually
-# suppressed anything. Same fixture twice means an identical pipeline, which
-# must cost no wake at all; a starved pipeline is slow-moving by nature (the
-# staleness cutoff alone is 14 days), so "same as last week" is the common
-# case and narrating it is pure cost.
-assert_scenario "$ROOT/scripts/tasks/helper/good-first-issue-health.sh" gfi-stale false \
-  '(.data.status == "quiet") and (.data.first_run == false)
-   and (.data.failed_repos | length == 0)' \
-  'COMMUNITY_REPOS="acme/demo"' 2
 
 # docs-gap-review: pure local-file logic, previously the ONLY gate with no
 # behavioral coverage at all. Ledger seeded with one topic 4× inside the
@@ -972,27 +961,34 @@ assert_scenario "$ROOT/scripts/tasks/helper/docs-currency-watch.sh" docs-merges 
   'COMMUNITY_REPOS="acme/crm"
 DOCS_REPO="acme/docs"' 2
 
-# --- 2d. ledger-publish: real git, not a mock ------------------------------
-# This is the only task that WRITES to a remote, and the data it writes is the
-# one thing in the system that cannot be regenerated. A mocked git would prove
-# nothing about the cases that actually matter, so this runs against a real
-# local bare repo and asserts on the resulting refs and trees:
+# --- 2d. project-health ledger: real git, not a mock -----------------------
+# The ledger step is the only place the system WRITES to a remote, and the
+# data it writes is the one thing that cannot be regenerated. A mocked git
+# would prove nothing about the cases that actually matter, so this runs the
+# real script against a real local bare repo and asserts on the resulting
+# refs and trees:
 #
 #   * the default branch is never touched
 #   * the metrics branch is an ORPHAN (no product history dragged along)
+#   * today's row is READ BACK from the branch and matched against the local
+#     file — "push returned 0" and "the row is on GitHub" are different claims
 #   * a clean tree with an UNPUSHED commit still pushes — the bug that would
-#     otherwise report "no change since the last publish" forever while the
-#     history never actually reached the repo
+#     otherwise report success forever while the history never reached the
+#     repo
 #   * a diverged remote is NEVER force-overwritten
 #   * only the curated numeric series are published, never a conversational
 #     ledger that happens to sit in the same directory
+#
+# GitHub itself is stubbed out (a curl that always fails): the run is fully
+# degraded on the metrics side, which is exactly what must NOT stop the
+# ledger from publishing whatever history already exists.
 ledger_case() {
   local sh="$1" label="$2"
   local t; t=$(mktemp -d)
 
   # HERMETIC GIT, and this is not optional hygiene — it was a real flaky
   # failure. Setting commit.gpgsign=false on the seed repo is not enough,
-  # because ledger-publish creates its OWN clone internally and that one
+  # because the script creates its OWN clone internally and that one
   # inherits the HOST's global config. On a machine with commit signing on
   # (e.g. 1Password SSH signing), every commit the script made failed with
   # "the tree changed but the commit was refused" whenever the agent happened
@@ -1024,30 +1020,43 @@ GITCFG
   git -C "$t/seed" add -A; git -C "$t/seed" commit -qm init; git -C "$t/seed" branch -M main
   git -C "$t/seed" remote add origin "$t/remote.git"; git -C "$t/seed" push -q origin main
 
-  mkdir -p "$t/data"
+  mkdir -p "$t/data" "$t/bin"
+  printf '#!/bin/bash\nexit 22\n' > "$t/bin/curl"; chmod +x "$t/bin/curl"
+  printf 'COMMUNITY_REPOS="acme/demo"\nHEALTH_POST_DOW=%s\n' "$NOT_TODAY_DOW" > "$t/data/config.env"
   printf 'date,repo,stars,forks,open_issues,open_prs,new_contrib_7d,await_issues,await_oldest,rel_latest,dl_latest\n2026-01-01,acme/demo,1,2,3,4,0,5,,v1,10\n' > "$t/data/metrics-history.csv"
   # The live follower series is the CSV; the .jsonl is the frozen pre-CSV
   # archive. BOTH must publish — shipping only the current format would
   # silently orphan the older half of the one series nothing can rebuild.
   printf 'date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes\n2026-01-01,190,,17,34,88,,,\n' \
     > "$t/data/social-metrics-history.csv"
-  printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.csvl"
+  printf '{"date":"2026-01-01","x":1}\n' > "$t/data/social-metrics-history.jsonl"
   printf 'date,activeUsers,sessions,pageViews,engagementRate\n2026-01-01,10,12,30,0.5\n' > "$t/data/traffic-history-main.csv"
   # a file that must never be published, whichever agent runs
   echo 'private' > "$t/data/owner-instructions.jsonl"
 
+  # Three seams: plugin-data → sandbox; the clone URL → the local bare repo;
+  # the raw.githubusercontent read-back → `git show` on that same bare repo,
+  # which is the honest local equivalent of "what is on the branch upstream".
   sed -e "s#/workspace/agent/plugin-data/community-helper#$t/data#" \
-      -e "s#https://github.com/\$REPO.git#$t/remote.git#" "$sh" > "$t/run.sh"
+      -e "s#https://github.com/\$REPO_L.git#$t/remote.git#" \
+      -e "s#curl -fsS --max-time 10 \"https://raw.githubusercontent.com/\$REPO_L/\$BRANCH/\$SUBDIR/metrics-history.csv\"#git -C \"$t/remote.git\" show \"\$BRANCH:\$SUBDIR/metrics-history.csv\"#" \
+      "$sh" > "$t/run.sh"
+  grep -q 'raw.githubusercontent' "$t/run.sh" \
+    && fail "$label: read-back seam did not match — the raw-content URL in the script changed shape" || pass
 
-  # unconfigured: silent
-  local out; out=$(cd "$t" && bash "$t/run.sh" 2>/dev/null | tail -1)
-  printf '%s' "$out" | jq -e '.wakeAgent == false and .data.status == "not-configured"' >/dev/null 2>&1 \
-    && pass || fail "$label/unconfigured: expected a silent not-configured, got: $out"
+  run_it() { (cd "$t" && PATH="$t/bin:$PATH" bash "$t/run.sh" 2>/dev/null | tail -1); }
+  local out
 
-  # first publish
-  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
-  printf '%s' "$out" | jq -e '.wakeAgent == false and .data.status == "published"' >/dev/null 2>&1 \
-    && pass || fail "$label/first-publish: expected published, got: $out"
+  # LEDGER_REPO unset: the ledger step reports not-configured and nothing else breaks
+  out=$(run_it)
+  printf '%s' "$out" | jq -e '.data.ledger.status == "not-configured"' >/dev/null 2>&1 \
+    && pass || fail "$label/unconfigured: expected ledger not-configured, got: ${out:0:200}"
+
+  # first publish: pushed AND today's row read back from the branch
+  printf 'LEDGER_REPO="acme/metrics"\n' >> "$t/data/config.env"
+  out=$(run_it)
+  printf '%s' "$out" | jq -e '.data.ledger.status == "published-and-verified"' >/dev/null 2>&1 \
+    && pass || fail "$label/first-publish: expected published-and-verified, got: $(printf '%s' "$out" | jq -c .data.ledger 2>/dev/null)"
 
   # default branch untouched
   [ "$(git -C "$t/remote.git" ls-tree -r --name-only main)" = "README.md" ] \
@@ -1057,10 +1066,10 @@ GITCFG
   [ "$(git -C "$t/remote.git" rev-list --count agent-metrics)" = "1" ] \
     && pass || fail "$label: metrics branch is not an orphan (it inherited the repo's history)"
 
-  # all three curated series published, and nothing conversational
+  # every curated series published (both social formats), nothing conversational
   published=$(git -C "$t/remote.git" ls-tree -r --name-only agent-metrics)
   missing=""
-  for want in metrics-history.csv social-metrics-history.csv social-metrics-history.csvl traffic-history-main.csv; do
+  for want in metrics-history.csv social-metrics-history.csv social-metrics-history.jsonl traffic-history-main.csv; do
     printf '%s' "$published" | grep -q "$want" || missing="$missing $want"
   done
   [ -z "$missing" ] && pass || fail "$label: curated series not published:$missing"
@@ -1070,29 +1079,26 @@ GITCFG
     pass
   fi
 
-  # unchanged: silent, no new commit
-  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
-  printf '%s' "$out" | jq -e '.data.status == "ok"' >/dev/null 2>&1 \
-    && pass || fail "$label/unchanged: expected a quiet ok, got: $out"
+  # the row on the branch IS today's local row (the read-back compared the
+  # same thing the script did — assert it independently here)
+  [ "$(git -C "$t/remote.git" show agent-metrics:agent-metrics/metrics-history.csv | tail -n 1)" = "$(tail -n 1 "$t/data/metrics-history.csv")" ] \
+    && pass || fail "$label: last row on the branch is not the last local row"
 
   # THE REGRESSION: an unpushed commit with a clean tree must still publish.
   # Simulated by deleting the remote branch, leaving the local commit orphaned.
   git -C "$t/remote.git" branch -D agent-metrics >/dev/null 2>&1
-  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
-  printf '%s' "$out" | jq -e '.data.status == "published"' >/dev/null 2>&1 \
-    && pass || fail "$label/unpushed-recovery: a clean tree with an unpushed commit must still push, got: $out"
+  out=$(run_it)
+  printf '%s' "$out" | jq -e '.data.ledger.status == "published-and-verified"' >/dev/null 2>&1 \
+    && pass || fail "$label/unpushed-recovery: a clean tree with an unpushed commit must still push, got: $(printf '%s' "$out" | jq -c .data.ledger 2>/dev/null)"
 
   # a diverged remote must be reported, never force-overwritten
-  local before
   git -C "$t/seed" fetch -q origin agent-metrics
   git -C "$t/seed" checkout -q -B agent-metrics FETCH_HEAD
   echo tampered > "$t/seed/outside-change.txt"
   git -C "$t/seed" add -A; git -C "$t/seed" commit -qm outside
   git -C "$t/seed" push -q origin agent-metrics
-  before=$(git -C "$t/remote.git" rev-parse agent-metrics)
-  printf '2026-01-02,acme/demo,2,2,3,4,0,5,,v1,11\n' >> "$t/data/metrics-history.csv"
   printf '2026-01-02,191,,17,35,89,,,\n' >> "$t/data/social-metrics-history.csv"
-  out=$(cd "$t" && LEDGER_REPO=acme/metrics bash "$t/run.sh" 2>/dev/null | tail -1)
+  out=$(run_it)
   # Either it published on top of the outside commit (a fast-forward, fine) or
   # it reported a failure — what it must NEVER do is drop the outside commit.
   if git -C "$t/remote.git" ls-tree -r --name-only agent-metrics | grep -q 'outside-change.txt'; then
@@ -1105,7 +1111,7 @@ GITCFG
   # sections, which run real git against the real repo.
   unset GIT_CONFIG_GLOBAL GIT_CONFIG_SYSTEM
 }
-ledger_case "$ROOT/scripts/tasks/helper/ledger-publish.sh" "ledger-publish"
+ledger_case "$ROOT/scripts/tasks/helper/project-health.sh" "project-health/ledger"
 
 # --- 2e. local telemetry: every gate must log its own run, on every path ---
 # Every gate script mirrors its one-line JSON output to

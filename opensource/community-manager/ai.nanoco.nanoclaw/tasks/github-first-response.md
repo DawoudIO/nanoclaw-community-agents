@@ -27,7 +27,7 @@ script: |
   # --- local telemetry (best-effort; never blocks the gate) -------------------
   # Mirrors this gate's one-line JSON output to a local per-task log so the
   # owner can review wake/error patterns weekly and adjust gates or budgets.
-  # Not published anywhere (unlike ledger-publish's series) and not a source
+  # Not published anywhere (unlike project-health's series) and not a source
   # of truth -- a background pipe means a very fast exit can occasionally drop
   # the last line, an accepted trade for never risking the gate's real output
   # or exit code.
@@ -239,8 +239,7 @@ the clock.
 
 - **Don't triage here.** Duplicate hunting, staleness, labelling and the digest
   belong to `github-ops-triage` — **that task lives on the helper
-  (Helper), not on you**, if one is stamped; your own `daily-github-triage`
-  is the standalone fallback, meant to stay paused whenever Helper's exists.
+  (Helper), not on you**. You have no triage task of your own.
   **Before creating a `github-ops-triage`-named task on yourself because you
   don't see one in your own task list**: check whether the helper
   already has it — ask it directly, or have it confirm via its own task list —

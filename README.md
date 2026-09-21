@@ -8,7 +8,7 @@ on GitHub or Discord.
 | Template | Role | Model | Public voice |
 |---|---|---|---|
 | [`opensource/community-manager`](opensource/community-manager/) | Manager — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes, the only full one** |
-| [`opensource/community-helper`](opensource/community-helper/) | Helper — issue/PR triage, security advisories, docs currency, repo and contributor health, and every number the project tracks (dev metrics, traffic, followers); holds the line when the manager is rate-limited | Claude Haiku | Holding replies only |
+| [`opensource/community-helper`](opensource/community-helper/) | Helper — issue/PR triage, security advisories, docs currency, and every number the project tracks (dev metrics, contributor health, traffic, followers); holds the line when the manager is rate-limited | Claude Haiku | Holding replies only |
 
 The manager works standalone and stamps the Helper itself, during setup, once
 it knows which jobs you want. Each template's own README has the detail.
@@ -92,8 +92,8 @@ pull/restamp/restore steps.
 - No migration runbook, by design: every install is fresh, driven by the
   welcome interview. Revoke the old deployment's credentials once the new
   one is verified live.
-- This template set was extracted from a real deployment (ChurchCRM's
-  community agent) and generalized.
+- This template set was extracted from a real open-source project's
+  community-agent deployment and generalized.
 
 > This README, `docs/`, and `UPSTREAM-ISSUES.md` are for this staging repo
 > only. A PR to `nanocoai/nanoclaw-templates` carries just the two template

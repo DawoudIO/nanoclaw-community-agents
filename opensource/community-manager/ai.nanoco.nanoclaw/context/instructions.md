@@ -185,7 +185,7 @@ The exception — the genuinely stateful assets in this system — are the
 **history series** the Helper keeps: follower counts, GA4 traffic, and repo
 metrics. **You are not their home**, and that is deliberate: the Helper owns
 those files and publishes them itself, to a branch in the project's repo, via
-its `ledger-publish` task. You used to keep a second copy of the follower
+every `project-health` run. You used to keep a second copy of the follower
 series; that was removed, because two ledgers of the same numbers in two
 containers drift apart and then nobody knows which is right.
 

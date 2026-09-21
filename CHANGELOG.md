@@ -100,6 +100,30 @@ repo. Tomorrow's rebuild is the first time any of this reaches production.
 
 ### Added
 
+- **`project-health`** (Helper, daily): the one metrics task. Replaces six
+  (`dev-metrics-report`, `contributor-health-review`,
+  `social-metrics-snapshot`, `weekly-analytics-report`, `ledger-publish`,
+  `contributor-nudge`) that each fetched their own numbers on their own
+  schedule and woke the model separately. Same CSVs, same schemas — one
+  fan-out, one run. `collect` mode every day (bash appends the GitHub rows;
+  the model wakes only to read follower pages and append one social row —
+  `SOCIAL_DAILY=false` makes that day 0-token), `post` mode once a week
+  (`HEALTH_POST_DOW`, default Monday: contributor health, return-nudge
+  candidates, GA4 traffic, and the two status posts — dev numbers to the
+  developer tier, social + traffic to the team-lead tier). Daily rows are
+  the point: week-over-week and month-over-month come from real series,
+  and the agent answers "how's the project doing" on a Wednesday from
+  `tail`/`grep` on the CSV instead of a fresh fetch.
+- **Ledger read-back.** After pushing the history CSVs to `LEDGER_BRANCH`,
+  `project-health` fetches today's `metrics-history.csv` row back from
+  GitHub and compares it to the local row — `published-and-verified` vs
+  `published-unverified` in its output. A push that returns 0 and a row a
+  human can see on the branch are different claims; this system once had
+  to verify the second by hand.
+- **`owner-instruction-watch`** (Manager, weekly): the dropped-ack safety
+  net the persona always claimed but never had — flags any `received`
+  owner instruction in the ledger with no `done`/`blocked`/`dropped` after
+  24h. Cannot see instructions that were never ledgered at all.
 - **`token-audit.sh`**, shipped at each template's root (next to
   `setup-check.sh`): a zero-LLM-cost tool the agent runs via Bash to answer
   "where are my tokens going" from the session transcript's own real
@@ -125,12 +149,38 @@ repo. Tomorrow's rebuild is the first time any of this reaches production.
   tracked against upstream nanocoai/nanoclaw#3716, with the fork-side fix
   pushed the same day.
 
+### Removed
+
+- **Nine recurring tasks** — 23 → 14. Measured before cutting: 12 of the 23
+  tasks (62% of the script code) were metrics or repo-ops, not community
+  support, and 7 of the 9 scripts debugged during the outage week were in
+  that group. Support is the mission; everything else had to justify a
+  scheduled wake.
+  - Folded into `project-health`: `dev-metrics-report`,
+    `contributor-health-review`, `social-metrics-snapshot`,
+    `weekly-analytics-report`, `ledger-publish`, `contributor-nudge`.
+  - Moved out of the agent entirely — `ready-to-merge`,
+    `good-first-issue-health`, `repo-hygiene-audit` are point-in-time
+    checks the maintainer asks for, not recurring support. They live on as
+    an on-demand `repo-health` skill in the project's own repo, run by
+    whatever agent is pointed at it.
+  - `daily-github-triage` (the Manager's standalone-mode fallback): gone.
+    `github-first-response` is the fast path; `github-ops-triage` is the
+    digest.
+  - `release-announcement-watch` (earlier in this release): a skill in the
+    project repo the owner invokes when they cut a release, not a poll.
+- **`GFI_LABEL`** config var — nothing reads it any more.
+
 ### Changed
 
+- **`github-ops-triage` runs weekly (Monday) instead of every 6 hours.**
+  It is a digest of things the Helper cannot act on itself; with
+  `github-first-response` answering new issues within 10 minutes, a 6-hour
+  digest was four wakes a day to say "same as this morning".
 - **Both personas trimmed** toward a ~200-line guideline — content moved to
   reference files, not deleted.
-- **Security hardening pass** on `ledger-publish` and
-  `weekly-analytics-report`.
+- **Security hardening pass** on the ledger publish step (now inside
+  `project-health`) and the GA4 fetch.
 - **All three human-facing READMEs simplified and fixed.**
 - **The GitHub triage digest format tightened** after reviewing real posted
   output: one fixed name instead of four different headers observed in

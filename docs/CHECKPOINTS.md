@@ -34,7 +34,7 @@ noticing.
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
 | 7 | Sub-agent relay | DM the manager: "ping the Helper and relay its answer" | It answers **through the manager** — that's its only outbound path for anything substantive. Its one channel wiring exists solely for the template-only holding acknowledgment it is forbidden to compose freely; nothing else it produces should ever appear in public |
 | 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
-| 9 | History publish actually pushed | Check the marketing repo's `agent-metrics` branch after the first `ledger-publish` run on **each** sub-agent | A commit from the bot exists under both `agent-metrics/helper/` and `agent-metrics/marketing/` (whichever agents you stamped); `tasks get` shows `published`. This is the only durable state in the system — a silent failure here is the one that costs data rather than a report |
+| 9 | History publish actually pushed | `tasks get` on the first `project-health` run and read `data.ledger.status` (also mirrored in `plugin-data/community-helper/telemetry/project-health.jsonl`) | `published-and-verified` — the script pushed today's `metrics-history.csv` row to `LEDGER_REPO`'s `agent-metrics` branch **and read it back from GitHub**, so the read-back is automatic; you don't need to open the branch. `published-unverified` once is raw-content lag; twice is a finding. `not-configured`, `clone-failed`, `push-failed` or `bad-config` mean stop: this is the only durable state in the system, and a silent failure here costs data rather than a report |
 | 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's per-agent footprint table; nothing extra |
 | 12 | Human backstop recorded | Ask the manager who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
@@ -84,36 +84,30 @@ Ten minutes, the morning after go-live:
 
 - **Heartbeat received**: the proof-of-life line arrived. If it didn't,
   investigate now — this is your outage detector and it must be known-good.
-- **Weekly reports landed and read sane**: dev report (now the narration half
-  only — stars/forks, first-response backlog, new contributors, return nudges),
-  GA4 if enabled. Numbers carry deltas and windows; `null`s are explained,
-  never silently zero.
-- **`ready-to-merge` is telling the truth, in both directions.** On its first
-  runs it must either list approved-and-open PRs you can click through and
-  verify on GitHub, or report that there are none — and you should confirm that
-  "none" is actually true rather than accepting it. A `partial-fetch-failure`
-  naming repos in `degraded_repos` is a token or allowlist finding, not a quiet
-  week; "nothing is waiting" and "I cannot see" must never arrive sounding the
-  same. Then check the following week's
-  resurface: an unchanged set is re-mentioned once weekly with
-  `resurfaced: true`, and it has to read as *"still waiting, no change since
-  last week"*. If a re-mention reads as new activity, the task teaches the
-  owner to skim it, which costs you the one thing it exists to catch.
-- **The follower snapshot landed, and then got published.** This one is worth
+- **`project-health`'s first post landed and reads sane**: dev numbers
+  (stars/forks, first-response backlog, new contributors, contributor health,
+  return nudges) to the developer tier; social + GA4 traffic (if enabled) to
+  the team-lead tier. Deltas are labelled by their real elapsed time — "WoW"
+  only when there really is a week of daily rows behind it, "not enough
+  history yet" otherwise; `null`s are explained, never silently zero. A
+  repo in `degraded_repos` is a token or allowlist finding, not a quiet week;
+  "nothing changed" and "I cannot see" must never arrive sounding the same.
+- **The follower row landed, and then got published.** This one is worth
   checking on both ends, because it's the only genuinely un-re-scrapable
-  series in the system. `social-metrics-snapshot` appends its line
-  to `plugin-data/community-helper/social-metrics-history.jsonl`, and
-  `ledger-publish` commits that file to the marketing repo's `agent-metrics`
-  branch. Confirm the line exists in the container's file *and* that the
-  branch has it. **A publish that silently stops leaves the local file still
-  growing, so the container's copy looking healthy proves nothing about
-  durability** — check both, or you haven't checked the thing that matters.
+  series in the system. On collect days `project-health` appends one line to
+  `plugin-data/community-helper/social-metrics-history.csv`, and the same run
+  commits that file to `LEDGER_REPO`'s `agent-metrics` branch. Confirm the
+  line exists in the container's file *and* that `ledger.status` reads
+  `published-and-verified` for that run. **A row the model never wrote leaves
+  the ledger status green** — the read-back checks `metrics-history.csv`, not
+  the social file — so check both, or you haven't checked the thing that
+  matters.
 - **Integrity check is quiet**: `weekly-identity-integrity-check` baseline
   initialized on its first run and no drift alarm since — unless you edited
   a task, in which case you got asked about exactly that edit (good).
-- **Publish cadence**: the `agent-metrics` branch shows a commit per day on
-  the days the numbers actually changed (`ledger-publish` stays silent when
-  nothing moved, so an unchanged day with no commit is correct, not a miss).
+- **Publish cadence**: the `agent-metrics` branch shows one commit per day —
+  `project-health` appends a dated row every run, so a day with no commit is
+  a miss, not a quiet day.
 - **Test the correction loop once, deliberately**: tell the manager to change
   one small behavior (e.g. "stop including X in the digest"). Verify it
   acks with a ledger number, applies it, and the change survives to the
@@ -166,8 +160,9 @@ Ten minutes, the morning after go-live:
 
 ## After month 1
 
-Steady state is: heartbeat weekly, reports on their cadence, the quarterly
-`repo-hygiene-audit`, and a vault re-audit whenever a credential changes.
+Steady state is: heartbeat weekly, reports on their cadence, the project
+repo's `repo-health` skill run on demand every quarter or so, and a vault
+re-audit whenever a credential changes.
 The recurring human jobs that never go away: approving drafts, sending the
 personal outreach the nudges suggest, and making the delegation decisions
 the concentration numbers surface — those are maintainer work, and the whole

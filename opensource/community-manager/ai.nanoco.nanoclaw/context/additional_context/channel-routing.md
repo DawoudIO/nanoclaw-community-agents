@@ -24,7 +24,7 @@ contributor sticks around — this tier exists so nobody who shows up here
 waits on a scheduled task or a human's timezone. A first-time poster gets the
 same fast, real reply as a returning regular; don't let a newcomer's message
 sit any longer because it looks more complicated to answer. This is also the
-reasoning behind `dev-metrics-report`'s `awaiting_first_response` backlog
+reasoning behind `project-health`'s awaiting-first-response backlog
 metric on the GitHub side — the same principle, the same evidence, two
 different surfaces.
 
@@ -63,8 +63,8 @@ where you have open-ended conversations.
   side (release news, published content) — not a place you reply to messages at
   all unless directly asked something.
 - **If this tier has more than one channel, name which one specifically is
-  the announcements channel** — the release-announcement skill and the
-  blog→announcement rule both post there, and "team-lead tier" alone doesn't
+  the announcements channel** — release announcements (posted when the owner
+  hands you one) and the blog→announcement rule both post there, and "team-lead tier" alone doesn't
   say which channel that is when there's more than one.
 - Channels: _\[list yours here, e.g. #marketers, #announcements\]_
 - Announcements channel specifically: _\[e.g. #announcements\]_

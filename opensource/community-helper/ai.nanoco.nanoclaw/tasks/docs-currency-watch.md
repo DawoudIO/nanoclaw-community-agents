@@ -22,7 +22,7 @@ script: |
   # --- local telemetry (best-effort; never blocks the gate) -------------------
   # Mirrors this gate's one-line JSON output to a local per-task log so the
   # owner can review wake/error patterns weekly and adjust gates or budgets.
-  # Not published anywhere (unlike ledger-publish's series) and not a source
+  # Not published anywhere (unlike project-health's series) and not a source
   # of truth -- a background pipe means a very fast exit can occasionally drop
   # the last line, an accepted trade for never risking the gate's real output
   # or exit code.
@@ -207,8 +207,8 @@ So every docs PR you open carries the version it belongs to:
 
 **When the release ships, these get merged** — that is the whole point of the
 version tag: at release time someone filters open docs PRs by milestone and
-merges the set. The manager's owner-invoked release-announcement skill surfaces them on a new
-release. You do not merge them yourself.
+merges the set. The project repo's own release-announcement skill (run by whoever
+cuts the release, not by an agent here) lists them. You do not merge them yourself.
 
 **If the version is already released** (the merge predates or matches
 `latest_release`), the docs are simply late — mark the PR ready for review

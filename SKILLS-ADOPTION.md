@@ -89,7 +89,7 @@ skipped as out of scope — Discord + GitHub + Claude is the design.
 
 | Skill | Trigger | Notes |
 |---|---|---|
-| `tavily` | An agent loses Claude's built-in search (i.e. is moved to a local model), or the manager needs structured page extraction | **Keyless** — fits default-to-free exactly; per-group scoping fits least-privilege. **Probably never needed**: these tasks don't search, they narrate what a gate already fetched, and the one task that reads pages itself (`social-metrics-snapshot`) opens *known* profile URLs — it needs no search index to find them. Adopt per-group only if a task ever has to *find* a page rather than open a named one; Claude-provider groups already have built-in search, so don't add it speculatively there either |
+| `tavily` | An agent loses Claude's built-in search (i.e. is moved to a local model), or the manager needs structured page extraction | **Keyless** — fits default-to-free exactly; per-group scoping fits least-privilege. **Probably never needed**: these tasks don't search, they narrate what a gate already fetched, and the one task that reads pages itself (`project-health`, on collect days) opens *known* profile URLs — it needs no search index to find them. Adopt per-group only if a task ever has to *find* a page rather than open a named one; Claude-provider groups already have built-in search, so don't add it speculatively there either |
 | `ollama` (tools, distinct from the provider) | Bilingual reply volume gets expensive | Offloads translation/summarization to a local model as a tool while the agent stays on Claude — a scalpel where `ollama-provider` is a hammer |
 | `rtk` | Only if interactive manager sessions show heavy bash-output token burn | 60–90% savings on dev-command output via a PreToolUse hook — but our gates already strip the bulk of command output before any model sees it, so expect modest gains here. Per-group, Claude-only |
 | `macos-statusbar` | Host is a Mac running NanoClaw as a host service | Green/red menu-bar dot + start/stop/restart + launch-on-login — directly softens "the session IS the system." **Applies as-is** to a launchd-managed NanoClaw, which is how this deployment runs |
@@ -161,8 +161,8 @@ re-proposed on vibes.
 script-gated, so the model wakes only when a gate found something to say —
 `github-ops-triage` on new or updated issues/PRs (~10–20/week),
 `security-advisory-sweep` only on a genuinely new advisory (~0–1),
-`contributor-health-review` only on a 10-point metric move or its quarterly
-heartbeat (~1). Run `bash scripts/gen-task-table.sh` for the full gated list.
+`project-health` for a small daily follower-count read plus one weekly post
+(~1 real composition). Run `bash scripts/gen-task-table.sh` for the full gated list.
 At a few thousand tokens of cached persona prefix per wake, on the cheapest
 tier, that isn't close to a budget problem — it *is* the noise floor.
 
@@ -176,13 +176,13 @@ judgment:
   reasoning, and a confidently-wrong local answer is worse than no answer.
 - `github-ops-triage` is the higher-volume one AND needs duplicate detection
   plus spotting security-shaped reports.
-- `contributor-health-review` exists to decide *why* a number moved (incoming
+- `project-health`'s contributor-health read exists to decide *why* a number moved (incoming
   low-quality PRs vs. maintainer burnout — opposite problems, same number),
   which is the reasoning a smaller model does worst.
 
 **3. Instruction-following at length is the first thing to degrade on small
-models, and a dropped rule here is nearly undetectable.** `dev-metrics-report`
-is the sharp case: a long prompt of conditional rules (degraded repos first,
+models, and a dropped rule here is nearly undetectable.** `project-health`'s
+weekly post is the sharp case: a long prompt of conditional rules (degraded repos first,
 `null` ≠ zero, the ratio sample floor, the sampled flag, name the
 contributors), where a silently-skipped rule doesn't look like an error —
 the manager reviews the *content*, not whether a rule was honored. Two
@@ -260,7 +260,7 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
      `security-review`.
    - **helper** — trailofbits (`semgrep`, `sharp-edges`) + `ghsa` for the
      advisory work; google's `google-analytics-data-api-basics` alongside
-     `weekly-analytics-report` (metric definitions are exactly the guardrail a
+     `project-health` (metric definitions are exactly the guardrail a
      narration task needs); the analyst pair (`pipeline-check`, `report-spec`)
      if `posthog-weekly-review` ever returns.
 2. Prefer the analyst template's many-small-skills layout over one mega-skill.
@@ -268,7 +268,7 @@ work sits exactly where the ecosystem is empty — keep maintaining it.
    vendored skills too) and restamp.
 4. Consider optional `mcp.json` entries: a community GA4 MCP server and
    PostHog's MCP — **GA4 on `local`, PostHog on the Helper**.
-   `weekly-analytics-report` and `posthog-weekly-review` both run there, and
+   `project-health` and `posthog-weekly-review` both run there, and
    local is the only agent holding the GA4 and PostHog credentials at all, so
    an entry on any other agent would be an MCP server with nothing to
    authenticate as. Placeholder credentials, and test whether OneCLI proxy

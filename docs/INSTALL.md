@@ -123,7 +123,7 @@ capability:
 | Agent | Job | Model | Public voice? | Required? |
 |---|---|---|---|---|
 | **Manager** (`opensource/community-manager`) | Talks to your community: replies, triage, escalation, release watch, docs review, relays the sub-agents | Claude Sonnet | **Yes — the only full one** | Always |
-| **Helper** (`opensource/community-helper`) — the Helper | Everything headless: issue/PR triage, security advisories, Dependabot review, docs-currency, repo and contributor health, dev metrics, web traffic, follower counts, and the holding acknowledgment when the manager is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the manager |
+| **Helper** (`opensource/community-helper`) — the Helper | Everything headless: issue/PR triage, security advisories, Dependabot review, docs-currency, dev metrics, contributor health, web traffic, follower counts, and the holding acknowledgment when the manager is rate-limited. Read-only + two narrow write paths (draft security patch PRs, the metrics-history branch) | Claude Haiku | Holding acknowledgments only — a receipt, never a resolution | Optional — but it takes the bulk of recurring work off the manager |
 
 **Nothing here writes content.** If you want posts, announcements or campaign
 copy, that stays with you and whoever you work with — this set measures and
@@ -353,7 +353,7 @@ to give each one, so you don't have to work it out live:
 | Token | Needs | Never |
 |---|---|---|
 | Manager | `repo`/`public_repo` — comments, labels, issues | `read:org`, `admin:*`, `delete_repo` |
-| Helper | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for draft security patches, plus Contents write on `LEDGER_REPO` for `ledger-publish` | Write on anything else; issue/PR comment rights |
+| Helper | `COMMUNITY_REPOS` read-only (+ Dependabot alerts), plus Contents+PRs write for draft security patches, plus Contents write on `LEDGER_REPO` for `project-health`'s ledger push | Write on anything else; issue/PR comment rights |
 
 If a future feature seems to need broader access, the fix is almost never
 "widen this token" — it's a new, narrower, single-purpose credential.
@@ -368,10 +368,10 @@ onecli agents list
 onecli agents set-secret-mode --id <agent-id> --mode selective   # ×3
 ```
 
-**Both sub-agents also need the `github.com` (git) host wired**, not just
+**The Helper also needs the `github.com` (git) host wired**, not just
 `api.github.com` — those are separate vault entry classes, and
-`ledger-publish` pushes a branch. Wiring only the REST host leaves the
-publish failing with `push-failed` while every other GitHub call works.
+`project-health` pushes a branch every run. Wiring only the REST host leaves
+it reporting `ledger.status: push-failed` while every other GitHub call works.
 
 Optionally add **request-hold approval rules** for anything you can never
 allow unattended (publishing, sending mail) — gating at the proxy is
@@ -380,7 +380,7 @@ enforcement no prompt can bypass.
 **Discord bot** needs, beyond the invite in §1a: nothing further in the
 vault — its token lives in `.env`, not here.
 
-**GA4** (only if you want `weekly-analytics-report`): enable the Google
+**GA4** (only if you want traffic in `project-health`'s weekly post): enable the Google
 Analytics Data API, OAuth credentials, grant **Viewer** on the property,
 note the numeric property ID. Don't enable the Admin API.
 
@@ -403,11 +403,11 @@ added, and nothing more.
 |---|---|---|---|
 | Manager | GitHub PAT | `api.github.com` | triage, docs-gap-review, release watch, identity check, live replies |
 | Helper | Gmail OAuth *(optional)* | `gmail.googleapis.com` | `inbox-check` |
-| Helper | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, contributor health, dev metrics, GFI health, hygiene audit |
-| Helper | same PAT, git protocol | `github.com` | `ledger-publish` (pushes the metrics-history branch) |
+| Helper | GitHub PAT | `api.github.com` | ops triage, advisory sweep, Dependabot review, docs-currency, `project-health` (repo numbers, contributor health, return nudges) |
+| Helper | same PAT, git protocol | `github.com` | `project-health` (pushes the metrics-history branch) |
 | Helper | — (nothing) | — | `unanswered-watch` — local session state only, which is why it keeps working when everything cloud-facing doesn't |
-| Helper | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `weekly-analytics-report` |
-| Helper | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `social-metrics-snapshot` |
+| Helper | GA4 OAuth *(optional)* | `analyticsdata.googleapis.com` | `project-health` (traffic, post day only) |
+| Helper | — (public reads only) | `x.com`, `www.linkedin.com`, etc. | `project-health` (follower counts) |
 
 A row that doesn't exist here is a finding: neither sub-agent appears against
 Discord, the manager never appears against GA4 or the social hosts, and no agent
@@ -446,8 +446,8 @@ parameters over the destination pairs from §1:
 
 | Sub-agent | Keys relayed into `config.env` |
 |---|---|---|
-| **Helper** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`) |
-| **Manager** (own) | `COMMUNITY_REPOS` (+ optional `RELEASE_WATCH_REPOS`) |
+| **Helper** | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `LEDGER_BRANCH`, `LEDGER_PATH`, `HEALTH_POST_DOW`, `SOCIAL_DAILY`, `NUDGE_MAX_CHECKS`) |
+| **Manager** (own) | `COMMUNITY_REPOS` |
 
 Plus `GITHUB_BOT_USERNAME`, held by both.
 
@@ -455,12 +455,14 @@ Plus `GITHUB_BOT_USERNAME`, held by both.
 payload, and a missing key isn't an error: the gate exits `not-configured`
 and goes back to sleep. Symptom: "stamped and never does anything," which
 reads like a broken agent and is an unrelayed key. `ACK_GRACE_MINUTES` (20
-min) and `LEDGER_BRANCH` (`agent-metrics`) have built-in defaults; nothing
-else does.
+min), `LEDGER_BRANCH` and `LEDGER_PATH` (both `agent-metrics`),
+`HEALTH_POST_DOW` (1 = Monday), `SOCIAL_DAILY` (`true`) and
+`NUDGE_MAX_CHECKS` (4) have built-in defaults; nothing else does.
 
 **`LEDGER_REPO` is the one that costs data if you skip it.** Without it
-`ledger-publish` can't run, and all three unrebuildable series live only
-inside the container until the next rebuild throws them away. Normally point
+`project-health` still collects, but reports `ledger.status: not-configured`
+and every unrebuildable series lives only inside the container until the
+next rebuild throws it away. Normally point
 it at the marketing repo — never the product repo, whose protected default
 branch and CI have no business receiving a daily metrics commit.
 
@@ -557,16 +559,20 @@ Resume order, safe → side-effect-adjacent:
    — safe once `COMMUNITY_REPOS` is set. `docs-gap-review` is safe from day
    one; it stays quiet until support work fills its ledger.
 3. **The Helper's gates**, once §3's relay has landed: `github-ops-triage`,
-   `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`,
-   `contributor-health-review`, `dev-metrics-report`, `ready-to-merge`,
-   `good-first-issue-health`, `repo-hygiene-audit`. `contributor-nudge` needs
-   `dev-metrics-report`'s ledger to have run twice first. Each exits
-   `not-configured` silently if its key is missing — resume, then check they
-   did something.
-4. **The history publish**, once `LEDGER_REPO` and the `github.com` (git)
-   credential are in place: `ledger-publish`. Run it once by hand and confirm
-   the branch actually lands — this is the one task whose silent failure costs
-   data rather than a report.
+   `security-advisory-sweep`, `dependabot-pr-review`, `docs-currency-watch`.
+   Each exits `not-configured` silently if its key is missing — resume, then
+   check they did something.
+4. **`project-health`**, once `LEDGER_REPO` and the `github.com` (git)
+   credential are in place, and — if you want follower counts — a
+   page-reading tool is confirmed in the Helper's container (Claude's
+   built-in web fetch or
+   [`agent-browser`](https://nanoclaw.dev/skills/agent-browser); set
+   `SOCIAL_DAILY=false` until it is). Run it once by hand and read
+   `ledger.status` in `tasks get`: it must say `published-and-verified` —
+   the script reads today's row back from GitHub itself. This is the one
+   task whose silent failure costs data rather than a report. GA4 traffic
+   rides on the same task once `GA4_PROPERTIES` is set; nothing extra to
+   resume.
 5. **The Helper's `inbox-check`**, once the Gmail read-only credential is
    wired AND an email MCP is connected to the manager's own group. Its gate
    needs `INBOX_ENABLED="true"` in the Helper's `config.env` — without that
@@ -574,16 +580,10 @@ Resume order, safe → side-effect-adjacent:
    many projects with no shared inbox. Optional knobs: `INBOX_QUERY`
    (default `is:unread newer_than:7d`), `INBOX_RETRY_HOURS` (24),
    `INBOX_MAX_RETRIES` (2).
-6. **The always-wake task last** — nothing stops it burning a wake on an
-   unconfigured service: `social-metrics-snapshot`, only once a page-reading
-   tool is confirmed in the Helper's container (Claude's built-in web fetch
-   or [`agent-browser`](https://nanoclaw.dev/skills/agent-browser)).
-7. **The weekly reports**: `weekly-analytics-report` — also an every-run
-   wake, but weekly and on Haiku, so it's the cheap one.
-8. **Never run both** the manager's `daily-github-triage` and the helper
-   agent's `github-ops-triage` — the former is the manager's standalone
-   fallback; running both double-reports every issue. Pause it when you
-   stamp the helper.
+
+Approved-but-unmerged PRs, stale good-first-issues and missing
+community-health files are not scheduled tasks — run the project repo's
+`repo-health` skill on demand when you want that check.
 
 ### The manager switches itself to Sonnet — expect one restart
 

@@ -14,7 +14,7 @@ script: |
   #
   # The gate was assumed impossible on the theory that a mailbox is only
   # reachable through the agent's email MCP. That was wrong:
-  # weekly-analytics-report already proves a bash gate can call a Google API
+  # project-health (GA4) already proves a bash gate can call a Google API
   # through the same proxy that injects the agent's own bearer, so Gmail's REST
   # API is reachable here on the identical path.
   #
@@ -32,7 +32,7 @@ script: |
   # --- local telemetry (best-effort; never blocks the gate) -------------------
   # Mirrors this gate's one-line JSON output to a local per-task log so the
   # owner can review wake/error patterns weekly and adjust gates or budgets.
-  # Not published anywhere (unlike ledger-publish's series) and not a source
+  # Not published anywhere (unlike project-health's series) and not a source
   # of truth -- a background pipe means a very fast exit can occasionally drop
   # the last line, an accepted trade for never risking the gate's real output
   # or exit code. IDs only, never mail content — see the header.

@@ -33,7 +33,7 @@ underneath you.
 ## 2. The lesson a real install paid for: "0 failed" is not "worked"
 
 A task can complete with no error and still have produced garbage — a real
-install had `weekly-analytics-report` log 3 runs / 0 failed while every one
+install had its GA4 report task (since folded into `project-health`) log 3 runs / 0 failed while every one
 of those runs actually hit `"status": "GA4 fetch failed"` internally (a
 missing `jq` silently broke the parse step downstream of a *successful* API
 call). The task-runner's own success/failure count only means "the process

@@ -14,10 +14,10 @@ Route by audience, not by which agent produced it:
 
 | Report | Destination | Cadence |
 |---|---|---|
-| Dev metrics, ready-to-merge, GFI health, contributor health | developer tier (`#dev-*`) | its own schedule, posted when it fires |
+| Dev metrics + contributor health (`project-health`, dev post) | developer tier (`#dev-*`) | weekly, on `project-health`'s post day |
 | Security advisories | the security channel named in `channel-routing.md` | when it fires — never batched |
 | Release announcements, published content | the announcements channel | when it fires |
-| Traffic/analytics, follower counts, content drafts | team-lead tier | its own schedule |
+| Traffic/analytics + follower counts (`project-health`, team-lead post), content drafts | team-lead tier | weekly, same post day — one message |
 | Repo hygiene, docs gaps | developer tier | its own schedule |
 | **Escalations, decisions, system-broken, anything needing the owner** | **owner DM** | see the digest below |
 | **Any process/fetch error** — a scripted task's gate reporting `fetch-failed`, an auth/token problem, a crash, or any other "this task itself is broken" condition | **owner DM — never a channel** | immediately, never batched into a digest |
@@ -216,66 +216,59 @@ each one.
 ```
 📊 <Project> Dev Report — <date>
 
-🟢 Ready to merge (approved, just waiting)
-<PR #, title, author> — <link> — waiting Nd
-(or: "none — nothing approved is sitting idle" if empty)
-
-Stars / Forks / Open issues / Open PRs — each with (+/-N) vs previous run
-Downloads per recent release: cumulative AND daily delta (+N / total)
-Awaiting first response: N issues / N PRs never commented on (oldest: <date>)
+Stars / Forks / Open issues / Open PRs — each with (+/-N) WoW and MoM from the daily rows
+Downloads for the latest release: cumulative AND weekly delta (+N / total)
+Awaiting first response: N issues never commented on (oldest: <date>)
 Closed PRs (30d): merged vs. unmerged — ratio only if 5+ total
+Contributor concentration: top author N% of M distinct authors (90d) — a finding only when M is large
 New contributors this week — named, not just counted
 Return-nudge: <contributor> — first contribution <N>d ago, no second one yet
 ```
 
-**"Ready to merge" leads the report, above the trend numbers** — see
-`dev-metrics-report`'s own framing for why: a reviewed, approved PR sitting
-unmerged means a contributor cleared every bar and nothing happened next,
-which is worse than a slow first response. This is the one place per-PR
-detail belongs directly in this report (unlike the items below), because
-`dev-metrics-report` computes it itself, by number/title/author/link — it
-isn't reconstructed from memory or duplicated from another task's output.
+This is what `project-health` posts on its weekly post day, from
+`metrics-history.csv` plus that run's script output — nothing in this
+skeleton should ever be a number the agent had to guess or reconstruct from
+memory. Release download deltas come from the metrics history (cumulative
+counts are not retroactively fetchable — the gate stores them; treat like the
+follower series). `null` = fetch failed that day, never zero. Deltas are
+labelled by real elapsed time, same rule as the follower report below.
 
-Every other line here comes from `dev-metrics-report`'s own script output —
-nothing in this skeleton should ever be a number the agent had to guess or
-reconstruct from memory. Release download deltas come from the metrics
-history (cumulative counts are not retroactively fetchable — the gate stores
-them; treat like the follower series). `null` = fetch failed that day, never
-zero.
-
-**Everything else per-PR/issue and security advisories are separate reports,
-not extra lines bolted onto this one:**
+**Everything per-PR/issue and security advisories are separate reports, not
+extra lines bolted onto this one:**
 - Narrative on *recently active* issues and PRs (duplicates, maintainer
-  questions, security-shaped reports listed first) comes from the triage
-  digest (`daily-github-triage`/`github-ops-triage`) — that's where per-item
-  judgment already lives. Note the triage digest only sees items updated
-  since its last run; it cannot see items that went quiet.
+  questions, security-shaped reports listed first) comes from the Helper's
+  weekly `github-ops-triage` digest — that's where per-item judgment already
+  lives. Note the triage digest only sees items updated since its last run;
+  it cannot see items that went quiet.
 - Currently open security advisories are `security-advisory-sweep`'s job —
   it wakes the agent specifically when one needs judgment, which is a better
-  signal than a static count sitting unread in a daily metrics message.
-- The good-first-issue funnel — including *stale* beginner-friendly issues —
-  is `good-first-issue-health`'s own weekly report, not a line here.
+  signal than a static count sitting unread in a metrics message.
+- Approved-but-unmerged PRs, the good-first-issue funnel (including *stale*
+  beginner-friendly issues) and missing community-health files are the
+  **`repo-health` skill in the project repo** — point-in-time checks run on
+  demand, not lines here. If asked, say exactly that: "that's a repo-health
+  skill check, run it in the repo."
 - There is deliberately **no general stale-issue sweep and no "bug issues
   opened this week" count**: no task computes them, so no report may claim
-  them. The closest real signals are the awaiting-first-response backlog
-  (this report) and the GFI staleness check (weekly). If the owner wants a
-  broader stale-issue review, that's a task to propose, not a number to
-  improvise.
+  them. The closest real signal is the awaiting-first-response backlog (this
+  report). If the owner wants a broader stale-issue review, that's a task to
+  propose, not a number to improvise.
 
-Keep the dev report to what it's good at: the numbers (and the one
-already-approved-PR list) that only make sense as a trend line.
+Keep the dev report to what it's good at: the numbers that only make sense
+as a trend line.
 
 If the full report exceeds Discord's ~2,000-character message limit, post it
 as a downloadable `.md` attachment with the headline numbers in the message
 body — never a multi-message wall, never silent truncation (see
 `discord-mechanics.md`).
 
-## Social follower report (from social-metrics-snapshot)
+## Social follower report (`project-health`, team-lead post)
 
 **Send this in the same weekly message as the GA4 traffic report, not as a
-second, separate one** — both are team-lead-tier, both fire the same week
-(see the routing table above), and a maintainer reading one wants the other
-right next to it, not in a different message five minutes apart.
+second, separate one** — both are team-lead-tier, both come out of the same
+`project-health` post-day run (see the routing table above), and a maintainer
+reading one wants the other right next to it, not in a different message five
+minutes apart.
 
 ```
 📈 Follower snapshot — <date>
@@ -287,7 +280,7 @@ context if you have it, e.g. "the week the LinkedIn push went out">
 ```
 
 **Label every delta by its actual elapsed time, never a fixed "WoW"/"MoM"
-assumption** — this task's schedule isn't necessarily weekly, and printing
+assumption** — the comparison row is whichever daily row is nearest, and printing
 "WoW" on what's actually a 1-day delta is a real, observed mislabeling bug
 (the numbers were fine, the label lied about the window). Only call
 something "WoW"/"MoM" when the comparison line genuinely is ~7 or ~28-30

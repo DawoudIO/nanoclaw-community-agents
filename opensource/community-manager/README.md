@@ -55,8 +55,7 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 7 tasks, all created paused
-│       ├── daily-github-triage.md                     # weekday digest, drafts only — standalone-mode fallback
+│   └── tasks/                                         # 6 tasks, all created paused
 │       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
 │       ├── github-first-response.md      # every 10 min: new, unanswered
 │       ├── owner-tldr.md                # the ONE daily digest to the owner
@@ -80,8 +79,7 @@ community-manager/
 `docs-gap-review` lives here for a mechanical reason worth remembering before
 moving any task between agents: it reads `question-ledger.csv`, which only
 the manager writes, and no agent can read another agent's plugin-data — so in the
-Helper it was permanently dead. `daily-github-triage` likewise belongs to the
-manager (see the note under *Full setup* about leaving it paused).
+Helper it was permanently dead.
 
 **There is no health-check or workspace-backup task in this set, by design.**
 A health check that cannot fix what it finds, reporting via a heartbeat whose
@@ -89,9 +87,9 @@ A health check that cannot fix what it finds, reporting via a heartbeat whose
 container cannot report its own death anyway. A whole-workspace backup is a
 write-only cost when nothing ever restores from it, which is the case here:
 the system is rebuilt from the templates and nothing reimports container
-state. What covers the real risk instead is narrower: `ledger-publish` (on the
-Helper) commits the three series that genuinely cannot be rebuilt into a
-branch of the project's repo.
+state. What covers the real risk instead is narrower: `project-health` (on the
+Helper) commits the series that genuinely cannot be rebuilt into a branch of
+the project's repo on every run, and reads them back.
 
 ## Channel tiers
 
@@ -116,7 +114,7 @@ On the owner's first DM, the `welcome` skill runs setup end to end:
    the rest.
 3. Persists everything to `plugin-data/community-manager/`
    (`project-config.md` + `config.env` — the latter carries
-   `COMMUNITY_REPOS` for the standalone triage gate).
+   `COMMUNITY_REPOS` for the `github-first-response` gate).
 4. Relays each stamped sub-agent's config into *its own* `config.env`.
 5. Walks credential setup with real verification calls.
 6. Gates task activation on your explicit go.
@@ -131,16 +129,15 @@ agent's file — this is the one relay to get right:
 
 | Sub-agent | Keys the manager relays |
 |---|---|
-| `opensource/community-helper` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `GFI_LABEL`, `LEDGER_BRANCH`, `INBOX_ENABLED`, `INBOX_QUERY`, `INBOX_MAX_RESULTS`) |
+| `opensource/community-helper` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `LEDGER_BRANCH`, `LEDGER_PATH`, `HEALTH_POST_DOW`, `SOCIAL_DAILY`, `NUDGE_MAX_CHECKS`, `INBOX_ENABLED`, `INBOX_QUERY`, `INBOX_MAX_RESULTS`) |
 
 There is only one relay now, and it carries nearly every key in the system —
 the Helper owns most of the tasks (run `bash scripts/gen-task-table.sh --counts`
 for the current split), so an unrelayed key here is the single largest source
 of "stamped and never does anything."
 
-This agent also owns its own `COMMUNITY_REPOS` plus an optional
-`RELEASE_WATCH_REPOS`, which narrows the release-announcement skill to a
-subset of it. `GITHUB_BOT_USERNAME` is set in both agents.
+This agent also owns its own `COMMUNITY_REPOS`. `GITHUB_BOT_USERNAME` is set
+in both agents.
 
 `inbox-check` is opt-in and off by default: its gate needs
 **`INBOX_ENABLED="true"`** before it will fire at all, which is the right
@@ -211,19 +208,16 @@ the config its README lists, and resume deliberately — that's the
 rebuild-cheaply property: the whole system is a stamp plus a handful of
 `resume` calls, and tearing it down is deleting two groups.
 
-**If you stamp the Helper, leave the manager's `daily-github-triage`
-paused.** `daily-github-triage` exists for manager-standalone deployments;
-`github-ops-triage` covers the same ground at a higher cadence (every 6
-hours versus a weekday digest). Running both double-reports every issue,
-silently:
-
-- They live in *different* agents now, so they don't share a cursor file.
-- Each tracks "already reported" only in its own plugin-data.
-- Neither can see that the other already reported an issue.
+**The manager has no triage digest of its own.** `github-first-response` is
+the fast path — it comments on new, unanswered issues — and the Helper's
+weekly `github-ops-triage` is the digest. Standalone, without the Helper, the
+manager still answers what comes in; nothing summarizes the week for it, and
+there is deliberately no second task that would report the same issues twice
+from two cursor files that can't see each other.
 
 **There is no workspace backup anywhere in this set, by design.** See the note
 under *Configuration* above: the only state worth preserving is published by
-`ledger-publish` on the Helper, and everything else is meant to be rebuilt.
+`project-health` on the Helper, and everything else is meant to be rebuilt.
 
 **Script dependencies:** `bash`, `curl`, `jq`, and `ncl`. Verify with `ncl
 tasks run <task-id>` before resuming.
@@ -247,7 +241,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here for `daily-github-triage` and the release-announcement skill: Issues read/write and Pull requests read/write (this agent *does* comment and file issues), Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here because `github-first-response` comments on new issues and the manager's live replies comment on PRs and file issues from chat bug reports: Issues read/write and Pull requests read/write, Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at
