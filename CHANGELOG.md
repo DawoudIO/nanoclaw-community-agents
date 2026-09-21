@@ -13,7 +13,7 @@ not just commits to this repo — a version isn't "current" until an
 `docs/OPERATIONS.md` for the model-tier and restart-required caveats that
 make this distinction matter.
 
-## [0.11.0] — 2026-09-18 (pending: not yet stamped)
+## [0.12.0] — 2026-09-21 (pending: stamp scheduled for 2026-09-22)
 
 The gap between 0.10.0 and this release is unusually large because 0.10.0
 was never actually redeployed after it shipped — the live system has been
@@ -236,5 +236,5 @@ The version actually running in production as of this writing. Stamped via
 the welcome interview on 2026-08-27, as four agents:
 `community-manager` (public identity "Hazel"), `community-secretary`
 ("Local"), `community-coding` ("Engineering"), `community-marketing`
-("Marketing"). Never redeployed since — every fix and redesign in 0.11.0
-above exists only in this repo until tomorrow's rebuild.
+("Marketing"). Never redeployed since — every fix and redesign in 0.12.0
+above exists only in this repo until tomorrow's (2026-09-22) rebuild.
