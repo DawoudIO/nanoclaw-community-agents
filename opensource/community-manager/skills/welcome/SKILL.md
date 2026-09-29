@@ -113,30 +113,31 @@ renumber. *Check first* means you find the answer yourself and only confirm it.
 | 7 | 3 | Is a 15-minute grace right before first-responding on GitHub? | `FIRST_RESPONSE_GRACE_MINUTES` (manager) |
 | 8 | 3 | Is there a project inbox to watch? | `INBOX_ENABLED` (Helper) |
 | 9 | 4 | What timezone do you work in? | group timezone **and** `OWNER_TZ` |
-| 10 | 4 | Docs site URL, primary language, topic scope *(check first)* | `project-config.md` |
-| 11 | 4 | Which channels are support, developer, team-lead and security, and which one is announcements? | channel tiers |
-| 12 | 4 | Should new Discord members get replies without approval? | `unknown_sender_policy` |
-| 13 | 4 | Security disclosure path *(check `SECURITY.md` first)* | `security_contact` |
-| 14 | 4 | Who counts as a maintainer? | `project-config.md` |
-| 15 | 4 | Who is the second human for escalations? | `escalation_backstop` |
-| 16 | 4 | Docs: current behaviour only, or is version history fine? | `docs_style` |
-| 17 | 4 | Who is the project for, and what tone follows? | `target_audience`, `tone` |
-| 18 | 4 | Dependabot: configured, and are alerts on per repo? *(check first)* | Dependabot answer, `SECURITY_WATCH_REPOS` |
-| 19 | 4 | Discord invite URL *(check the README first)* | `project-config.md` |
-| 20 | 4 | Want the GitHub→Discord CI workflow? | `project-config.md` |
-| 21 | 4 | Which model for each agent? | per-agent model |
-| 22 | 4 | *Metrics only:* which follower counts matter? | profile URLs relayed to the Helper |
-| 23 | 4 | *Metrics only:* GA4 property ids? | `GA4_PROPERTIES` |
-| 24 | 4 | *Metrics only:* how often, and to which channels, are the numbers posted? | `HEALTH_POST_DOW`, report channels |
-| 25 | 4 | *Metrics only:* which repos do the dev numbers cover? | prose to the Helper |
-| 26 | 5c | Wire the channels yourself from the host (no cards), or have me do it? Server ID? | Discord wiring |
-| 27 | 6 | Approve stamping the Helper? | stamp |
-| 28 | 6 | How long can a support message sit before the holding reply? | `ACK_GRACE_MINUTES` |
-| 29 | 6 | Should the security sweep cover only the repos that ship code? | `SECURITY_WATCH_REPOS` |
-| 30 | 7 | Which URL reaches the OneCLI dashboard from where you'll check in? | `onecli_dashboard_url` |
-| 31 | 7 | What is the bot account's GitHub username? | `GITHUB_BOT_USERNAME`, `github_bot_username` |
-| 32 | 7 | Set up each vault entry for the features you enabled | OneCLI vault (never chat) |
-| 33 | 8 | *Metrics only:* any record of past follower counts? | follower CSV, validated first |
+| 10 | 4 | What hour should the daily TLDR arrive? (default 07:00) | `TLDR_LOCAL_HOUR` if not 7 |
+| 11 | 4 | Docs site URL, primary language, topic scope *(check first)* | `project-config.md` |
+| 12 | 4 | Which channels are support, developer, team-lead and security, and which one is announcements? | channel tiers |
+| 13 | 4 | Should new Discord members get replies without approval? | `unknown_sender_policy` |
+| 14 | 4 | Security disclosure path *(check `SECURITY.md` first)* | `security_contact` |
+| 15 | 4 | Who counts as a maintainer? | `project-config.md` |
+| 16 | 4 | Who is the second human for escalations? | `escalation_backstop` |
+| 17 | 4 | Docs: current behaviour only, or is version history fine? | `docs_style` |
+| 18 | 4 | Who is the project for, and what tone follows? | `target_audience`, `tone` |
+| 19 | 4 | Dependabot: configured, and are alerts on per repo? *(check first)* | Dependabot answer, `SECURITY_WATCH_REPOS` |
+| 20 | 4 | Discord invite URL *(check the README first)* | `project-config.md` |
+| 21 | 4 | Want the GitHub→Discord CI workflow? | `project-config.md` |
+| 22 | 4 | Which model for each agent? | per-agent model |
+| 23 | 4 | *Metrics only:* which follower counts matter? | profile URLs relayed to the Helper |
+| 24 | 4 | *Metrics only:* GA4 property ids? | `GA4_PROPERTIES` |
+| 25 | 4 | *Metrics only:* how often, and to which channels, are the numbers posted? | `HEALTH_POST_DOW`, report channels |
+| 26 | 4 | *Metrics only:* which repos do the dev numbers cover? | prose to the Helper |
+| 27 | 5c | Wire the channels yourself from the host (no cards), or have me do it? Server ID? | Discord wiring |
+| 28 | 6 | Approve stamping the Helper? | stamp |
+| 29 | 6 | How long can a support message sit before the holding reply? | `ACK_GRACE_MINUTES` |
+| 30 | 6 | Should the security sweep cover only the repos that ship code? | `SECURITY_WATCH_REPOS` |
+| 31 | 7 | Which URL reaches the OneCLI dashboard from where you'll check in? | `onecli_dashboard_url` |
+| 32 | 7 | What is the bot account's GitHub username? | `GITHUB_BOT_USERNAME`, `github_bot_username` |
+| 33 | 7 | Set up each vault entry for the features you enabled | OneCLI vault (never chat) |
+| 34 | 8 | *Metrics only:* any record of past follower counts? | follower CSV, validated first |
 
 ## 2. The first question: "What is the project's GitHub repo?"
 
@@ -246,11 +247,13 @@ don't beat a maintainer who is already typing.
 `owner-tldr` is the one to explain properly, because it changes what the owner
 experiences more than any other task here. Sub-agent reports are **queued, not
 relayed**: each one appends a line to a digest queue, and this task turns a
-day's worth into a single TLDR. Ask the owner what time of day they want it and
-**you do not need to ask what hour** — it is 07:00 their local time, derived
-from the timezone you already collected. Relay `OWNER_TZ` (the IANA zone, e.g.
-`America/New_York`) and leave `TLDR_LOCAL_HOUR` at 7 unless they ask otherwise.
-The digest resolves their local hour at runtime, so it lands at 07:00 for them
+day's worth into a single TLDR. **Ask what hour they want it**, right after the
+timezone question in step 4: 07:00 their local time is the default and a fine
+answer, but it is their call. A real owner moved it to 19:00 within a week.
+Write `OWNER_TZ` (the IANA zone, e.g. `America/New_York`) and, if the answer
+isn't 7, `TLDR_LOCAL_HOUR` (0–23) to your `config.env`. Both are config: never
+edit the task's script to change them, because a restamp puts the script back.
+The digest resolves their local hour at runtime, so it lands at their hour
 and keeps doing so through daylight saving without anyone editing a cron. Every
 other schedule is a cron line evaluated in the group's timezone — the one
 you set with `ncl groups config update --timezone` in step 4 — not UTC. A real
@@ -342,6 +345,7 @@ asking for anything yet.
 
 - Record it, and run `ncl groups config update --timezone <IANA id>` on your own group yourself (or ask the owner to, if you can't reach `ncl` directly) — it takes effect immediately for scheduled tasks, no restart or recreate. If shipped times already suit them in their timezone, that's fine too.
 - **In the same step, write `OWNER_TZ="<IANA id>"` to your own `config.env`.** The group timezone moves the crons; `OWNER_TZ` is what `owner-tldr` reads to find the owner's 07:00. One answer, two writes. A real install wrote only the first and ran a week with `OWNER_TZ` unset, so the digest fell back to UTC.
+- **Then ask what hour the daily TLDR should arrive** (default 07:00 their time; see `owner-tldr` in step 3) and write `TLDR_LOCAL_HOUR` if it isn't 7.
 - If they're unsure the shipped times will land well: offer to list them, and let them decide whether any need adjusting once they see actual local times. This is a low-stakes, reversible setting now — never treat it as a one-shot decision.
 
 **Then proceed one question at a time** through the rest of what a complete config needs:
@@ -506,7 +510,8 @@ one per line, quoted:
 |---|---|---|
 | `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, own setup-check |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
-| `OWNER_TZ` | the timezone question (step 4) — the same IANA id as the group timezone | `owner-tldr`; unset falls back to UTC without a warning |
+| `OWNER_TZ` | the timezone question (step 4) — the same IANA id as the group timezone | `owner-tldr`; unset is reported as unresolved and the digest runs on UTC |
+| `TLDR_LOCAL_HOUR` | the TLDR-hour question (step 4); only if not 7 | `owner-tldr` — 0–23, the owner's local hour |
 | `FIRST_RESPONSE_GRACE_MINUTES` | the grace question (step 3); only if not the default 15 | `github-first-response` |
 
 **`COMMUNITY_REPOS` is every repo that receives outside issues or PRs —
