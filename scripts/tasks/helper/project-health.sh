@@ -80,6 +80,43 @@ SINCE90=$(date -u -d "@$CUTOFF90" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF90
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 
 # ============================================================================
+# 0. After a rebuild, restore the history from the ledger BEFORE writing.
+#    A rebuild starts plugin-data empty (the operations runbook re-interviews
+#    rather than restoring it), and the publish step below copies local files
+#    over the branch copies. Without this, the first run after a restamp
+#    would replace months of history on the branch with today's one row, the
+#    follower series included, which nothing can rebuild. Any missing series
+#    is copied down from the branch; files that exist locally are never
+#    touched. Uses the same github.com git credential as the publish.
+# ============================================================================
+REPO_L="${LEDGER_REPO:-}"; BRANCH="${LEDGER_BRANCH:-agent-metrics}"; SUBDIR="${LEDGER_PATH:-agent-metrics}"
+SEED_STATUS="not-needed"; SEEDED=""; WITHHELD=""
+if [ -n "$REPO_L" ] && [[ "$REPO_L" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+   && [[ "$SUBDIR" =~ ^[A-Za-z0-9_][A-Za-z0-9_./-]*$ ]] && [[ "$SUBDIR" != *..* ]] \
+   && { [ ! -f "$DATA/metrics-history.csv" ] || [ ! -f "$DATA/social-metrics-history.csv" ]; }; then
+  if git clone --quiet --depth 1 --branch "$BRANCH" "https://github.com/$REPO_L.git" "$TMP/seed" >/dev/null 2>&1; then
+    SEED_STATUS="nothing-to-restore"
+    for f in "$TMP/seed/$SUBDIR"/*; do
+      { [ -f "$f" ] && [ ! -L "$f" ]; } || continue
+      b=$(basename "$f")
+      case "$b" in
+        metrics-history.csv|contributor-health-history.csv|social-metrics-history.csv|social-metrics-history.jsonl|traffic-history-*.csv) ;;
+        *) continue ;;
+      esac
+      case "$b" in *[!A-Za-z0-9_.-]*) continue ;; esac
+      [ -e "$DATA/$b" ] && continue
+      cp "$f" "$DATA/$b" && SEEDED="$SEEDED $b"
+    done
+    [ -n "$SEEDED" ] && SEED_STATUS="restored"
+  else
+    git ls-remote --exit-code --heads "https://github.com/$REPO_L.git" "$BRANCH" >/dev/null 2>&1
+    # 2 = the repo answered and has no such branch: a first publish, not a failure.
+    [ $? -eq 2 ] && SEED_STATUS="no-ledger-branch-yet" || SEED_STATUS="restore-failed"
+  fi
+fi
+SEEDED="${SEEDED# }"
+
+# ============================================================================
 # 1. GitHub counts — every day. One fan-out per repo; inside it, every call
 #    for that repo fires concurrently. A failed fetch records null, never 0:
 #    a 0 would corrupt the delta series with a fake swing.
@@ -383,7 +420,20 @@ if [ -n "$REPO_L" ]; then
         # (never followed) before anything is copied.
         p="$WORK"; for c in ${SUBDIR//\// }; do p="$p/$c"; [ -L "$p" ] && rm -f "$p"; done
         mkdir -p "$WORK/$SUBDIR"
-        for f in "${PRESENT[@]}"; do [ -L "$WORK/$SUBDIR/$f" ] && rm -f "$WORK/$SUBDIR/$f"; cp "$DATA/$f" "$WORK/$SUBDIR/$f"; done
+        # Never publish a SHORTER copy over the branch's. Every series only
+        # grows (trims keep the same length on both sides), so a local file
+        # with fewer lines than the branch copy is a reset or a bad edit, and
+        # copying it would delete history. A live install lost two days of
+        # traffic rows exactly that way. Withheld files are reported, and the
+        # branch copy is left as it is.
+        WITHHELD=""
+        for f in "${PRESENT[@]}"; do
+          [ -L "$WORK/$SUBDIR/$f" ] && rm -f "$WORK/$SUBDIR/$f"
+          if [ -f "$WORK/$SUBDIR/$f" ] && [ "$(wc -l < "$DATA/$f")" -lt "$(wc -l < "$WORK/$SUBDIR/$f")" ]; then
+            WITHHELD="$WITHHELD $f"; continue
+          fi
+          cp "$DATA/$f" "$WORK/$SUBDIR/$f"
+        done
         if [ -n "$(git -C "$WORK" status --porcelain 2>/dev/null)" ]; then
           git -C "$WORK" config user.email >/dev/null 2>&1 || { git -C "$WORK" config user.email "noreply@localhost"; git -C "$WORK" config user.name "Community Agent"; }
           git -C "$WORK" add -A >/dev/null 2>&1
@@ -414,6 +464,14 @@ if [ -n "$REPO_L" ]; then
     fi
   fi
 fi
+
+# What the restore step (section 0) and the no-shrink guard did, on every
+# path — a restore that failed after a rebuild is exactly when the branch is
+# at risk, so it rides along with whatever status the publish reached.
+LEDGER=$(printf '%s' "$LEDGER" | jq -c --arg rs "$SEED_STATUS" --arg rf "$SEEDED" --arg w "${WITHHELD# }" '
+  . + {restore: $rs}
+  + (if $rf != "" then {restored_files: $rf} else {} end)
+  + (if $w != "" then {withheld: $w} else {} end)' 2>/dev/null || printf '%s' "$LEDGER")
 
 # ============================================================================
 # 5. Decide. Post day: the model composes and posts. Collect day: the model

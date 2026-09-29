@@ -1314,6 +1314,31 @@ GITCFG
   else
     fail "$label/diverged: an outside commit was discarded — this task must never force-push"
   fi
+
+  # REBUILD: a restamp starts plugin-data empty, and publishing then copied
+  # the fresh one-row files over the branch — months of history, the
+  # follower series included, replaced by today. The history must instead be
+  # restored FROM the branch before anything is written.
+  local soc_before soc_local soc_after
+  soc_before=$(git -C "$t/remote.git" show agent-metrics:agent-metrics/social-metrics-history.csv | wc -l)
+  rm -rf "$t/data/.ledger-repo" "$t/data/metrics-history.csv" "$t/data/social-metrics-history.csv" \
+         "$t/data/social-metrics-history.jsonl" "$t/data/traffic-history-main.csv"
+  out=$(run_it)
+  printf '%s' "$out" | jq -e '.data.ledger.restore == "restored" and (.data.ledger.restored_files | test("social-metrics-history.csv"))' >/dev/null 2>&1 \
+    && pass || fail "$label/rebuild: missing history was not restored from the branch, got: $(printf '%s' "$out" | jq -c .data.ledger 2>/dev/null)"
+  soc_local=$(wc -l < "$t/data/social-metrics-history.csv" 2>/dev/null || echo 0)
+  soc_after=$(git -C "$t/remote.git" show agent-metrics:agent-metrics/social-metrics-history.csv | wc -l)
+  [ "$soc_local" -eq "$soc_before" ] && [ "$soc_after" -ge "$soc_before" ] \
+    && pass || fail "$label/rebuild: follower history shrank (branch $soc_before -> $soc_after lines, local $soc_local)"
+
+  # NO-SHRINK: a local file shorter than the branch copy is never published —
+  # that is how a live install lost two days of traffic rows.
+  head -n 1 "$t/data/social-metrics-history.csv" > "$t/data/soc.tmp" && mv "$t/data/soc.tmp" "$t/data/social-metrics-history.csv"
+  out=$(run_it)
+  soc_after=$(git -C "$t/remote.git" show agent-metrics:agent-metrics/social-metrics-history.csv | wc -l)
+  printf '%s' "$out" | jq -e '.data.ledger.withheld | test("social-metrics-history.csv")' >/dev/null 2>&1 \
+    && [ "$soc_after" -ge "$soc_before" ] \
+    && pass || fail "$label/no-shrink: a shorter local copy overwrote the branch ($soc_before -> $soc_after lines), got: $(printf '%s' "$out" | jq -c .data.ledger 2>/dev/null)"
   rm -rf "$t"
   # Scoped to this function: the throwaway config must not leak into later
   # sections, which run real git against the real repo.

@@ -718,10 +718,12 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
    filled `onboarding-answers.json` and it re-creates each agent's config; if
    the live install predates that file, run
    `bash scripts/export-answers.sh` to reconstruct one *before* you tear the
-   install down. The history series need no restore step at all: they live in
-   the ledger repo, and the next `project-health` run appends to what is
-   already there rather than starting over — as long as `LEDGER_REPO` points
-   at the same repo and branch it did before.
+   install down. The history series need no manual restore: they live in the ledger
+   repo, and the first `project-health` run copies any missing series down
+   from the branch before writing (`ledger.restore: restored`), then appends
+   to it — as long as `LEDGER_REPO` points at the same repo and branch it did
+   before. It also never publishes a local copy shorter than the branch's
+   (`ledger.withheld`), so a failed restore cannot overwrite the history.
 7. Smoke tests per INSTALL.md §4, and re-test anything in UPSTREAM-ISSUES.md
    against the new build before closing the watch issue.
 

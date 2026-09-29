@@ -50,6 +50,15 @@ make this distinction matter.
 All found on the first live install's debug dump (9/22–9/29). Each fix has a
 test that fails without it.
 
+- **`project-health`: a rebuild would have overwritten the whole metrics
+  history on the ledger branch.** The publish step copies local files over
+  the branch copies, and a rebuild starts `plugin-data` empty, so the first
+  run would have replaced months of rows, the follower series included, with
+  today's one row. OPERATIONS.md said the opposite. Now missing series are
+  restored from the branch before anything is written (`ledger.restore`).
+  The publish step also never replaces a branch file with a shorter local
+  copy (`ledger.withheld`). That's how a live "fix" commit lost two days of
+  traffic rows.
 - **`project-health`: GA4 never worked.** The request asked for a
   `dateRange` dimension, which isn't valid; GA4 adds the range name to rows
   by itself. Every call came back `fetch-failed`.
