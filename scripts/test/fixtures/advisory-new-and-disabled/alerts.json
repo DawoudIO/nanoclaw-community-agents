@@ -1,0 +1,86 @@
+[
+ {
+  "number": 11,
+  "state": "open",
+  "html_url": "https://github.com/acme/crm/security/dependabot/11",
+  "security_advisory": {
+   "ghsa_id": "GHSA-low-0001",
+   "cve_id": "CVE-2026-1011",
+   "severity": "low",
+   "summary": "chalk prototype pollution",
+   "cvss": {
+    "score": 5.3
+   }
+  },
+  "security_vulnerability": {
+   "package": {
+    "ecosystem": "npm",
+    "name": "chalk"
+   },
+   "severity": "low",
+   "vulnerable_version_range": "< 1.2.3",
+   "first_patched_version": {
+    "identifier": "5.0.1"
+   }
+  },
+  "dependency": {
+   "scope": "development"
+  }
+ },
+ {
+  "number": 12,
+  "state": "open",
+  "html_url": "https://github.com/acme/crm/security/dependabot/12",
+  "security_advisory": {
+   "ghsa_id": "GHSA-crit-0002",
+   "cve_id": "CVE-2026-1012",
+   "severity": "critical",
+   "summary": "lodash prototype pollution",
+   "cvss": {
+    "score": 9.1
+   }
+  },
+  "security_vulnerability": {
+   "package": {
+    "ecosystem": "npm",
+    "name": "lodash"
+   },
+   "severity": "critical",
+   "vulnerable_version_range": "< 1.2.3",
+   "first_patched_version": {
+    "identifier": "4.17.21"
+   }
+  },
+  "dependency": {
+   "scope": "runtime"
+  }
+ },
+ {
+  "number": 13,
+  "state": "open",
+  "html_url": "https://github.com/acme/crm/security/dependabot/13",
+  "security_advisory": {
+   "ghsa_id": "GHSA-mod-0003",
+   "cve_id": "CVE-2026-1013",
+   "severity": "moderate",
+   "summary": "postcss prototype pollution",
+   "cvss": {
+    "score": 5.3
+   }
+  },
+  "security_vulnerability": {
+   "package": {
+    "ecosystem": "npm",
+    "name": "postcss"
+   },
+   "severity": "moderate",
+   "vulnerable_version_range": "< 1.2.3",
+   "first_patched_version": {
+    "identifier": "8.4.31"
+   }
+  },
+  "dependency": {
+   "scope": "development"
+  }
+ }
+]

@@ -1,0 +1,3 @@
+repos/acme/docs/dependabot/alerts|disabled.json|403
+repos/acme/demo/dependabot/alerts|alerts.json
+pulls?state=open|pulls.json

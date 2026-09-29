@@ -1000,6 +1000,11 @@ assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory
 assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-disabled false \
   '(.data.status == "no-new-advisories") and (.data.alerts_disabled == "acme/docs")' \
   'COMMUNITY_REPOS="acme/docs"' 2
+# ...and when new advisories arrive in the same run, the disabled repo still
+# reaches the agent: it is marked reported, so it must be IN this output.
+assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-new-and-disabled true \
+  '(.data.status == "new") and (.data.count == 3) and (.data.alerts_disabled_new == "acme/docs")' \
+  'COMMUNITY_REPOS="acme/demo acme/docs"'
 # ...while a real permission problem is still a loud fetch-failed, with the
 # HTTP code and GitHub's message carried through instead of a guessed hint.
 assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-forbidden true \

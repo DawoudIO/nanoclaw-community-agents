@@ -96,7 +96,10 @@ if [ -n "$REPO_L" ] && [[ "$REPO_L" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
    && { [ ! -f "$DATA/metrics-history.csv" ] || [ ! -f "$DATA/social-metrics-history.csv" ]; }; then
   if git clone --quiet --depth 1 --branch "$BRANCH" "https://github.com/$REPO_L.git" "$TMP/seed" >/dev/null 2>&1; then
     SEED_STATUS="nothing-to-restore"
-    for f in "$TMP/seed/$SUBDIR"/*; do
+    # A symlinked ledger folder on the branch would make the copy below read
+    # from wherever it points; refuse it, same as the publish step does.
+    p="$TMP/seed"; for c in ${SUBDIR//\// }; do p="$p/$c"; [ -L "$p" ] && SEED_STATUS="restore-failed"; done
+    [ "$SEED_STATUS" = "restore-failed" ] || for f in "$TMP/seed/$SUBDIR"/*; do
       { [ -f "$f" ] && [ ! -L "$f" ]; } || continue
       b=$(basename "$f")
       case "$b" in

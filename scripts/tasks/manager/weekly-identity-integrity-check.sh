@@ -39,7 +39,9 @@ if [ -z "$LIVE_TSV" ]; then
 fi
 # A task with no usable id can't be compared: every such task would share
 # one key. Refuse rather than hash them together.
-if printf '%s\n' "$LIVE_TSV" | cut -f1 | grep -qx 'unknown'; then
+# (No `grep -q` in a pipe here: under pipefail its early exit can SIGPIPE the
+# writer and turn a match into a failed test.)
+if [ -n "$(printf '%s\n' "$LIVE_TSV" | cut -f1 | grep -x 'unknown')" ]; then
   echo '{"wakeAgent": true, "data": {"status": "manual", "reason": "a live task has no series_id - the task list shape changed; run the check by hand and note the shape in UPSTREAM-ISSUES"}}'
   exit 0
 fi
