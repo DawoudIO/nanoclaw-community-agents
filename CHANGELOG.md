@@ -13,6 +13,80 @@ not just commits to this repo — a version isn't "current" until an
 `docs/OPERATIONS.md` for the model-tier and restart-required caveats that
 make this distinction matter.
 
+## [Unreleased]
+
+### Changed
+
+- **Welcome interview: metrics are opt-in.** Step 3 now asks whether the
+  project wants its numbers tracked, and if so which repo holds the history.
+  A "no" keeps `project-health` paused and skips every metrics question and
+  step 8. Previously `LEDGER_REPO` was asked for "regardless of goals", which
+  doesn't fit the many projects that track nothing.
+- **Welcome interview: questions cleaned up after the first live install.**
+  - New §1b lists every question in order, with stable numbers owners can
+    keep an answer sheet against.
+  - Social: asks which follower counts *matter*, not which platforms exist,
+    and says what each costs (X needs an API token; Discord member counts have
+    no free read). The leftover "how do you post" question is gone, since
+    nothing here posts content.
+  - New metrics questions: how often and to which channels the numbers are
+    posted, and which repos the dev numbers cover (default: product only).
+  - Dependabot: check each repo's alerts are enabled before it goes into
+    `SECURITY_WATCH_REPOS`.
+  - `COMMUNITY_REPOS` now defaults to every repo that receives outside PRs,
+    docs and site included.
+  - `OWNER_TZ` and `FIRST_RESPONSE_GRACE_MINUTES` are now persisted. The
+    first was asked but never written, so the digest fell back to UTC.
+  - Inbox: says plainly that it reads only and never labels.
+  - Fixed the false claim that crons run in UTC: they run in the group
+    timezone.
+  - Merged the duplicated Helper entry in the models question.
+- **`project-health`: `HEALTH_POST_DOW` takes a day list (`1,3,5`) or
+  `daily`.** A single day still works; anything malformed falls back to
+  Monday.
+
+### Fixed
+
+All found on the first live install's debug dump (9/22–9/29). Each fix has a
+test that fails without it.
+
+- **`project-health`: GA4 never worked.** The request asked for a
+  `dateRange` dimension, which isn't valid; GA4 adds the range name to rows
+  by itself. Every call came back `fetch-failed`.
+- **`project-health`: re-runs duplicated rows.** Metrics, contributor-health
+  and traffic rows are now one per key per day. A re-run replaces today's
+  row, except that a failed fetch never overwrites a good row.
+- **`project-health`: the follower row follows the existing file's header.**
+  A file from an older install (11 columns, `M/D/YY` dates) would have
+  received rows in the template's 9-column order. The prompt also names a
+  page-reading tool that worked for Facebook, Instagram and LinkedIn, and
+  fixes the Discord call (`?with_counts=true`).
+- **`weekly-identity-integrity-check` never worked.** `ncl tasks list --json`
+  is a `{id, ok, data: [...]}` wrapper keyed by `series_id`. The filter
+  assumed a bare array keyed by `id`, so it matched nothing, and a half-fix
+  keyed every task `unknown`. It now accepts both shapes, refuses id-less
+  tasks, and quietly rebuilds a baseline left keyed `unknown`. The prompt's
+  ack step no longer points at a field the script never emits.
+- **`owner-tldr`: the routine brief could never fire on schedule.** It needed
+  the hour to be exactly 7, while the cron ran on even hours. It now runs
+  hourly and sends on the first run at or after the digest hour, once a day.
+  An unset `OWNER_TZ` is reported as unresolved instead of quietly used as
+  UTC.
+- **`security-advisory-sweep` blamed the token for every failure.** It now
+  keeps the HTTP code and GitHub's message per repo. It tells
+  alerts-turned-off (a repo setting, reported once) apart from `forbidden`,
+  `not-found` and `network`.
+- **`unanswered-watch` could watch nothing forever without saying so.**
+  `no-channel-sessions` and `cannot-read-sessions` never woke the agent,
+  though the prompt said to report them. Each now wakes it once after a day.
+  Both `ncl sessions` calls accept the wrapped JSON shape too.
+- **Docs claimed cron runs in UTC.** It runs in the group's timezone.
+  Digest-queue `at` stamps must be UTC (`date -u`); a live install's were
+  local times with a `Z`.
+- **Test `project-health/fetch-fails-must-wake` passed only on Mondays.** It
+  loaded the success-path fixtures, so no fetch actually failed. It now runs
+  with no fixtures on a pinned non-post day.
+
 ## [0.12.0] — 2026-09-21 (pending: stamp scheduled for 2026-09-22)
 
 The gap between 0.10.0 and this release is unusually large because 0.10.0

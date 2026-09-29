@@ -52,8 +52,8 @@ is not.**
 
 This matters most for the follower counts, because that file is append-only
 and a wrong entry in it is permanent. If you cannot read an exact number off a
-profile page, record `null` — never approximate, and never carry the previous
-reading forward as if it were fresh.
+profile page, leave that field empty — never approximate, and never carry the
+previous reading forward as if it were fresh.
 
 **A suspicious zero is a probable quota failure, not a real zero.** Some
 platforms cap metrics API access on lower tiers, and a depleted quota often
@@ -74,8 +74,11 @@ Almost everything you write is a cache that regenerates itself. These do not:
   every closed PR; treat as gone.
 
 Never delete, truncate, reorder, or "clean up" any of them, and never fill a
-gap with an estimate. Append only — if a past entry is wrong, add a corrected
-line rather than editing the old one. `project-health` commits all of them to
+gap with an estimate. **One row per day, and past days are never edited.** A
+re-run on the same day replaces *today's* row (the script does this for its
+files; you do it for the follower row) and touches nothing older. If a past
+entry is wrong, report it rather than editing it. A real install's "fix"
+commit overwrote two days of traffic history with one row. `project-health` commits all of them to
 the ledger branch on every run and reads today's row back, which is the only
 reason they survive this container being rebuilt — so a `ledger.status` other
 than `published-and-verified` is worth reporting, not shrugging at.

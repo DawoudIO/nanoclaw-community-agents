@@ -353,8 +353,9 @@ have different mechanics:
 | **The owner's DM** | `owner-tldr` digest, plus urgent bypass | **07:00 the owner's local time**, or ~4h for "we may be blind" while they're awake |
 
 **The digest is the one schedule that is timezone-correct by itself.** Every
-other time in this system is a UTC cron line that you adjust by hand before
-stamping; `owner-tldr` runs every 2 hours and works out whether it is 07:00
+other time in this system is a cron line read in the group's timezone, fixed
+wall-clock, so it shifts against the owner's day only if the group timezone is
+wrong; `owner-tldr` runs hourly and works out whether it is 07:00
 where the owner is, from `OWNER_TZ`. So it follows daylight saving with no
 maintenance, and an unresolvable zone is reported rather than silently becoming
 UTC (`tz_resolved: false`).
@@ -432,7 +433,7 @@ the round minutes because it's the task the north star depends on:
 | `docs-gap-review` | Manager | **weekly** | 15:15, Tue | yes |
 | `github-first-response` | Manager | **6× hourly** | :4/14/24/34/44/54 each hour | yes |
 | `owner-instruction-watch` | Manager | **weekly** | 16:23, Mon | yes |
-| `owner-tldr` | Manager | **every 2h** | every 2h at :41 | yes |
+| `owner-tldr` | Manager | **hourly** | :41 each hour | yes |
 | `weekly-identity-integrity-check` | Manager | **weekly** | 15:45, Mon | yes |
 | `conversation-archive-prune` | Helper | **daily** | 05:38 | yes |
 | `docs-currency-watch` | Helper | **every 6h** | every 6h at :29 | yes |
@@ -477,7 +478,7 @@ is the weekly status (one Haiku wake/week).
 Everything else is 0-token when there's nothing to judge — **all 13 tasks
 are gated, and ~99% of all scheduled runs cost nothing**, because the two
 highest-frequency tasks are both gated: `unanswered-watch` at 144×/day and
-`github-first-response` at 144×/day, plus `owner-tldr` at 12× and
+`github-first-response` at 144×/day, plus `owner-tldr` at 24× and
 `security-advisory-sweep` at 6×, all costing nothing on the runs where the
 gate finds nothing to say. Out of ~320 scheduled executions a day, at most
 one is guaranteed to spend tokens.

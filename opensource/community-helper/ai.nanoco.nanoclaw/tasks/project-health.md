@@ -19,7 +19,8 @@ script: |
   #            appends today's rows to the CSVs. The model wakes only to read
   #            the social follower counts (no API for those — pages the model
   #            has to fetch) and append that one row. Small prompt, cheap wake.
-  #   post     once a week (POST_DOW, default Monday). Everything in collect,
+  #   post     on post days (HEALTH_POST_DOW: default Monday only; a list of
+  #            days or "daily" for more). Everything in collect,
   #            plus the model composes and posts the status: dev numbers to the
   #            developer tier, social + traffic to the team-lead tier, with
   #            WoW/MoM computed from the daily rows this task has been writing.
@@ -55,12 +56,18 @@ script: |
 
   NOW_EPOCH=$(date +%s)
   TODAY_D=$(date -u +%Y-%m-%d)
-  # Post day: 0=Sun..6=Sat, default Monday. `date +%u` is 1..7 (Mon=1) on
-  # both GNU and BSD; %w is 0..6 — use %w so 0 means Sunday on both.
+  # Post day(s): 0=Sun..6=Sat, default Monday. One day ("1"), a comma list
+  # ("1,3,5"), or "daily" — how often the owner wants to see the numbers is
+  # theirs to pick, and a real install asked for daily within its first week.
+  # Anything malformed falls back to Monday rather than posting on a day nobody
+  # chose. `date +%u` is 1..7 (Mon=1) on both GNU and BSD; %w is 0..6 — use %w
+  # so 0 means Sunday on both.
   POST_DOW="${HEALTH_POST_DOW:-1}"
-  case "$POST_DOW" in [0-6]) ;; *) POST_DOW=1;; esac
+  POST_DOW="${POST_DOW// /}"
+  [ "$POST_DOW" = "daily" ] && POST_DOW="0,1,2,3,4,5,6"
+  case "$POST_DOW" in ''|*[!0-6,]*|*[0-6][0-6]*|,*|*,|*,,*) POST_DOW=1;; esac
   IS_POST_DAY=false
-  [ "$(date -u +%w)" = "$POST_DOW" ] && IS_POST_DAY=true
+  case ",$POST_DOW," in *",$(date -u +%w),"*) IS_POST_DAY=true;; esac
   # SOCIAL_DAILY=false turns the collect-day model wake off entirely, for a
   # project that only wants the weekly post and is happy with weekly follower
   # resolution. Default on: the owner asked for daily social data.
@@ -208,12 +215,35 @@ script: |
   # can neither shift every column nor evaluate when the file is opened in a
   # spreadsheet from GitHub.
   CSV_S='def s: if . == null then "" else (tostring | gsub("[,\"\r\n]"; "_") | if test("^[=+@]") then "_" + . else . end) end;'
+
+  # upsert_csv FILE NEWROWS NKEY [WEAKCOL]: one row per key per day, however
+  # many times the task runs. The task is run by hand after every fix (the
+  # README tells operators to), and plain appends gave a real install four
+  # identical-date rows in one day. The key is the first NKEY fields (date, or
+  # date+repo). A new row replaces every existing row with its key, unless it
+  # is "weak" — WEAKCOL empty, i.e. the fetch behind it failed — in which case
+  # an existing row for today is kept and the weak one dropped: a failed re-run
+  # must never blank a good row. With no row yet today a weak row is still
+  # written, because an outage belongs in the history as blanks, not a gap.
+  upsert_csv() {
+    local file="$1" new="$2" nkey="$3" weakcol="${4:-0}"
+    [ -s "$new" ] || return 0
+    awk -F, -v nkey="$nkey" -v weakcol="$weakcol" '
+      function key(   i, s) { s = $1; for (i = 2; i <= nkey; i++) s = s FS $i; return s }
+      FNR == NR { k = key(); nrow[k] = $0; nweak[k] = (weakcol > 0 && $weakcol == ""); order[++n] = k; next }
+      FNR == 1  { print; next }
+      { k = key(); if (k in nrow) { if (nweak[k]) { keep[k] = 1; print } ; next } ; print }
+      END { for (i = 1; i <= n; i++) { k = order[i]; if (!(k in keep)) print nrow[k] } }
+    ' "$new" "$file" > "$file.tmp" 2>/dev/null && mv "$file.tmp" "$file"
+  }
+
   printf '%s' "$REPOS_JSON" | jq -r --arg d "$TODAY_D" "$CSV_S"'.[] | select(.status == null)
     | [$d, (.repo|s), (.stars // ""), (.forks // ""), (.open_issues // ""), (.open_prs // ""),
        (.new_contributors_7d | if . == null then "" else length end),
        (.awaiting_issues // ""), (.awaiting_oldest|s),
        (.releases[0].tag|s), (.releases[0].downloads // "")]
-    | @csv' | tr -d '"' >> "$HIST" 2>/dev/null || true
+    | @csv' | tr -d '"' > "$TMP/hist.new" 2>/dev/null || true
+  upsert_csv "$HIST" "$TMP/hist.new" 2 5   # field 5 = open_issues, null on a failed fetch
   { head -n 1 "$HIST"; tail -n 400 "$HIST" | grep -v '^date,'; } > "$HIST.tmp" 2>/dev/null && mv "$HIST.tmp" "$HIST"
 
   # contributor-health-history.csv — post day only, same schema as before.
@@ -222,7 +252,8 @@ script: |
     [ -s "$CH" ] || echo 'date,repo,unmerged_ratio,top_author_share_pct' > "$CH"
     printf '%s' "$REPOS_JSON" | jq -r --arg d "$TODAY_D" "$CSV_S"'.[] | select(.health != null)
       | [$d, (.repo|s), (.health.unmerged_ratio // ""), (.health.concentration.top_author_share_pct // "")] | @csv' \
-      | tr -d '"' >> "$CH" 2>/dev/null || true
+      | tr -d '"' > "$TMP/ch.new" 2>/dev/null || true
+    upsert_csv "$CH" "$TMP/ch.new" 2
     { head -n 1 "$CH"; tail -n 520 "$CH" | grep -v '^date,'; } > "$CH.tmp" 2>/dev/null && mv "$CH.tmp" "$CH"
   fi
 
@@ -278,9 +309,13 @@ script: |
       case "$PROPERTY_ID" in ''|*[!0-9]*)   # the id lands in a bearer-injected URL: digits only
         TRAFFIC=$(jq -c --argjson t "$TRAFFIC" --arg l "$LABEL" --arg id "$PROPERTY_ID" -n '$t + [{label:$l, property_id:$id, status:"bad-config"}]'); continue;; esac
       TH="$DATA/traffic-history-${LABEL}.csv"
+      # No "dimensions" key, on purpose. With more than one named date range,
+      # GA4 adds the range's name to every row by itself; requesting it as a
+      # dimension ("dateRange" is not a valid dimension) makes GA4 reject the
+      # whole call. That shipped once and returned fetch-failed on every run.
       RESP=$(curl -sS --max-time 25 -X POST "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
         -H 'Content-Type: application/json' \
-        -d '{"dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday","name":"current"},{"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous_week"},{"startDate":"35daysAgo","endDate":"29daysAgo","name":"previous_month"}],"dimensions":[{"name":"dateRange"}],"metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"},{"name":"engagementRate"}]}' 2>/dev/null || echo '')
+        -d '{"dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday","name":"current"},{"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous_week"},{"startDate":"35daysAgo","endDate":"29daysAgo","name":"previous_month"}],"metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"},{"name":"engagementRate"}]}' 2>/dev/null || echo '')
       row() { printf '%s' "$RESP" | jq -c --arg n "$1" '[.rows[]? | select(.dimensionValues[0].value==$n)][0] // empty
         | {activeUsers:(.metricValues[0].value|tonumber), sessions:(.metricValues[1].value|tonumber), pageViews:(.metricValues[2].value|tonumber), engagementRate:(.metricValues[3].value|tonumber)}' 2>/dev/null || echo ''; }
       CUR=$(row current); PW=$(row previous_week); PM=$(row previous_month)
@@ -289,7 +324,8 @@ script: |
         continue
       fi
       [ -s "$TH" ] || echo 'date,activeUsers,sessions,pageViews,engagementRate' > "$TH"
-      printf '%s' "$CUR" | jq -r --arg d "$TODAY_D" '[$d, .activeUsers, .sessions, .pageViews, .engagementRate] | @csv' | tr -d '"' >> "$TH" 2>/dev/null || true
+      printf '%s' "$CUR" | jq -r --arg d "$TODAY_D" '[$d, .activeUsers, .sessions, .pageViews, .engagementRate] | @csv' | tr -d '"' > "$TMP/th.new" 2>/dev/null || true
+      upsert_csv "$TH" "$TMP/th.new" 1
       { head -n 1 "$TH"; tail -n 370 "$TH" | grep -v '^date,'; } > "$TH.tmp" 2>/dev/null && mv "$TH.tmp" "$TH"
       TRAFFIC=$(jq -c --argjson t "$TRAFFIC" --arg l "$LABEL" --arg id "$PROPERTY_ID" \
         --argjson c "$CUR" --argjson pw "${PW:-null}" --argjson pm "${PM:-null}" -n \
@@ -409,12 +445,12 @@ below.
   API-readable number. You are awake for one thing — the social follower
   counts, which have no API and need you to read the pages. Do that, append
   one row, stop. **Do not post, do not narrate, do not summarise.** The
-  daily rows exist so the weekly post has real week-over-week and
+  daily rows exist so the post has real week-over-week and
   month-over-month behind it, and so you can answer "how's the project
   doing?" on a Wednesday from the CSVs — not so the channel hears from you
   every day.
-- **`post`** (weekly): collect, then compose the status and hand it to your
-  manager to post.
+- **`post`** (on `HEALTH_POST_DOW` days — Monday unless the owner chose more):
+  collect, then compose the status and hand it to your manager to post.
 
 **Whichever mode, `degraded_repos` comes first.** Those repos' core fetch
 failed this run — token wiring or network policy, most likely. Their numbers
@@ -426,10 +462,17 @@ dressed up as a quiet day is the one thing this task must never do.
 For each platform in your project-config (relayed at onboarding — if the
 platform list is missing, ask your manager and stop), read the count:
 
-- **Facebook, Instagram, LinkedIn**: public profile page, no login.
+- **Facebook, Instagram, LinkedIn**: public profile page, no login. These
+  pages render with JavaScript, so a plain `curl` gets a login wall or an
+  empty shell. Use a real page-reading tool. On a live install `agent-browser
+  open <url>` → `agent-browser wait --load networkidle` → `agent-browser get
+  text body`, then read "N followers" from the text, worked for all three.
 - **YouTube**: public channel page. An old channel and a new one are two
   columns forever, never collapsed.
-- **Discord**: member count via your own guild access. **Members only, never
+- **Discord**: only if the owner asked for it, and only with a bot credential
+  that can read the guild: `GET https://discord.com/api/v10/guilds/<id>?with_counts=true`,
+  field `approximate_member_count` (without `with_counts=true` the field is
+  absent). There is no free public read of the total. **Members only, never
   "online now"** — online headcount is a point-in-time swing, not a growth
   signal, and a real install once reported "WoW +2" on it before the owner
   called it worthless.
@@ -439,10 +482,21 @@ platform list is missing, ask your manager and stop), read the count:
   even from the owner** — that is a personal credential and scraping X's
   private endpoints with it is outside X's terms regardless.
 
-Then append **exactly one line** to
-`plugin-data/community-helper/social-metrics-history.csv`. Header only when
-creating the file: `date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes`. Position
-is the contract; field names never appear in a row.
+Then write **one row for today** to
+`plugin-data/community-helper/social-metrics-history.csv`.
+
+- **The file's own header is the contract.** A new file gets
+  `date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes` and ISO dates
+  (`YYYY-MM-DD`). If the file already exists, read its header (`head -n 1`)
+  and one recent row (`tail -n 1`), and write your row in **that** column
+  order and **that** date format, however many columns it has. An older
+  install's file can differ: a real one had 11 columns (`twitter_followers`,
+  `facebook_followers`, …) and `9/27/26` dates. Match each platform to its
+  column by name. A column you have no reading for stays empty. Never
+  rewrite, reorder or extend the header. Field names never appear in a row.
+- **One row per day.** If today's date already has a row (`grep` for it),
+  replace that line instead of adding a second one. Manual re-runs are
+  normal, and duplicate dates break every delta.
 
 - **An unreadable platform is an empty field between commas** — `190,,17,34`.
   Never `null`, `N/A`, `0`, and never last time's number carried forward. A
@@ -457,7 +511,7 @@ is the contract; field names never appear in a row.
 
 In `collect` mode that's the whole wake.
 
-## Post — the weekly status
+## Post — the status
 
 Two posts, handed to your manager (you have no channel of your own; your
 manager routes per its `report-formats.md` table): **dev numbers to the
@@ -466,7 +520,9 @@ message per tier.
 
 **Read only the rows you need — never the whole file.** The series grow every
 day; that is the point of them. `tail -n 1`, `grep "^<date>,"`, or an
-`awk -F, '$1<=d'` pass for the nearest earlier row. Loading a history file
+`awk -F, '$1<=d'` pass for the nearest earlier row (that comparison only
+works on ISO dates; in a file with dates like `9/27/26`, `grep` for the exact
+date you want instead). Loading a history file
 whole into context costs more every single day for two rows' worth of
 information.
 

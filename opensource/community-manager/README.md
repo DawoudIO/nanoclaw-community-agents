@@ -225,7 +225,7 @@ tasks run <task-id>` before resuming.
 without `ncl`, its gate wakes the agent for a manual check instead of
 failing.)
 
-**Cron lines are written UTC-relative; the group's actual timezone decides
+**Cron lines are read in the group's own timezone, not UTC: the group's timezone decides
 the wall-clock fire time.** `ncl groups config update --timezone <IANA id>`
 sets it and takes effect immediately, before or after stamping — no
 cancel-and-recreate needed (confirmed against

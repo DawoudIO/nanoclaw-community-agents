@@ -152,7 +152,8 @@ GA4_PROPERTIES="123456789"                       # optional — project-health t
                                                  # on post day. One or more: "id"
                                                  # or "label:id,label:id"
 HEALTH_POST_DOW="1"                              # optional — project-health post
-                                                 # day, 0=Sun..6=Sat; default Monday
+                                                 # day(s), 0=Sun..6=Sat, a list
+                                                 # ("1,3,5") or "daily"; default Monday
 SOCIAL_DAILY="true"                              # optional — "false" skips the
                                                  # collect-day follower wake, so
                                                  # non-post days cost 0 tokens
@@ -197,7 +198,7 @@ ncl tasks get <task-id>       # inspect the run result
 ncl tasks resume <task-id>
 ```
 
-**Cron lines are written UTC-relative; the group's actual timezone decides
+**Cron lines are read in the group's own timezone, not UTC: the group's timezone decides
 the wall-clock fire time.** `ncl groups config update --timezone <IANA id>`
 sets it and takes effect immediately (confirmed against
 `src/modules/scheduling/recurrence.ts`) — no cancel-and-recreate needed.
@@ -279,7 +280,7 @@ mode** — the model never decides whether today is a post day.
   off public profile pages and appending one row to
   `social-metrics-history.csv`. It posts nothing. `SOCIAL_DAILY=false` turns
   that wake off, and a collect day then costs 0 tokens.
-- **`post`** (weekly, `HEALTH_POST_DOW`, default Monday): collect, plus the
+- **`post`** (on `HEALTH_POST_DOW` days: Monday by default, or a list or `daily`): collect, plus the
   post-day-only inputs — the unmerged-PR ratio and author concentration into
   `contributor-health-history.csv`, the 20–30-day return-nudge candidates,
   and GA4 traffic into `traffic-history-<label>.csv`. The model then composes
