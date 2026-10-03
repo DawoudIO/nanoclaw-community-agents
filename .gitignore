@@ -1,3 +1,12 @@
 
 # macOS
 .DS_Store
+
+# OCI deploy secrets and state
+.env.production
+terraform/terraform.tfvars
+terraform/.terraform/
+terraform/*.tfstate
+terraform/*.tfstate.*
+terraform/tfplan
+terraform/crash.log
