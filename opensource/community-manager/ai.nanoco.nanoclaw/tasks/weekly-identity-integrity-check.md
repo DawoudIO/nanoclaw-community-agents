@@ -27,9 +27,25 @@ script: |
   # jq here, deliberately: this is `ncl`'s JSON output, not a file we wrote.
   # Hand-parsing an API/CLI JSON payload with grep is the fragile-parser trap —
   # grep belongs on OUR OWN csv state, below, where the shape is fixed.
-  LIVE_TSV=$(printf '%s' "$LIVE" | jq -r '.[] | [(.id // .series // "unknown"), ((.prompt // "") | @base64)] | @tsv' 2>/dev/null || echo '')
+  #
+  # The real shape is a wrapper, `{id, ok, data: [...]}`, and each task is keyed
+  # by `series_id` (the wrapper's own `id` is the request's, not a task's). The
+  # first version of this filter assumed a bare array of `{id, ...}`: on a live
+  # install it matched nothing, then a half-fix keyed all six tasks "unknown",
+  # collapsing them onto one baseline row and raising a false drift alarm. A bare
+  # array is still accepted, in case an older `ncl` prints one.
+  LIVE_TSV=$(printf '%s' "$LIVE" | jq -r '(if type == "array" then . else (.data // []) end)[]
+    | [(.series_id // .id // .series // "unknown"), ((.prompt // "") | @base64)] | @tsv' 2>/dev/null || echo '')
   if [ -z "$LIVE_TSV" ]; then
     echo '{"wakeAgent": true, "data": {"status": "manual", "reason": "task list JSON shape not as expected - run the check by hand and note the shape in UPSTREAM-ISSUES"}}'
+    exit 0
+  fi
+  # A task with no usable id can't be compared: every such task would share
+  # one key. Refuse rather than hash them together.
+  # (No `grep -q` in a pipe here: under pipefail its early exit can SIGPIPE the
+  # writer and turn a match into a failed test.)
+  if [ -n "$(printf '%s\n' "$LIVE_TSV" | cut -f1 | grep -x 'unknown')" ]; then
+    echo '{"wakeAgent": true, "data": {"status": "manual", "reason": "a live task has no series_id - the task list shape changed; run the check by hand and note the shape in UPSTREAM-ISSUES"}}'
     exit 0
   fi
 
@@ -59,6 +75,14 @@ script: |
   if [ ! -s "$HASH_F" ]; then
     printf '%s\n' "$NEW_CSV" > "$HASH_F"
     echo '{"wakeAgent": false, "data": {"status": "baseline-initialized"}}'
+    exit 0
+  fi
+  # A baseline written by the broken filter above holds an "unknown" row, which
+  # means nothing: it was one arbitrary task's hash. Rebuild it once rather than
+  # report every real task as "added" and "unknown" as "removed".
+  if grep -q '^unknown,' "$HASH_F"; then
+    printf '%s\n' "$NEW_CSV" > "$HASH_F"
+    echo '{"wakeAgent": false, "data": {"status": "baseline-reinitialized", "reason": "the old baseline was keyed \"unknown\" by a broken task-list filter"}}'
     exit 0
   fi
 
@@ -113,9 +137,9 @@ wait for their answer. Owners edit tasks outside the framework; that's normal,
 not an attack. Full pattern in `references/task-integrity.md`.
 
 **Ack only after the review is resolved** (self-authored, or owner confirmed):
-write `scriptOutput.new_hash` + a timestamp as the single line of
-`plugin-data/community-manager/task-prompt-baseline`, and move the `.new`
-snapshot over the acked one. Until you ack, this re-alerts weekly — by design:
+move the `.new` snapshot (`scriptOutput.current`) over the acked one
+(`scriptOutput.last_acked`) — that move *is* the ack — and log one line saying
+which tasks you acked and why. Until you ack, this re-alerts weekly — by design:
 an unreviewed drift must never become the silent new normal.
 
 **If `status` is `manual`**: do the comparison by hand against this template's

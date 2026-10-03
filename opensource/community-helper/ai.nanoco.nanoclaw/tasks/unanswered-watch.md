@@ -73,16 +73,39 @@ script: |
   # Only channel-backed, active sessions — this agent's own agent-shared or
   # agent-to-agent sessions (messaging_group_id null) are never support
   # channels and would only ever produce false positives here.
-  SESSIONS=$(ncl sessions list --json 2>/dev/null | jq -c '[.[] | select(.status == "active") | select(.messaging_group_id != null)]' 2>/dev/null || echo '')
-  if [ -z "$SESSIONS" ] || ! printf '%s' "$SESSIONS" | jq -e 'type=="array"' >/dev/null 2>&1; then
-    echo '{"wakeAgent": false, "data": {"status": "cannot-read-sessions", "hint": "ncl sessions list gave an unexpected shape - verify the command on this NanoClaw version before trusting this task, and confirm this agent is actually wired to support channels per welcome/SKILL.md 5c"}}'
+  # Accept both a bare array and the `{ok, data: [...]}` wrapper: `ncl tasks
+  # list` turned out to be wrapped, and assuming a bare array there broke a
+  # live gate. The same unwrap is applied to `sessions history` below.
+  UNWRAP='(if type == "array" then . else (.data // null) end)'
+  SESSIONS=$(ncl sessions list --json 2>/dev/null | jq -c "$UNWRAP"' | [.[] | select(.status == "active") | select(.messaging_group_id != null)]' 2>/dev/null || echo '')
+  # A safety net that watches nothing fails silently, so both "can't read the
+  # sessions" and "no channel sessions at all" wake the agent ONCE when the
+  # state has lasted a day, then go quiet, and reset once sessions read fine.
+  # Both used to be wakeAgent:false every run while the prompt said to report
+  # them — an instruction that could never run. A live install did 851 of
+  # these quiet runs in a week: its Helper was never wired to the support
+  # channels. 144 runs a day means the wake has to be once, not every run.
+  say_once() {  # $1 status, $2 hint
+    local since_f="$DATA/$1-since" ack_f="$DATA/$1-reported" since
+    [ -s "$since_f" ] || date +%s > "$since_f"
+    since=$(cat "$since_f" 2>/dev/null || echo 0); case "$since" in ''|*[!0-9]*) since=$(date +%s);; esac
+    if [ ! -f "$ack_f" ] && [ $(( $(date +%s) - since )) -ge 86400 ]; then
+      : > "$ack_f"
+      printf '{"wakeAgent": true, "data": {"status": "%s", "persisting_hours": %s, "hint": "%s"}}\n' "$1" $(( ($(date +%s) - since) / 3600 )) "$2"
+    else
+      printf '{"wakeAgent": false, "data": {"status": "%s", "hint": "%s"}}\n' "$1" "$2"
+    fi
     exit 0
+  }
+  if [ -z "$SESSIONS" ] || ! printf '%s' "$SESSIONS" | jq -e 'type=="array"' >/dev/null 2>&1; then
+    say_once cannot-read-sessions "ncl sessions list gave an unexpected shape - verify the command on this NanoClaw version before trusting this task"
   fi
+  rm -f "$DATA/cannot-read-sessions-since" "$DATA/cannot-read-sessions-reported"
 
   if [ "$(printf '%s' "$SESSIONS" | jq 'length')" -eq 0 ]; then
-    echo '{"wakeAgent": false, "data": {"status": "no-channel-sessions", "hint": "no active channel-backed sessions - this agent may not be wired to any support channel yet, see welcome/SKILL.md 5c"}}'
-    exit 0
+    say_once no-channel-sessions "no active channel-backed sessions - this agent is not wired to any support channel, so the holding-ack safety net covers nothing (welcome/SKILL.md 5c)"
   fi
+  rm -f "$DATA/no-channel-sessions-since" "$DATA/no-channel-sessions-reported"
 
   CUTOFF=$(( $(date +%s) - GRACE * 60 ))
   PENDING='[]'
@@ -92,7 +115,7 @@ script: |
     MGID=$(printf '%s' "$SESSION" | jq -r '.messaging_group_id')
     # Small limit: only the newest message matters for "has the last thing
     # said here been answered", not a full transcript.
-    HIST=$(ncl sessions history --id "$SID" --limit 3 --json 2>/dev/null || echo '')
+    HIST=$(ncl sessions history --id "$SID" --limit 3 --json 2>/dev/null | jq -c "$UNWRAP" 2>/dev/null || echo '')
     if [ -z "$HIST" ] || ! printf '%s' "$HIST" | jq -e 'type=="array"' >/dev/null 2>&1; then
       DEGRADED=$(jq -c --arg mgid "$MGID" '. + [$mgid]' <<< "$DEGRADED")
       continue
@@ -184,7 +207,9 @@ list`'s shape on this NanoClaw version.
 **If `status` is `no-channel-sessions`**: you are not wired to
 any support channel yet (or the wiring dropped). Report this plainly to
 your manager once — it means this gate has been silently doing nothing, not
-that everything's been answered.
+that everything's been answered. The gate wakes you for this (and for
+`cannot-read-sessions`) only once, after the state has lasted a day, with
+`persisting_hours`; it won't repeat until the wiring has worked at least once.
 
 **If `status` is `partial-fetch-failure`** (present on either an
 `all-answered` or `unanswered` result): `degraded_messaging_groups` lists

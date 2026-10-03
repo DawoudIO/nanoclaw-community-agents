@@ -1,5 +1,5 @@
 ---
-schedule: "41 */2 * * *"
+schedule: "41 * * * *"
 script: |
   #!/bin/bash
   set -uo pipefail
@@ -61,10 +61,14 @@ script: |
   # because the point is that they are awake and can act on it. A digest that
   # lands at 3am is read at 7am anyway, having spent a wake to arrive early.
   #
-  # The kit pins the container to TZ=UTC, so cron lines are UTC and cannot know
-  # the owner's zone. This gate is the one place that can: it runs every 2h and
-  # decides for itself whether it is 07:00 where the owner is. That means no
-  # cron arithmetic at onboarding and no re-editing anything when DST shifts.
+  # Cron lines run in the group's timezone, but this gate doesn't rely on that:
+  # it runs hourly and decides for itself whether it is past 07:00 where the
+  # owner is, from OWNER_TZ. That means no cron arithmetic at onboarding and no
+  # re-editing anything when DST shifts.
+  #
+  # Unset OWNER_TZ is reported as unresolved, not taken as a choice of UTC: a
+  # real install ran for a week with it unset and nobody was told.
+  TZ_SET=true; [ -n "${OWNER_TZ:-}" ] || TZ_SET=false
   OWNER_TZ="${OWNER_TZ:-UTC}"
   TLDR_LOCAL_HOUR="${TLDR_LOCAL_HOUR:-7}"
   case "$TLDR_LOCAL_HOUR" in ''|*[!0-9]*) TLDR_LOCAL_HOUR=7;; esac
@@ -80,6 +84,7 @@ script: |
     TZ_OK=false
     OWNER_TZ=UTC
   fi
+  [ "$TZ_SET" = "false" ] && TZ_OK=false
   QUEUE="$DATA/digest-queue.jsonl"
   PROC="$DATA/digest-queue.processing.jsonl"
 
@@ -194,6 +199,16 @@ script: |
     # window wraps past midnight
     { [ "$HOUR_NOW" -ge "$TLDR_LOCAL_HOUR" ] || [ "$HOUR_NOW" -lt "$WAKE_END" ]; } && AWAKE=true
   fi
+  # The routine digest's window: from the digest hour to the end of the waking
+  # window, but never past midnight (see the routine rule below).
+  ROUTINE_WINDOW=false
+  if [ "$HOUR_NOW" -ge "$TLDR_LOCAL_HOUR" ]; then
+    if [ "$WAKE_END" -gt "$TLDR_LOCAL_HOUR" ]; then
+      [ "$HOUR_NOW" -lt "$WAKE_END" ] && ROUTINE_WINDOW=true
+    else
+      ROUTINE_WINDOW=true
+    fi
+  fi
 
   WAKE=false; REASON=held
   # Escalated: something says we may be blind. Jump the queue — but only while
@@ -203,9 +218,14 @@ script: |
   if [ "$ATTENTION" -gt 0 ] && [ "$AWAKE" = "true" ] \
      && { [ "$NEVER_SENT" = "true" ] || [ "$HOURS_SINCE" -ge "$ESCALATE_GAP_H" ]; }; then
     WAKE=true; REASON=escalated
-  # Routine: the owner's chosen hour, at most once for it — gated on the
-  # calendar-date marker (see above), never on HOURS_SINCE.
-  elif [ "$HOUR_NOW" -eq "$TLDR_LOCAL_HOUR" ] && [ "$ROUTINE_ALREADY_SENT_TODAY" = "false" ]; then
+  # Routine: the first run at or after the owner's chosen hour, once per day —
+  # gated on the calendar-date marker (see above), never on HOURS_SINCE. It used
+  # to require the hour to match exactly, and a 2-hourly cron on even hours can
+  # never land on 07: a live install's routine brief never fired once, and only
+  # the 30-hour overdue net ever delivered. The window stops at the end of the
+  # waking day and never crosses midnight, so a late digest hour can't turn into
+  # a 2am send dated the next day.
+  elif [ "$ROUTINE_WINDOW" = "true" ] && [ "$ROUTINE_ALREADY_SENT_TODAY" = "false" ]; then
     WAKE=true; REASON=routine
   # Safety net: the routine slot was missed entirely (a spent window, a restart).
   # Only meaningful once a real digest has been sent — otherwise "never sent"
@@ -216,7 +236,7 @@ script: |
 
   # The queue is only rotated when we are actually going to deliver. Rotating on
   # a held run would hand the batch to a session that never starts, and the
-  # fold-back would then have to undo it every 2 hours.
+  # fold-back would then have to undo it every hour.
   if [ "$WAKE" = "false" ]; then
     # put it back so the next run sees one queue, not a split batch
     if [ -s "$PROC" ]; then
@@ -282,9 +302,11 @@ supposed to bypass this queue and arrive immediately, so this is a process
 failure, not a routing detail. Manager with the item, then note in one clause that
 it should have arrived immediately — the fast path may be broken.
 
-**`tz_resolved: false`** — `OWNER_TZ` could not be resolved, so this ran on UTC
-and "07:00" is not their 07:00. One line: the fix is a valid IANA zone name
-(`Europe/Berlin`, not `UTC+1`) in `config.env`.
+**`tz_resolved: false`** — `OWNER_TZ` is unset or not a valid zone, so this ran
+on UTC and "07:00" is not their 07:00. One line: the fix is a valid IANA zone
+name (`Europe/Berlin`, not `UTC+1`) as `OWNER_TZ` in your `config.env`. You
+can write it yourself if you already know their zone; the group timezone
+from onboarding is the same value.
 
 ## After you post
 

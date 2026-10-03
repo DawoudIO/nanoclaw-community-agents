@@ -16,7 +16,8 @@ set -uo pipefail
 #            appends today's rows to the CSVs. The model wakes only to read
 #            the social follower counts (no API for those — pages the model
 #            has to fetch) and append that one row. Small prompt, cheap wake.
-#   post     once a week (POST_DOW, default Monday). Everything in collect,
+#   post     on post days (HEALTH_POST_DOW: default Monday only; a list of
+#            days or "daily" for more). Everything in collect,
 #            plus the model composes and posts the status: dev numbers to the
 #            developer tier, social + traffic to the team-lead tier, with
 #            WoW/MoM computed from the daily rows this task has been writing.
@@ -52,12 +53,18 @@ fi
 
 NOW_EPOCH=$(date +%s)
 TODAY_D=$(date -u +%Y-%m-%d)
-# Post day: 0=Sun..6=Sat, default Monday. `date +%u` is 1..7 (Mon=1) on
-# both GNU and BSD; %w is 0..6 — use %w so 0 means Sunday on both.
+# Post day(s): 0=Sun..6=Sat, default Monday. One day ("1"), a comma list
+# ("1,3,5"), or "daily" — how often the owner wants to see the numbers is
+# theirs to pick, and a real install asked for daily within its first week.
+# Anything malformed falls back to Monday rather than posting on a day nobody
+# chose. `date +%u` is 1..7 (Mon=1) on both GNU and BSD; %w is 0..6 — use %w
+# so 0 means Sunday on both.
 POST_DOW="${HEALTH_POST_DOW:-1}"
-case "$POST_DOW" in [0-6]) ;; *) POST_DOW=1;; esac
+POST_DOW="${POST_DOW// /}"
+[ "$POST_DOW" = "daily" ] && POST_DOW="0,1,2,3,4,5,6"
+case "$POST_DOW" in ''|*[!0-6,]*|*[0-6][0-6]*|,*|*,|*,,*) POST_DOW=1;; esac
 IS_POST_DAY=false
-[ "$(date -u +%w)" = "$POST_DOW" ] && IS_POST_DAY=true
+case ",$POST_DOW," in *",$(date -u +%w),"*) IS_POST_DAY=true;; esac
 # SOCIAL_DAILY=false turns the collect-day model wake off entirely, for a
 # project that only wants the weekly post and is happy with weekly follower
 # resolution. Default on: the owner asked for daily social data.
@@ -71,6 +78,46 @@ CUTOFF90=$(( NOW_EPOCH - 7776000 ))
 SINCE90=$(date -u -d "@$CUTOFF90" +%Y-%m-%d 2>/dev/null || date -u -r "$CUTOFF90" +%Y-%m-%d 2>/dev/null || echo "")
 
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
+
+# ============================================================================
+# 0. After a rebuild, restore the history from the ledger BEFORE writing.
+#    A rebuild starts plugin-data empty (the operations runbook re-interviews
+#    rather than restoring it), and the publish step below copies local files
+#    over the branch copies. Without this, the first run after a restamp
+#    would replace months of history on the branch with today's one row, the
+#    follower series included, which nothing can rebuild. Any missing series
+#    is copied down from the branch; files that exist locally are never
+#    touched. Uses the same github.com git credential as the publish.
+# ============================================================================
+REPO_L="${LEDGER_REPO:-}"; BRANCH="${LEDGER_BRANCH:-agent-metrics}"; SUBDIR="${LEDGER_PATH:-agent-metrics}"
+SEED_STATUS="not-needed"; SEEDED=""; WITHHELD=""
+if [ -n "$REPO_L" ] && [[ "$REPO_L" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] \
+   && [[ "$SUBDIR" =~ ^[A-Za-z0-9_][A-Za-z0-9_./-]*$ ]] && [[ "$SUBDIR" != *..* ]] \
+   && { [ ! -f "$DATA/metrics-history.csv" ] || [ ! -f "$DATA/social-metrics-history.csv" ]; }; then
+  if git clone --quiet --depth 1 --branch "$BRANCH" "https://github.com/$REPO_L.git" "$TMP/seed" >/dev/null 2>&1; then
+    SEED_STATUS="nothing-to-restore"
+    # A symlinked ledger folder on the branch would make the copy below read
+    # from wherever it points; refuse it, same as the publish step does.
+    p="$TMP/seed"; for c in ${SUBDIR//\// }; do p="$p/$c"; [ -L "$p" ] && SEED_STATUS="restore-failed"; done
+    [ "$SEED_STATUS" = "restore-failed" ] || for f in "$TMP/seed/$SUBDIR"/*; do
+      { [ -f "$f" ] && [ ! -L "$f" ]; } || continue
+      b=$(basename "$f")
+      case "$b" in
+        metrics-history.csv|contributor-health-history.csv|social-metrics-history.csv|social-metrics-history.jsonl|traffic-history-*.csv) ;;
+        *) continue ;;
+      esac
+      case "$b" in *[!A-Za-z0-9_.-]*) continue ;; esac
+      [ -e "$DATA/$b" ] && continue
+      cp "$f" "$DATA/$b" && SEEDED="$SEEDED $b"
+    done
+    [ -n "$SEEDED" ] && SEED_STATUS="restored"
+  else
+    git ls-remote --exit-code --heads "https://github.com/$REPO_L.git" "$BRANCH" >/dev/null 2>&1
+    # 2 = the repo answered and has no such branch: a first publish, not a failure.
+    [ $? -eq 2 ] && SEED_STATUS="no-ledger-branch-yet" || SEED_STATUS="restore-failed"
+  fi
+fi
+SEEDED="${SEEDED# }"
 
 # ============================================================================
 # 1. GitHub counts — every day. One fan-out per repo; inside it, every call
@@ -205,12 +252,35 @@ HIST="$DATA/metrics-history.csv"
 # can neither shift every column nor evaluate when the file is opened in a
 # spreadsheet from GitHub.
 CSV_S='def s: if . == null then "" else (tostring | gsub("[,\"\r\n]"; "_") | if test("^[=+@]") then "_" + . else . end) end;'
+
+# upsert_csv FILE NEWROWS NKEY [WEAKCOL]: one row per key per day, however
+# many times the task runs. The task is run by hand after every fix (the
+# README tells operators to), and plain appends gave a real install four
+# identical-date rows in one day. The key is the first NKEY fields (date, or
+# date+repo). A new row replaces every existing row with its key, unless it
+# is "weak" — WEAKCOL empty, i.e. the fetch behind it failed — in which case
+# an existing row for today is kept and the weak one dropped: a failed re-run
+# must never blank a good row. With no row yet today a weak row is still
+# written, because an outage belongs in the history as blanks, not a gap.
+upsert_csv() {
+  local file="$1" new="$2" nkey="$3" weakcol="${4:-0}"
+  [ -s "$new" ] || return 0
+  awk -F, -v nkey="$nkey" -v weakcol="$weakcol" '
+    function key(   i, s) { s = $1; for (i = 2; i <= nkey; i++) s = s FS $i; return s }
+    FNR == NR { k = key(); nrow[k] = $0; nweak[k] = (weakcol > 0 && $weakcol == ""); order[++n] = k; next }
+    FNR == 1  { print; next }
+    { k = key(); if (k in nrow) { if (nweak[k]) { keep[k] = 1; print } ; next } ; print }
+    END { for (i = 1; i <= n; i++) { k = order[i]; if (!(k in keep)) print nrow[k] } }
+  ' "$new" "$file" > "$file.tmp" 2>/dev/null && mv "$file.tmp" "$file"
+}
+
 printf '%s' "$REPOS_JSON" | jq -r --arg d "$TODAY_D" "$CSV_S"'.[] | select(.status == null)
   | [$d, (.repo|s), (.stars // ""), (.forks // ""), (.open_issues // ""), (.open_prs // ""),
      (.new_contributors_7d | if . == null then "" else length end),
      (.awaiting_issues // ""), (.awaiting_oldest|s),
      (.releases[0].tag|s), (.releases[0].downloads // "")]
-  | @csv' | tr -d '"' >> "$HIST" 2>/dev/null || true
+  | @csv' | tr -d '"' > "$TMP/hist.new" 2>/dev/null || true
+upsert_csv "$HIST" "$TMP/hist.new" 2 5   # field 5 = open_issues, null on a failed fetch
 { head -n 1 "$HIST"; tail -n 400 "$HIST" | grep -v '^date,'; } > "$HIST.tmp" 2>/dev/null && mv "$HIST.tmp" "$HIST"
 
 # contributor-health-history.csv — post day only, same schema as before.
@@ -219,7 +289,8 @@ if [ "$IS_POST_DAY" = "true" ]; then
   [ -s "$CH" ] || echo 'date,repo,unmerged_ratio,top_author_share_pct' > "$CH"
   printf '%s' "$REPOS_JSON" | jq -r --arg d "$TODAY_D" "$CSV_S"'.[] | select(.health != null)
     | [$d, (.repo|s), (.health.unmerged_ratio // ""), (.health.concentration.top_author_share_pct // "")] | @csv' \
-    | tr -d '"' >> "$CH" 2>/dev/null || true
+    | tr -d '"' > "$TMP/ch.new" 2>/dev/null || true
+  upsert_csv "$CH" "$TMP/ch.new" 2
   { head -n 1 "$CH"; tail -n 520 "$CH" | grep -v '^date,'; } > "$CH.tmp" 2>/dev/null && mv "$CH.tmp" "$CH"
 fi
 
@@ -275,9 +346,13 @@ if [ "$IS_POST_DAY" = "true" ] && [ -n "$PROPS" ]; then
     case "$PROPERTY_ID" in ''|*[!0-9]*)   # the id lands in a bearer-injected URL: digits only
       TRAFFIC=$(jq -c --argjson t "$TRAFFIC" --arg l "$LABEL" --arg id "$PROPERTY_ID" -n '$t + [{label:$l, property_id:$id, status:"bad-config"}]'); continue;; esac
     TH="$DATA/traffic-history-${LABEL}.csv"
+    # No "dimensions" key, on purpose. With more than one named date range,
+    # GA4 adds the range's name to every row by itself; requesting it as a
+    # dimension ("dateRange" is not a valid dimension) makes GA4 reject the
+    # whole call. That shipped once and returned fetch-failed on every run.
     RESP=$(curl -sS --max-time 25 -X POST "https://analyticsdata.googleapis.com/v1beta/properties/$PROPERTY_ID:runReport" \
       -H 'Content-Type: application/json' \
-      -d '{"dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday","name":"current"},{"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous_week"},{"startDate":"35daysAgo","endDate":"29daysAgo","name":"previous_month"}],"dimensions":[{"name":"dateRange"}],"metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"},{"name":"engagementRate"}]}' 2>/dev/null || echo '')
+      -d '{"dateRanges":[{"startDate":"7daysAgo","endDate":"yesterday","name":"current"},{"startDate":"14daysAgo","endDate":"8daysAgo","name":"previous_week"},{"startDate":"35daysAgo","endDate":"29daysAgo","name":"previous_month"}],"metrics":[{"name":"activeUsers"},{"name":"sessions"},{"name":"screenPageViews"},{"name":"engagementRate"}]}' 2>/dev/null || echo '')
     row() { printf '%s' "$RESP" | jq -c --arg n "$1" '[.rows[]? | select(.dimensionValues[0].value==$n)][0] // empty
       | {activeUsers:(.metricValues[0].value|tonumber), sessions:(.metricValues[1].value|tonumber), pageViews:(.metricValues[2].value|tonumber), engagementRate:(.metricValues[3].value|tonumber)}' 2>/dev/null || echo ''; }
     CUR=$(row current); PW=$(row previous_week); PM=$(row previous_month)
@@ -286,7 +361,8 @@ if [ "$IS_POST_DAY" = "true" ] && [ -n "$PROPS" ]; then
       continue
     fi
     [ -s "$TH" ] || echo 'date,activeUsers,sessions,pageViews,engagementRate' > "$TH"
-    printf '%s' "$CUR" | jq -r --arg d "$TODAY_D" '[$d, .activeUsers, .sessions, .pageViews, .engagementRate] | @csv' | tr -d '"' >> "$TH" 2>/dev/null || true
+    printf '%s' "$CUR" | jq -r --arg d "$TODAY_D" '[$d, .activeUsers, .sessions, .pageViews, .engagementRate] | @csv' | tr -d '"' > "$TMP/th.new" 2>/dev/null || true
+    upsert_csv "$TH" "$TMP/th.new" 1
     { head -n 1 "$TH"; tail -n 370 "$TH" | grep -v '^date,'; } > "$TH.tmp" 2>/dev/null && mv "$TH.tmp" "$TH"
     TRAFFIC=$(jq -c --argjson t "$TRAFFIC" --arg l "$LABEL" --arg id "$PROPERTY_ID" \
       --argjson c "$CUR" --argjson pw "${PW:-null}" --argjson pm "${PM:-null}" -n \
@@ -347,7 +423,20 @@ if [ -n "$REPO_L" ]; then
         # (never followed) before anything is copied.
         p="$WORK"; for c in ${SUBDIR//\// }; do p="$p/$c"; [ -L "$p" ] && rm -f "$p"; done
         mkdir -p "$WORK/$SUBDIR"
-        for f in "${PRESENT[@]}"; do [ -L "$WORK/$SUBDIR/$f" ] && rm -f "$WORK/$SUBDIR/$f"; cp "$DATA/$f" "$WORK/$SUBDIR/$f"; done
+        # Never publish a SHORTER copy over the branch's. Every series only
+        # grows (trims keep the same length on both sides), so a local file
+        # with fewer lines than the branch copy is a reset or a bad edit, and
+        # copying it would delete history. A live install lost two days of
+        # traffic rows exactly that way. Withheld files are reported, and the
+        # branch copy is left as it is.
+        WITHHELD=""
+        for f in "${PRESENT[@]}"; do
+          [ -L "$WORK/$SUBDIR/$f" ] && rm -f "$WORK/$SUBDIR/$f"
+          if [ -f "$WORK/$SUBDIR/$f" ] && [ "$(wc -l < "$DATA/$f")" -lt "$(wc -l < "$WORK/$SUBDIR/$f")" ]; then
+            WITHHELD="$WITHHELD $f"; continue
+          fi
+          cp "$DATA/$f" "$WORK/$SUBDIR/$f"
+        done
         if [ -n "$(git -C "$WORK" status --porcelain 2>/dev/null)" ]; then
           git -C "$WORK" config user.email >/dev/null 2>&1 || { git -C "$WORK" config user.email "noreply@localhost"; git -C "$WORK" config user.name "Community Agent"; }
           git -C "$WORK" add -A >/dev/null 2>&1
@@ -378,6 +467,14 @@ if [ -n "$REPO_L" ]; then
     fi
   fi
 fi
+
+# What the restore step (section 0) and the no-shrink guard did, on every
+# path — a restore that failed after a rebuild is exactly when the branch is
+# at risk, so it rides along with whatever status the publish reached.
+LEDGER=$(printf '%s' "$LEDGER" | jq -c --arg rs "$SEED_STATUS" --arg rf "$SEEDED" --arg w "${WITHHELD# }" '
+  . + {restore: $rs}
+  + (if $rf != "" then {restored_files: $rf} else {} end)
+  + (if $w != "" then {withheld: $w} else {} end)' 2>/dev/null || printf '%s' "$LEDGER")
 
 # ============================================================================
 # 5. Decide. Post day: the model composes and posts. Collect day: the model

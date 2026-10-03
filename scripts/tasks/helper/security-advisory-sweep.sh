@@ -3,8 +3,8 @@ set -euo pipefail
 # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy — no token
 # in this file, no `gh` CLI (it refuses to run without local auth config,
 # which containers deliberately don't have).
-# Failure design: an HTTP error (incl. 403 = fine-grained token missing the
-# Dependabot alerts read permission) WAKES the agent as fetch-failed — it
+# Failure design: an HTTP error (403 = the token lacks Dependabot alerts
+# read on that repo, or alerts are turned off there — told apart below) WAKES the agent as fetch-failed — it
 # must never read as "no new advisories". And the script never marks
 # alerts seen: the AGENT acks them after handing off, so a lost wake
 # re-surfaces the alert next run.
@@ -40,10 +40,40 @@ if [ -z "$REPOS" ]; then
 fi
 SEEN="$DATA/seen-advisories.txt"
 touch "$SEEN"
-NEW="[]"; FAILED=""
+NEW="[]"; FAILED=""; FAILS="[]"; DISABLED=""; NEW_DISABLED=""
+# Repos already reported as having Dependabot alerts turned off. That's a repo
+# setting, not an outage: reported once, then carried quietly in the output,
+# because a real install re-reported it every 4 hours for days.
+DIS_F="$DATA/alerts-disabled-notified.txt"
+touch "$DIS_F"
 for REPO in $REPOS; do
-  ALERTS=$(curl -fsS --max-time 8 -H "Accept: application/vnd.github+json" \
-    "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100") || { FAILED="$FAILED $REPO"; continue; }
+  # Keep the HTTP code and GitHub's message: `curl -f` threw both away, and the
+  # hint then blamed the token for every failure. A repo with Dependabot
+  # alerts turned off also answers 403, and a real owner chased a token change
+  # for days over exactly that.
+  RAW=$(curl -sS --max-time 8 -w '\n%{http_code}' -H "Accept: application/vnd.github+json" \
+    "https://api.github.com/repos/$REPO/dependabot/alerts?state=open&per_page=100" 2>/dev/null) || RAW=$'\n000'
+  CODE=$(printf '%s\n' "$RAW" | tail -n 1)
+  ALERTS=$(printf '%s\n' "$RAW" | sed '$d')
+  if [ "$CODE" != "200" ]; then
+    MSG=$( { printf '%s' "$ALERTS" | jq -r '.message // empty' 2>/dev/null || true; } | tr -d '"\\' | head -c 160)
+    case "$CODE:$MSG" in
+      40[34]:*[Dd]isabled*) REASON=alerts-disabled ;;
+      403:*) REASON=forbidden ;;
+      404:*) REASON=not-found ;;
+      000:*) REASON=network ;;
+      *)     REASON="http-$CODE" ;;
+    esac
+    if [ "$REASON" = "alerts-disabled" ]; then
+      DISABLED="$DISABLED $REPO"
+      grep -qxF "$REPO" "$DIS_F" || NEW_DISABLED="$NEW_DISABLED $REPO"
+    else
+      FAILED="$FAILED $REPO"
+      FAILS=$(jq -c -n --argjson f "$FAILS" --arg r "$REPO" --arg c "$CODE" --arg why "$REASON" --arg m "$MSG" \
+        '$f + [{repo: $r, http: $c, reason: $why, message: $m}]')
+    fi
+    continue
+  fi
   # Carry the whole finding, not just the id. This response already contains
   # severity, package, scope and the patched version — the previous version
   # extracted `.number` and threw the rest away, which forced the agent to
@@ -112,13 +142,22 @@ for REPO in $REPOS; do
 $(printf '%s' "$ENRICHED" | jq -c '.[]' 2>/dev/null)
 EOF
 done
+DISABLED="${DISABLED# }"; NEW_DISABLED="${NEW_DISABLED# }"
 if [ -n "$FAILED" ]; then
-  printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": "%s", "hint": "403 usually means the fine-grained token is missing the Dependabot alerts (read) permission", "new": %s}}\n' "${FAILED# }" "$NEW"
+  printf '{"wakeAgent": true, "data": {"status": "fetch-failed", "failed_repos": "%s", "failures": %s, "alerts_disabled": "%s", "alerts_disabled_new": "%s", "hint": "per repo, read reason: forbidden = the token lacks Dependabot alerts (read) on that repo; not-found = the token cannot see the repo; network = proxy or timeout. alerts-disabled repos are listed separately and are a repo setting, not a failure", "new": %s}}\n' \
+    "${FAILED# }" "$FAILS" "$DISABLED" "$NEW_DISABLED" "$NEW"
+  for r in $NEW_DISABLED; do echo "$r" >> "$DIS_F"; done
   exit 0
 fi
 if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
-  echo '{"wakeAgent": false, "data": {"status": "no-new-advisories"}}'
+  if [ -n "$NEW_DISABLED" ]; then
+    printf '{"wakeAgent": true, "data": {"status": "alerts-disabled", "alerts_disabled": "%s", "alerts_disabled_new": "%s"}}\n' "$DISABLED" "$NEW_DISABLED"
+    for r in $NEW_DISABLED; do echo "$r" >> "$DIS_F"; done
+  else
+    printf '{"wakeAgent": false, "data": {"status": "no-new-advisories", "alerts_disabled": "%s"}}\n' "$DISABLED"
+  fi
 else
+  for r in $NEW_DISABLED; do echo "$r" >> "$DIS_F"; done
   # Sort worst-first and roll up the counts, so the report can lead with what
   # matters instead of the order GitHub happened to return.
   SORTED=$(printf '%s' "$NEW" | jq -c '
@@ -131,6 +170,6 @@ else
   WITH_PR=$(printf '%s' "$SORTED" | jq '[.[] | select(.has_fix_pr)] | length')
   NEEDS_PR=$(printf '%s' "$SORTED" | jq '[.[] | select(.has_fix_pr | not)] | length')
   MAJOR=$(printf '%s' "$SORTED" | jq '[.[] | select(.bump == "major")] | length')
-  printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "with_fix_pr": %s, "needs_fix_pr": %s, "major_bumps": %s, "advisories": %s}}\n' \
-    "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$WITH_PR" "$NEEDS_PR" "$MAJOR" "$SORTED"
+  printf '{"wakeAgent": true, "data": {"status": "new", "count": %s, "highest_severity": "%s", "by_severity": %s, "runtime_scoped": %s, "with_fix_pr": %s, "needs_fix_pr": %s, "major_bumps": %s, "alerts_disabled": "%s", "alerts_disabled_new": "%s", "advisories": %s}}\n' \
+    "$(printf '%s' "$SORTED" | jq 'length')" "$TOP" "$COUNTS" "$RUNTIME" "$WITH_PR" "$NEEDS_PR" "$MAJOR" "$DISABLED" "$NEW_DISABLED" "$SORTED"
 fi

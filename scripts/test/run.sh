@@ -409,7 +409,10 @@ MOCK
 #     the baseline), so without this the entire "quiet day stays quiet" half
 #     of every wake gate is untestable.
 assert_scenario() {
-  local sh="$1" fixture="$2" expect="$3" pred="$4" cfg="$5" runs="${6:-1}" seed="${7:-}"
+  # check (optional 8th arg): a shell snippet run in the sandbox after the last
+  # run, with $SANDBOX set — for assertions on the files a gate wrote, which
+  # the output JSON alone can't show (a duplicated CSV row, say).
+  local sh="$1" fixture="$2" expect="$3" pred="$4" cfg="$5" runs="${6:-1}" seed="${7:-}" check="${8:-}"
   local sandbox; sandbox=$(mktemp -d)
   local sname; sname=$(basename "$sh" .sh)
   local fixdir="$sandbox/.fixtures"
@@ -448,9 +451,12 @@ MOCK
     out=$(cd "$sandbox" && PATH="$sandbox/bin:$PATH" \
           bash <(sed -e "s#/workspace/agent/plugin-data#$sandbox/plugin-data#g" "$sh") 2>/dev/null | tail -1)
   done
-  rm -rf "$sandbox"
   local label="$sname/$fixture"
   [ "$runs" -gt 1 ] && label="$label(run$runs)"
+  if [ -n "$check" ] && ! ( cd "$sandbox" && SANDBOX="$sandbox" bash -c "$check" ) >/dev/null 2>&1; then
+    rm -rf "$sandbox"; fail "$label: post-run file check failed [$check]"; return
+  fi
+  rm -rf "$sandbox"
   if ! printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
     fail "$label: last line is not valid JSON: ${out:0:140}"; return
   fi
@@ -480,11 +486,10 @@ assert_gate "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
 assert_gate "$ROOT/scripts/tasks/helper/github-ops-triage.sh" \
   "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"'
-# project-health: even with the social wake switched off, a day where every
-# GitHub fetch failed must wake — degraded_repos overrides SOCIAL_DAILY=false.
-assert_gate "$ROOT/scripts/tasks/helper/project-health.sh" \
-  "fetch-fails-must-wake" "true" 'COMMUNITY_REPOS="acme/demo"
-SOCIAL_DAILY=false'
+# project-health's fetch-fails-must-wake lives in 2c below: it needs a pinned
+# non-post day and an empty fixture set, and assert_gate here would load the
+# success-path fixtures (every fetch succeeds, so the test only passed on
+# Mondays, when post mode woke it for an unrelated reason).
 
 # --- 2c. success-path assertions -------------------------------------------
 # These check the SHAPE the task prompts actually read. A renamed or dropped
@@ -525,6 +530,62 @@ assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health fa
   "COMMUNITY_REPOS=\"acme/demo\"
 SOCIAL_DAILY=false
 HEALTH_POST_DOW=$NOT_TODAY_DOW"
+
+# Even with the social wake switched off on a collect day, a run where every
+# GitHub fetch failed must wake — degraded_repos overrides SOCIAL_DAILY=false.
+# "no-fixtures" names no fixture dir, so every mocked fetch fails.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" no-fixtures true \
+  '((.data.degraded_repos // []) | length > 0) or (.data.status == "fetch-failed")' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+SOCIAL_DAILY=false
+HEALTH_POST_DOW=$NOT_TODAY_DOW"
+
+# Re-running on the same day must not duplicate a row: the README tells
+# operators to run the task by hand, and plain appends gave a real install
+# four identical-date rows. Two post-day runs -> one metrics row for the repo
+# and one traffic row.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
+  '(.data.mode == "post")' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+GA4_PROPERTIES=\"main:123\"
+HEALTH_POST_DOW=$TODAY_DOW" 2 "" \
+  'D="$SANDBOX/plugin-data/community-helper"; T=$(date -u +%Y-%m-%d);
+   [ "$(grep -c "^$T,acme/demo," "$D/metrics-history.csv")" = 1 ] &&
+   [ "$(grep -c "^$T," "$D/traffic-history-main.csv")" = 1 ] &&
+   [ "$(grep -c "^$T,acme/demo," "$D/contributor-health-history.csv")" -le 1 ]'
+
+# A failed re-run must never blank a good row already written today: seed a
+# good row, run with every fetch failing, and the good row must survive.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" no-fixtures true - \
+  "COMMUNITY_REPOS=\"acme/demo\"
+SOCIAL_DAILY=false
+HEALTH_POST_DOW=$NOT_TODAY_DOW" 1 \
+  'D="$SANDBOX/plugin-data/community-helper"; mkdir -p "$D"; T=$(date -u +%Y-%m-%d);
+   printf "date,repo,stars,forks,open_issues,open_prs,new_contrib_7d,await_issues,await_oldest,rel_latest,dl_latest\n%s,acme/demo,937,558,42,7,0,5,2026-06-01T00:00:00Z,v5.2.0,1000\n" "$T" > "$D/metrics-history.csv"' \
+  'D="$SANDBOX/plugin-data/community-helper"; T=$(date -u +%Y-%m-%d);
+   [ "$(grep -c "^$T,acme/demo," "$D/metrics-history.csv")" = 1 ] &&
+   grep -q "^$T,acme/demo,937,558,42," "$D/metrics-history.csv"'
+
+# GA4 rejects "dateRange" as a requested dimension (it adds the range name to
+# rows by itself). The mock curl can't see the request body, so guard the
+# request text directly: this bug shipped once and failed every GA4 call.
+if grep -q '"dimensions":\[{"name":"dateRange"}\]' "$ROOT/scripts/tasks/helper/project-health.sh"; then
+  fail "project-health: GA4 request asks for the invalid dateRange dimension"
+else
+  pass
+fi
+
+# HEALTH_POST_DOW also takes a list or "daily": "daily" must post today, and a
+# list that leaves today out must stay a collect day.
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health true \
+  '(.data.mode == "post")' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+HEALTH_POST_DOW=daily"
+assert_scenario "$ROOT/scripts/tasks/helper/project-health.sh" project-health false \
+  '(.data.mode == "collect")' \
+  "COMMUNITY_REPOS=\"acme/demo\"
+SOCIAL_DAILY=false
+HEALTH_POST_DOW=\"$NOT_TODAY_DOW,$(( (NOT_TODAY_DOW + 1) % 7 ))\""
 
 # A repo string that is not owner/name never reaches a URL, a JSON object or
 # a CSV row: it is recorded as bad-config, counts as degraded, and therefore
@@ -735,6 +796,38 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"mirror ok\"}" >> "$D/digest-queue.jsonl";
    echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"backup ok\"}" >> "$D/digest-queue.jsonl"'
 
+# owner-tldr: the routine digest must go out on the first run AFTER the chosen
+# hour, not only on a run that lands exactly on it. The cron used to be
+# 2-hourly on even hours, so an exact match on 07 could never happen, and a
+# live install's routine brief never fired once. Digest hour = one hour ago
+# (or now, at local midnight, where "one hour ago" would be yesterday).
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
+  '(.data.trigger == "routine") and (.data.total == 1)' '' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   H=$(date -u +%-H); [ "$H" -gt 0 ] && H=$((H-1));
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$H" > "$D/config.env";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"late run\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: ...but only once a day — a second run the same day stays held.
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures false \
+  '(.data.status == "held")' '' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   H=$(date -u +%-H); [ "$H" -gt 0 ] && H=$((H-1));
+   printf "OWNER_TZ=\"UTC\"\nTLDR_LOCAL_HOUR=\"%s\"\n" "$H" > "$D/config.env";
+   date -u +%Y-%m-%d > "$D/digest-last-routine-date"; printf "%s" "$(date +%s)" > "$D/digest-last-sent";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"already sent today\"}" >> "$D/digest-queue.jsonl"'
+
+# owner-tldr: an UNSET OWNER_TZ is reported as unresolved, not taken as a
+# deliberate UTC. A live install ran a week with it unset and nobody was told.
+assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures any \
+  '(.data.tz_resolved == false) and (.data.tz == "UTC")' '' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   printf "TLDR_LOCAL_HOUR=\"%s\"\n" "$(date -u +%-H)" > "$D/config.env";
+   NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
+   echo "{\"at\":\"$NOW\",\"source\":\"local\",\"severity\":\"info\",\"line\":\"x\"}" >> "$D/digest-queue.jsonl"'
+
 # owner-tldr: an entry marked urgent should never be in the queue at all —
 # urgent bypasses it. The gate flags it as a process failure.
 assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
@@ -870,6 +963,56 @@ assert_scenario "$ROOT/scripts/tasks/helper/inbox-check.sh" inbox-unread false \
   '(.data.status == "all-handed-over") and (.data.unread == 2)' \
   'INBOX_ENABLED="true"' 2
 
+# unanswered-watch: a Helper wired to no support channel used to stay silent
+# on every run (851 quiet runs on a live install). After a day of it, it must
+# wake ONCE, then stay quiet. `ncl` is a stub answering `sessions list`.
+UW_STUB='mkdir -p "$SANDBOX/bin"
+printf "#!/bin/bash\ncase \"\$*\" in *\"sessions list\"*) cat %s/list.json;; *\"sessions history\"*) cat %s/hist.json;; esac\n" "$SANDBOX" "$SANDBOX" > "$SANDBOX/bin/ncl"
+chmod +x "$SANDBOX/bin/ncl"
+D="$SANDBOX/plugin-data/community-helper"; mkdir -p "$D"
+printf %s "{\"ok\":true,\"data\":[{\"id\":\"s1\",\"status\":\"active\",\"messaging_group_id\":null}]}" > "$SANDBOX/list.json"'
+assert_scenario "$ROOT/scripts/tasks/helper/unanswered-watch.sh" no-fixtures true \
+  '(.data.status == "no-channel-sessions") and (.data.persisting_hours >= 24)' '' 1 \
+  "$UW_STUB
+   echo \$(( \$(date +%s) - 2*86400 )) > \"\$D/no-channel-sessions-since\""
+assert_scenario "$ROOT/scripts/tasks/helper/unanswered-watch.sh" no-fixtures false \
+  '(.data.status == "no-channel-sessions")' '' 2 \
+  "$UW_STUB
+   echo \$(( \$(date +%s) - 2*86400 )) > \"\$D/no-channel-sessions-since\""
+# ...and a fresh install isn't nagged in its first day.
+assert_scenario "$ROOT/scripts/tasks/helper/unanswered-watch.sh" no-fixtures false \
+  '(.data.status == "no-channel-sessions")' '' 1 "$UW_STUB"
+# The wrapped `{ok, data: [...]}` shape must parse for both list and history:
+# a channel session whose newest message is the bot's own reply is answered.
+assert_scenario "$ROOT/scripts/tasks/helper/unanswered-watch.sh" no-fixtures any \
+  '(.data.status != "cannot-read-sessions") and (.data.status != "no-channel-sessions")' '' 1 \
+  "$UW_STUB
+   printf %s '{\"ok\":true,\"data\":[{\"id\":\"s2\",\"status\":\"active\",\"messaging_group_id\":\"mg-1\"}]}' > \"\$SANDBOX/list.json\"
+   printf %s '{\"ok\":true,\"data\":[]}' > \"\$SANDBOX/hist.json\""
+
+# security-advisory-sweep: a repo with Dependabot alerts turned OFF answers
+# 403 too. It must be told apart from a token problem (a real owner chased a
+# token change for days over it), reported once, then carried quietly.
+assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-disabled true \
+  '(.data.status == "alerts-disabled") and (.data.alerts_disabled == "acme/docs")
+   and (.data.alerts_disabled_new == "acme/docs")' \
+  'COMMUNITY_REPOS="acme/docs"'
+assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-disabled false \
+  '(.data.status == "no-new-advisories") and (.data.alerts_disabled == "acme/docs")' \
+  'COMMUNITY_REPOS="acme/docs"' 2
+# ...and when new advisories arrive in the same run, the disabled repo still
+# reaches the agent: it is marked reported, so it must be IN this output.
+assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-new-and-disabled true \
+  '(.data.status == "new") and (.data.count == 3) and (.data.alerts_disabled_new == "acme/docs")' \
+  'COMMUNITY_REPOS="acme/demo acme/docs"'
+# ...while a real permission problem is still a loud fetch-failed, with the
+# HTTP code and GitHub's message carried through instead of a guessed hint.
+assert_scenario "$ROOT/scripts/tasks/helper/security-advisory-sweep.sh" advisory-forbidden true \
+  '(.data.status == "fetch-failed") and (.data.failures[0].repo == "acme/demo")
+   and (.data.failures[0].http == "403") and (.data.failures[0].reason == "forbidden")
+   and (.data.failures[0].message | test("not accessible"))' \
+  'COMMUNITY_REPOS="acme/demo"'
+
 # weekly-identity-integrity-check: previously had NO behavioral coverage at
 # all (it was named in this file's own HONEST LIMITS list). Now that its
 # baseline is a per-task CSV of prompt hashes rather than one global hash of
@@ -918,6 +1061,33 @@ assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh"
   "$IDENTITY_STUB
    printf %s '[{\"id\":\"t1\",\"prompt\":\"alpha\"},{\"id\":\"t3\",\"prompt\":\"gamma\"}]' > \"\$SANDBOX/live.json\"
    { echo task_id,prompt_sha256; echo t1,\$(H alpha); echo t2,\$(H beta); } > \"\$D/task-prompt-hashes.csv\""
+
+# The REAL `ncl tasks list --json` shape: a wrapper whose own `id` is the
+# request's, with each task keyed by `series_id`. The cases above use a bare
+# array, which is why the original filter (`.[] | .id`) passed its tests and
+# failed on every live run. A baseline keyed by series_id must read as
+# no-drift here, not as "manual" or a false alarm.
+REAL_SHAPE='printf %s "{\"id\":\"req-1\",\"ok\":true,\"data\":[{\"series_id\":\"owner-tldr-6b2f\",\"row_id\":1,\"prompt\":\"alpha\"},{\"series_id\":\"docs-gap-review-564a\",\"row_id\":2,\"prompt\":\"beta\"}]}" > "$SANDBOX/live.json"'
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures false \
+  '.data.status == "no-drift"' '' 1 \
+  "$IDENTITY_STUB
+   $REAL_SHAPE
+   { echo task_id,prompt_sha256; echo owner-tldr-6b2f,\$(H alpha); echo docs-gap-review-564a,\$(H beta); } > \"\$D/task-prompt-hashes.csv\""
+
+# A baseline left behind by the broken filter (every task keyed "unknown")
+# is rebuilt once, quietly — not reported as every task added and one removed.
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures false \
+  '.data.status == "baseline-reinitialized"' '' 1 \
+  "$IDENTITY_STUB
+   $REAL_SHAPE
+   { echo task_id,prompt_sha256; echo unknown,\$(H beta); } > \"\$D/task-prompt-hashes.csv\""
+
+# A live task with no id at all can't be compared; it must go to manual
+# review, never be hashed together with another id-less task.
+assert_scenario "$ROOT/scripts/tasks/manager/weekly-identity-integrity-check.sh" no-fixtures true \
+  '.data.status == "manual"' '' 1 \
+  "$IDENTITY_STUB
+   printf %s '{\"ok\":true,\"data\":[{\"prompt\":\"alpha\"},{\"prompt\":\"beta\"}]}' > \"\$SANDBOX/live.json\""
 
 # The acked baseline must NOT be self-healed on drift: a lost wake has to
 # re-alert next week rather than silently baselining a tampered prompt as
@@ -1149,6 +1319,31 @@ GITCFG
   else
     fail "$label/diverged: an outside commit was discarded — this task must never force-push"
   fi
+
+  # REBUILD: a restamp starts plugin-data empty, and publishing then copied
+  # the fresh one-row files over the branch — months of history, the
+  # follower series included, replaced by today. The history must instead be
+  # restored FROM the branch before anything is written.
+  local soc_before soc_local soc_after
+  soc_before=$(git -C "$t/remote.git" show agent-metrics:agent-metrics/social-metrics-history.csv | wc -l)
+  rm -rf "$t/data/.ledger-repo" "$t/data/metrics-history.csv" "$t/data/social-metrics-history.csv" \
+         "$t/data/social-metrics-history.jsonl" "$t/data/traffic-history-main.csv"
+  out=$(run_it)
+  printf '%s' "$out" | jq -e '.data.ledger.restore == "restored" and (.data.ledger.restored_files | test("social-metrics-history.csv"))' >/dev/null 2>&1 \
+    && pass || fail "$label/rebuild: missing history was not restored from the branch, got: $(printf '%s' "$out" | jq -c .data.ledger 2>/dev/null)"
+  soc_local=$(wc -l < "$t/data/social-metrics-history.csv" 2>/dev/null || echo 0)
+  soc_after=$(git -C "$t/remote.git" show agent-metrics:agent-metrics/social-metrics-history.csv | wc -l)
+  [ "$soc_local" -eq "$soc_before" ] && [ "$soc_after" -ge "$soc_before" ] \
+    && pass || fail "$label/rebuild: follower history shrank (branch $soc_before -> $soc_after lines, local $soc_local)"
+
+  # NO-SHRINK: a local file shorter than the branch copy is never published —
+  # that is how a live install lost two days of traffic rows.
+  head -n 1 "$t/data/social-metrics-history.csv" > "$t/data/soc.tmp" && mv "$t/data/soc.tmp" "$t/data/social-metrics-history.csv"
+  out=$(run_it)
+  soc_after=$(git -C "$t/remote.git" show agent-metrics:agent-metrics/social-metrics-history.csv | wc -l)
+  printf '%s' "$out" | jq -e '.data.ledger.withheld | test("social-metrics-history.csv")' >/dev/null 2>&1 \
+    && [ "$soc_after" -ge "$soc_before" ] \
+    && pass || fail "$label/no-shrink: a shorter local copy overwrote the branch ($soc_before -> $soc_after lines), got: $(printf '%s' "$out" | jq -c .data.ledger 2>/dev/null)"
   rm -rf "$t"
   # Scoped to this function: the throwaway config must not leak into later
   # sections, which run real git against the real repo.

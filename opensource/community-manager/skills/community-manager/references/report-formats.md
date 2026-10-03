@@ -67,7 +67,7 @@ When something is owner-bound, append **one line** to
 {"at": "2026-08-21T14:03:00Z", "source": "local", "severity": "info", "line": "mirror sync: docs repo, 3 commits, nothing notable"}
 ```
 
-- `at` — full ISO8601, not a bare date.
+- `at` — full ISO8601 in UTC, not a bare date: write it with `date -u +%Y-%m-%dT%H:%M:%SZ`. A local time with a `Z` stuck on the end reads as hours old or hours in the future, and a live install's queue timestamps were 7 hours off that way.
 - `source` — the reporting agent: `helper`, or
   `self` for your own findings.
 - `severity` — `info` or `attention`. **Never `urgent`** (see below).

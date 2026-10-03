@@ -95,6 +95,50 @@ This should already have been done host-side at stamp time
 skipped. Sub-agents are different: they're headless with no live
 conversation, so installing jq on them during stamping (section 6) is correct.
 
+## 1b. The questions, in order
+
+Every question this interview asks, in the order you ask it, one per message.
+Owners keep their own answer sheet against these numbers, so keep the
+numbering stable: add new questions at the end of their step, and never
+renumber. *Check first* means you find the answer yourself and only confirm it.
+
+| # | Step | Question | Lands in |
+|---|---|---|---|
+| 1 | 0 | Did the test DM arrive? | owner identity in `project-config.md` |
+| 2 | 1 | Is there an answers file? | read it instead of asking |
+| 3 | 2 | What's the project's GitHub repo? | `product` |
+| 4 | 2 | Are docs, site and marketing in that repo or separate ones? *(check first)* | repo map |
+| 5 | 3 | Which goals: support, growth (users or contributors first?), detection, security? One at a time. | `project-config.md` scoping |
+| 6 | 3 | Track metrics? If yes, which repo holds the history? | `LEDGER_REPO`, or `project-health` stays paused |
+| 7 | 3 | Is a 15-minute grace right before first-responding on GitHub? | `FIRST_RESPONSE_GRACE_MINUTES` (manager) |
+| 8 | 3 | Is there a project inbox to watch? | `INBOX_ENABLED` (Helper) |
+| 9 | 4 | What timezone do you work in? | group timezone **and** `OWNER_TZ` |
+| 10 | 4 | What hour should the daily TLDR arrive? (default 07:00) | `TLDR_LOCAL_HOUR` if not 7 |
+| 11 | 4 | Docs site URL, primary language, topic scope *(check first)* | `project-config.md` |
+| 12 | 4 | Which channels are support, developer, team-lead and security, and which one is announcements? | channel tiers |
+| 13 | 4 | Should new Discord members get replies without approval? | `unknown_sender_policy` |
+| 14 | 4 | Security disclosure path *(check `SECURITY.md` first)* | `security_contact` |
+| 15 | 4 | Who counts as a maintainer? | `project-config.md` |
+| 16 | 4 | Who is the second human for escalations? | `escalation_backstop` |
+| 17 | 4 | Docs: current behaviour only, or is version history fine? | `docs_style` |
+| 18 | 4 | Who is the project for, and what tone follows? | `target_audience`, `tone` |
+| 19 | 4 | Dependabot: configured, and are alerts on per repo? *(check first)* | Dependabot answer, `SECURITY_WATCH_REPOS` |
+| 20 | 4 | Discord invite URL *(check the README first)* | `project-config.md` |
+| 21 | 4 | Want the GitHub→Discord CI workflow? | `project-config.md` |
+| 22 | 4 | Which model for each agent? | per-agent model |
+| 23 | 4 | *Metrics only:* which follower counts matter? | profile URLs relayed to the Helper |
+| 24 | 4 | *Metrics only:* GA4 property ids? | `GA4_PROPERTIES` |
+| 25 | 4 | *Metrics only:* how often, and to which channels, are the numbers posted? | `HEALTH_POST_DOW`, report channels |
+| 26 | 4 | *Metrics only:* which repos do the dev numbers cover? | prose to the Helper |
+| 27 | 5c | Wire the channels yourself from the host (no cards), or have me do it? Server ID? | Discord wiring |
+| 28 | 6 | Approve stamping the Helper? | stamp |
+| 29 | 6 | How long can a support message sit before the holding reply? | `ACK_GRACE_MINUTES` |
+| 30 | 6 | Should the security sweep cover only the repos that ship code? | `SECURITY_WATCH_REPOS` |
+| 31 | 7 | Which URL reaches the OneCLI dashboard from where you'll check in? | `onecli_dashboard_url` |
+| 32 | 7 | What is the bot account's GitHub username? | `GITHUB_BOT_USERNAME`, `github_bot_username` |
+| 33 | 7 | Set up each vault entry for the features you enabled | OneCLI vault (never chat) |
+| 34 | 8 | *Metrics only:* any record of past follower counts? | follower CSV, validated first |
+
 ## 2. The first question: "What is the project's GitHub repo?"
 
 Everything else derives from this one answer, so it opens the interview: ask
@@ -140,8 +184,8 @@ pauses tasks in whichever group holds them:
 | Goal | If yes, these tasks become eligible |
 |---|---|
 | **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `docs-gap-review` *(manager)* · release announcements posted when the owner hands you one *(manager; the text comes from the project repo's own release skill)* · `github-ops-triage` *(Helper, weekly)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `project-health` *(Helper)* — its social follower series, GA4 traffic, new-contributor list, return-nudges and contributor-health numbers |
-| **Proactive issue detection** — finding problems before users report them | `project-health` *(Helper)* — its awaiting-first-response backlog and unmerged-ratio trend (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
+| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `project-health` *(Helper)*, **only if the owner also wants metrics (below)** — its social follower series, GA4 traffic, new-contributor list, return-nudges and contributor-health numbers |
+| **Proactive issue detection** — finding problems before users report them | `github-first-response` *(manager, always on)* and `github-ops-triage` *(Helper)*; plus `project-health`'s awaiting-first-response backlog and unmerged-ratio trend if metrics are on (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
 | **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · the escalation paths in `escalation-paths.md` |
 
 **Content creation is not on this menu, and should not be offered.** Posts,
@@ -166,16 +210,31 @@ maintainer points at it. If the owner asks for them, say exactly that:
 a goal: `unanswered-watch`, `github-first-response`, `owner-tldr`,
 `weekly-identity-integrity-check`, and `conversation-archive-prune`.
 
-One more is worth offering even to an owner who declines every growth goal:
-`project-health` runs daily, but most days it only *collects* — the script
-appends the GitHub rows itself and the Helper wakes just long enough to read
-the social follower pages and append one row, posting nothing (`SOCIAL_DAILY=false`
-makes those days cost no tokens at all). Every run also commits the history
-files that cannot be rebuilt (follower counts especially — no platform will
-ever tell you last Tuesday's number) to a branch of `LEDGER_REPO`, so they
-survive this system being rebuilt. Without it those series restart at zero on
-every repave, permanently. That makes `LEDGER_REPO` worth asking for
-regardless of goals.
+**Metrics are opt-in — ask, as its own question, right after the goals.** Many
+open-source projects don't track numbers at all, and a project that doesn't
+care about follower counts or traffic should never be walked through GA4, social
+URLs, post cadence or a history repo. Ask plainly:
+
+> "Do you want the project's numbers tracked — repo activity, and optionally
+> social followers and website traffic? If so, is there a repo where that
+> history should live, and which one?"
+
+- **No** → `project-health` stays paused. Skip every metrics question below
+  (GA4, social platforms, post cadence and channels, which repos the dev
+  numbers cover) and all of step 8. Detection is still covered by
+  `github-first-response` and `github-ops-triage`.
+- **Yes, with a repo** → that repo is `LEDGER_REPO`. Recommend a private
+  marketing or ops repo, never the product repo. `project-health` commits the
+  history that can't be rebuilt (follower counts above all: no platform will
+  ever tell you last Tuesday's number) to a branch there on every run, so it
+  survives a rebuild.
+- **Yes, but no repo** → it runs, but say once, plainly, that the history
+  lives only in this container and restarts from zero on the next rebuild.
+
+When metrics are on, `project-health` runs daily but most days it only
+*collects*: the script appends the GitHub rows itself and the Helper wakes just
+long enough to read the follower pages (`SOCIAL_DAILY=false` makes those days
+cost no tokens). It posts only on the days the owner picks (step 4).
 
 `github-first-response` is the GitHub half of responsiveness. Discord you
 answer live through your channel wiring, so it needs no task — but GitHub has
@@ -188,13 +247,18 @@ don't beat a maintainer who is already typing.
 `owner-tldr` is the one to explain properly, because it changes what the owner
 experiences more than any other task here. Sub-agent reports are **queued, not
 relayed**: each one appends a line to a digest queue, and this task turns a
-day's worth into a single TLDR. Ask the owner what time of day they want it and
-**you do not need to ask what hour** — it is 07:00 their local time, derived
-from the timezone you already collected. Relay `OWNER_TZ` (the IANA zone, e.g.
-`America/New_York`) and leave `TLDR_LOCAL_HOUR` at 7 unless they ask otherwise.
-The digest resolves their local hour at runtime, so it lands at 07:00 for them
-and keeps doing so through daylight saving without anyone editing a cron. Only
-this task can do that — every other schedule is a UTC cron line.
+day's worth into a single TLDR. **Ask what hour they want it**, right after the
+timezone question in step 4: 07:00 their local time is the default and a fine
+answer, but it is their call. A real owner moved it to 19:00 within a week.
+Write `OWNER_TZ` (the IANA zone, e.g. `America/New_York`) and, if the answer
+isn't 7, `TLDR_LOCAL_HOUR` (0–23) to your `config.env`. Both are config: never
+edit the task's script to change them, because a restamp puts the script back.
+The digest resolves their local hour at runtime, so it lands at their hour
+and keeps doing so through daylight saving without anyone editing a cron. Every
+other schedule is a cron line evaluated in the group's timezone — the one
+you set with `ncl groups config update --timezone` in step 4 — not UTC. A real
+install's telemetry showed `17 13 * * *` firing at 13:17 Pacific. `OWNER_TZ` is a
+separate value: if it isn't written, the digest silently falls back to UTC.
 
 Say why 07:00: they are awake and can act on it. A digest that arrives at 3am
 is read at 7am regardless, having spent a wake to be early. Say plainly what the three tiers
@@ -205,9 +269,9 @@ genuinely urgent findings never touch the queue at all, at any hour. The waking
 window is 15 hours from the digest hour — an escalation at 3am would be read at
 7am anyway, so it waits and rides the morning brief instead.
 
-**Also tell them what does NOT come to their DM.** `project-health`'s weekly
-dev numbers go to the developer channel and its social + traffic numbers to
-the team-lead channel; advisories to the security channel; releases and
+**Also tell them what does NOT come to their DM.** `project-health`'s dev
+numbers go to the developer channel and its social + traffic numbers to
+the team-lead channel (if metrics are on); advisories to the security channel; releases and
 content to announcements. That is deliberate —
 those reports are for the people who act on them, and duplicating them into the
 owner's DM buries them and clutters the DM at once. Ask which channel is which
@@ -232,7 +296,15 @@ Offer it as protection for the north star, not as a feature.
 **Not goal-scoped**: `inbox-check` — the Helper's task. An inbox is a
 support channel on a different transport, so the same escalation rules apply;
 offered only if the project has a shared inbox and an email tool is
-connected.
+connected. Ask once: "Is there a project inbox you want watched for things
+you need to act on?" Then say plainly what it does: it reads only (the
+credential is `gmail.readonly`), it never labels, archives or marks anything
+read, and what it finds reaches the owner through the TLDR, or immediately if
+it's a security report. If the owner wants mail sorted into labels, say that
+this set doesn't do that, and don't build a custom task to do it. A real
+install did: it needed a broader scope than the vault entry grants, wrote
+senders' names into logs on disk, and ran alongside `inbox-check` so the same
+inbox was read five times a day.
 
 Two things to get right here:
 
@@ -272,6 +344,8 @@ asking for anything yet.
 **Ask the timezone question first**, before anything else in this step. It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable. Say plainly: *"What timezone do you actually work in? Your tasks are scheduled relative to it — I can set or change this any time, it takes effect right away."*
 
 - Record it, and run `ncl groups config update --timezone <IANA id>` on your own group yourself (or ask the owner to, if you can't reach `ncl` directly) — it takes effect immediately for scheduled tasks, no restart or recreate. If shipped times already suit them in their timezone, that's fine too.
+- **In the same step, write `OWNER_TZ="<IANA id>"` to your own `config.env`.** The group timezone moves the crons; `OWNER_TZ` is what `owner-tldr` reads to find the owner's 07:00. One answer, two writes. A real install wrote only the first and ran a week with `OWNER_TZ` unset, so the digest fell back to UTC.
+- **Then ask what hour the daily TLDR should arrive** (default 07:00 their time; see `owner-tldr` in step 3) and write `TLDR_LOCAL_HOUR` if it isn't 7.
 - If they're unsure the shipped times will land well: offer to list them, and let them decide whether any need adjusting once they see actual local times. This is a low-stakes, reversible setting now — never treat it as a one-shot decision.
 
 **Then proceed one question at a time** through the rest of what a complete config needs:
@@ -329,17 +403,6 @@ asking for anything yet.
   jargon, no growth-hacker voice, warm and practical instead). Persist the
   answer verbatim in project-config as `target_audience` + `tone`; content
   drafts must fit it explicitly, not default to generic SaaS copy.
-- Social platforms: which exist (public profile URLs — for the follower
-  series), which the project POSTS to, and per posting platform the mechanism —
-  intent-url (free, no keys, default), manual copy-paste, or paid API (X has no
-  free tier since Feb 2026; pay-per-use ~$0.20/link-post — owner's explicit
-  opt-in only)
-- **Optional analytics: GA4 property id** — "not now" is a fine answer; the
-  task silent-skips until configured. **If the project has several GA4
-  properties**, put them all in one `GA4_PROPERTIES` value in the Helper's
-  config (`id`, or `label:id,label:id`); `project-health` reads them all.
-  Do not create separate report tasks per property — the one task covers
-  every configured property in a single run.
 - **Dependabot — check `.github/dependabot.yml` before asking.** If it
   already has an active `version-updates` config, that answers the question:
   Dependabot opens its own fix PRs, and the Helper only records them against
@@ -353,6 +416,14 @@ asking for anything yet.
   ask: "Do you want Dependabot opening the fix PR when it reports a
   vulnerability (recommended), or should the Helper draft the bump itself?"
   Pick one, or the project gets two PRs per CVE.
+
+  **Check which repos actually have Dependabot alerts on, before any of them
+  go into `SECURITY_WATCH_REPOS`.** `GET /repos/<owner>/<repo>/vulnerability-alerts`
+  returns 204 when alerts are enabled and 404 when they're off. A repo with
+  alerts off fails the sweep on every run, and the failure reads like a missing
+  token permission. That exact mix-up had a real owner chasing a token change
+  for a docs repo that simply had alerts turned off. Leave a disabled repo out
+  and tell the owner, in one line, which repos are covered and which aren't.
 
   **You cannot enable it yourself.** It's a repository setting (Settings →
   Code security) and no agent here holds Administration write, on purpose.
@@ -381,22 +452,48 @@ asking for anything yet.
   - **Manager** — the public voice: replies, escalation, tone, security routing.
     Default **Sonnet**. No cheaper alternative offered; this is the one
     identity the community sees, and it's where judgment quality matters most.
-  - **Helper** — triage, advisory assessment, repo health and every number
-    the project tracks. Default **Haiku**. Offer Sonnet only if the owner
-    wants stronger judgment on triage and is willing to spend more of the
-    shared window on it; a local-model provider is discussed in
-    SKILLS-ADOPTION.md but isn't a working option today.
-  - **Helper** — draft-only triage and judgment (severity calls,
-    breaking-change reads); every draft is reviewed by the manager before
-    anything's public. Default **Haiku**. Real alternative: **Sonnet**, if the
-    owner wants stronger judgment on drafts and is willing to spend more of
-    the shared window on it — since the manager reviews everything anyway, this
-    is a quality/cost trade the owner should make consciously, not one we
-    make for them.
+  - **Helper** — triage, advisory assessment, draft-only judgment (severity
+    calls, breaking-change reads), repo health and every number the project
+    tracks. Default **Haiku**. Real alternative: **Sonnet**, if the owner wants
+    stronger judgment and is willing to spend more of the shared window on it.
+    The manager reviews every draft before anything's public, so this is a
+    quality/cost trade for the owner to make consciously, not one we make for
+    them. A local-model provider is discussed in SKILLS-ADOPTION.md but isn't
+    a working option today.
   Never an Opus-class model on a scheduled task. Remind the owner: cost comes
   from wakes, not agents existing — a paused task burns nothing, so tune
   budget by activating fewer tasks instead of deleting agents or downgrading
   a model that's carrying real judgment.
+
+**Metrics questions — only if the owner said yes to metrics in step 3.** Skip
+all four otherwise:
+
+- **Which follower counts matter** — not "which platforms exist". Propose the
+  profile URLs you found in step 2 and ask which ones the owner actually wants
+  counted; an unwanted platform left in the list is a daily read nobody looks
+  at. Say what each costs: Facebook, Instagram and LinkedIn are read free from
+  the public page; X blocks page reads, so it needs an X API bearer token in
+  the vault (ask only if X matters); Discord's total member count has no free
+  public read, so leave it out unless the owner asks for it. Posting to these
+  platforms is not part of this system, so don't ask how the project posts.
+- **Optional analytics: GA4 property id** — "not now" is a fine answer; the
+  task silent-skips until configured. **If the project has several GA4
+  properties**, put them all in one `GA4_PROPERTIES` value in the Helper's
+  config (`id`, or `label:id,label:id`); `project-health` reads them all.
+  Do not create separate report tasks per property — the one task covers
+  every configured property in a single run.
+- **How often, and where, the numbers are posted.** Default is once a week
+  (Monday), dev numbers to the developer channel and followers + traffic to the
+  team-lead channel. Ask whether that suits them. If they want more ("every
+  day", "Mon/Wed/Fri"), relay `HEALTH_POST_DOW` as `daily` or a day list
+  (`1,3,5`). If they want a different channel for either report, record which
+  one. The post goes out when the task runs; to move the hour, change the
+  task's schedule rather than inventing a second task.
+- **Which repos the dev numbers cover.** Default: the product repo only. Stars
+  and forks on a docs or site repo are rarely what an owner wants to read.
+  Ask "just `<product>`, or others too?" and relay the answer to the Helper as
+  prose. This is separate from which repos are *watched* (`COMMUNITY_REPOS`,
+  step 5), which should stay broad.
 
 ## 5. Persist — this is the point
 
@@ -413,13 +510,17 @@ one per line, quoted:
 |---|---|---|
 | `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, own setup-check |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
+| `OWNER_TZ` | the timezone question (step 4) — the same IANA id as the group timezone | `owner-tldr`; unset is reported as unresolved and the digest runs on UTC |
+| `TLDR_LOCAL_HOUR` | the TLDR-hour question (step 4); only if not 7 | `owner-tldr` — 0–23, the owner's local hour |
+| `FIRST_RESPONSE_GRACE_MINUTES` | the grace question (step 3); only if not the default 15 | `github-first-response` |
 
-**`COMMUNITY_REPOS` itself should be narrower than "the full repo map,"
-same principle as `SECURITY_WATCH_REPOS` below — just
-applied one level up.** This key drives *your own* first-response/triage
-polling (every 10 minutes for `github-first-response`), so include only
-repos that actually receive **external, community-filed** issues/PRs.
-Concretely:
+**`COMMUNITY_REPOS` is every repo that receives outside issues or PRs —
+docs and site repos included.** This key drives *your own* first-response
+polling (every 10 minutes for `github-first-response`), and a repo left out is
+one where nothing ever surfaces, however long it sits. A real install watched
+only its product repo, and the owner found days-old PRs on the docs repo by
+hand. Propose the list from the repo map, say it out loud, and confirm it in one
+question. Narrow it only for repos no outsider ever opens anything in:
 - **Think twice about a purely internal repo** (e.g. a marketing-drafts
   repo that only your own agents open PRs into) — if external contributors
   never file issues there, first-responding to it isn't "community"
@@ -761,12 +862,12 @@ key here is the largest single source of "nothing is happening":
 |---|---|---|
 | `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `docs-currency-watch`, `project-health` — all go quiet without it |
 | `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a manager that was about to answer |
-| `LEDGER_REPO` | normally the project's marketing repo, never the product repo | every `project-health` run commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
-| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `project-health`'s traffic section. One task run covers every property — never create separate tasks per property |
+| `LEDGER_REPO` | *metrics only* — the repo the owner named in step 3; normally a private marketing or ops repo, never the product repo | every `project-health` run commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
+| `GA4_PROPERTIES` | *metrics only* — one or more properties: `id`, or `label:id,label:id` | `project-health`'s traffic section. One task run covers every property — never create separate tasks per property |
 | `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
 | `DOCS_REPO` | the docs repo, if the project has one | `docs-currency-watch` stays silent forever without it rather than inventing a target |
 | `LEDGER_BRANCH` | optional; default `agent-metrics` | the branch `project-health` publishes to. Only relay it if the owner wants a different name |
-| `HEALTH_POST_DOW` | optional; `0`=Sun … `6`=Sat, default `1` (Monday) | the one day a week `project-health` posts instead of only collecting. Only relay it if the owner wants a different day |
+| `HEALTH_POST_DOW` | *metrics only*, optional; `0`=Sun … `6`=Sat, a list (`1,3,5`), or `daily`; default `1` (Monday) | the days `project-health` posts instead of only collecting — from step 4's "how often" answer. Only relay it if the owner wants something other than Monday |
 | `SOCIAL_DAILY` | optional; default on | set `"false"` if the owner would rather skip the daily follower read: collect days then cost no tokens, at the price of a weekly-only follower series |
 | `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
 | `INBOX_ENABLED` | `"true"` only if the project has a shared inbox AND the Gmail read-only credential + an email MCP are wired **to the Helper's group** | `inbox-check` never fires without it — the correct default for the many projects with no shared inbox. Optional companions: `INBOX_QUERY` (default `is:unread newer_than:7d`), `INBOX_MAX_RESULTS` (default 25) |
@@ -780,9 +881,11 @@ wiring must cover the channels the community actually posts in (§5c).
 (`POSTHOG_PROJECT_ID`/`POSTHOG_HOST` would relay here too if
 `posthog-weekly-review` comes back — removed for now, see SKILLS-ADOPTION.md.)
 
-Plus in prose: the social profile URLs (read-only — it posts nowhere), and
-`target_audience` verbatim from step 4 so its reports say whether the project
-is reaching the people the owner named. **Do not relay content/brand/tone
+Plus in prose, if metrics are on: the profile URLs for only the platforms the
+owner said matter (read-only — it posts nowhere), which repos the dev numbers
+cover, which channel each report goes to, and `target_audience` verbatim from
+step 4 so its reports say whether the project is reaching the people the
+owner named. If metrics are off, say so, and `project-health` stays paused. **Do not relay content/brand/tone
 config** — nothing in this system writes content, so there is nothing for
 those to shape.
 
@@ -880,6 +983,9 @@ receive — they have no channel to post a card through themselves.
 
 ## 8. Set up the metrics-history publish — it is the only durable state
 
+**Only if the owner said yes to metrics in step 3.** If they said no, skip this
+whole step: there is nothing to publish, and `project-health` stays paused.
+
 **There is no workspace backup in this set, deliberately** — the system is
 meant to be rebuilt from the templates, and a restore nobody runs is a
 write-only cost.
@@ -935,6 +1041,13 @@ through chat. Then have the Helper **validate it before appending** (header
 match, dates ascending and parseable, no duplicate dates, counts integer or
 empty) and report problems rather than repairing them. Their copy may be the
 only copy, so a malformed file gets reported and left alone, never rewritten.
+
+**The same check applies to history already on the ledger branch** from an
+earlier install. Have the Helper compare each file's header with the schema in
+`project-health`'s task body before the first run appends anything. If they
+differ, stop and tell the owner: the task only writes a header when it creates
+a file, so it would append new-format rows under the old header. A real
+upgrade found an 11-column follower file where the template writes 9 columns.
 
 One asymmetry worth stating to the owner in a line: a follower number not
 recorded today is gone permanently, whereas every other number here can be

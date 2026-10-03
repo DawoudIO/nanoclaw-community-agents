@@ -456,7 +456,7 @@ payload, and a missing key isn't an error: the gate exits `not-configured`
 and goes back to sleep. Symptom: "stamped and never does anything," which
 reads like a broken agent and is an unrelayed key. `ACK_GRACE_MINUTES` (20
 min), `LEDGER_BRANCH` and `LEDGER_PATH` (both `agent-metrics`),
-`HEALTH_POST_DOW` (1 = Monday), `SOCIAL_DAILY` (`true`) and
+`HEALTH_POST_DOW` (1 = Monday; also a list like `1,3,5`, or `daily`), `SOCIAL_DAILY` (`true`) and
 `NUDGE_MAX_CHECKS` (4) have built-in defaults; nothing else does.
 
 **`LEDGER_REPO` is the one that costs data if you skip it.** Without it
