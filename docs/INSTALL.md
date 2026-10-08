@@ -402,7 +402,7 @@ to the agent.
 | 5 | Discord channels by tier | Required if using Discord |
 | 6 | Maintainer list | Confirmed from the repo |
 | 7 | Discord invite URL | Optional |
-| 8 | Model | Default offered |
+| 8 | Model | Not asked — Sonnet |
 | 9 | OneCLI dashboard address | Asked once |
 | 10 | Docs style | Assumed user manual, confirmed in one line |
 | 11 | Audience, in your words | Optional — shapes how replies are pitched |

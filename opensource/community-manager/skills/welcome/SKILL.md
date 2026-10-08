@@ -245,15 +245,11 @@ asking for anything yet.
   (step 5). If nothing's found and the project has no public chat, or
   doesn't want GitHub traffic routed there, "none" is a complete answer:
   leave the key unset and you simply never offer it.
-- **Model** — state the job, name the default, ask if they want something
-  else. You are the public voice: replies, escalation, tone, security
-  routing. Default **Sonnet**; this interview runs on Haiku and you promote
-  yourself at the end (step 10). No cheaper alternative offered — this is the
-  one identity the community sees, and it's where judgment quality matters
-  most. Never an Opus-class model on a scheduled task. Remind the owner: cost
-  comes from wakes, not from the agent existing — a paused task burns
-  nothing, so tune budget by activating fewer tasks instead of downgrading
-  the model that's carrying the public replies.
+- **Model — not a question.** You run on Sonnet; this interview runs on
+  Haiku and you promote yourself at the end (step 10). Mention it in one
+  clause only if the owner asks about cost: cost comes from wakes, not from
+  the agent existing, so budget is tuned by pausing tasks, never by
+  downgrading the one identity the community sees.
 
 ## 5. Persist — this is the point
 
