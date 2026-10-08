@@ -31,7 +31,7 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 9 tasks, all created paused
+│   └── tasks/                                         # 8 tasks, all created paused
 │       ├── unanswered-watch.md                        # every 5 min: a support message past the grace period
 │       ├── github-first-response.md                   # every 5 min: new, unanswered issues and PRs
 │       ├── project-context.md                         # daily: what changed, what is released vs merged
@@ -39,7 +39,6 @@ community-manager/
 │       ├── owner-tldr.md                              # the ONE daily digest to the owner
 │       ├── docs-gap-review.md                         # nightly: opens a docs PR for any question the docs could not answer
 │       ├── owner-instruction-watch.md                 # the dropped-ack watch the persona already promised
-│       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
 │       └── conversation-archive-prune.md              # pure housekeeping, never wakes the model
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)
@@ -170,10 +169,8 @@ under *Configuration* above: everything is meant to be rebuilt.
 
 **Script dependencies:** `bash`, `curl`, `jq`, and `ncl`. Verify with `ncl
 tasks run <task-id>` before resuming.
-(`weekly-identity-integrity-check` reads `ncl tasks list --json` and
-`unanswered-watch` reads the agent's own sessions through `ncl` — without
-it, the first wakes the agent for a manual check and the second reports
-`degraded` instead of failing.)
+(`unanswered-watch` reads the agent's own sessions through `ncl` — without
+it, it reports `degraded` instead of failing.)
 
 **Cron lines are written UTC-relative; the group's actual timezone decides
 the wall-clock fire time.** `ncl groups config update --timezone <IANA id>`

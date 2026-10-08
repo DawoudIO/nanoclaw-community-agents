@@ -7,7 +7,7 @@ set -uo pipefail
 # conversation (e.g. a welcome interview) and losing its answers. This is
 # meant to be installed host-side at stamp time — docs/INSTALL.md §1 (stamping).
 if ! command -v jq >/dev/null 2>&1; then
-  printf '{"status": "incomplete", "checks": [{"name": "jq", "status": "missing", "hint": "jq is required to run this script and by the owner-tldr and weekly-identity-integrity-check tasks. Do NOT self-install with install_packages — it restarts this container mid-conversation. Ask the owner to run, host-side: ncl groups config add-package --id <this-group-id> --apt jq && ncl groups restart --id <this-group-id> --rebuild"}]}\n'
+  printf '{"status": "incomplete", "checks": [{"name": "jq", "status": "missing", "hint": "jq is required to run this script and by the owner-tldr and owner-instruction-watch tasks. Do NOT self-install with install_packages — it restarts this container mid-conversation. Ask the owner to run, host-side: ncl groups config add-package --id <this-group-id> --apt jq && ncl groups restart --id <this-group-id> --rebuild"}]}\n'
   exit 1
 fi
 # On-demand, mechanical setup status check for the MANAGER's own config — run

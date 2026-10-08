@@ -334,8 +334,8 @@ show once everything's added, and nothing more.
 
 | Agent | Granted | Host | Used by |
 |---|---|---|---|
-| Manager | GitHub PAT | `api.github.com` | `github-first-response`, `project-context`, live replies, identity check |
-| Manager | — (nothing) | — | `unanswered-watch`, `owner-tldr`, `docs-gap-review`, `weekly-identity-integrity-check`, `conversation-archive-prune` — local state only |
+| Manager | GitHub PAT | `api.github.com` | `github-first-response`, `project-context`, `follow-up-nudge`, `docs-gap-review`, live replies |
+| Manager | — (nothing) | — | `unanswered-watch`, `owner-tldr`, `owner-instruction-watch`, `conversation-archive-prune` — local state only |
 
 A row that doesn't exist here is a finding: the agent never appears against
 any host but `api.github.com`, and holds no write grant on a repo outside
@@ -461,7 +461,7 @@ Resume order, safe → side-effect-adjacent:
 
 1. **No credentials, no network first**: `unanswered-watch` (every 5 min —
    catches a support question that scrolled past), `owner-tldr` and
-   `weekly-identity-integrity-check` (jq only), and
+   `owner-instruction-watch` (jq only), and
    `conversation-archive-prune`, which is pure filesystem housekeeping and
    never wakes a model.
 2. **The GitHub-facing gates**, once `COMMUNITY_REPOS` is set:

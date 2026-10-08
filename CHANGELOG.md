@@ -100,6 +100,11 @@ that either: both groups share one credential, so one window.
 
 ### Removed
 
+- **`weekly-identity-integrity-check`.** The only tamper check on scheduled
+  prompts, dropped by owner decision: it had fired falsely, carried two
+  unfixed bugs, and with one agent and one editor the drift it found was
+  the owner's own. The ask-don't-lock rule stays in `task-integrity.md` as
+  a manual practice.
 - Every Helper task: `project-health`, `security-advisory-sweep`,
   `github-ops-triage`, `docs-currency-watch`, `inbox-check`, with their
   fixtures and tests. `project-health` never ran in production — declined

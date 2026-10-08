@@ -91,9 +91,6 @@ Ten minutes, the morning after go-live:
   or PR this week has a first reply from the bot account within the grace
   window, and `first-response-seen.csv` has a row for each. A row with no
   reply on GitHub means the wake happened and the answer did not land.
-- **Integrity check is quiet**: `weekly-identity-integrity-check` baseline
-  initialized on its first run and no drift alarm since — unless you edited
-  a task, in which case you got asked about exactly that edit (good).
 - **Test the correction loop once, deliberately**: tell the manager to change
   one small behavior (e.g. "stop including X in the digest"). Verify it
   acks with a ledger number, applies it, and the change survives to the

@@ -561,7 +561,6 @@ and exactly what remains blocked and why. State what runs, in one list:
 - `owner-tldr` — the one digest, 07:00 owner-local
 - `docs-gap-review` — nightly at 02:00, opens a docs PR for any question the docs could not answer
 - `owner-instruction-watch` — every 4 hours, instructions acked but never closed
-- `weekly-identity-integrity-check` — weekly, asks before it ever locks anything
 - `conversation-archive-prune` — daily housekeeping, never wakes the model
 
 Also hand the owner the two DM
