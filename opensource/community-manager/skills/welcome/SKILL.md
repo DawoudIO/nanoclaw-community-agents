@@ -149,6 +149,14 @@ move on. Everything below is what you say, not what you ask.
   past you gets answered. **Say its limit plainly**: it runs on you, on your
   usage window; if that window is exhausted, so is this. It catches the
   common case, not an outage.
+
+**State the response timing; do not ask about it.** "I reply to a new GitHub
+issue or PR within about five minutes, with no waiting period, and I pick up
+a Discord question nobody answered after five minutes. Both are one line in
+`config.env` — `FIRST_RESPONSE_GRACE_MINUTES` and `ACK_GRACE_MINUTES` — and
+you can change them any time; tell me and I'll do it." Near real time while
+the person is still there is the point; a maintainer who was about to reply
+just adds to yours.
 - `follow-up-nudge` — weekly, a kind check-in on a contributor's PR idle a
   week or an issue where a posted workaround got no reply; offers help and
   the team chat invite. Never a review.

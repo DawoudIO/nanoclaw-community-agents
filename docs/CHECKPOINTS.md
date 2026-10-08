@@ -49,7 +49,7 @@ Ten minutes, the morning after go-live:
   week 3.
 - **No fetch-failed noise**: any `fetch-failed` wake overnight is a token or
   allowlist problem — the message itself says which (401/403 vs 502).
-- **`project-context` ran at 06:07**: `tasks get` on it shows `unchanged`
+- **`project-context` ran at 06:08**: `tasks get` on it shows `unchanged`
   (0-token) or `changed` with a `since_last_run` that matches the repo's
   real commits. If it reported `changed`, `project-notes.md` was rewritten
   with today's date. Spot-check one commit subject against GitHub.
