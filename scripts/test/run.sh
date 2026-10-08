@@ -434,7 +434,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures fal
 # the shape of the next release. No daily delta yet (nothing to diff against).
 assert_scenario "$ROOT/scripts/tasks/manager/project-context.sh" project-context true \
   '(.data.status == "baseline")
-   and (.data.changed_repos == ["acme/demo"])
+   and (.data.needs_agent == ["acme/demo"])
    and (.data.repos[0].release.tag == "v1.2.0")
    and (.data.repos[0].unreleased.ahead_by == 3)
    and (.data.repos[0].unreleased.commits | length == 3)
@@ -453,7 +453,8 @@ assert_scenario "$ROOT/scripts/tasks/manager/project-context.sh" project-context
 # agent is told exactly which skill and docs files to re-read. Seeded state
 # stands in for "yesterday's run".
 assert_scenario "$ROOT/scripts/tasks/manager/project-context.sh" project-context true \
-  '(.data.status == "changed")
+  '(.data.status == "needs-agent")
+   and (.data.needs_agent == ["acme/demo"])
    and (.data.repos[0].status == "changed")
    and (.data.repos[0].since_last_run.total_commits == 2)
    and (.data.repos[0].since_last_run.skills_changed == [".agents/skills/acme/repo-health.md"])
@@ -464,10 +465,21 @@ assert_scenario "$ROOT/scripts/tasks/manager/project-context.sh" project-context
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "repo,head_sha,release_tag,checked_at\nacme/demo,0000000000000000000000000000000000000000,v1.2.0,2026-01-01\n" > "$D/context-heads.csv"'
 
+# THE 0-TOKEN CASE for an active repo: new commits, but no skill, docs,
+# changelog or release change. The delta is recorded to recent-changes.csv
+# and the model is NOT woken — the repos commit daily, and a daily wake to
+# read a diff would be a wake with nothing to act on.
+assert_scenario "$ROOT/scripts/tasks/manager/project-context.sh" project-context false \
+  '(.data.status == "recorded") and (.data.changed_repos == ["acme/demo"]) and (.data.needs_agent == []) and (.data.repos[0].since_last_run.total_commits == 2)' \
+  'CONTEXT_REPOS="acme/demo"' 1 \
+  'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
+   printf "repo,head_sha,release_tag,checked_at\nacme/demo,0000000000000000000000000000000000000000,v1.2.0,2026-01-01\n" > "$D/context-heads.csv";
+   jq ".files = []" "$SANDBOX/.fixtures/delta.json" > "$SANDBOX/.fixtures/delta.tmp" && mv "$SANDBOX/.fixtures/delta.tmp" "$SANDBOX/.fixtures/delta.json"'
+
 # A stored tag that differs from the live one is a release that shipped since
 # yesterday: wake even if the head is unchanged.
 assert_scenario "$ROOT/scripts/tasks/manager/project-context.sh" project-context true \
-  '(.data.repos[0].status == "unchanged") and (.data.repos[0].release_changed == true) and (.data.changed_repos == ["acme/demo"])' \
+  '(.data.status == "needs-agent") and (.data.repos[0].status == "unchanged") and (.data.repos[0].release_changed == true) and (.data.needs_agent == ["acme/demo"])' \
   'CONTEXT_REPOS="acme/demo"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "repo,head_sha,release_tag,checked_at\nacme/demo,bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb,v1.1.0,2026-01-01\n" > "$D/context-heads.csv"'
@@ -551,7 +563,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/unanswered-watch.sh" no-fixtures tr
   'ACK_GRACE_MINUTES="20"' 1 "$UW_SEED"
 assert_scenario "$ROOT/scripts/tasks/manager/unanswered-watch.sh" no-fixtures false \
   '.data.status == "all-answered"' \
-  'ACK_GRACE_MINUTES="20"' 1 "$UW_SEED"'; OLD=$(date -u -v-45M +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "45 minutes ago" +%Y-%m-%dT%H:%M:%SZ); echo "s1:$OLD" > "$D/acknowledged.txt"'
+  'ACK_GRACE_MINUTES="20"' 1 "$UW_SEED"'; echo "s1:$OLD" > "$D/acknowledged.txt"'
 # A message inside the grace window is not unanswered yet.
 assert_scenario "$ROOT/scripts/tasks/manager/unanswered-watch.sh" no-fixtures false \
   '.data.status == "all-answered"' \

@@ -51,8 +51,11 @@ that either: both groups share one credential, so one window.
   `plugin-data/community-manager/release-state.csv` on every run so "is X
   released?" is answered from a file with no fetch, and wakes the model
   only when a repo changed or a release shipped. A force-pushed branch is
-  reported as `history-rewritten`, never as "no change". The prompt draws
-  the line the agent answers by: past the release tag means "merged,
+  reported as `history-rewritten`, never as "no change". Ordinary commits
+  are appended to `recent-changes.csv` and never wake the model — the repos
+  commit daily, and the 0-token design holds: the wake is reserved for a
+  changed skill or docs file, a release, or a rewritten branch. The prompt
+  draws the line the agent answers by: past the release tag means "merged,
   coming in the next release", never "available".
 
 - **`follow-up-nudge`** (weekly). Two kinds of silence that cost a project a

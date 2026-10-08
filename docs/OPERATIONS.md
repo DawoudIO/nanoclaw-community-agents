@@ -196,8 +196,10 @@ minutes (`*/10`)**, and its *gate* is the cheapest thing in the system on
 every axis at once — no network call, no credentials, nothing but local
 session state. `github-first-response` polls GitHub every 5 minutes in bash
 and wakes only on a genuinely new, unanswered item. And the daily
-`project-context` does every fetch in bash and wakes the model only when a
-repo actually changed since yesterday — on a quiet day it is 0-token. Tune
+`project-context` does every fetch in bash, records every commit to
+`recent-changes.csv`, and wakes the model only for something it must act on
+(a changed skill or docs file, a release, a rewritten branch). A day of
+ordinary commits is 0-token. Tune
 budget by which tasks you activate, never by deleting the agent.
 
 **Keep the public voice on the capable tier.** Cheap work done wrong in
@@ -242,11 +244,11 @@ Pause in this order — lowest value first:
 
 0. `follow-up-nudge` — weekly, one wake at most; pausing it only delays a
    check-in by a week.
-1. `project-context` — the one task that reliably wakes on an active repo
-   (once a day, briefly, whenever something merged). Pausing it saves that
-   wake and costs currency: the agent answers "is X released?" from the last
-   `release-state.csv` it wrote, and says so. Resume it before anything else
-   when the window recovers.
+1. `project-context` — wakes only when a skill or docs file changed, a
+   release shipped, or a branch was rewritten; ordinary commits are recorded
+   with no wake. Pausing it costs currency: the agent answers "is X
+   released?" from the last `release-state.csv` it wrote, and says so.
+   Resume it before anything else when the window recovers.
 2. `docs-gap-review` — weekly, and it wakes only when a topic has repeated
    three times. Pausing it defers a docs proposal, nothing more.
 
@@ -329,7 +331,7 @@ unconfigured burns turns on every fire.
 | `github-first-response` (**every 5m**) | only on a brand-new issue/PR nobody has replied to — no grace by default, the owner wants near-real-time while the person is still there | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-instruction-watch` (Mon) | only when an owner instruction was acked `received` and never closed | nothing (`jq` over the instruction ledger) | safe |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner |
-| `project-context` (daily, 06:08) | only when a repo changed since yesterday (new commits, a new release, changed `.agents/skills/**` or docs), on the first run (`baseline`), or when a repo could not be read | manager PAT + `CONTEXT_REPOS` (defaults to `COMMUNITY_REPOS`). Writes `release-state.csv` every run; the agent keeps `project-notes.md` | silent skip |
+| `project-context` (daily, 06:08) | only when a changed `.agents/skills/**` or docs file needs re-reading, a release shipped, a branch was rewritten, on the first run (`baseline`), or when a repo could not be read — ordinary commits are recorded to `recent-changes.csv` with no wake (`status: recorded`) | manager PAT + `CONTEXT_REPOS` (defaults to `COMMUNITY_REPOS`). Writes `release-state.csv` every run; the agent keeps `project-notes.md` | silent skip |
 | `unanswered-watch` (**every 5m**) | only when the newest message in a support channel is inbound and older than `ACK_GRACE_MINUTES` (default 5) — then the manager answers it for real | `ncl`+`jq` — **no network, no credentials**; the support channels must be wired to this agent | reports `no-channel-sessions` until the channels are wired — check for it, it looks like a quiet night |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 
@@ -388,9 +390,10 @@ Rules of thumb: put the integrity check before your own workday, and
 `project-context` before your community's day starts, so the agent answers
 from today's repo state rather than yesterday's.
 
-**No task wakes its model on every fire.** The closest is `project-context`:
-it wakes whenever a repo changed since yesterday, so on a repo with daily
-commits expect roughly one short wake a day; on a quiet day it is 0-token.
+**No task wakes its model on every fire, and none wakes on a routine day.**
+`project-context` records daily commits without waking; it wakes only for a
+changed skill or docs file, a release, or a rewritten branch — a few times a
+month on an active project, not daily.
 
 Everything else is 0-token when there's nothing to judge — **all 9 tasks are
 gated, and ~99% of all scheduled runs cost nothing**, because the two

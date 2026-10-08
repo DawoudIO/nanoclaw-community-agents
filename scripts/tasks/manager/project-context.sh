@@ -11,8 +11,12 @@ set -uo pipefail
 #     so "is X available?" is answered from facts, not from training data,
 #   - which agent skills (.agents/skills/**) and docs changed, so the agent
 #     re-reads exactly those files and nothing else.
-# It writes release-state.csv every run (the agent reads it with cat when
-# asked, no fetch, no wake) and wakes the model only when something changed.
+# It writes release-state.csv and recent-changes.csv every run (the agent
+# reads them with cat when asked — no fetch, no wake) and wakes the model
+# ONLY for what it must act on: a changed skill or docs file to re-read, a
+# release that shipped, a rewritten branch, or a repo it could not read.
+# Ordinary code commits are recorded, never a wake — the repos commit daily
+# and a daily Sonnet wake to read a diff would break the 0-token design.
 DATA="/workspace/agent/plugin-data/community-manager"
 mkdir -p "$DATA"
 
@@ -36,6 +40,8 @@ fi
 TODAY_D=$(date -u +%Y-%m-%d)
 STATE="$DATA/context-heads.csv"          # repo,head_sha,release_tag,checked_at
 RELEASE_STATE="$DATA/release-state.csv"  # rewritten every run; what the agent cats
+CHANGES="$DATA/recent-changes.csv"       # date,repo,sha,author,subject — appended daily, trimmed to ~400 rows
+[ -s "$CHANGES" ] || echo 'date,repo,sha,author,subject' > "$CHANGES"
 [ -s "$STATE" ] || echo 'repo,head_sha,release_tag,checked_at' > "$STATE"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 API="https://api.github.com/repos"
@@ -120,6 +126,13 @@ fi
 { head -n 1 "$STATE"
   for f in "$TMP"/*.state; do [ -f "$f" ] || continue; r=$(cut -d, -f1 "$f"); grep -v "^$r," "$STATE" | grep -v '^repo,'; done | sort -u
   cat "$TMP"/*.state 2>/dev/null; } > "$STATE.tmp" 2>/dev/null && mv "$STATE.tmp" "$STATE"
+# recent-changes.csv: every commit since the last run, one row each, so the
+# agent answers "what changed this week?" from a file. Subjects are
+# sanitised like every other API string that lands in a CSV.
+printf '%s' "$REPOS_JSON" | jq -r --arg d "$TODAY_D" '.[] | select(.status == "changed") | .repo as $r
+  | (.since_last_run.commits // [])[] | [$d, $r, .sha, (.author // ""), .subject]
+  | map(tostring | gsub("[,\"\r\n]"; "_") | if test("^[=+@]") then "_" + . else . end) | join(",")' >> "$CHANGES" 2>/dev/null || true
+{ head -n 1 "$CHANGES"; tail -n 400 "$CHANGES" | grep -v '^date,'; } > "$CHANGES.tmp" 2>/dev/null && mv "$CHANGES.tmp" "$CHANGES"
 # release-state.csv: the answer to "what is released, what is coming" with
 # no model and no fetch — the agent cats this when someone asks.
 { echo 'date,repo,released_tag,released_at,unreleased_commits,next_milestone,milestone_closed,milestone_open,milestone_due'
@@ -129,13 +142,22 @@ fi
     | map(tostring | gsub("[,\"\r\n]"; "_")) | join(",")'; } > "$RELEASE_STATE.tmp" 2>/dev/null && mv "$RELEASE_STATE.tmp" "$RELEASE_STATE"
 
 DEGRADED=$(printf '%s' "$REPOS_JSON" | jq -c '[.[] | select(.status == "fetch-failed" or .status == "bad-config") | .repo]')
-CHANGED=$(printf '%s' "$REPOS_JSON" | jq -c '[.[] | select(.status == "changed" or .status == "baseline" or .release_changed == true) | .repo]')
+CHANGED=$(printf '%s' "$REPOS_JSON" | jq -c '[.[] | select(.status == "changed") | .repo]')
+# What actually needs the model: a skill or docs file to re-read, a release
+# that shipped, a rewritten branch, the first run. Code commits alone do not.
+NEEDS_AGENT=$(printf '%s' "$REPOS_JSON" | jq -c '[.[] | select(
+    .status == "baseline" or .release_changed == true
+    or ((.since_last_run.skills_changed // []) | length > 0)
+    or ((.since_last_run.docs_changed // []) | length > 0)
+    or (.since_last_run.changelog_changed == true)
+    or (.since_last_run.status == "history-rewritten")) | .repo]')
 WAKE=false
-[ "$(printf '%s' "$CHANGED" | jq 'length')" -gt 0 ] && WAKE=true
+[ "$(printf '%s' "$NEEDS_AGENT" | jq 'length')" -gt 0 ] && WAKE=true
 [ "$(printf '%s' "$DEGRADED" | jq 'length')" -gt 0 ] && WAKE=true   # a broken fetch must never read as a quiet day
 STATUS=unchanged
-[ "$WAKE" = "true" ] && STATUS=changed
+[ "$(printf '%s' "$CHANGED" | jq 'length')" -gt 0 ] && STATUS=recorded     # commits stored, nothing to re-read
+[ "$WAKE" = "true" ] && STATUS=needs-agent
 [ "$(printf '%s' "$REPOS_JSON" | jq '[.[] | select(.status == "baseline")] | length')" -eq "$(printf '%s' "$REPOS_JSON" | jq 'length')" ] && STATUS=baseline
 
-jq -nc --argjson w "$WAKE" --arg s "$STATUS" --arg d "$TODAY_D" --argjson r "$REPOS_JSON" --argjson c "$CHANGED" --argjson dg "$DEGRADED" \
-  '{wakeAgent:$w, data:{status:$s, date:$d, changed_repos:$c, degraded_repos:$dg, repos:$r}}'
+jq -nc --argjson w "$WAKE" --arg s "$STATUS" --arg d "$TODAY_D" --argjson r "$REPOS_JSON" --argjson c "$CHANGED" --argjson na "$NEEDS_AGENT" --argjson dg "$DEGRADED" \
+  '{wakeAgent:$w, data:{status:$s, date:$d, changed_repos:$c, needs_agent:$na, degraded_repos:$dg, repos:$r}}'

@@ -48,9 +48,10 @@ Ten minutes, the morning after go-live:
   week 3.
 - **No fetch-failed noise**: any `fetch-failed` wake overnight is a token or
   allowlist problem — the message itself says which (401/403 vs 502).
-- **`project-context` ran at 06:08**: `tasks get` on it shows `unchanged`
-  (0-token) or `changed` with a `since_last_run` that matches the repo's
-  real commits. If it reported `changed`, `project-notes.md` was rewritten
+- **`project-context` ran at 06:08**: `tasks get` on it shows `unchanged` or
+  `recorded` (both 0-token; `recorded` means commits landed in
+  `recent-changes.csv`) or `needs-agent` with a `since_last_run` that matches
+  the repo's real changes. If it reported `needs-agent`, `project-notes.md` was rewritten
   with today's date. Spot-check one commit subject against GitHub.
 - **Tone check on one real reply**: read the bot's first genuine
   support-channel answers. Correct register? Right language behavior? This
@@ -79,8 +80,9 @@ Ten minutes, the morning after go-live:
   check-in, not a review.
 - **`project-context` wakes only on change**: a week of
   `plugin-data/community-manager/telemetry/project-context.jsonl` shows
-  `wakeAgent: true` only on days a repo actually moved. A wake on a day with
-  no commits and no release is a gate bug worth reporting; a repo that sat in
+  `wakeAgent: true` only on days a skill or docs file, a release or a branch
+  rewrite needed the agent. A wake on a day of plain commits is a gate bug
+  worth reporting; a repo that sat in
   `degraded_repos` all week is a token finding, not a quiet week — "nothing
   changed" and "I cannot see" must never arrive sounding the same. Ask the
   manager about one fix you know merged this week: it must say "merged, not
