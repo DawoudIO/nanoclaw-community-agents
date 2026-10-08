@@ -130,7 +130,7 @@ the group, so config and memory survive.
 Run from the nanoclaw checkout (`cd nanoclaw`, or conversationally via
 `claude` in the same directory). `--name` is an internal `ncl`/dashboard
 label only — unrelated to the Discord display name or the project name —
-pick anything readable, e.g. `"AcmeCRM Manager"`.
+pick anything readable, e.g. `"Acme Manager"`.
 
 ```bash
 # Stamp — check the response's templateReport for skipped parts, and note
@@ -178,7 +178,7 @@ channel-backed sessions, so once the support channels are wired it sees
 them; a channel that is not wired is one it cannot watch.
 
 **Name the Discord app to visibly match the GitHub bot account** you'll set
-up when the manager asks for one (`acmecrm-bot` ↔ "AcmeCRM Bot") — one
+up when the manager asks for one (`acme-bot` ↔ "Acme Bot") — one
 agent speaks on both platforms, and a mismatch reads as two different bots.
 
 After Discord is wired, everything runs through it — direct CLI access is

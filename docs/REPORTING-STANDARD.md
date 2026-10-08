@@ -122,7 +122,7 @@ same data under this standard:
 
 **Before** — 140 words, no verdict, exception buried:
 
-> Repository metrics for acme/crm. Stars: 937 (+12). Forks: 558 (+3). Open
+> Repository metrics for acme/demo. Stars: 937 (+12). Forks: 558 (+3). Open
 > issues: 42 (+1). Open PRs: 7 (-1). Latest release v5.2.0 with 1000
 > downloads. New contributors this week: none. Awaiting first response: 5
 > issues, oldest since 2026-06-01, and 2 PRs. Closed PRs over 30 days: 20

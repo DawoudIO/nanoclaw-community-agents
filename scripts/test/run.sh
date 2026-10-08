@@ -712,7 +712,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
    and (.data.items[0].type == "issue")
    and (.data.grace_minutes == 0)
    and (.data.degraded_repos | length == 0)' \
-  'COMMUNITY_REPOS="acme/crm"'
+  'COMMUNITY_REPOS="acme/demo"'
 
 # github-first-response: FOLLOW-UP coverage. Six threads with recent comments;
 # exactly one has an outsider as the latest commenter, past grace, still open.
@@ -729,19 +729,19 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
    and (.data.items[0].author == "newcomer2")
    and (.data.items[0].title == "Import fails on 7.7.0")
    and (.data.items[0].url | endswith("#issuecomment-12"))' \
-  'COMMUNITY_REPOS="acme/crm"
+  'COMMUNITY_REPOS="acme/demo"
 GITHUB_BOT_USERNAME="Helper-Bot"'
 
 # Without GITHUB_BOT_USERNAME the gate cannot tell its own replies from theirs,
 # so follow-up detection must stay OFF and say so — never loop on itself.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-followup false \
   '(.data.count == 0) and (.data.followups | startswith("disabled"))' \
-  'COMMUNITY_REPOS="acme/crm"'
+  'COMMUNITY_REPOS="acme/demo"'
 
 # A second run must not hand the same follow-up over again (keyed on comment id).
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-followup false \
   '.data.count == 0' \
-  'COMMUNITY_REPOS="acme/crm"
+  'COMMUNITY_REPOS="acme/demo"
 GITHUB_BOT_USERNAME="helper-bot"' 2
 
 # github-first-response, run 2: the same item must not surface again. At six
@@ -749,7 +749,7 @@ GITHUB_BOT_USERNAME="helper-bot"' 2
 # times a day for one unanswered issue.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
-  'COMMUNITY_REPOS="acme/crm"' 2
+  'COMMUNITY_REPOS="acme/demo"' 2
 
 # github-first-response: BOUNDED RETRY regression (traced from #9836, which
 # was acked ("seen") right as an org-wide spend-limit outage killed the reply
@@ -758,29 +758,29 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
 # marked as a retry.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new true \
   '(.data.count == 1) and (.data.items[0].retry == true) and (.data.items[0].retries == 1)' \
-  'COMMUNITY_REPOS="acme/crm"' 1 \
+  'COMMUNITY_REPOS="acme/demo"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    OLD=$(( $(date +%s) - 3600 ));
-   { echo key,seen_at,retries; echo "acme/crm#501,$OLD,0"; } > "$D/first-response-seen.csv"'
+   { echo key,seen_at,retries; echo "acme/demo#501,$OLD,0"; } > "$D/first-response-seen.csv"'
 
 # ...but an item seen only moments ago must stay suppressed, even though it
 # is past the grace period and GitHub still shows it as comments:0 — the
 # retry window, not just the grace period, gates a resurface.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
-  'COMMUNITY_REPOS="acme/crm"' 1 \
+  'COMMUNITY_REPOS="acme/demo"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
-   { echo key,seen_at,retries; echo "acme/crm#501,$(date +%s),0"; } > "$D/first-response-seen.csv"'
+   { echo key,seen_at,retries; echo "acme/demo#501,$(date +%s),0"; } > "$D/first-response-seen.csv"'
 
 # ...and once retries are exhausted, the item must stop resurfacing here at
 # all — backlog belongs to triage from that point on, per the task's own
 # stated design, not to a gate that would otherwise retry forever.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new false \
   '(.data.status == "all-answered") and (.data.count == 0)' \
-  'COMMUNITY_REPOS="acme/crm"' 1 \
+  'COMMUNITY_REPOS="acme/demo"' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    OLD=$(( $(date +%s) - 3600 ));
-   { echo key,seen_at,retries; echo "acme/crm#501,$OLD,3"; } > "$D/first-response-seen.csv"'
+   { echo key,seen_at,retries; echo "acme/demo#501,$OLD,3"; } > "$D/first-response-seen.csv"'
 
 # weekly-identity-integrity-check: previously had NO behavioral coverage at
 # all (it was named in this file's own HONEST LIMITS list). Now that its

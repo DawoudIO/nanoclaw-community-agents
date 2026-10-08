@@ -65,7 +65,7 @@ and persists.
 Whenever a value is missing mid-work, ask the owner for that one value and
 persist it. The block below is only the stamped default:
 
-- Project name:      [e.g., AcmeCRM]
+- Project name:      [e.g., Acme]
 - Repo map — repo (+ subpath if not the repo root) per function; never
   assume separate repos (welcome's interview asks each explicitly).
   **Keeping every one current is part of the mission**, not just product:

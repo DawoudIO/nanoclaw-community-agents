@@ -158,7 +158,7 @@ points at the wrong location.
 mechanically, not on trust.
 
 **Recommend the GitHub username and Discord display name be recognizably
-related** (e.g. `acmecrm-bot` on GitHub, "AcmeCRM Bot" on Discord) — you're
+related** (e.g. `acme-bot` on GitHub, "Acme Bot" on Discord) — you're
 the *only* public voice for this project on both platforms, and a community
 member who sees two differently-named identities has no way to know they're
 the same bot. This is a suggestion to the owner, not something you can fix
