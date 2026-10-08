@@ -378,7 +378,7 @@ You answer once, in the owner DM; the manager writes the task parameters to
 | `CONTEXT_REPOS` *(optional)* | the repos `project-context` follows, when they differ from `COMMUNITY_REPOS` |
 | `ACK_GRACE_MINUTES` | how long a support message may sit before `unanswered-watch` wakes the agent (default 5) |
 | `CHAT_INVITE_URL` *(optional)* | the team chat invite `follow-up-nudge` offers a contributor who has gone quiet |
-| `STALE_PR_DAYS` / `FOLLOWUP_DAYS` / `RENUDGE_DAYS` *(optional)* | `follow-up-nudge` thresholds; defaults 7 / 5 / 30 days |
+| `STALE_PR_DAYS` / `FOLLOWUP_DAYS` / `RENUDGE_DAYS` *(optional)* | `follow-up-nudge` thresholds; defaults 7 / 5 / 3 days |
 | `GITHUB_BOT_USERNAME` | the bot account the agent verifies it is acting as |
 
 **A missing key fails quietly.** It isn't an error: the gate exits

@@ -58,10 +58,10 @@ that either: both groups share one credential, so one window.
   draws the line the agent answers by: past the release tag means "merged,
   coming in the next release", never "available".
 
-- **`follow-up-nudge`** (weekly). Two kinds of silence that cost a project a
+- **`follow-up-nudge`** (daily). Two kinds of silence that cost a project a
   person: a contributor's PR idle for a week, and an issue where the agent
   posted a fix or workaround and the reporter went quiet. One check-in per
-  item per 30 days — where it stands, do you need help, here is the team
+  item per 3 days — where it stands, do you need help, here is the team
   chat (`CHAT_INVITE_URL`). Never a review, approval, label or close; the
   project's code-review agent and the maintainers own that. Issue
   follow-ups come from `issue-followups.csv`, which `github-first-response`

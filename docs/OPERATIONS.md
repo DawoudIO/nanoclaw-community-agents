@@ -242,18 +242,18 @@ the agent would cost host memory instead of window budget.
 
 Pause in this order — lowest value first:
 
-0. `follow-up-nudge` — weekly, one wake at most; pausing it only delays a
-   check-in by a week.
+0. `follow-up-nudge` — daily, wakes only when someone has gone quiet;
+   pausing it only delays a check-in.
 1. `project-context` — wakes only when a skill or docs file changed, a
    release shipped, or a branch was rewritten; ordinary commits are recorded
    with no wake. Pausing it costs currency: the agent answers "is X
    released?" from the last `release-state.csv` it wrote, and says so.
    Resume it before anything else when the window recovers.
-2. `docs-gap-review` — nightly, and it wakes only when a topic has repeated
-   three times. Pausing it defers a docs proposal, nothing more.
+2. `docs-gap-review` — nightly, and it wakes only when a question had no
+   findable answer in the docs. Pausing it defers a docs PR, nothing more.
 
-`owner-instruction-watch` and `weekly-identity-integrity-check` are weekly
-and gated to near-silence, so pausing them is effort without savings.
+`owner-instruction-watch` (every 4h) and `weekly-identity-integrity-check`
+are gated to near-silence, so pausing them is effort without savings.
 
 **Never pause, at any ceiling — cheap and irreplaceable:**
 
@@ -327,9 +327,9 @@ unconfigured burns turns on every fire.
 |---|---|---|---|
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
 | `docs-gap-review` (nightly, 02:03) | only when a question was answered that the docs could not have (`in_docs: no`) — then it opens the docs PR itself | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
-| `follow-up-nudge` (Wed) | only when an outsider's PR has sat idle `STALE_PR_DAYS` (7) days, or an issue the agent answered with a fix/workaround has had no reply for `FOLLOWUP_DAYS` (5) — one check-in per item per `RENUDGE_DAYS` (30), with `CHAT_INVITE_URL` offered if set | manager PAT + `COMMUNITY_REPOS`; the agent's own `issue-followups.csv` and `nudged.csv` | safe — quiet until something has gone silent |
+| `follow-up-nudge` (daily, 09:06) | only when an outsider's PR has sat idle `STALE_PR_DAYS` (7) days, or an issue the agent answered with a fix/workaround has had no reply for `FOLLOWUP_DAYS` (5) — one check-in per item per `RENUDGE_DAYS` (3), with `CHAT_INVITE_URL` offered if set | manager PAT + `COMMUNITY_REPOS`; the agent's own `issue-followups.csv` and `nudged.csv` | safe — quiet until something has gone silent |
 | `github-first-response` (**every 5m**) | only on a brand-new issue/PR nobody has replied to — no grace by default, the owner wants near-real-time while the person is still there | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
-| `owner-instruction-watch` (Mon) | only when an owner instruction was acked `received` and never closed | nothing (`jq` over the instruction ledger) | safe |
+| `owner-instruction-watch` (every 4h) | only when an owner instruction was acked `received` and never closed | nothing (`jq` over the instruction ledger) | safe |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner |
 | `project-context` (daily, 06:08) | only when a changed `.agents/skills/**` or docs file needs re-reading, a release shipped, a branch was rewritten, on the first run (`baseline`), or when a repo could not be read — ordinary commits are recorded to `recent-changes.csv` with no wake (`status: recorded`) | manager PAT + `CONTEXT_REPOS` (defaults to `COMMUNITY_REPOS`). Writes `release-state.csv` every run; the agent keeps `project-notes.md` | silent skip |
 | `unanswered-watch` (**every 5m**) | only when the newest message in a support channel is inbound and older than `ACK_GRACE_MINUTES` (default 5) — then the manager answers it for real | `ncl`+`jq` — **no network, no credentials**; the support channels must be wired to this agent | reports `no-channel-sessions` until the channels are wired — check for it, it looks like a quiet night |
@@ -356,9 +356,9 @@ round minutes because it's the task the north star depends on:
 |------|-------|---------|------------|-------|
 | `conversation-archive-prune` | Manager | **daily** | 05:18 | yes |
 | `docs-gap-review` | Manager | **daily** | 02:03 | yes |
-| `follow-up-nudge` | Manager | **weekly** | 15:26, Wed | yes |
+| `follow-up-nudge` | Manager | **daily** | 09:06 | yes |
 | `github-first-response` | Manager | **12× hourly** | :2/7/12/17/22/27/32/37/42/47/52/57 each hour | yes |
-| `owner-instruction-watch` | Manager | **weekly** | 16:23, Mon | yes |
+| `owner-instruction-watch` | Manager | **every 4h** | every 4h at :28 | yes |
 | `owner-tldr` | Manager | **every 2h** | every 2h at :41 | yes |
 | `project-context` | Manager | **daily** | 06:08 | yes |
 | `unanswered-watch` | Manager | **every 5 min** | on the 5-minute mark | yes |

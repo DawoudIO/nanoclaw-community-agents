@@ -76,7 +76,7 @@ Ten minutes, the morning after go-live:
 ## Week 1 — the first full weekly cycle
 
 - **`follow-up-nudge` commented at most once per item**: `nudged.csv` has no
-  repo+number twice within 30 days, and every comment it left reads as a
+  repo+number twice within 3 days, and every comment it left reads as a
   check-in, not a review.
 - **`project-context` wakes only on change**: a week of
   `plugin-data/community-manager/telemetry/project-context.jsonl` shows

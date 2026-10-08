@@ -2,7 +2,7 @@
 set -uo pipefail
 # Deps: bash, curl, jq. GitHub auth injected by the OneCLI proxy.
 #
-# FOLLOW-UP NUDGE — weekly. Two kinds of silence that cost the project a
+# FOLLOW-UP NUDGE — daily. Two kinds of silence that cost the project a
 # person, found by one task:
 #   PRs    open, non-draft, from outside the maintainer team, untouched for
 #          STALE_PR_DAYS — the author is quietly deciding whether to come
@@ -14,7 +14,7 @@ set -uo pipefail
 # Never a review, never a nag: one comment per item per RENUDGE_DAYS,
 # recorded locally by the agent, so a lost wake re-surfaces the item and a
 # sent one does not. Config: STALE_PR_DAYS (7), FOLLOWUP_DAYS (5),
-# RENUDGE_DAYS (30), CHAT_INVITE_URL.
+# RENUDGE_DAYS (3), CHAT_INVITE_URL.
 DATA="/workspace/agent/plugin-data/community-manager"
 mkdir -p "$DATA"
 
@@ -36,7 +36,7 @@ if [ -z "$REPOS" ]; then
 fi
 STALE_DAYS="${STALE_PR_DAYS:-7}";    case "$STALE_DAYS"    in [1-9]|[1-9][0-9]) ;; *) STALE_DAYS=7;; esac
 FOLLOWUP_DAYS="${FOLLOWUP_DAYS:-5}"; case "$FOLLOWUP_DAYS" in [1-9]|[1-9][0-9]) ;; *) FOLLOWUP_DAYS=5;; esac
-RENUDGE_DAYS="${RENUDGE_DAYS:-30}";  case "$RENUDGE_DAYS"  in [1-9]|[1-9][0-9]|[1-9][0-9][0-9]) ;; *) RENUDGE_DAYS=30;; esac
+RENUDGE_DAYS="${RENUDGE_DAYS:-3}";   case "$RENUDGE_DAYS"  in [1-9]|[1-9][0-9]|[1-9][0-9][0-9]) ;; *) RENUDGE_DAYS=3;; esac
 INVITE="${CHAT_INVITE_URL:-}"
 
 NOW_EPOCH=$(date +%s)

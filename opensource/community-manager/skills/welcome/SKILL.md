@@ -557,10 +557,10 @@ and exactly what remains blocked and why. State what runs, in one list:
 - `unanswered-watch` — every 5 min, wakes you for a support message past the grace period
 - `github-first-response` — every 5 min, first reply on new, unanswered issues and PRs
 - `project-context` — daily, re-reads the repos and rewrites `release-state.csv`
-- `follow-up-nudge` — weekly, checks in on idle PRs and unanswered workarounds, offers the chat
+- `follow-up-nudge` — daily, checks in on idle PRs and unanswered workarounds, offers the chat
 - `owner-tldr` — the one digest, 07:00 owner-local
 - `docs-gap-review` — nightly at 02:00, opens a docs PR for any question the docs could not answer
-- `owner-instruction-watch` — weekly, instructions acked but never closed
+- `owner-instruction-watch` — every 4 hours, instructions acked but never closed
 - `weekly-identity-integrity-check` — weekly, asks before it ever locks anything
 - `conversation-archive-prune` — daily housekeeping, never wakes the model
 
