@@ -98,7 +98,36 @@ the real binary: `command -v jq` succeeds, your setup-check looks satisfied,
 and every actual `jq` call fails at runtime. If a jq call fails
 unexpectedly, check the package *type* before debugging the filter.
 
-## 2. The first question: "What is the project's GitHub repo?"
+## 1b. Two things about the owner — timezone and where the dashboard is
+
+Both are about the person, not the project, and everything later depends on
+them: the timezone places every schedule, the dashboard address is where
+every credential link you ever send will point.
+
+**Timezone first.** It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable. Say plainly: *"What timezone do you actually work in? Your tasks are scheduled relative to it — I can set or change this any time, it takes effect right away."*
+
+- Record it, and run `ncl groups config update --timezone <IANA id>` on your own group yourself (or ask the owner to, if you can't reach `ncl` directly) — it takes effect immediately for scheduled tasks, no restart or recreate. If shipped times already suit them in their timezone, that's fine too.
+- If they're unsure the shipped times will land well: offer to list them, and let them decide whether any need adjusting once they see actual local times. This is a low-stakes, reversible setting now — never treat it as a one-shot decision.
+
+**"What URL should I use when I need to point you at the OneCLI
+dashboard — the same machine you're talking to me from right now, or
+somewhere else (a phone, another laptop) when you check in later?"** If
+"somewhere else" and they don't already have a stable address, recommend
+[Tailscale](https://tailscale.com) (free, tailnet-private, never the public
+internet) and give them the exact command to route the dashboard port onto
+it — raw TCP, not HTTPS termination, so the URL keeps the same plain-`http://`
+shape:
+
+```
+tailscale serve --tcp=10254 tcp://localhost:10254 --bg
+```
+
+Then their address is `http://<their-tailscale-ip>:10254`. Persist whatever
+address they land on in `project-config.md` as `onecli_dashboard_url` — never
+assume `127.0.0.1` or `localhost` from here on; use exactly this value in
+every dashboard link you ever give them.
+
+## 2. GitHub — repo, repo map, bot account, maintainers
 
 Everything else derives from this one answer, so it opens the interview: ask
 for the project's GitHub repo (or org) — this becomes `product`. From it,
@@ -146,6 +175,13 @@ wants to use another tool against these repos too, a **separate** GitHub
 identity for it removes the ambiguity — say this plainly as a
 recommendation, not a requirement you can enforce.
 
+**Then: who counts as a maintainer.** Read the repo's collaborators (or the
+org team if the repo is in one) and offer the list for confirmation instead
+of asking the owner to type names: "I see these people with write access —
+are they the maintainers whose issues and PRs I should never treat as
+community-filed?" Persist the confirmed logins; `github-first-response` and
+`follow-up-nudge` filter on them.
+
 The repo map feeds two keys (step 5). `COMMUNITY_REPOS` is where you answer:
 the repos that receive community-filed issues and PRs. `CONTEXT_REPOS` is
 what you follow: the repos whose daily changes the agent should follow —
@@ -174,15 +210,15 @@ review (the project's own review agent), and the on-demand `repo-health`
 checks (a skill in the project repo). If asked, say where it lives.
 
 `owner-tldr` needs no explanation up front either; it needs `OWNER_TZ`,
-which step 4 collects first. Write it into `config.env` and leave
+which step 1b collects. Write it into `config.env` and leave
 `TLDR_LOCAL_HOUR` at 7 unless the owner asks for another hour.
 
-## 4. Conversational configuration — one question at a time
+## 4. Discord, then voice — one question at a time
 
 **Conversational approach**: Rather than asking everything at once, ask one question at a time. After each answer, confirm you understood, move to the next, and always give the owner a chance to ask clarifying questions. This creates a more natural interview where corrections are easy and the owner doesn't feel interrogated.
 
 **This has been violated in practice, so be concrete about what counts as
-"one question."** A single message that asks the timezone *and*
+"one question."** A single message that asks for the channel tiers *and*
 a conditional follow-up ("...and the grace period if #1 is a yes") is
 two questions, even though it reads as one topic. So is a repo-map
 confirmation that also asks about a docs typo *and* a channel guess in
@@ -193,15 +229,8 @@ answer right now** ("I'll circle back on X at the right step, no need to
 answer now") is fine alongside a real question, since it isn't actually
 asking for anything yet.
 
-**Ask the timezone question first**, before anything else in this step. It governs when every scheduled task fires, so a wrong answer here quietly misplaces the entire timetable. Say plainly: *"What timezone do you actually work in? Your tasks are scheduled relative to it — I can set or change this any time, it takes effect right away."*
+**Discord — the owner has it open now:**
 
-- Record it, and run `ncl groups config update --timezone <IANA id>` on your own group yourself (or ask the owner to, if you can't reach `ncl` directly) — it takes effect immediately for scheduled tasks, no restart or recreate. If shipped times already suit them in their timezone, that's fine too.
-- If they're unsure the shipped times will land well: offer to list them, and let them decide whether any need adjusting once they see actual local times. This is a low-stakes, reversible setting now — never treat it as a one-shot decision.
-
-**Then proceed one question at a time** through the rest of what a complete config needs:
-
-- Repo map: product / docs / site / marketing (any may share a repo or be absent)
-- Docs site URL, primary language, topic scope
 - Channel tiers: which channels auto-reply (support) vs mention-only
   (developer, team-lead) — and remind the owner that public-channel wirings
   need the open sender scope (`all`) so new community members never require
@@ -219,11 +248,17 @@ asking for anything yet.
   step: `unknown_sender_policy='public'` (auto-approve) or
   `unknown_sender_policy='request_approval'` (manual gates). Most projects
   should pick 'public' — it protects your support commitments.
-- Who counts as a maintainer
-- **Docs style — assume a user manual, confirm in one line.** "I'll write
-  docs drafts as a user manual: current behaviour only, no 'added in X.x' or
-  changelog language — OK?" Record `docs_style: user-manual` unless they say
-  otherwise. `docs-gap-review` follows it on every page it drafts.
+- **Team chat invite URL — check the README/site for one before asking.**
+  READMEs commonly carry a badge or link (`discord.gg/...`); extract the
+  literal URL if it's there and confirm it rather than asking blind. It is
+  what `follow-up-nudge` offers a contributor who has gone quiet, and what
+  your GitHub replies point at when a question is better talked through
+  than typed into an issue. Persist it as `CHAT_INVITE_URL` in `config.env`
+  (step 5). If nothing's found and the project has no public chat, or
+  doesn't want GitHub traffic routed there, "none" is a complete answer:
+  leave the key unset and you simply never offer it.
+**Voice — how you should sound:**
+
 - **Who this project is actually for, in the reader's own words — and the
   tone that follows from it.** Don't infer this from the README; ask
   plainly, e.g. "Who's the primary reader of your content — end users
@@ -236,21 +271,16 @@ asking for anything yet.
   answer verbatim in project-config as `target_audience` + `tone`; your
   replies and docs drafts must fit it explicitly, not default to generic
   SaaS copy.
-- **Team chat invite URL — check the README/site for one before asking.**
-  READMEs commonly carry a badge or link (`discord.gg/...`); extract the
-  literal URL if it's there and confirm it rather than asking blind. It is
-  what `follow-up-nudge` offers a contributor who has gone quiet, and what
-  your GitHub replies point at when a question is better talked through
-  than typed into an issue. Persist it as `CHAT_INVITE_URL` in `config.env`
-  (step 5). If nothing's found and the project has no public chat, or
-  doesn't want GitHub traffic routed there, "none" is a complete answer:
-  leave the key unset and you simply never offer it.
+- Docs site URL, primary language, topic scope
+- **Docs style — assume a user manual, confirm in one line.** "I'll write
+  docs drafts as a user manual: current behaviour only, no 'added in X.x' or
+  changelog language — OK?" Record `docs_style: user-manual` unless they say
+  otherwise. `docs-gap-review` follows it on every page it drafts.
 - **Model — not a question.** You run on Sonnet; this interview runs on
   Haiku and you promote yourself at the end (step 10). Mention it in one
   clause only if the owner asks about cost: cost comes from wakes, not from
   the agent existing, so budget is tuned by pausing tasks, never by
   downgrading the one identity the community sees.
-
 ## 5. Persist — this is the point
 
 **Two namespaces, and the difference matters.** Scripts can only read
@@ -268,7 +298,7 @@ one per line, quoted:
 | `CONTEXT_REPOS` | optional; the repos whose daily changes you follow — usually all of them, including docs and marketing | `project-context`. Defaults to `COMMUNITY_REPOS`; only write it when the two differ |
 | `CHAT_INVITE_URL` | optional; the team chat invite (Discord or whatever the project uses) — the invite question in step 4 | `follow-up-nudge` offers it to a contributor who has gone quiet; unset means it simply doesn't |
 | `ACK_GRACE_MINUTES` | optional; minutes a support message may sit unanswered before `unanswered-watch` wakes you; default `5`, bare integer | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it wakes you for a question you were about to answer |
-| `OWNER_TZ` | the timezone question (step 4), IANA zone | `owner-tldr`, so the digest lands at 07:00 local. `TLDR_LOCAL_HOUR` only if the owner wants a different hour |
+| `OWNER_TZ` | the timezone question (step 1b), IANA zone | `owner-tldr`, so the digest lands at 07:00 local. `TLDR_LOCAL_HOUR` only if the owner wants a different hour |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 2) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
 **`COMMUNITY_REPOS` itself should be narrower than "the full repo map."**
@@ -437,27 +467,6 @@ community Discord channels. If 'request_approval' is used instead, every new
 sender triggers a manual approval prompt that breaks your response-time SLA.
 
 ## 6. Walk the credential setup — then verify it, don't assume it
-
-One question comes first, before anything about vault entries — everything
-else in this step depends on it.
-
-**"What URL should I use when I need to point you at the OneCLI
-dashboard — the same machine you're talking to me from right now, or
-somewhere else (a phone, another laptop) when you check in later?"** If
-"somewhere else" and they don't already have a stable address, recommend
-[Tailscale](https://tailscale.com) (free, tailnet-private, never the public
-internet) and give them the exact command to route the dashboard port onto
-it — raw TCP, not HTTPS termination, so the URL keeps the same plain-`http://`
-shape:
-
-```
-tailscale serve --tcp=10254 tcp://localhost:10254 --bg
-```
-
-Then their address is `http://<their-tailscale-ip>:10254`. Persist whatever
-address they land on in `project-config.md` as `onecli_dashboard_url` — never
-assume `127.0.0.1` or `localhost` from here on; use exactly this value in
-every dashboard link you ever give them.
 
 Now walk the setup itself. Tell them exactly what to set up — one message,
 pointing at `onecli_dashboard_url` for where to go. **Never ask for a raw

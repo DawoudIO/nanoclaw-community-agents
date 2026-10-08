@@ -394,18 +394,18 @@ to the agent.
 
 | # | Asked | Optional? |
 |---|---|---|
-| 1 | GitHub repo or org | **No** |
-| 2 | What runs and why | Stated, not asked |
-| 3 | Repo map: product/docs/site | Inferred + confirmed |
-| 3b | Bot's GitHub username | **No** |
-| 4 | Docs site URL, language, topic scope | Inferred where possible |
-| 5 | Discord channels by tier | Required if using Discord |
-| 6 | Maintainer list | Confirmed from the repo |
-| 7 | Discord invite URL | Optional |
-| 8 | Model | Not asked — Sonnet |
-| 9 | OneCLI dashboard address | Asked once |
-| 10 | Docs style | Assumed user manual, confirmed in one line |
-| 11 | Audience, in your words | Optional — shapes how replies are pitched |
+| 1 | Your timezone | **No** — places every schedule |
+| 2 | OneCLI dashboard address | Asked once |
+| 3 | GitHub repo or org | **No** |
+| 4 | Repo map: product/docs/site/marketing | Inferred + confirmed |
+| 5 | Bot's GitHub username | **No** |
+| 6 | Maintainer list | Read from the repo, confirmed |
+| 7 | Discord channels by tier, and the announcements channel | Required if using Discord |
+| 8 | Auto-approve new Discord members | Default yes |
+| 9 | Team chat invite URL | Pre-filled from the README, confirmed |
+| 10 | Audience, in your words, and tone | Shapes how replies are pitched |
+| 11 | Docs site URL, language, topic scope | Inferred where possible |
+| 12 | Docs style | Assumed user manual, confirmed in one line |
 
 After this, the agent walks credential setup, verifies each with a real
 call, and asks one explicit "go" before activating anything.
