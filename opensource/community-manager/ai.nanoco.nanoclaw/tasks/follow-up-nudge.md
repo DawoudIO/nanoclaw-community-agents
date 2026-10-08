@@ -55,7 +55,7 @@ script: |
   RECUT=$(( NOW_EPOCH - RENUDGE_DAYS * 86400 ))
   RENUDGE_BEFORE=$(date -u -d "@$RECUT" +%Y-%m-%d 2>/dev/null || date -u -r "$RECUT" +%Y-%m-%d 2>/dev/null || echo "")
   TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
-  gh() { curl -fsS --max-time 10 -H "Accept: application/vnd.github+json" "$1" 2>/dev/null; }
+  api() { curl -fsS --max-time 10 -H "Accept: application/vnd.github+json" "$1" 2>/dev/null; }
 
   i=0; PIDS=()
   for REPO in $REPOS; do
@@ -64,8 +64,8 @@ script: |
     fi
     (
       # Oldest-untouched first; maintainers' own PRs are filtered by association.
-      gh "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:open+draft:false+updated:%3C$STALE_BEFORE&sort=updated&order=asc&per_page=20" > "$TMP/$i.open" &
-      gh "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:open+review:changes_requested&per_page=100" > "$TMP/$i.cr" &
+      api "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:open+draft:false+updated:%3C$STALE_BEFORE&sort=updated&order=asc&per_page=20" > "$TMP/$i.open" &
+      api "https://api.github.com/search/issues?q=repo:$REPO+is:pr+is:open+review:changes_requested&per_page=100" > "$TMP/$i.cr" &
       wait
       if ! jq -e '.items' < "$TMP/$i.open" >/dev/null 2>&1; then
         jq -nc --arg r "$REPO" '{repo:$r, ok:false, reason:"fetch-failed", prs:[]}' > "$TMP/$i.json"; exit 0
@@ -95,11 +95,11 @@ script: |
     [[ "$R" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] && [[ "$N" =~ ^[0-9]+$ ]] || continue
     [ -n "$FOLLOW_BEFORE" ] && [ "$POSTED" \> "$FOLLOW_BEFORE" ] && continue
     [ "$(printf '%s' "$ISSUES" | jq 'length')" -ge 10 ] && break
-    if ! gh "https://api.github.com/repos/$R/issues/$N" > "$TMP/iss.tmp"; then
+    if ! api "https://api.github.com/repos/$R/issues/$N" > "$TMP/iss.tmp"; then
       IFAIL=$(jq -c --arg r "$R" --argjson n "$N" '. + [{repo:$r, number:$n}]' <<< "$IFAIL"); continue
     fi
     STATE=$(jq -r '.state // ""' < "$TMP/iss.tmp"); [ "$STATE" = "open" ] || continue
-    LAST_HUMAN=$(gh "https://api.github.com/repos/$R/issues/$N/comments?per_page=100" | jq -r --arg bot "${GITHUB_BOT_USERNAME:-}" \
+    LAST_HUMAN=$(api "https://api.github.com/repos/$R/issues/$N/comments?per_page=100" | jq -r --arg bot "${GITHUB_BOT_USERNAME:-}" \
       '[.[] | select((.user.type // "User") != "Bot") | select(($bot == "") or ((.user.login | ascii_downcase) != ($bot | ascii_downcase)))] | (last.created_at // "")' 2>/dev/null)
     [ -n "$LAST_HUMAN" ] && [ "${LAST_HUMAN:0:10}" \> "$POSTED" ] && continue   # someone replied after us: first-response handles it
     ISSUES=$(jq -c --arg r "$R" --argjson n "$N" --arg p "$POSTED" --arg k "$KIND" \

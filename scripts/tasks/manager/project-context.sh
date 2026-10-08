@@ -45,7 +45,7 @@ CHANGES="$DATA/recent-changes.csv"       # date,repo,sha,author,subject — appe
 [ -s "$STATE" ] || echo 'repo,head_sha,release_tag,checked_at' > "$STATE"
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 API="https://api.github.com/repos"
-gh() { curl -fsS --max-time 10 -H "Accept: application/vnd.github+json" "$1" 2>/dev/null; }
+api() { curl -fsS --max-time 10 -H "Accept: application/vnd.github+json" "$1" 2>/dev/null; }
 
 i=0
 PIDS=()
@@ -57,9 +57,9 @@ for REPO in $REPOS; do
     PREV_SHA=$(awk -F, -v r="$REPO" '$1==r {print $2}' "$STATE" | tail -n 1)
     PREV_TAG=$(awk -F, -v r="$REPO" '$1==r {print $3}' "$STATE" | tail -n 1)
 
-    gh "$API/$REPO/commits?per_page=1" > "$TMP/$i.head" &
-    gh "$API/$REPO/releases/latest" > "$TMP/$i.rel" &
-    gh "$API/$REPO/milestones?state=open&sort=due_on&direction=asc&per_page=10" > "$TMP/$i.ms" &
+    api "$API/$REPO/commits?per_page=1" > "$TMP/$i.head" &
+    api "$API/$REPO/releases/latest" > "$TMP/$i.rel" &
+    api "$API/$REPO/milestones?state=open&sort=due_on&direction=asc&per_page=10" > "$TMP/$i.ms" &
     wait
 
     HEAD_SHA=$(jq -r '.[0].sha // empty' < "$TMP/$i.head" 2>/dev/null)
@@ -75,7 +75,7 @@ for REPO in $REPOS; do
     # Released vs not: everything on the default branch past the release tag.
     UNRELEASED=null
     if [ -n "$TAG" ]; then
-      if gh "$API/$REPO/compare/$TAG...$HEAD_SHA" > "$TMP/$i.unrel"; then
+      if api "$API/$REPO/compare/$TAG...$HEAD_SHA" > "$TMP/$i.unrel"; then
         UNRELEASED=$(jq -c '{ahead_by, commits: [.commits[-50:][] | {sha: .sha[0:7], subject: (.commit.message | split("\n")[0] | .[0:120]), date: .commit.committer.date[0:10]}]}' < "$TMP/$i.unrel" 2>/dev/null || echo null)
       else
         UNRELEASED='{"status":"fetch-failed"}'
@@ -88,7 +88,7 @@ for REPO in $REPOS; do
       STATUS=baseline
     elif [ "$PREV_SHA" != "$HEAD_SHA" ]; then
       STATUS=changed
-      if gh "$API/$REPO/compare/$PREV_SHA...$HEAD_SHA" > "$TMP/$i.delta"; then
+      if api "$API/$REPO/compare/$PREV_SHA...$HEAD_SHA" > "$TMP/$i.delta"; then
         DELTA=$(jq -c '{
           total_commits,
           commits: [.commits[-50:][] | {sha: .sha[0:7], subject: (.commit.message | split("\n")[0] | .[0:120]), author: (.author.login // .commit.author.name), date: .commit.committer.date[0:10]}],
