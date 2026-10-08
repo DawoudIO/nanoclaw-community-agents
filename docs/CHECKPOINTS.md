@@ -70,7 +70,7 @@ Ten minutes, the morning after go-live:
   run). Either one looks almost exactly like a healthy quiet night, and means
   the safety net has been off the whole time — `no-channel-sessions`
   specifically means the support-channel wiring (§5c) never happened. Ready
-  gate item 13 is the end-to-end test; if you skipped it, do it now.
+  gate item 12 is the end-to-end test; if you skipped it, do it now.
 
 ## Week 1 — the first full weekly cycle
 

@@ -197,11 +197,10 @@ asking for anything yet.
   `unknown_sender_policy='request_approval'` (manual gates). Most projects
   should pick 'public' — it protects your support commitments.
 - Who counts as a maintainer
-- **Docs style** — does this project want its docs to describe current
-  behavior only (no "added in X.x" / "as of version" / changelog-style
-  language), or is version-history language fine? `docs-gap-review` follows
-  it on every docs page it drafts — don't leave this as an unconfigured
-  assumption.
+- **Docs style — assume a user manual, confirm in one line.** "I'll write
+  docs drafts as a user manual: current behaviour only, no 'added in X.x' or
+  changelog language — OK?" Record `docs_style: user-manual` unless they say
+  otherwise. `docs-gap-review` follows it on every page it drafts.
 - **Who this project is actually for, in the reader's own words — and the
   tone that follows from it.** Don't infer this from the README; ask
   plainly, e.g. "Who's the primary reader of your content — end users

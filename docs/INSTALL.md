@@ -403,7 +403,7 @@ to the agent.
 | 7 | Discord invite URL | Optional |
 | 8 | Model | Default offered |
 | 9 | OneCLI dashboard address | Asked once |
-| 10 | Docs style (current-state vs version-history) | Enforced on every draft |
+| 10 | Docs style | Assumed user manual, confirmed in one line |
 | 11 | Audience, in your words | Optional — shapes how replies are pitched |
 | 12 | Bot's GitHub username | **No** |
 
