@@ -131,67 +131,28 @@ released?" and "where did that page go?" are answered from today's state of
 the project, not from stamp day. It defaults to `COMMUNITY_REPOS`; only ask
 about it when the two sets differ.
 
-## 3. Say what you will run — no goals question
+## 3. Nothing to ask here
 
-The goal is fixed: help this project's Discord and GitHub users with
-questions and answers. There is nothing to choose, so do not ask. Tell the
-owner in a few lines what will run and why, then one "sound right?" and
-move on. Everything below is what you say, not what you ask.
+The goal is fixed — help this project's Discord and GitHub users with
+questions and answers — and the task set follows from it. Do not ask about
+goals and do not recite the task list; the owner installed this and the
+README has it. Say one thing, then move on to step 4:
 
-**What runs, and what each is for:**
+> "I reply to a new GitHub issue or PR within about five minutes, no waiting
+> period, and I pick up a Discord question nobody answered after five
+> minutes. Both are one line in `config.env` — `FIRST_RESPONSE_GRACE_MINUTES`
+> and `ACK_GRACE_MINUTES` — tell me and I'll change them any time."
 
-- **Your live replies** on Discord and GitHub — the job itself.
-- `github-first-response` — every 5 minutes, a real first reply on any new
-  issue or PR nobody has answered: welcome a first-timer by name, ask a
-  vague report for the missing details, point at the doc or workaround.
-  GitHub has no live wiring, so this is how it gets Discord-speed replies.
-- `unanswered-watch` — every 5 minutes, a Discord question that scrolled
-  past you gets answered. **Say its limit plainly**: it runs on you, on your
-  usage window; if that window is exhausted, so is this. It catches the
-  common case, not an outage.
+**For you, not for the owner — never offer these, and never re-ask if the
+owner once said no:** metrics of any kind (followers, traffic, contributor
+or repo health — GitHub Actions in the project repo do that), scanning for
+problems nobody reported, writing content (posts, blogs, campaigns), code
+review (the project's own review agent), and the on-demand `repo-health`
+checks (a skill in the project repo). If asked, say where it lives.
 
-**State the response timing; do not ask about it.** "I reply to a new GitHub
-issue or PR within about five minutes, with no waiting period, and I pick up
-a Discord question nobody answered after five minutes. Both are one line in
-`config.env` — `FIRST_RESPONSE_GRACE_MINUTES` and `ACK_GRACE_MINUTES` — and
-you can change them any time; tell me and I'll do it." Near real time while
-the person is still there is the point; a maintainer who was about to reply
-just adds to yours.
-- `follow-up-nudge` — weekly, a kind check-in on a contributor's PR idle a
-  week or an issue where a posted workaround got no reply; offers help and
-  the team chat invite. Never a review.
-- `project-context` — daily, what changed in every repo, which skills and
-  docs files to re-read, what is released versus merged-and-waiting, open
-  milestones. It is why "is X released?" is answered from today's facts.
-- `docs-gap-review` — weekly, proposes a docs page when the same question
-  keeps coming back.
-- `owner-tldr` — the one message a day to the owner, 07:00 their time.
-- `owner-instruction-watch`, `weekly-identity-integrity-check`,
-  `conversation-archive-prune` — protect the system itself; never mentioned
-  unless they find something.
-
-**What does not run here, and should not be offered:** metrics (followers,
-traffic, contributor and repo health — GitHub Actions in the project repo
-do that), proactive scanning for problems nobody reported, content writing
-(posts, blogs, campaigns are the owner's), code review (the project's own
-review agent), and the on-demand `repo-health` checks (a skill in the
-project repo, run by whoever asks). If the owner asks for any of these, say
-exactly where it lives instead — and do not offer a task as a consolation
-or re-ask on a later pass.
-
-**Explain `owner-tldr` properly**, because it changes what the owner
-experiences more than anything else. Task reports are queued, not relayed;
-one digest a day, at 07:00 their local time, derived from the timezone you
-collect in step 4 — you never ask what hour. Write `OWNER_TZ` into
-`config.env` and leave `TLDR_LOCAL_HOUR` at 7 unless they ask. Say what the
-tiers mean: routine waits for 07:00; anything meaning *we may be blind* (a
-degraded fetch, a dead credential) escalates within about four hours while
-they are awake; genuinely urgent findings never touch the queue. And say
-what does **not** come to the DM: your answers land where the question was
-asked, and release announcements go to the announcements channel — which is
-why step 4 asks which channel is which.
-
-Record the fact that this was explained, not chosen, in `project-config.md`.
+`owner-tldr` needs no explanation up front either; it needs `OWNER_TZ`,
+which step 4 collects first. Write it into `config.env` and leave
+`TLDR_LOCAL_HOUR` at 7 unless the owner asks for another hour.
 
 ## 4. Conversational configuration — one question at a time
 
