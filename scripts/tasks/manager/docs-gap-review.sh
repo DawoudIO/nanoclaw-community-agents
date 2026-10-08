@@ -4,8 +4,8 @@ set -euo pipefail
 # The manager appends one line per resolved support conversation (see
 # report-formats.md): {"date": "<ISO8601 datetime>", "topic": "<kebab-slug>",
 # "channel": "<where>"}. This weekly gate clusters the last 60 days and wakes
-# the agent only when a topic has repeated enough (3+) to deserve a docs page
-# and hasn't already been proposed — every repeat question is permanent,
+# the agent when a question was answered that the person could not have found
+# in the docs, and no page has been opened for it yet — every repeat question is permanent,
 # measurable load on the maintainer, and unlike most community problems it
 # has a fully mechanical fix.
 DATA="/workspace/agent/plugin-data/community-manager"
@@ -29,9 +29,13 @@ PROPOSED="$DATA/docs-proposals-sent.txt"
 touch "$PROPOSED"
 CUTOFF=$(( $(date +%s) - 5184000 ))
 
-# Ledger is CSV: `date,topic,channel`. The whole pass — window filter,
-# cluster, 3+ threshold, and the already-proposed exclusion — is one awk run
-# over two files, replacing two jq passes and a --rawfile.
+# Ledger is CSV: `date,topic,channel,in_docs`. `in_docs` is the agent's call
+# at answer time: `yes` if the person could have found the answer on the
+# docs site, `no` if the agent answered from code, a thread, or its own
+# knowledge. One `no` is a gap worth a page — not a repeat count. Rows with
+# no fourth column (older writers) are treated as `yes`, so they never open
+# a PR on their own. The whole pass — window filter, cluster, gap test, and
+# the already-proposed exclusion — is one awk run over two files.
 #
 # Dates are compared as STRINGS, not parsed: rows carry a full ISO8601
 # timestamp, awk has no date parser, and ISO8601 sorts lexicographically —
@@ -58,13 +62,13 @@ NEW=$(awk -F, -v cutoff="$CUTOFF_ISO" -v proposed="$PROPOSED" '
     close(proposed)
   }
   NR == 1 && $1 == "date" { next }
-  NF >= 2 && $1 >= cutoff { count[$2]++ }
+  NF >= 2 && $1 >= cutoff { count[$2]++; if (NF >= 4 && $4 == "no") gap[$2]++ }
   END {
     printf "["; first = 1
-    for (t in count) {
-      if (count[t] < 3 || (t in sent)) continue
+    for (t in gap) {
+      if (t in sent) continue
       if (!first) printf ","; first = 0
-      printf "{\"topic\":\"%s\",\"count\":%d}", t, count[t]
+      printf "{\"topic\":\"%s\",\"count\":%d,\"not_in_docs\":%d}", t, count[t], gap[t]
     }
     printf "]"
   }' "$LEDGER" 2>/dev/null || echo '[]')
@@ -72,5 +76,5 @@ NEW=$(awk -F, -v cutoff="$CUTOFF_ISO" -v proposed="$PROPOSED" '
 if [ "$(printf '%s' "$NEW" | jq 'length')" -eq 0 ]; then
   echo '{"wakeAgent": false, "data": {"status": "quiet"}}'
 else
-  printf '{"wakeAgent": true, "data": {"status": "hot-topics", "topics": %s}}\n' "$NEW"
+  printf '{"wakeAgent": true, "data": {"status": "docs-gaps", "topics": %s}}\n' "$NEW"
 fi

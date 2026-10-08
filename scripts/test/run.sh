@@ -403,20 +403,23 @@ assert_gate "$ROOT/scripts/tasks/manager/project-context.sh" \
 # field here is a broken task even though the gate still emits valid JSON and
 # the right wakeAgent — which is exactly what the failure-only tests miss.
 
-# docs-gap-review: pure local-file logic, previously the ONLY gate with no
-# behavioral coverage at all. Ledger seeded with one topic 4× inside the
-# 60-day window and one 2× — only the 3+ topic may surface.
+# docs-gap-review: pure local-file logic. One question answered with no
+# findable docs answer (in_docs=no) is a gap — no repeat needed. A topic
+# asked four times but always answerable from the docs (yes) is not; neither
+# is a legacy row with no fourth column.
 assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures true \
-  '(.data.status == "hot-topics")
+  '(.data.status == "docs-gaps")
    and (.data.topics | length == 1)
-   and (.data.topics[0].topic == "csv-import-fails")
-   and (.data.topics[0].count == 4)' \
+   and (.data.topics[0].topic == "how-to-backup")
+   and (.data.topics[0].count == 1)
+   and (.data.topics[0].not_in_docs == 1)' \
   '' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-   echo date,topic,channel > "$D/question-ledger.csv";
-   for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support" >> "$D/question-ledger.csv"; done;
-   for i in 1 2; do echo "$NOW,how-to-backup,#support" >> "$D/question-ledger.csv"; done'
+   echo date,topic,channel,in_docs > "$D/question-ledger.csv";
+   for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support,yes" >> "$D/question-ledger.csv"; done;
+   echo "$NOW,how-to-backup,#support,no" >> "$D/question-ledger.csv";
+   echo "$NOW,legacy-row,#support" >> "$D/question-ledger.csv"'
 
 # docs-gap-review: a topic already proposed must not re-surface (the ack
 # ledger is what stops the same docs page being proposed every week).
@@ -424,8 +427,8 @@ assert_scenario "$ROOT/scripts/tasks/manager/docs-gap-review.sh" no-fixtures fal
   '.data.status == "quiet"' '' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    NOW=$(date -u +%Y-%m-%dT%H:%M:%SZ);
-   echo date,topic,channel > "$D/question-ledger.csv";
-   for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support" >> "$D/question-ledger.csv"; done;
+   echo date,topic,channel,in_docs > "$D/question-ledger.csv";
+   for i in 1 2 3 4; do echo "$NOW,csv-import-fails,#support,no" >> "$D/question-ledger.csv"; done;
    echo "csv-import-fails" > "$D/docs-proposals-sent.txt"'
 
 # --- project-context: the agent's picture of the repos must be today's ----

@@ -21,7 +21,7 @@ is aimed at catching that mistake *before* it happens, not after.
 |---|---|---|
 | **Model access (what the agent thinks with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the manager simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. The one agent draws on this same window |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
-| Manager GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS` plus `CONTEXT_REPOS`. Not classic, not `read:org` |
+| Manager GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write and Contents read over `COMMUNITY_REPOS` plus `CONTEXT_REPOS`; Contents **write** on the docs repo only (`docs-gap-review` opens docs PRs). Not classic, not `read:org` |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §2 for the exact `serve` command |
 
@@ -63,7 +63,7 @@ labelling. No script pushes a branch, opens a PR, or sends a `POST`.
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
 | Issues | **Read + Write** | reads `GET /search/issues` and `GET /repos/{repo}/issues/comments` (`github-first-response`), `GET /repos/{repo}/milestones` (`project-context`), `GET /repos/{repo}/issues/{n}` and its `/comments` plus `search/issues … review:changes_requested` (`follow-up-nudge`); writes = one check-in comment per idle PR or silent issue (`follow-up-nudge`), = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
 | Pull requests | Read + Write | commenting on PRs in those same live replies; the issues endpoint also returns PRs |
-| Contents | Read | `GET /repos/{repo}/commits`, `GET /repos/{repo}/releases/latest`, `GET /repos/{repo}/compare/{a}...{b}`, and raw file reads on the default branch for changed `.agents/skills/**` and docs files (`project-context`) |
+| Contents | Read everywhere; **Write on the docs repo only** | `docs-gap-review`: `POST git/refs`, `PUT contents/{path}` on a `docs/*` branch, `POST pulls` — never the default branch. Reads: `GET /repos/{repo}/commits`, `GET /repos/{repo}/releases/latest`, `GET /repos/{repo}/compare/{a}...{b}`, and raw file reads on the default branch for changed `.agents/skills/**` and docs files (`project-context`) |
 
 Repo list: everything in `COMMUNITY_REPOS` and `CONTEXT_REPOS`. **Never** `admin:*`,
 `delete_repo`, `read:org`, or workflow scopes — nothing reads org membership

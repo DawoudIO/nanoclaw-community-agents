@@ -301,7 +301,7 @@ live:
 
 | Token | Needs | Never |
 |---|---|---|
-| Manager | `repo`/`public_repo` — comments, labels, issues; read on `COMMUNITY_REPOS` and `CONTEXT_REPOS` | `read:org`, `admin:*`, `delete_repo` |
+| Manager | fine-grained: Issues+PRs read/write, Contents read on `COMMUNITY_REPOS` and `CONTEXT_REPOS`, Contents write on the docs repo only (docs PRs) | `read:org`, `admin:*`, `delete_repo` |
 
 If a future feature seems to need broader access, the fix is almost never
 "widen this token" — it's a new, narrower, single-purpose credential.

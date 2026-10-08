@@ -249,7 +249,7 @@ Pause in this order — lowest value first:
    with no wake. Pausing it costs currency: the agent answers "is X
    released?" from the last `release-state.csv` it wrote, and says so.
    Resume it before anything else when the window recovers.
-2. `docs-gap-review` — weekly, and it wakes only when a topic has repeated
+2. `docs-gap-review` — nightly, and it wakes only when a topic has repeated
    three times. Pausing it defers a docs proposal, nothing more.
 
 `owner-instruction-watch` and `weekly-identity-integrity-check` are weekly
@@ -326,7 +326,7 @@ unconfigured burns turns on every fire.
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
-| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
+| `docs-gap-review` (nightly, 02:03) | only when a question was answered that the docs could not have (`in_docs: no`) — then it opens the docs PR itself | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
 | `follow-up-nudge` (Wed) | only when an outsider's PR has sat idle `STALE_PR_DAYS` (7) days, or an issue the agent answered with a fix/workaround has had no reply for `FOLLOWUP_DAYS` (5) — one check-in per item per `RENUDGE_DAYS` (30), with `CHAT_INVITE_URL` offered if set | manager PAT + `COMMUNITY_REPOS`; the agent's own `issue-followups.csv` and `nudged.csv` | safe — quiet until something has gone silent |
 | `github-first-response` (**every 5m**) | only on a brand-new issue/PR nobody has replied to — no grace by default, the owner wants near-real-time while the person is still there | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-instruction-watch` (Mon) | only when an owner instruction was acked `received` and never closed | nothing (`jq` over the instruction ledger) | safe |
@@ -355,7 +355,7 @@ round minutes because it's the task the north star depends on:
 | Task | Agent | Cadence | When (UTC) | Gated |
 |------|-------|---------|------------|-------|
 | `conversation-archive-prune` | Manager | **daily** | 05:18 | yes |
-| `docs-gap-review` | Manager | **weekly** | 15:16, Tue | yes |
+| `docs-gap-review` | Manager | **daily** | 02:03 | yes |
 | `follow-up-nudge` | Manager | **weekly** | 15:26, Wed | yes |
 | `github-first-response` | Manager | **12× hourly** | :2/7/12/17/22/27/32/37/42/47/52/57 each hour | yes |
 | `owner-instruction-watch` | Manager | **weekly** | 16:23, Mon | yes |

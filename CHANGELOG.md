@@ -66,6 +66,12 @@ that either: both groups share one credential, so one window.
   project's code-review agent and the maintainers own that. Issue
   follow-ups come from `issue-followups.csv`, which `github-first-response`
   now appends to whenever it posts a fix.
+- **`docs-gap-review` opens the docs PR itself**, nightly at 02:00 group-local
+  instead of weekly, and for any question the docs could not answer (the
+  agent flags `in_docs: no` when it answers) rather than a 3+ repeat: branch, file via the Contents API with a read-back diff
+  before the PR (a past install shipped corrupted files through that API),
+  PR body with the recurring question and thread links, never merged by
+  the agent. Needs Contents write on the docs repo only.
 - **`github-first-response` collects requirements** on a vague issue (one
   round, specific asks) and welcomes first-time contributors by name
   (`first_time` from GitHub's author association).

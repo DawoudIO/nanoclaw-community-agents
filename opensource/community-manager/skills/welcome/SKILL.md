@@ -474,7 +474,7 @@ key in chat** — keys go into the OneCLI vault dashboard only:
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
-| GitHub work (`github-first-response`, `project-context`, your live replies) | 1 fine-grained PAT on `api.github.com`, scoped to `COMMUNITY_REPOS` ∪ `CONTEXT_REPOS` | Issues read/write, Pull requests read/write, Contents read, Metadata read — see `PREREQS.md` §1b. A repo missing from the token's list fails silently, so check `CONTEXT_REPOS` is on it too |
+| GitHub work (`github-first-response`, `project-context`, `docs-gap-review`'s docs PRs, your live replies) | 1 fine-grained PAT on `api.github.com`, scoped to `COMMUNITY_REPOS` ∪ `CONTEXT_REPOS` | Issues read/write, Pull requests read/write, Contents read (write on the docs repo only), Metadata read — see `PREREQS.md` §1b. A repo missing from the token's list fails silently, so check `CONTEXT_REPOS` is on it too |
 
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:
@@ -559,7 +559,7 @@ and exactly what remains blocked and why. State what runs, in one list:
 - `project-context` — daily, re-reads the repos and rewrites `release-state.csv`
 - `follow-up-nudge` — weekly, checks in on idle PRs and unanswered workarounds, offers the chat
 - `owner-tldr` — the one digest, 07:00 owner-local
-- `docs-gap-review` — weekly, proposes docs pages for repeat questions
+- `docs-gap-review` — nightly at 02:00, opens a docs PR for any question the docs could not answer
 - `owner-instruction-watch` — weekly, instructions acked but never closed
 - `weekly-identity-integrity-check` — weekly, asks before it ever locks anything
 - `conversation-archive-prune` — daily housekeeping, never wakes the model

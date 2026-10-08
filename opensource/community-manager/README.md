@@ -37,7 +37,7 @@ community-manager/
 │       ├── project-context.md                         # daily: what changed, what is released vs merged
 │       ├── follow-up-nudge.md                         # weekly: check in on idle PRs and unanswered workarounds
 │       ├── owner-tldr.md                              # the ONE daily digest to the owner
-│       ├── docs-gap-review.md                         # weekly, proposes docs pages for repeat questions
+│       ├── docs-gap-review.md                         # nightly: opens a docs PR for any question the docs could not answer
 │       ├── owner-instruction-watch.md                 # the dropped-ack watch the persona already promised
 │       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
 │       └── conversation-archive-prune.md              # pure housekeeping, never wakes the model
@@ -191,7 +191,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` plus `CONTEXT_REPOS`: Issues read/write (`github-first-response` comments on new issues; live replies comment and file issues from chat bug reports), Pull requests read/write (live replies comment on PRs), Contents read (`project-context` reads skills, docs and `compare`), Metadata read. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` plus `CONTEXT_REPOS`, plus Contents **write** on the docs repo only (`docs-gap-review` opens docs PRs on a `docs/*` branch, never the default branch): Issues read/write (`github-first-response` comments on new issues; live replies comment and file issues from chat bug reports), Pull requests read/write (live replies comment on PRs), Contents read (`project-context` reads skills, docs and `compare`), Metadata read. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at

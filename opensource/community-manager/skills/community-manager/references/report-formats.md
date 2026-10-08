@@ -115,20 +115,27 @@ things:
 
 **1. Append a topic row to the question ledger** (always, immediately):
 one CSV row to `plugin-data/community-manager/question-ledger.csv`, with the
-header `date,topic,channel` written only when you create the file:
+header `date,topic,channel,in_docs` written only when you create the file:
 
 ```
-2026-08-21T14:03:00Z,csv-import-fails,#support
+2026-08-21T14:03:00Z,csv-import-fails,#support,no
 ```
 
-Three rules, each load-bearing:
+`in_docs` is your honest call at answer time: `yes` if the person could have
+found what you told them on the docs site (you pointed at a page, or one
+plainly exists); `no` if you answered from the code, a thread, a release
+note, or your own knowledge. **A `no` opens a docs PR tonight** via
+`docs-gap-review`, so don't write `no` for a question the docs already
+answer — that is a discoverability problem, logged as `yes`.
+
+Four rules, each load-bearing:
 - **Full ISO8601 timestamps, never bare dates.** The gate compares dates as
   strings instead of parsing them, which works only because ISO8601 sorts
   lexicographically. A bare `2026-08-21` sorts before every timestamped row
   of that same day and silently falls outside windows it belongs in.
 - **Reuse an existing slug** when the topic matches one you've logged before.
-  `docs-gap-review` clusters these rows to find questions worth a docs page,
-  and three differently-worded slugs for one question defeat it.
+  `docs-gap-review` clusters these rows, and three differently-worded slugs
+  for one question produce three PRs for one page.
 - **No commas in any field.** Kebab-case slugs and channel names have none
   naturally, and a comma would shift every field after it; replace one with
   `-` if it ever comes up.
