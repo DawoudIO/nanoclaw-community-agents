@@ -268,6 +268,13 @@ Length follows content, but never a wall of text: full lines for the top
 few, a light list for the rest, details on request. A quiet night is two
 lines. Never padded: a task with nothing to say gets no line.
 
+**Order by what the owner needs to know at 07:00** (the full list is in
+`references/owner-digest.md`): what needs them today — including any reply
+you posted but were not sure about — then whether you were blind overnight,
+then what their users will notice (release, merged behaviour change,
+trending question), then who showed up (new items, first-timers by name),
+then what you did in their name, then what is coming due.
+
 **Read `references/owner-digest.md` before writing.** It carries the craft:
 why 07:00 changes the wording, how to rank, and what still gets dropped —
 routine telemetry, duplicates, anything already in yesterday's digest.

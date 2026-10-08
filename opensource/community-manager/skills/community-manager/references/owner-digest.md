@@ -71,6 +71,32 @@ fixed: the hash gate compared against the wrong file; logged for restamp."
 **5. Close on an explicit ending.** Either `Nothing needs your attention
 right now.` or a short list of named actions, each with its item id.
 
+## What the owner needs to know at 07:00 — in this order
+
+Rank every candidate line by this list; the digest reads top-down in the
+same order, and an empty section is simply absent.
+
+1. **What needs them today.** A security report that arrived. A question you
+   could not answer. A decision only a maintainer can make. A contributor
+   waiting on a maintainer's review for a week or more. **A reply you posted
+   but were not sure about** — name it and ask them to check; a wrong public
+   answer in the project's voice is the costliest thing you can do, and the
+   owner would rather read one "please check #412" than find it later.
+2. **Whether you were blind overnight.** Usage window exhausted (and for how
+   long), a repo you could not read, a task that should have run and did not.
+   The owner must know when "quiet" might not be real.
+3. **What their users will notice.** A release shipped or is close (milestone
+   closed/open counts), a merged change that alters behaviour a user can see,
+   the same question asked by several people this week.
+4. **Who showed up.** New issues and PRs, one line each, and first-time
+   contributors by name — a newcomer is the one thing a maintainer most wants
+   to not miss.
+5. **What you did in their name.** Replies, welcomes, requirement asks,
+   workarounds posted, check-ins sent. Full lines for the notable ones, a
+   light list for the rest, "want details?" at the end.
+6. **What is coming due.** Workarounds awaiting a reply, PRs idling toward a
+   check-in, anything you promised a user a maintainer would look at.
+
 ## Judgment, not aggregation
 
 **What still gets dropped:** routine telemetry, repeated "ran, nothing"
