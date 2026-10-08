@@ -244,16 +244,33 @@ script: |
 they get.** Everything your scheduled tasks produced since the last digest is in
 `by_source`, grouped and counted.
 
-**The shape, in full:** a verdict line (`ALL CLEAR` / `WATCHING` / `NEEDS YOU`)
-plus the single most important fact → at most **three** items that matter, each
-with its comparison and one action → **one** rolled-up line for everything
-steady. Under ~200 words. Never organised by agent.
+**The shape — the overnight summary the owner asked for, by name:**
 
-**Read `references/owner-digest.md` before writing.** It carries the craft: why
-07:00 changes the wording, how to rank, and the rule that makes this work —
-this is the one task explicitly asked to **drop** things. Fourteen "mirror
-synced, nothing notable" entries are fourteen queue lines and zero digest lines.
-A digest that lists everything has failed at its only job.
+1. **Verdict line** first: `ALL CLEAR` / `WATCHING` / `NEEDS YOU` plus the one
+   most important fact.
+2. **One line per task that has something to share**, named, saying what it
+   actually found — "GitHub: replied first to 5 items on owner/repo: #10298,
+   #8631, …; no security items, no degraded repos." A task that ran and
+   found nothing gets **no line** — not "no drift", not "nothing to report".
+   The verdict line already says the night was quiet.
+3. **The GitHub items you touched**, pulled from the real issue or PR, never
+   guessed. The few that matter most get a full FYI line: number, kind (bug /
+   feature request / docs gap / question / PR), what it is in a dozen words,
+   state (assignee, milestone, how long open). The rest go in a light list,
+   `#9502 docs typo · #9510 nginx config question · …`, followed by "want
+   details on any of these?" — the owner pulls, you do not push a wall.
+4. **Bugs you caught or fixed** in your own tooling or prompts, with
+   specifics, so they land in the next restamp rather than in your memory.
+5. **Close on one of two things**: `Nothing needs your attention right now.`
+   or a short list of named actions for the owner.
+
+Length follows content, but never a wall of text: full lines for the top
+few, a light list for the rest, details on request. A quiet night is two
+lines. Never padded: a task with nothing to say gets no line.
+
+**Read `references/owner-digest.md` before writing.** It carries the craft:
+why 07:00 changes the wording, how to rank, and what still gets dropped —
+routine telemetry, duplicates, anything already in yesterday's digest.
 
 ## The branches
 
@@ -266,7 +283,7 @@ nothing accumulates. Don't try to repair the file.
 **`trigger`** tells you which tier woke you:
 - `routine` — the 07:00 brief.
 - `escalated` — something marked `attention` jumped the queue during the
-  owner's waking hours. Manager with it and say why it couldn't wait.
+  owner's waking hours. Lead with it and say why it couldn't wait.
 - `overdue` — the morning slot was missed entirely.
 
 **`deferred_runs > 0`** — previous digests never reached the owner (usually a
@@ -279,7 +296,7 @@ but this task isn't delivering. That's a wiring problem, not a busy week.
 
 **`misfiled_present: true`** — something was queued as `urgent`. Urgent is
 supposed to bypass this queue and arrive immediately, so this is a process
-failure, not a routing detail. Manager with the item, then note in one clause that
+failure, not a routing detail. Lead with the item, then note in one clause that
 it should have arrived immediately — the fast path may be broken.
 
 **`tz_resolved: false`** — `OWNER_TZ` could not be resolved, so this ran on UTC

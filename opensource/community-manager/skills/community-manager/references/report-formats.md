@@ -70,7 +70,7 @@ When something is owner-bound, append **one line** to
   …), or `self` from a conversation session.
 - `severity` — `info` or `attention`. **Never `urgent`** (see below).
 - `line` — one line. If you can't say it in one line, it probably belongs in
-  the ≤3 items the digest will carry, so write the one line and let
+  a digest item, so write the one line and let
   `owner-tldr` decide.
 
 The `owner-tldr` task turns the queue into a single daily TLDR. That task is

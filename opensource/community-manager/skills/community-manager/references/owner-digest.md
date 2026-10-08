@@ -18,7 +18,9 @@ correctly at breakfast. "Today we handled…" does not.
 
 ## The shape
 
-Three parts, in this order, always.
+Five parts, in this order, always. This is the format the owner confirmed —
+"this is the TLDR that I need every AM" — after rejecting a terser version
+that hid what had happened overnight.
 
 **1. The verdict line.** First line, no exceptions. One of exactly three
 words, then the single most important fact:
@@ -32,24 +34,53 @@ NEEDS YOU — PR #412 approved 34 days ago, still open.
 The owner decides in one second whether to keep reading. `ALL CLEAR` means they
 can stop — and it must be *safe* to stop, so never file something real under it.
 
-**2. The exception — at most three items.** Not three per agent; three total.
-Each answers four questions in as few words as possible: what changed (with the
-comparison, not the bare number), what it means — or explicitly "unknown, needs
-a human" — what to do, and who. More than three, write `+4 more, same shape`
-rather than listing them. A list of nine is a queue dump, not a report.
+**2. What each task did — one line per task that has something to share.**
+Named, concrete, with the numbers and the item ids:
 
-**3. Everything else — one line.** `12 other routine items, nothing changed.`
-Never enumerate what didn't change; the queue has it.
+```
+GitHub — replied first to 5 follow-up items on owner/repo: #10298, #8631, #8694, #9502, #9510. No security items, no degraded repos.
+```
+
+A task that ran and found nothing gets no line at all — the owner's words:
+"identity integrity check is not important if there is nothing to share".
+The verdict line carries "quiet". A task that did not run is not mentioned
+either, unless it was supposed to (see "wiring problem" below).
+
+**3. The GitHub items you touched — full lines for the top few, a light list
+for the rest.** The owner reads these to know what went on while they were
+asleep. Each line comes from the real issue or PR — read it, never infer
+from the title:
+
+```
+#10298 — bug: Family/Person editors default to the first country when none is set. Assigned, milestone 7.8.0.
+#8631 — feature request: ship a container image as a release asset. Open since April, no assignee.
+Also touched: #8694 locale question · #9502 docs typo · #9510 reverse-proxy config, marked Stale — want details on any of these?
+```
+
+Full line = kind (bug / feature request / docs gap / question / PR), what
+it is, state, and what you did (posted a workaround, asked for details,
+welcomed a first-timer). Light list = number and three or four words. There
+is no fixed count for either; the test is "could the owner read this on a
+phone in a minute". If they ask for details on one, that is a normal
+conversation — answer from the thread.
+
+**4. Bugs you caught or fixed** in your own gates, prompts or config —
+specifics, so the owner can carry them into the next restamp. "Found and
+fixed: the hash gate compared against the wrong file; logged for restamp."
+
+**5. Close on an explicit ending.** Either `Nothing needs your attention
+right now.` or a short list of named actions, each with its item id.
 
 ## Judgment, not aggregation
 
-**This is the one task where you are explicitly asked to drop things.** A
-task reporting "nothing notable" fourteen times is fourteen queue entries and
-zero digest lines.
+**What still gets dropped:** routine telemetry, repeated "ran, nothing"
+entries beyond the one shared line, anything already reported yesterday and
+unchanged, and queue plumbing. **What never gets dropped:** a GitHub item you
+acted on (every one gets its FYI line), a bug you caught, anything degraded,
+and anything that needs the owner.
 
-If nothing in the batch needs the owner, the correct output is one line:
-`ALL CLEAR — 12 routine items, nothing needs you.` A digest that lists
-everything has failed at its only job.
+If nothing in the batch did anything, the digest is two lines: the verdict
+and the closing line.
 
 Rank by **what happens if the owner never sees it**. A question still
 unanswered after a day outranks a routine docs-gap note. A degraded fetch
@@ -70,13 +101,13 @@ Say so in one clause, up front: *"covering 3 days (digest was delayed by usage
 limits)."* The owner needs to know the gap was a delay and not a quiet period,
 because those look identical from outside and only one of them is fine.
 
-**A backlog is not permission to write more.** A three-day batch gets the same
-≤3 items and the same ~200 words — arguably fewer, since older routine entries
-have aged into irrelevance. Prefer "the two things that still matter from the
-last 3 days" over a chronological catch-up. If something needed the owner two
-days ago and still does, that is the verdict line.
+**A backlog is not a chronological catch-up.** Merge the days: one line per
+task covering the whole span, one FYI line per GitHub item (not per day it
+was touched), and the current state of each. If something needed the owner
+two days ago and still does, that is the verdict line.
 
 ## Length
 
-Under ~200 words for the whole digest. If it is longer, you are aggregating
-rather than judging — go back and cut to the three that matter.
+Length follows what happened, but never a wall of text: a few full lines,
+then a light list, then "want details?". A quiet night is two lines. Padding,
+repetition and "nothing to report" lines are the failures — not the count.
