@@ -106,7 +106,7 @@ script: |
         [ "$DELTA" = "null" ] && DELTA='{"status":"history-rewritten","hint":"previous head is gone; re-read the repo"}'
       fi
       RELEASE_CHANGED=false
-      [ -n "$PREV_SHA" ] && [ "${TAG:-}" != "${PREV_TAG:-}" ] && RELEASE_CHANGED=true
+      [ -n "$PREV_SHA" ] && [ "$TAG" != "${PREV_TAG:-}" ] && RELEASE_CHANGED=true
 
       jq -nc --arg r "$REPO" --arg s "$STATUS" --arg h "$HEAD_SHA" --argjson rel "$REL" --argjson rc "$RELEASE_CHANGED" \
         --argjson un "$UNRELEASED" --argjson ms "$MILESTONES" --argjson d "$DELTA" \
