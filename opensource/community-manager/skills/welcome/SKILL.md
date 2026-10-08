@@ -131,107 +131,66 @@ released?" and "where did that page go?" are answered from today's state of
 the project, not from stamp day. It defaults to `COMMUNITY_REPOS`; only ask
 about it when the two sets differ.
 
-## 3. Scope the goals — ask, never assume
+## 3. Say what you will run — no goals question
 
-The goal of this agent is to help Discord and GitHub users with questions and
-answers. Everything it runs serves that, so the goals question is short. Ask
-directly — "is X a goal? do you want help with Y?" — one compact menu:
+The goal is fixed: help this project's Discord and GitHub users with
+questions and answers. There is nothing to choose, so do not ask. Tell the
+owner in a few lines what will run and why, then one "sound right?" and
+move on. Everything below is what you say, not what you ask.
 
-| Goal | What serves it |
-|---|---|
-| **Community support** — answering users on Discord and GitHub, triaging bugs | Your live replies + escalation · `github-first-response` · `unanswered-watch` · `follow-up-nudge` · `docs-gap-review` · `project-context` · release announcements posted when the owner hands you one *(the text comes from the project repo's own release skill)* |
-| **Staying secure** — security-aware triage | The escalation paths in `escalation-paths.md`. No task: a real security report escalates per the normal path the moment it arrives |
+**What runs, and what each is for:**
 
-**Awareness / growth and proactive issue detection are not on this menu, by
-design.** Follower, traffic, contributor and repo-health numbers are
-collected by GitHub Actions in the project's own repo, outside this agent;
-nothing here measures or reports them, and nothing here scans for problems
-nobody has reported. If the owner asks for either, say exactly that — don't
-offer a task as a consolation, and don't re-ask on a later pass.
+- **Your live replies** on Discord and GitHub — the job itself.
+- `github-first-response` — every 10 minutes, a real first reply on any new
+  issue or PR nobody has answered: welcome a first-timer by name, ask a
+  vague report for the missing details, point at the doc or workaround.
+  GitHub has no live wiring, so this is how it gets Discord-speed replies.
+- `unanswered-watch` — every 10 minutes, a Discord question that scrolled
+  past you gets answered. **Say its limit plainly**: it runs on you, on your
+  usage window; if that window is exhausted, so is this. It catches the
+  common case, not an outage.
+- `follow-up-nudge` — weekly, a kind check-in on a contributor's PR idle a
+  week or an issue where a posted workaround got no reply; offers help and
+  the team chat invite. Never a review.
+- `project-context` — daily, what changed in every repo, which skills and
+  docs files to re-read, what is released versus merged-and-waiting, open
+  milestones. It is why "is X released?" is answered from today's facts.
+- `docs-gap-review` — weekly, proposes a docs page when the same question
+  keeps coming back.
+- `owner-tldr` — the one message a day to the owner, 07:00 their time.
+- `owner-instruction-watch`, `weekly-identity-integrity-check`,
+  `conversation-archive-prune` — protect the system itself; never mentioned
+  unless they find something.
 
-**Content creation is not on this menu either, and should not be offered.**
-Posts, announcements, blog entries and campaigns are handled by the owner
-outside this system. If the owner asks for content help, say plainly that
-this agent answers and reports but does not write — then don't offer a draft
-as a consolation.
+**What does not run here, and should not be offered:** metrics (followers,
+traffic, contributor and repo health — GitHub Actions in the project repo
+do that), proactive scanning for problems nobody reported, content writing
+(posts, blogs, campaigns are the owner's), code review (the project's own
+review agent), and the on-demand `repo-health` checks (a skill in the
+project repo, run by whoever asks). If the owner asks for any of these, say
+exactly where it lives instead — and do not offer a task as a consolation
+or re-ask on a later pass.
 
-**Nothing here checks approved-but-unmerged PRs, stale good-first-issues, or
-missing community-health files.** Those are the `repo-health` skill in the
-project's own repo — point-in-time checks, run on demand by whatever agent
-the maintainer points at it. If the owner asks for them, say exactly that:
-"that's a repo-health skill check, run it in the repo."
+**Explain `owner-tldr` properly**, because it changes what the owner
+experiences more than anything else. Task reports are queued, not relayed;
+one digest a day, at 07:00 their local time, derived from the timezone you
+collect in step 4 — you never ask what hour. Write `OWNER_TZ` into
+`config.env` and leave `TLDR_LOCAL_HOUR` at 7 unless they ask. Say what the
+tiers mean: routine waits for 07:00; anything meaning *we may be blind* (a
+degraded fetch, a dead credential) escalates within about four hours while
+they are awake; genuinely urgent findings never touch the queue. And say
+what does **not** come to the DM: your answers land where the question was
+asked, and release announcements go to the announcements channel — which is
+why step 4 asks which channel is which.
 
-**Always offered regardless of goals** — these protect the system itself, not
-a goal: `owner-tldr`, `owner-instruction-watch`,
-`weekly-identity-integrity-check`, and `conversation-archive-prune`.
-
-`github-first-response` is the GitHub half of responsiveness. Discord you
-answer live through your channel wiring, so it needs no task — but GitHub has
-no live wiring here, so this polls every 10 minutes for issues and PRs nobody
-has replied to. Time-to-first-response is the metric the north star actually
-rests on. Ask whether the default 15-minute grace is right for this project:
-it exists so you don't beat a maintainer who is already typing.
-
-`project-context` is what keeps your answers true. Daily, it reads every repo
-in `CONTEXT_REPOS` for what landed since yesterday, which agent skills
-(`.agents/skills/**`) and docs files changed, the latest release tag against
-what is merged but unreleased, and the open milestones — and writes
-`release-state.csv` so "is X released?" is answered from a file, not from
-memory. It wakes you only when something changed. Tell the owner it exists;
-there is nothing to decide about it beyond `CONTEXT_REPOS` (step 2).
-
-`owner-tldr` is the one to explain properly, because it changes what the owner
-experiences more than any other task here. Task reports are **queued, not
-relayed**: each one appends a line to a digest queue, and this task turns a
-day's worth into a single TLDR. **You do not need to ask what hour** — it is
-07:00 their local time, derived from the timezone you already collected.
-Write `OWNER_TZ` (the IANA zone, e.g. `America/New_York`) into your
-`config.env` and leave `TLDR_LOCAL_HOUR` at 7 unless they ask otherwise. The
-digest resolves their local hour at runtime, so it lands at 07:00 for them
-and keeps doing so through daylight saving without anyone editing a cron.
-Only this task can do that — every other schedule is a UTC cron line.
-
-Say why 07:00: they are awake and can act on it. A digest that arrives at 3am
-is read at 7am regardless, having spent a wake to be early. Say plainly what the three tiers
-mean, because owners assume "daily" means slow: routine items wait for the
-07:00 brief; anything meaning **we may be blind** (a degraded fetch, a dead
-credential) escalates within about four hours **while they are awake**, and
-genuinely urgent findings never touch the queue at all, at any hour. The waking
-window is 15 hours from the digest hour — an escalation at 3am would be read at
-7am anyway, so it waits and rides the morning brief instead.
-
-**Also tell them what does NOT come to their DM.** Your answers land where
-the question was asked — the Discord channel or the GitHub thread — and
-release announcements go to the announcements channel. That is deliberate:
-duplicating them into the owner's DM buries the things that do need the
-owner. Ask which channel is which now (`channel-routing.md`), because a post
-with nowhere to go ends up in the DM by default, which is the outcome we're
-avoiding. Urgent things (security, an outage, a decision that blocks work)
-bypass the queue and arrive immediately; everything else waits for the digest.
-
-`unanswered-watch` is the one to never skip. Every 10 minutes it checks
-whether a support message has sat unanswered past `ACK_GRACE_MINUTES`, and if
-one has, it wakes you to answer it — a real answer, since you are the
-project's voice. It exists because response delay is the strongest predictor
-of whether a first-time contributor comes back. Its gate has no network and
-no credentials, so *detecting* the need costs nothing. **Be honest about its
-limit**: it runs on you, on your usage window. It catches the common case — a
-question that scrolled past while you were busy, restarting, or in another
-channel. It does not cover the case where your usage window is exhausted:
-then this wake is exhausted with it, and nothing covers that outage. Say so
-to the owner in those words, and offer it as protection for the north star,
-not as a feature.
-
-Record the answers in `project-config.md` as the **scoping authority**.
-Revisiting a goal later is one DM — and per the "what's not set up" flow,
-re-running one piece never means redoing this interview.
+Record the fact that this was explained, not chosen, in `project-config.md`.
 
 ## 4. Conversational configuration — one question at a time
 
 **Conversational approach**: Rather than asking everything at once, ask one question at a time. After each answer, confirm you understood, move to the next, and always give the owner a chance to ask clarifying questions. This creates a more natural interview where corrections are easy and the owner doesn't feel interrogated.
 
 **This has been violated in practice, so be concrete about what counts as
-"one question."** A single message that asks the goals question *and*
+"one question."** A single message that asks the timezone *and*
 a conditional follow-up ("...and the grace period if #1 is a yes") is
 two questions, even though it reads as one topic. So is a repo-map
 confirmation that also asks about a docs typo *and* a channel guess in
@@ -302,13 +261,15 @@ asking for anything yet.
   answer verbatim in project-config as `target_audience` + `tone`; your
   replies and docs drafts must fit it explicitly, not default to generic
   SaaS copy.
-- **Discord invite URL — check the README/site for one before asking.**
+- **Team chat invite URL — check the README/site for one before asking.**
   READMEs commonly carry a badge or link (`discord.gg/...`); extract the
-  literal URL if it's there and confirm it rather than asking blind. Used
-  when a GitHub reply points someone toward real-time chat instead of async
-  back-and-forth on the issue. If nothing's found and the project has no
-  public Discord, or doesn't want GitHub traffic routed there, "none" is a
-  complete answer and you simply never offer it.
+  literal URL if it's there and confirm it rather than asking blind. It is
+  what `follow-up-nudge` offers a contributor who has gone quiet, and what
+  your GitHub replies point at when a question is better talked through
+  than typed into an issue. Persist it as `CHAT_INVITE_URL` in `config.env`
+  (step 5). If nothing's found and the project has no public chat, or
+  doesn't want GitHub traffic routed there, "none" is a complete answer:
+  leave the key unset and you simply never offer it.
 - **Model** — state the job, name the default, ask if they want something
   else. You are the public voice: replies, escalation, tone, security
   routing. Default **Sonnet**; this interview runs on Haiku and you promote
@@ -334,7 +295,7 @@ one per line, quoted:
 |---|---|---|
 | `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, `project-context` (when `CONTEXT_REPOS` is unset), own setup-check |
 | `CONTEXT_REPOS` | optional; the repos whose daily changes you follow — usually all of them, including docs and marketing | `project-context`. Defaults to `COMMUNITY_REPOS`; only write it when the two differ |
-| `CHAT_INVITE_URL` | optional; the team chat invite (Discord or whatever the project uses) — ask for it in step 1 if the owner has one | `follow-up-nudge` offers it to a contributor who has gone quiet; unset means it simply doesn't |
+| `CHAT_INVITE_URL` | optional; the team chat invite (Discord or whatever the project uses) — the invite question in step 4 | `follow-up-nudge` offers it to a contributor who has gone quiet; unset means it simply doesn't |
 | `ACK_GRACE_MINUTES` | optional; minutes a support message may sit unanswered before `unanswered-watch` wakes you; default `20`, bare integer | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it wakes you for a question you were about to answer |
 | `OWNER_TZ` | the timezone question (step 4), IANA zone | `owner-tldr`, so the digest lands at 07:00 local. `TLDR_LOCAL_HOUR` only if the owner wants a different hour |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 6) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
