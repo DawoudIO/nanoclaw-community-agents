@@ -123,6 +123,29 @@ a good guess beats an interrogation, but don't guess this one silently — a
 wrong assumption here means every docs answer and every drafted docs page
 points at the wrong location.
 
+**Then, still on GitHub: "What's the dedicated bot account's username?"**
+(never the owner's own — see the prereqs table). Persist it as
+`github_bot_username` — every GitHub token gets checked against it later,
+mechanically, not on trust.
+
+**Recommend the GitHub username and Discord display name be recognizably
+related** (e.g. `acmecrm-bot` on GitHub, "AcmeCRM Bot" on Discord) — you're
+the *only* public voice for this project on both platforms, and a community
+member who sees two differently-named identities has no way to know they're
+the same bot. This is a suggestion to the owner, not something you can fix
+yourself — the Discord display name is set when the bot application is
+created (`PREREQS.md` §1), separate from anything you configure.
+
+**Also recommend this account is used by nothing else** — not the owner's
+own tooling, not a different AI coding assistant or automation connected
+separately. A real install spent a full day chasing what looked like a
+compromised bot identity — issues and PRs appearing under the bot's account
+that the agent had no memory of creating — before the owner confirmed it was
+their own use of a different tool against the same account. If the owner
+wants to use another tool against these repos too, a **separate** GitHub
+identity for it removes the ambiguity — say this plainly as a
+recommendation, not a requirement you can enforce.
+
 The repo map feeds two keys (step 5). `COMMUNITY_REPOS` is where you answer:
 the repos that receive community-filed issues and PRs. `CONTEXT_REPOS` is
 what you follow: the repos whose daily changes the agent should follow —
@@ -250,7 +273,7 @@ one per line, quoted:
 | `CHAT_INVITE_URL` | optional; the team chat invite (Discord or whatever the project uses) — the invite question in step 4 | `follow-up-nudge` offers it to a contributor who has gone quiet; unset means it simply doesn't |
 | `ACK_GRACE_MINUTES` | optional; minutes a support message may sit unanswered before `unanswered-watch` wakes you; default `5`, bare integer | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it wakes you for a question you were about to answer |
 | `OWNER_TZ` | the timezone question (step 4), IANA zone | `owner-tldr`, so the digest lands at 07:00 local. `TLDR_LOCAL_HOUR` only if the owner wants a different hour |
-| `GITHUB_BOT_USERNAME` | the bot-account question (step 6) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
+| `GITHUB_BOT_USERNAME` | the bot-account question (step 2) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
 **`COMMUNITY_REPOS` itself should be narrower than "the full repo map."**
 This key drives *your own* first-response polling (every 5 minutes for
@@ -273,7 +296,7 @@ because `setup-check.sh` greps for them literally:
 
 | Key | From |
 |---|---|
-| `github_bot_username` | step 6's bot-account question (yes — both files; scripts read one, the config check greps the other) |
+| `github_bot_username` | step 2's bot-account question (yes — both files; scripts read one, the config check greps the other) |
 | `docs_style` | docs-style answer |
 
 Everything else — project name, repo map with subpaths, docs site, channel
@@ -419,10 +442,10 @@ sender triggers a manual approval prompt that breaks your response-time SLA.
 
 ## 6. Walk the credential setup — then verify it, don't assume it
 
-Two questions come first, in this order, before anything about vault entries
-— everything else in this step depends on both answers.
+One question comes first, before anything about vault entries — everything
+else in this step depends on it.
 
-**First: "What URL should I use when I need to point you at the OneCLI
+**"What URL should I use when I need to point you at the OneCLI
 dashboard — the same machine you're talking to me from right now, or
 somewhere else (a phone, another laptop) when you check in later?"** If
 "somewhere else" and they don't already have a stable address, recommend
@@ -439,32 +462,6 @@ Then their address is `http://<their-tailscale-ip>:10254`. Persist whatever
 address they land on in `project-config.md` as `onecli_dashboard_url` — never
 assume `127.0.0.1` or `localhost` from here on; use exactly this value in
 every dashboard link you ever give them.
-
-**Second: "What's the dedicated bot account's username?"** (never the owner's
-own — see the prereqs table). Persist it as `github_bot_username` — every
-GitHub token gets checked against it below, mechanically, not on trust.
-
-**Recommend the GitHub username and Discord display name be recognizably
-related** (e.g. `acmecrm-bot` on GitHub, "AcmeCRM Bot" on Discord) — you're
-the *only* public voice for this project on both platforms, and a community
-member who sees two differently-named identities has no way to know they're
-the same bot. This is a suggestion to the owner, not something you can fix
-yourself — the Discord display name is set when the bot application is
-created (`PREREQS.md` §1), separate from anything you configure.
-
-**Also recommend this account is used by nothing else** — not the owner's
-own tooling, not a different AI coding assistant or automation connected
-separately (a GitHub App integration, a personal script). A real install
-spent a full day chasing what looked like a compromised bot identity —
-issues and PRs appearing under the bot's account that the agent had no
-memory of creating — before the owner confirmed it was their own,
-intentional use of a different tool against the same account. Nothing was
-actually wrong, but there was no way to tell that from inside the system,
-and it cost real time and a real security scare to resolve. If the owner
-wants to use another tool (Codex, a personal script, anything) against
-these repos too, a **separate** GitHub identity for it removes the
-ambiguity entirely — say this plainly as a recommendation, not a
-requirement you can enforce.
 
 Now walk the setup itself. Tell them exactly what to set up — one message,
 pointing at `onecli_dashboard_url` for where to go. **Never ask for a raw
