@@ -143,7 +143,10 @@ pick anything readable, e.g. `"Acme Manager"`.
 ./bin/ncl groups config add-package --id <manager-id> --apt jq
 # gh is how the agent talks to GitHub (every comment, PR and read). It will not
 # start without a token, and the container must hold none, so give it a
-# placeholder: the OneCLI proxy injects the real credential on the way out.
+# placeholder: the OneCLI proxy REPLACES an Authorization header already on
+# the request (verified 2026-10-08 on a live install: curl with
+# `Authorization: token placeholder` returned the bot's own login), so gh's
+# placeholder never reaches GitHub.
 # Set GH_TOKEN=placeholder in the group's environment (`ncl groups config
 # update --help` lists the env flag for your NanoClaw version).
 ./bin/ncl groups config add-package --id <manager-id> --apt gh

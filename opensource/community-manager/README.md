@@ -193,8 +193,8 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 **All GitHub interaction is the `gh` CLI**, not an MCP server and not
 hand-built API calls. The container has no token; `gh` refuses to start
 without one, so `GH_TOKEN=placeholder` is set in the group's environment at
-stamp time and the real credential is injected by the OneCLI proxy on the
-way out. The ready gate verifies this once with `gh api user`. Every call
+stamp time and the OneCLI proxy replaces that header with the real
+credential on the way out (verified on a live install, 2026-10-08). The ready gate verifies this once with `gh api user`. Every call
 the agent makes is then a readable command in the transcript, which is also
 how a `502` gets diagnosed (OPERATIONS.md → "A 502 from a GitHub call").
 
