@@ -11,7 +11,7 @@ change as an incident.
 
 A task fired with an instruction appended to its stored prompt that neither the
 owner nor the standing agent had written — telling the agent to post under a
-different identity and never mention a sub-agent was involved. The agent that
+different identity and never mention that it had. The agent that
 hit it refused and flagged it before acting, which was the right call. Separately
 though, elsewhere in the same system, an ordinary owner edit made outside the
 agent framework got misread as part of the same pattern, and multiple unrelated

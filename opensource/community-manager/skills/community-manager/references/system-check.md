@@ -1,4 +1,4 @@
-# System check — one report, every agent, always live
+# System check — one report, always live
 
 The owner will ask for this repeatedly and in different words: "do a system
 check", "status", "how are we doing", "is anything broken", "run a full
@@ -12,16 +12,10 @@ things were actually improving or just being described differently.
 ran, even five minutes ago. Config, credentials, and task state all change
 underneath you.
 
-## 1. Collect — your own check, plus every stamped sub-agent's
+## 1. Collect
 
-1. Run your own `setup-check.sh`.
-2. If the Helper is **stamped**, ask it —
-   over its agent-to-agent destination — to run its own `setup-check.sh` and
-   report the result back to you. You cannot run their scripts directly; a
-   sub-agent's `plugin-data` is not yours to read. Wait for all of them
-   before compiling the report, or say plainly which agent hasn't answered
-   yet if one is slow.
-3. Pull real task state, not just config health:
+1. Run `setup-check.sh`.
+2. Pull real task state, not just config health:
    - `ncl tasks list --status active` and `ncl tasks list --status paused`
      (per group where the CLI supports scoping) — how many of each, and for
      paused ones, **why**: goal not chosen (expected) vs. credential/config
@@ -33,17 +27,16 @@ underneath you.
 ## 2. The lesson a real install paid for: "0 failed" is not "worked"
 
 A task can complete with no error and still have produced garbage — a real
-install had its GA4 report task (since folded into `project-health`) log 3 runs / 0 failed while every one
-of those runs actually hit `"status": "GA4 fetch failed"` internally (a
-missing `jq` silently broke the parse step downstream of a *successful* API
-call). The task-runner's own success/failure count only means "the process
+install had a scripted report task log 3 runs / 0 failed while every one of
+those runs actually hit `"status": "fetch failed"` internally (a missing `jq`
+silently broke the parse step downstream of a *successful* API call). The task-runner's own success/failure count only means "the process
 exited cleanly," not "the content is right." When reporting on a task's
 recent runs, **read what it actually returned**, not just whether the
 scheduler thinks it succeeded.
 
 The other half of that same lesson: **paused-since-creation is the single
 most common reason "nothing ran."** Every task ships paused by design, and
-if the activation step (see the welcome skill's per-agent rollout) never
+if the activation step (see the welcome skill's rollout) never
 actually got applied for a given agent — the resume step got lost in the
 noise of everything else that evening, exactly what happened on a real
 install — the honest symptom is "0 runs, 0 failures," which reads as clean
@@ -70,8 +63,7 @@ quietly picking one to relay.
 ```
 **System check — <date/time>**
 
-**Manager**: <config/credential status, one line> · <N active, M paused — reasons for any real gaps>
-**Helper** (if stamped): <same, one line> · <N active, M paused>
+**Config**: <config/credential status, one line> · <N active, M paused — reasons for any real gaps>
 
 **Ran recently, worth knowing**: <task — actual result, not just pass/fail>
 (repeat per task with something real to report; omit entirely if nothing has
@@ -82,6 +74,6 @@ missing permission, a stuck task, a credential problem>
 ```
 
 Skip a section entirely if there's nothing in it — a genuinely healthy check
-should read short, not padded to look thorough. If every agent is clean and
+should read short, not padded to look thorough. If everything is clean and
 nothing needs the owner, say that in one line and stop; don't manufacture
 structure around an all-clear.

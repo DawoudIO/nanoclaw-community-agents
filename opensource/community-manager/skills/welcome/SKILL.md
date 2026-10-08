@@ -1,6 +1,6 @@
 ---
 name: welcome
-description: First-contact onboarding interview for the community-manager agent. Triggers on the owner's first message to a freshly stamped agent, whenever the live project config (plugin-data/community-manager/project-config.md) is missing or incomplete, or when the owner says anything like "set up", "onboard", "configure yourself", or "let's get started". Collects the project's runtime configuration conversationally — repo map, channels, contacts — instead of requiring pre-stamp file edits, persists it to writable plugin-data, and relays each sub-agent's values through the agent-to-agent destinations.
+description: First-contact onboarding interview for the community-manager agent. Triggers on the owner's first message to a freshly stamped agent, whenever the live project config (plugin-data/community-manager/project-config.md) is missing or incomplete, or when the owner says anything like "set up", "onboard", "configure yourself", or "let's get started". Collects the project's runtime configuration conversationally — repo map, channels, contacts — instead of requiring pre-stamp file edits, and persists it to writable plugin-data.
 ---
 
 # Welcome — conversational setup
@@ -27,9 +27,10 @@ flow through it. Before any configuration:
   part of step 5 — it's config like everything else. Be explicit about the
   trust root: whoever the admin wired this DM to IS the owner you serve — the
   wiring is the anchor, so say so in the config entry. Offer to establish the
-  owner-verification nonce protocol now (one signed file pushed to the backup
-  repo — see the community-manager skill's `references/task-integrity.md`),
-  so identity has an out-of-band anchor from day one, not just wiring order.
+  owner-verification nonce protocol now (one signed file pushed to a repo the
+  owner controls — see the community-manager skill's
+  `references/task-integrity.md`), so identity has an out-of-band anchor from
+  day one, not just wiring order.
 
 After setup, everything owner-facing happens in this DM. The only exception is
 a bad state — the DM itself broken, or an unresolvable verification deadlock —
@@ -68,20 +69,19 @@ fields are guidance for the human filling it in, not instructions to you.
 Run `command -v jq`. If it's missing, **do not call `install_packages`**: that
 tool rebuilds your image and restarts your container on approval, which would
 kill this conversation mid-interview and lose the owner's answers. Your own
-`setup-check.sh` will suggest `install_packages` in its hint — that hint is
-written for a headless sub-agent, not for you. Instead, tell the owner
-plainly and wait — but **look up your own group ID first and put the real
-value in the commands.** You already know it, or one call away from
-knowing it (your own `agentGroupId`, or `ncl groups list` if you don't have
-it to hand) — don't send `<my-group-id>` as a placeholder and make the
-owner ask for it separately. Send the real, ready-to-paste block on the
-first message:
+`setup-check.sh` will suggest `install_packages` in its hint — ignore that
+hint here. Instead, tell the owner plainly and wait — but **look up your own
+group ID first and put the real value in the commands.** You already know
+it, or one call away from knowing it (your own `agentGroupId`, or `ncl
+groups list` if you don't have it to hand) — don't send `<my-group-id>` as a
+placeholder and make the owner ask for it separately. Send the real,
+ready-to-paste block on the first message:
 
 ```
-Before we start — I'm missing `jq`, which my own setup checks and two of my
-scheduled tasks (owner-tldr, weekly-identity-integrity-check) need. I can't
-install it myself without restarting mid-conversation and losing your
-answers. From the nanoclaw install directory, please run:
+Before we start — I'm missing `jq`, which my own setup checks and every one
+of my scheduled tasks need. I can't install it myself without restarting
+mid-conversation and losing your answers. From the nanoclaw install
+directory, please run:
 
   ./bin/ncl groups config add-package --id ag-<your-actual-id-here> --apt jq
   ./bin/ncl groups restart --id ag-<your-actual-id-here> --rebuild
@@ -92,109 +92,104 @@ right here — nothing is lost.
 
 This should already have been done host-side at stamp time
 (`docs/INSTALL.md` §1), so treat hitting it as a signal that step was
-skipped. Sub-agents are different: they're headless with no live
-conversation, so installing jq on them during stamping (section 6) is correct.
+skipped. **`jq` is an APT package — never an npm one.** npm *has* a package
+by that name, and it installs a wrapper that lands earlier on `PATH` than
+the real binary: `command -v jq` succeeds, your setup-check looks satisfied,
+and every actual `jq` call fails at runtime. If a jq call fails
+unexpectedly, check the package *type* before debugging the filter.
 
 ## 2. The first question: "What is the project's GitHub repo?"
 
 Everything else derives from this one answer, so it opens the interview: ask
 for the project's GitHub repo (or org) — this becomes `product`. From it,
 pull the README, releases, and homepage, then **draft a proposed config**:
-the likely docs URL, primary language, **and every social profile URL you
-can find in the README or linked site — the full URL, not just a handle or
-display name.** Extract literal links (`https://x.com/...`,
-`https://www.linkedin.com/company/...`, etc.) rather than constructing one
-from a name — a display name and a URL slug are often different strings
-(e.g. a project called "AcmeCRM" whose actual accounts are `@getAcmeCRM` /
-`linkedin.com/company/getacmecrm`), and a guessed slug fails silently (404)
-rather than erring loudly. Only ask the owner for a
-platform's URL if the README doesn't have one and they've said that
-platform matters. **Only ask about the repos needed for this template**
-(docs, site, marketing) — don't enumerate all repos in the org; that's
-noise. Cross-check against what you're already wired to (channels look
-support-shaped vs developer-shaped vs team-lead-shaped). **This template
-doesn't track a wiki repo** — a GitHub wiki has no issues/PRs mechanism at
-all, so there's nothing for any task here to act on even if one exists;
-don't ask about it or propose auto-detecting it.
+the likely docs URL and primary language. Cross-check against what you're
+already wired to (channels look support-shaped vs developer-shaped vs
+team-lead-shaped). **Only ask about the repos a user's question can land
+on** — product, docs, site, marketing — don't enumerate all repos in the
+org; that's noise. **This template doesn't track a wiki repo** — a GitHub
+wiki has no issues/PRs mechanism at all, so there's nothing for any task
+here to act on even if one exists; don't ask about it or propose
+auto-detecting it.
 
 **For docs, site, and marketing, ask specifically whether each is the
 same repo as product or a different one** — don't assume separate repos.
 Common real shapes: everything in one monorepo (docs and site are just
 subdirectories); one shared repo for both site and marketing content. For
 anything that's a subdirectory rather than the repo root, note the path
-alongside the repo (`owner/repo` + `docs/`) — mirroring and reading both work
-the same either way; it only changes where within the checkout to look. One
-confirmation of a good guess beats an interrogation, but don't guess this
-one silently — a wrong assumption here means every drafted content PR or
-docs fix targets the wrong location.
+alongside the repo (`owner/repo` + `docs/`) — reading works the same either
+way; it only changes where within the checkout to look. One confirmation of
+a good guess beats an interrogation, but don't guess this one silently — a
+wrong assumption here means every docs answer and every drafted docs page
+points at the wrong location.
+
+The repo map feeds two keys (step 5). `COMMUNITY_REPOS` is where you answer:
+the repos that receive community-filed issues and PRs. `CONTEXT_REPOS` is
+what you follow: the repos whose daily changes the agent should follow —
+usually all of them, including docs and marketing — so that "is X
+released?" and "where did that page go?" are answered from today's state of
+the project, not from stamp day. It defaults to `COMMUNITY_REPOS`; only ask
+about it when the two sets differ.
 
 ## 3. Scope the goals — ask, never assume
 
-This template can do four kinds of job, but which ones this project wants is the
-owner's call, not a default. Ask directly — "is X a goal? do you want help
-with Y?" — one compact menu:
+The goal of this agent is to help Discord and GitHub users with questions and
+answers. Everything it runs serves that, so the goals question is short. Ask
+directly — "is X a goal? do you want help with Y?" — one compact menu:
 
-Each task is labelled with the agent that owns it, because declining a goal
-pauses tasks in whichever group holds them:
-
-| Goal | If yes, these tasks become eligible |
+| Goal | What serves it |
 |---|---|
-| **Community support** — replying to users, triaging issues/bugs | Manager's live replies + escalation · `docs-gap-review` *(manager)* · release announcements posted when the owner hands you one *(manager; the text comes from the project repo's own release skill)* · `github-ops-triage` *(Helper, weekly)* |
-| **Awareness / growth** — and if yes: grow **users**, **contributors/developers**, or both, in what priority? | `project-health` *(Helper)* — its social follower series, GA4 traffic, new-contributor list, return-nudges and contributor-health numbers |
-| **Proactive issue detection** — finding problems before users report them | `project-health` *(Helper)* — its awaiting-first-response backlog and unmerged-ratio trend (`posthog-weekly-review` *(Helper)* is removed for now — see SKILLS-ADOPTION.md if it returns) |
-| **Staying secure** — advisory monitoring, security-aware triage | `security-advisory-sweep` *(Helper)* · the escalation paths in `escalation-paths.md` |
+| **Community support** — answering users on Discord and GitHub, triaging bugs | Your live replies + escalation · `github-first-response` · `unanswered-watch` · `follow-up-nudge` · `docs-gap-review` · `project-context` · release announcements posted when the owner hands you one *(the text comes from the project repo's own release skill)* |
+| **Staying secure** — security-aware triage | The escalation paths in `escalation-paths.md`. No task: a real security report escalates per the normal path the moment it arrives |
 
-**Content creation is not on this menu, and should not be offered.** Posts,
-announcements, blog entries and campaigns are handled by the owner outside this
-system. If the owner asks for content help, say plainly that this set measures
-and reports but does not write — then don't offer a draft as a consolation.
+**Awareness / growth and proactive issue detection are not on this menu, by
+design.** Follower, traffic, contributor and repo-health numbers are
+collected by GitHub Actions in the project's own repo, outside this agent;
+nothing here measures or reports them, and nothing here scans for problems
+nobody has reported. If the owner asks for either, say exactly that — don't
+offer a task as a consolation, and don't re-ask on a later pass.
 
-Two things in that menu surprise people, so say the reasoning out loud if
-the owner asks. **`project-health` appears twice** because it is one task
-carrying every number the project tracks: growth reads its follower, traffic
-and new-contributor lines; detection reads its backlog and unmerged-ratio
-lines. Contributor health sits under growth because contributor retention and
-maintainer load are one problem seen from two ends; a close-without-merge
-rate that keeps climbing costs you the next contributor either way. **Nothing
-here checks approved-but-unmerged PRs, stale good-first-issues, or missing
-community-health files.** Those are the `repo-health` skill in the project's
-own repo — point-in-time checks, run on demand by whatever agent the
-maintainer points at it. If the owner asks for them, say exactly that:
+**Content creation is not on this menu either, and should not be offered.**
+Posts, announcements, blog entries and campaigns are handled by the owner
+outside this system. If the owner asks for content help, say plainly that
+this agent answers and reports but does not write — then don't offer a draft
+as a consolation.
+
+**Nothing here checks approved-but-unmerged PRs, stale good-first-issues, or
+missing community-health files.** Those are the `repo-health` skill in the
+project's own repo — point-in-time checks, run on demand by whatever agent
+the maintainer points at it. If the owner asks for them, say exactly that:
 "that's a repo-health skill check, run it in the repo."
 
 **Always offered regardless of goals** — these protect the system itself, not
-a goal: `unanswered-watch`, `github-first-response`, `owner-tldr`,
+a goal: `owner-tldr`, `owner-instruction-watch`,
 `weekly-identity-integrity-check`, and `conversation-archive-prune`.
-
-One more is worth offering even to an owner who declines every growth goal:
-`project-health` runs daily, but most days it only *collects* — the script
-appends the GitHub rows itself and the Helper wakes just long enough to read
-the social follower pages and append one row, posting nothing (`SOCIAL_DAILY=false`
-makes those days cost no tokens at all). Every run also commits the history
-files that cannot be rebuilt (follower counts especially — no platform will
-ever tell you last Tuesday's number) to a branch of `LEDGER_REPO`, so they
-survive this system being rebuilt. Without it those series restart at zero on
-every repave, permanently. That makes `LEDGER_REPO` worth asking for
-regardless of goals.
 
 `github-first-response` is the GitHub half of responsiveness. Discord you
 answer live through your channel wiring, so it needs no task — but GitHub has
 no live wiring here, so this polls every 10 minutes for issues and PRs nobody
 has replied to. Time-to-first-response is the metric the north star actually
-rests on, and the Helper's weekly `github-ops-triage` digest is far too slow to carry it. Ask
-whether the default 15-minute grace is right for this project: it exists so you
-don't beat a maintainer who is already typing.
+rests on. Ask whether the default 15-minute grace is right for this project:
+it exists so you don't beat a maintainer who is already typing.
+
+`project-context` is what keeps your answers true. Daily, it reads every repo
+in `CONTEXT_REPOS` for what landed since yesterday, which agent skills
+(`.agents/skills/**`) and docs files changed, the latest release tag against
+what is merged but unreleased, and the open milestones — and writes
+`release-state.csv` so "is X released?" is answered from a file, not from
+memory. It wakes you only when something changed. Tell the owner it exists;
+there is nothing to decide about it beyond `CONTEXT_REPOS` (step 2).
 
 `owner-tldr` is the one to explain properly, because it changes what the owner
-experiences more than any other task here. Sub-agent reports are **queued, not
+experiences more than any other task here. Task reports are **queued, not
 relayed**: each one appends a line to a digest queue, and this task turns a
-day's worth into a single TLDR. Ask the owner what time of day they want it and
-**you do not need to ask what hour** — it is 07:00 their local time, derived
-from the timezone you already collected. Relay `OWNER_TZ` (the IANA zone, e.g.
-`America/New_York`) and leave `TLDR_LOCAL_HOUR` at 7 unless they ask otherwise.
-The digest resolves their local hour at runtime, so it lands at 07:00 for them
-and keeps doing so through daylight saving without anyone editing a cron. Only
-this task can do that — every other schedule is a UTC cron line.
+day's worth into a single TLDR. **You do not need to ask what hour** — it is
+07:00 their local time, derived from the timezone you already collected.
+Write `OWNER_TZ` (the IANA zone, e.g. `America/New_York`) into your
+`config.env` and leave `TLDR_LOCAL_HOUR` at 7 unless they ask otherwise. The
+digest resolves their local hour at runtime, so it lands at 07:00 for them
+and keeps doing so through daylight saving without anyone editing a cron.
+Only this task can do that — every other schedule is a UTC cron line.
 
 Say why 07:00: they are awake and can act on it. A digest that arrives at 3am
 is read at 7am regardless, having spent a wake to be early. Say plainly what the three tiers
@@ -205,63 +200,41 @@ genuinely urgent findings never touch the queue at all, at any hour. The waking
 window is 15 hours from the digest hour — an escalation at 3am would be read at
 7am anyway, so it waits and rides the morning brief instead.
 
-**Also tell them what does NOT come to their DM.** `project-health`'s weekly
-dev numbers go to the developer channel and its social + traffic numbers to
-the team-lead channel; advisories to the security channel; releases and
-content to announcements. That is deliberate —
-those reports are for the people who act on them, and duplicating them into the
-owner's DM buries them and clutters the DM at once. Ask which channel is which
-now (`channel-routing.md`), because a report with nowhere to go ends up in the
-DM by default, which is the outcome we're avoiding. Urgent things (security, an outage, a
-decision that blocks work) bypass the queue and arrive immediately; everything
-else waits for the digest.
+**Also tell them what does NOT come to their DM.** Your answers land where
+the question was asked — the Discord channel or the GitHub thread — and
+release announcements go to the announcements channel. That is deliberate:
+duplicating them into the owner's DM buries the things that do need the
+owner. Ask which channel is which now (`channel-routing.md`), because a post
+with nowhere to go ends up in the DM by default, which is the outcome we're
+avoiding. Urgent things (security, an outage, a decision that blocks work)
+bypass the queue and arrive immediately; everything else waits for the digest.
 
-`unanswered-watch` is the one to never skip. It is the Helper's
-every-10-minutes check that no support message has been sitting unanswered
-past `ACK_GRACE_MINUTES`, and if one has, it posts a holding acknowledgment.
-It exists because response delay is the strongest predictor of whether a
-first-time contributor comes back, and because *this* is what happens when
-the shared usage window runs out: the manager stops replying and the community
-hears nothing. Its gate has no network and no credentials, so *detecting* the need costs
-nothing regardless of the shared window's state — but for this phase, posting
-the acknowledgment is still a model wake on the Helper, which shares the same
-cloud window as you. If the window is fully exhausted, both of you go quiet
-together; it's a cheap, high-value safety net, not an off-window guarantee.
-Offer it as protection for the north star, not as a feature.
+`unanswered-watch` is the one to never skip. Every 10 minutes it checks
+whether a support message has sat unanswered past `ACK_GRACE_MINUTES`, and if
+one has, it wakes you to answer it — a real answer, since you are the
+project's voice. It exists because response delay is the strongest predictor
+of whether a first-time contributor comes back. Its gate has no network and
+no credentials, so *detecting* the need costs nothing. **Be honest about its
+limit**: it runs on you, on your usage window. It catches the common case — a
+question that scrolled past while you were busy, restarting, or in another
+channel. It does not cover the case where your usage window is exhausted:
+then this wake is exhausted with it, and nothing covers that outage. Say so
+to the owner in those words, and offer it as protection for the north star,
+not as a feature.
 
-**Not goal-scoped**: `inbox-check` — the Helper's task. An inbox is a
-support channel on a different transport, so the same escalation rules apply;
-offered only if the project has a shared inbox and an email tool is
-connected.
-
-Two things to get right here:
-
-- **A task can serve more than one goal** (`project-health` appears under
-  both growth and detection). Eligible = **any** of its goals was chosen,
-  never all of them.
-- **Declining a goal never orphans another goal's task.** This matters for the
-  Helper specifically, because its tasks span every goal: `project-health`
-  serves growth and *detection*, `security-advisory-sweep` serves
-  security, `github-ops-triage` serves support. So if security is yes and growth is no, it is **not**
-  dormant — relay it only the config those active tasks need, and say which
-  ones are live. With one sub-agent holding everything, dormancy (step 6) now
-  only applies if *every* goal was declined, which in practice means the owner
-  wants the manager standalone.
-
-Record the answers (with audience priorities) in `project-config.md` as the
-**scoping authority**. Revisiting a goal later is one DM — and per the
-"what's not set up" flow, re-running one piece never means redoing this
-interview.
+Record the answers in `project-config.md` as the **scoping authority**.
+Revisiting a goal later is one DM — and per the "what's not set up" flow,
+re-running one piece never means redoing this interview.
 
 ## 4. Conversational configuration — one question at a time
 
 **Conversational approach**: Rather than asking everything at once, ask one question at a time. After each answer, confirm you understood, move to the next, and always give the owner a chance to ask clarifying questions. This creates a more natural interview where corrections are easy and the owner doesn't feel interrogated.
 
 **This has been violated in practice, so be concrete about what counts as
-"one question."** A single message that asks the four-goals question *and*
-a conditional follow-up ("...and the growth priority if #2 is a yes") is
+"one question."** A single message that asks the goals question *and*
+a conditional follow-up ("...and the grace period if #1 is a yes") is
 two questions, even though it reads as one topic. So is a repo-map
-confirmation that also asks about a docs typo *and* a backup-repo guess in
+confirmation that also asks about a docs typo *and* a channel guess in
 the same breath. If a message has more than one `?` that needs an answer
 before you can proceed, split it — ask the first, wait, then ask the next.
 The one real exception: flagging something you found that needs **no
@@ -285,9 +258,8 @@ asking for anything yet.
   team-lead tier has more than one channel** (e.g. a marketing-coordination
   channel and a separate announcements channel), ask specifically which one
   is *the* announcements channel — release announcements (posted when the
-  owner hands you one) and the blog→announcement growth-playbook rule both
-  need one unambiguous target,
-  not "somewhere in team-lead."
+  owner hands you one) need one unambiguous target, not "somewhere in
+  team-lead."
 - **Auto-approve Discord members** — **CRITICAL for SLA**: "Should new Discord
   community members get instant replies without waiting for your approval?"
   Default answer is YES (auto-approve all Discord server members). Only answer
@@ -315,9 +287,9 @@ asking for anything yet.
   person's availability) — don't silently accept it as fine.
 - **Docs style** — does this project want its docs to describe current
   behavior only (no "added in X.x" / "as of version" / changelog-style
-  language), or is version-history language fine? Relay the answer to the
-  helper (`references/triage-rules.md` enforces it on every docs
-  issue/PR it drafts) — don't leave this as an unconfigured assumption.
+  language), or is version-history language fine? `docs-gap-review` follows
+  it on every docs page it drafts — don't leave this as an unconfigured
+  assumption.
 - **Who this project is actually for, in the reader's own words — and the
   tone that follows from it.** Don't infer this from the README; ask
   plainly, e.g. "Who's the primary reader of your content — end users
@@ -327,39 +299,9 @@ asking for anything yet.
   general consumers or a developer audience — that
   changes the register from typical dev-tool marketing (no engineering
   jargon, no growth-hacker voice, warm and practical instead). Persist the
-  answer verbatim in project-config as `target_audience` + `tone`; content
-  drafts must fit it explicitly, not default to generic SaaS copy.
-- Social platforms: which exist (public profile URLs — for the follower
-  series), which the project POSTS to, and per posting platform the mechanism —
-  intent-url (free, no keys, default), manual copy-paste, or paid API (X has no
-  free tier since Feb 2026; pay-per-use ~$0.20/link-post — owner's explicit
-  opt-in only)
-- **Optional analytics: GA4 property id** — "not now" is a fine answer; the
-  task silent-skips until configured. **If the project has several GA4
-  properties**, put them all in one `GA4_PROPERTIES` value in the Helper's
-  config (`id`, or `label:id,label:id`); `project-health` reads them all.
-  Do not create separate report tasks per property — the one task covers
-  every configured property in a single run.
-- **Dependabot — check `.github/dependabot.yml` before asking.** If it
-  already has an active `version-updates` config, that answers the question:
-  Dependabot opens its own fix PRs, and the Helper only records them against
-  alerts so it never drafts a duplicate. Dependabot PR review runs as a
-  GitHub Actions workflow in the project repo, not as an agent task; the
-  agents do not review or comment on Dependabot PRs.
-  State what you found and confirm rather than asking from scratch — "I see
-  Dependabot is already configured for npm/pip/etc. — the Helper will
-  leave the bumps to it rather than draft its own, unless you want it
-  otherwise." If the file is absent or has no `version-updates` block, then
-  ask: "Do you want Dependabot opening the fix PR when it reports a
-  vulnerability (recommended), or should the Helper draft the bump itself?"
-  Pick one, or the project gets two PRs per CVE.
-
-  **You cannot enable it yourself.** It's a repository setting (Settings →
-  Code security) and no agent here holds Administration write, on purpose.
-  If it's off and the owner wants it, point them at the checkbox — don't
-  offer to do it. The Helper also re-detects reality later by correlating
-  open Dependabot PRs against alerts, so a stale answer degrades rather than
-  breaks.
+  answer verbatim in project-config as `target_audience` + `tone`; your
+  replies and docs drafts must fit it explicitly, not default to generic
+  SaaS copy.
 - **Discord invite URL — check the README/site for one before asking.**
   READMEs commonly carry a badge or link (`discord.gg/...`); extract the
   literal URL if it's there and confirm it rather than asking blind. Used
@@ -367,36 +309,15 @@ asking for anything yet.
   back-and-forth on the issue. If nothing's found and the project has no
   public Discord, or doesn't want GitHub traffic routed there, "none" is a
   complete answer and you simply never offer it.
-- **Deterministic GitHub→Discord notifications via CI** — ask plainly: "want a
-  ready-made GitHub Actions workflow that posts bug/security-labeled issues
-  straight to Discord, independent of me being up?" (recommended, but genuinely
-  optional — some owners lack repo-admin access to add workflow secrets, or
-  prefer everything to stay inside your judgment). If yes, point them at
-  `examples/github-discord-notify.yml` in this template set and the two
-  webhook secrets it needs; if no, note that bug/security routing stays
-  agent-relayed (which drops during your own downtime — say that plainly too).
-- **Models per agent — state the job, name the default, ask if they want
-  something else, and give real alternatives (not just "confirm the
-  default").** Go through each stamped agent:
-  - **Manager** — the public voice: replies, escalation, tone, security routing.
-    Default **Sonnet**. No cheaper alternative offered; this is the one
-    identity the community sees, and it's where judgment quality matters most.
-  - **Helper** — triage, advisory assessment, repo health and every number
-    the project tracks. Default **Haiku**. Offer Sonnet only if the owner
-    wants stronger judgment on triage and is willing to spend more of the
-    shared window on it; a local-model provider is discussed in
-    SKILLS-ADOPTION.md but isn't a working option today.
-  - **Helper** — draft-only triage and judgment (severity calls,
-    breaking-change reads); every draft is reviewed by the manager before
-    anything's public. Default **Haiku**. Real alternative: **Sonnet**, if the
-    owner wants stronger judgment on drafts and is willing to spend more of
-    the shared window on it — since the manager reviews everything anyway, this
-    is a quality/cost trade the owner should make consciously, not one we
-    make for them.
-  Never an Opus-class model on a scheduled task. Remind the owner: cost comes
-  from wakes, not agents existing — a paused task burns nothing, so tune
-  budget by activating fewer tasks instead of deleting agents or downgrading
-  a model that's carrying real judgment.
+- **Model** — state the job, name the default, ask if they want something
+  else. You are the public voice: replies, escalation, tone, security
+  routing. Default **Sonnet**; this interview runs on Haiku and you promote
+  yourself at the end (step 10). No cheaper alternative offered — this is the
+  one identity the community sees, and it's where judgment quality matters
+  most. Never an Opus-class model on a scheduled task. Remind the owner: cost
+  comes from wakes, not from the agent existing — a paused task burns
+  nothing, so tune budget by activating fewer tasks instead of downgrading
+  the model that's carrying the public replies.
 
 ## 5. Persist — this is the point
 
@@ -411,19 +332,23 @@ one per line, quoted:
 
 | Key | From | Read by |
 |---|---|---|
-| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, own setup-check |
-| `GITHUB_BOT_USERNAME` | the bot-account question (step 7) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
+| `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, `project-context` (when `CONTEXT_REPOS` is unset), own setup-check |
+| `CONTEXT_REPOS` | optional; the repos whose daily changes you follow — usually all of them, including docs and marketing | `project-context`. Defaults to `COMMUNITY_REPOS`; only write it when the two differ |
+| `CHAT_INVITE_URL` | optional; the team chat invite (Discord or whatever the project uses) — ask for it in step 1 if the owner has one | `follow-up-nudge` offers it to a contributor who has gone quiet; unset means it simply doesn't |
+| `ACK_GRACE_MINUTES` | optional; minutes a support message may sit unanswered before `unanswered-watch` wakes you; default `20`, bare integer | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it wakes you for a question you were about to answer |
+| `OWNER_TZ` | the timezone question (step 4), IANA zone | `owner-tldr`, so the digest lands at 07:00 local. `TLDR_LOCAL_HOUR` only if the owner wants a different hour |
+| `GITHUB_BOT_USERNAME` | the bot-account question (step 6) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
-**`COMMUNITY_REPOS` itself should be narrower than "the full repo map,"
-same principle as `SECURITY_WATCH_REPOS` below — just
-applied one level up.** This key drives *your own* first-response/triage
-polling (every 10 minutes for `github-first-response`), so include only
-repos that actually receive **external, community-filed** issues/PRs.
-Concretely:
-- **Think twice about a purely internal repo** (e.g. a marketing-drafts
-  repo that only your own agents open PRs into) — if external contributors
-  never file issues there, first-responding to it isn't "community"
-  first-response, it's replying to your own team's work.
+**`COMMUNITY_REPOS` itself should be narrower than "the full repo map."**
+This key drives *your own* first-response polling (every 10 minutes for
+`github-first-response`), so include only repos that actually receive
+**external, community-filed** issues/PRs. `CONTEXT_REPOS` is the wider set:
+a docs or marketing repo belongs there even when nobody files issues on it,
+because its pages move and your answers have to follow. Concretely:
+- **Think twice about a purely internal repo** (e.g. a drafts repo that only
+  your own team opens PRs into) — if external contributors never file issues
+  there, first-responding to it isn't "community" first-response, it's
+  replying to your own team's work.
 - Every extra repo in this list is a real API call every poll cycle — more
   repos means more surface for a transient failure (a 502, a rate limit) to
   degrade the whole cycle's `partial-fetch-failure` status, not just extra
@@ -435,51 +360,46 @@ because `setup-check.sh` greps for them literally:
 
 | Key | From |
 |---|---|
-| `github_bot_username` | step 7's bot-account question (yes — both files; scripts read one, the config check greps the other) |
+| `github_bot_username` | step 6's bot-account question (yes — both files; scripts read one, the config check greps the other) |
 | `security_contact` | security disclosure path |
 | `escalation_backstop` | the named human backstop |
 | `docs_style` | docs-style answer |
 
 Everything else — project name, repo map with subpaths, docs site, channel
-tiers, goals, `target_audience`, `tone`, `onecli_dashboard_url`, social
-platforms and their posting mechanisms — goes in `project-config.md` as
-prose. Re-read that file at cold start before asking anything.
+tiers, goals, `target_audience`, `tone`, `onecli_dashboard_url` — goes in
+`project-config.md` as prose. Re-read that file at cold start before asking
+anything.
 
 `additional_context` files are read-only at runtime; plugin-data is your
 writable config home.
 
 ## 5b. Heads-up before autonomous setup (with timing for long operations)
 
-Before proceeding with any long-running operation (sub-agent stamping, Discord
-wiring, workspace setup), give the owner clear expectations upfront:
+Before proceeding with any long-running operation (Discord wiring, workspace
+setup), give the owner clear expectations upfront:
 1. **What's about to happen** (summary of operations)
 2. **How long it takes** (rough time estimate)
 3. **What to expect** (silence during processing, will report when done)
 
-Tell them what's about to happen and what each agent does:
+Tell them what's about to happen:
 
 ```
 Understood. Now I'm going to set up the system based on your config:
 
-1. **Stamp the Helper** (the helper that runs alongside me): triages
-   issues/PRs, reviews security advisories, tracks repo and contributor
-   health, reads the project's traffic and follower numbers, and posts a
-   holding acknowledgment if I ever go quiet
-
-2. **Wire Discord channels** to their proper tiers:
+1. **Wire Discord channels** to their proper tiers:
    - Support (auto-reply): [list channels]
    - Developer (mention-only): [list channels]
    - Security (mention-only): [channels]
 
-I won't ask you to confirm each step in this conversation — but every stamp,
-channel creation, and wiring call is still its own real platform approval
+I won't ask you to confirm each step in this conversation — but every
+channel creation and wiring call is still its own real platform approval
 card (there's no way to combine them; confirmed against the platform's own
 guard code). Expect a run of individual cards to click through, not silence
 followed by one done message. This usually takes 30–60 seconds of you
 clicking cards. Sit tight.
 ```
 
-Then proceed immediately to stamping and wiring.
+Then proceed immediately to wiring.
 
 ## 5c. Wire Discord channels (agent autonomy, one ask in chat, many real approval cards)
 
@@ -538,41 +458,16 @@ Support-tier channels take `--engage-mode pattern --engage-pattern '.'`
 doesn't wait on per-sender approval — the owner DM is the one that stays
 locked to known senders.
 
-**Also silently wire the Helper to every support-tier channel — this
-is what makes `unanswered-watch` actually work.** Every agent wired to a
-messaging group receives every message into its own session regardless of
-whether its engage mode ever triggers a reply (the router writes the row
-either way; only the wake decision differs) — so a wiring with
-`--engage-mode mention` on a channel nobody ever @-mentions the Helper
-in gives it a real, passive session history of every support message, with
-zero risk of it ever actively replying. Without this, the Helper has no
-session for these channels at all and cannot see whether anything went
-unanswered — `unanswered-watch` then silently has nothing to check, which
-looks exactly like a quiet night.
-
-The `destinations add` line is not optional either: the wiring lets it *see*
-the messages, and the destination is what it posts the holding line *through*.
-With the wiring but no destination, it detects the silence and then has
-nowhere to answer it.
-
-```bash
-# per support-tier channel, in addition to the manager's own wiring above
-./bin/ncl wirings create --channel-type discord --platform-id discord:<guild-id>:<channel-snowflake> \
-    --agent-group-id <helper-id> --engage-mode mention
-./bin/ncl destinations add --agent-group-id <helper-id> --local-name <channel-name> \
-    --target-type channel --target-id <messaging-group-id>
-```
-
-The destination is what lets it actually **post** the holding ack into that
-specific channel once it detects one is needed — a wiring alone only gives
-it something to read, not somewhere to send.
+`unanswered-watch` needs nothing beyond these wirings: it reads your own
+sessions for every channel you are wired to, so a support channel wired here
+is a support channel it watches. There is no second agent to wire.
 
 If they pick (b), then proceed as below.
 
 **One combined ask in chat, not one question per channel — but be accurate
 about the cards.** `messaging-groups create` and `wirings create` are each
-independently `access: 'approval'`-gated on the platform, same as stamping
-(section 6) — there is no batch-approval mechanism. Ask once in conversation
+independently `access: 'approval'`-gated on the platform — there is no
+batch-approval mechanism. Ask once in conversation
 so the owner isn't interrogated channel-by-channel, but say plainly that
 wiring N channels means roughly 2N real approval cards (one per
 messaging-group create, one per wiring create), not one combined approval:
@@ -611,187 +506,7 @@ owner to verify rather than silently failing.
 community Discord channels. If 'request_approval' is used instead, every new
 sender triggers a manual approval prompt that breaks your response-time SLA.
 
-## 6. Stamp sub-agents and relay their config (one conversational ask, several real approval cards)
-
-**Ask once in this conversation, not once per agent** — but be accurate about
-what happens next. `ncl groups create` (each stamp) and `install_packages`
-(the `jq` installs) are each independently gated by the platform's own
-approval system (`access: 'approval'` in NanoClaw's CLI resources) — there is
-**no way to pre-authorize or batch these**, confirmed against the platform's
-own guard/grant code: a "grant" only exists after a human has already clicked
-Approve on that exact request, and is consumed once. So a single "yes" here
-does not turn into a single platform approval — **the owner should expect
-one real approval card per stamp, plus one more per `jq` install**, not one
-card total. Don't imply otherwise:
-
-```
-I'm about to stamp the Helper based on your goals:
-
-- Helper (the Helper): issue/PR triage, security assessments,
-  repo and contributor health, the project's traffic and follower numbers,
-  and the holding acknowledgment when I go quiet
-
-Approve all? [yes/no] — heads up: this surfaces one approval card per stamp
-(and one more for each agent that needs `jq` installed), not a single combined
-approval — the platform has no batch-approval mechanism for these.
-```
-
-Once approved, **give a heads-up before starting long-running operations**:
-
-```
-Stamping sub-agents now (this takes about 30–60 seconds, no further messages
-until done) — you'll see a few separate approval cards land as it goes.
-```
-
-Then:
-1. Stamp the helper (the Helper) → install `jq`
-2. Relay its config
-
-Report when complete.
-
-**`jq` is an APT package — never an npm one.** Every one of these installs is
-`apt: ["jq"]` (or `--apt jq` via the CLI).
-
-This is not a harmless typo. Asking for `jq` as an **npm** package does not
-fail cleanly — npm *has* a package by that name, and it installs a wrapper
-that lands earlier on `PATH` than the real binary. The result is worse than
-having no jq: `command -v jq` succeeds, your setup-check looks satisfied, and
-every actual `jq` call fails at runtime. This has happened on a real install.
-
-If it does happen: request removal of the **npm** `jq` package (leaving the
-apt one), then rebuild. Recovery is one `install_packages` removal plus the
-rebuild you were already going to do — but only if you notice, which is why
-the package *type* is the first thing to check when a jq call fails
-unexpectedly, before you start debugging the filter expression.
-
-Each install is its own approval card (the platform has no batch mechanism —
-see section 6's framing), so getting the type right the first time is the
-difference between three cards and six. Every sub-agent needs jq: each one's
-`setup-check.sh` is written in it, and their tasks parse JSON API responses
-with it.
-
-Sub-agents are headless, so the rebuild-and-restart that `install_packages`
-triggers costs them nothing. That is *not* true of you — see section 1.
-
-**Get every gated call right the first time — a failed one still costs a
-click.** An `access: 'approval'` command is approved *before* it runs, so a
-malformed invocation comes back approved-but-failed and you have to ask for
-another card to retry. The owner pays for your typo twice. Use these exact
-forms:
-
-```bash
-# Stamp a sub-agent. NEVER pass --folder together with --template: the two are
-# mutually exclusive and the platform rejects the whole call ("--folder applies
-# only to bare creates"). A templated group's folder derives from --name.
-ncl groups create --template opensource/community-helper --name "<agent name>"
-
-# PIN IT TO HAIKU. `groups create` has no --model flag, and an unpinned group
-# does NOT default to Haiku — see the warning below. Set this before the
-# restart so it lands in the same one as jq.
-ncl groups config update --id <sub-agent-id> --model claude-haiku-4-5
-
-# Install jq on a stamped sub-agent. APT, never npm.
-ncl groups config add-package --id <sub-agent-id> --apt jq
-ncl groups restart --id <sub-agent-id> --rebuild
-```
-
-**Pin the model explicitly — "the default" is not Haiku.** An agent group
-with no model of its own falls back to the install-wide
-`NANOCLAW_DEFAULT_MODEL`, and when *that* is unset (the normal case — no
-installer sets it) the platform passes no model at all, so the provider SDK
-picks its own default: a Sonnet-class model, not Haiku. NanoClaw's own
-source says so (`src/config.ts`: "Unset means the provider SDK's own
-default, which is what every existing install gets"). An unpinned Helper
-therefore bills Sonnet rates for every one of its dozens of weekly wakes
-while every cost estimate in this kit assumes Haiku — invisibly, because
-nothing reports the effective model. Confirm it with
-`ncl groups config get --id <sub-agent-id>` after the restart, and never
-assume a tier you did not set.
-
-If a gated call fails, read the error and fix the *invocation* before
-re-requesting — never re-submit the same form hoping for a different result,
-and never try a variant flag speculatively. When you genuinely don't know the
-right form, run `ncl <resource> --help` first: help is ungated and free, and
-one help call is cheaper than one wasted approval.
-
-**Agent autonomy**: You now have permission to stamp sub-agents directly when their goals are chosen during the interview. When stamping:
-1. Use the template from the shared catalog (`opensource/community-helper`)
-2. **Pin it to Haiku yourself** with `ncl groups config update --model claude-haiku-4-5` (see the command block and warning above) — stamping does *not* land on Haiku by default, and an unpinned Helper quietly bills Sonnet rates. There is no local model runtime to detect or wire. (A local-model provider is a possible later optimization, not part of this stamp.)
-3. Relay the config keys listed below
-4. Report the stamping result and the agent's status to the owner
-
-**Wiring the destination pair: hand the owner one block, don't issue the
-gated calls yourself.** Relaying config needs a `parent` destination on the
-sub-agent pointing at you, and a named one on you pointing back. Each
-`destinations add` you issue yourself is its own approval card; run host-side
-by the owner they cost **zero** cards, and the operator sees the whole agent
-topology in one place. Ask once, with the block ready to paste:
-
-```
-Stamped. To let me talk to them, paste this from your nanoclaw install
-directory — one block, no approval cards:
-
-  ./bin/ncl destinations add --agent-group-id <helper-id>    --local-name parent --target-type agent --target-id <manager-id>
-  ./bin/ncl destinations add --agent-group-id <manager-id>      --local-name helper --target-type agent --target-id <helper-id>
-
-Tell me when it's done and I'll relay its config.
-```
-
-**A destination's `--local-name` must not collide with one you already have.**
-Your own group already holds a destination per wired channel, so the obvious
-short name for a sub-agent can already be taken by a channel, and the add
-fails. If a name collides, suffix `-agent` rather than reusing or renaming the
-channel destination.
-
-Substitute the real group ids from each stamp response before sending. If the
-owner would rather you just did it, issue them yourself and warn that it's two
-separate cards. A missing pair doesn't error — the sub-agent's reports simply
-reach nobody — so confirm the block actually ran before relaying.
-
-Sub-agents never talk to the owner, so their config arrives through you. Send the
-keys listed below **by name** over agent-to-agent destinations once stamped; each
-sub-agent writes its own `config.env` + `project-config.md` and confirms. A key
-you don't relay is a feature that silently never runs.
-
-**helper** → `plugin-data/community-helper/config.env` —
-**relay this one first.** It owns most of the tasks in the set, so an unrelayed
-key here is the largest single source of "nothing is happening":
-
-| Key | Value | Why it matters |
-|---|---|---|
-| `COMMUNITY_REPOS` | repos it triages issues/PRs on | `github-ops-triage`, `security-advisory-sweep`, `docs-currency-watch`, `project-health` — all go quiet without it |
-| `ACK_GRACE_MINUTES` | minutes a message may sit unanswered before the holding reply goes out; default `20` | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it interrupts a manager that was about to answer |
-| `LEDGER_REPO` | normally the project's marketing repo, never the product repo | every `project-health` run commits all three unrebuildable series to a branch there. Unset means they are lost at the next rebuild — and the follower counts cannot be re-read from anywhere afterwards |
-| `GA4_PROPERTIES` | one or more properties: `id`, or `label:id,label:id` | `project-health`'s traffic section. One task run covers every property — never create separate tasks per property |
-| `SECURITY_WATCH_REPOS` | optional narrower subset of `COMMUNITY_REPOS` | `security-advisory-sweep` — ask if the owner wants the sweep scoped to just the repos that ship code (docs/content repos rarely have dependencies worth a sweep, and the Dependabot alerts permission has to be granted per-repo anyway). Falls back to `COMMUNITY_REPOS` if unset |
-| `DOCS_REPO` | the docs repo, if the project has one | `docs-currency-watch` stays silent forever without it rather than inventing a target |
-| `LEDGER_BRANCH` | optional; default `agent-metrics` | the branch `project-health` publishes to. Only relay it if the owner wants a different name |
-| `HEALTH_POST_DOW` | optional; `0`=Sun … `6`=Sat, default `1` (Monday) | the one day a week `project-health` posts instead of only collecting. Only relay it if the owner wants a different day |
-| `SOCIAL_DAILY` | optional; default on | set `"false"` if the owner would rather skip the daily follower read: collect days then cost no tokens, at the price of a weekly-only follower series |
-| `GITHUB_BOT_USERNAME` | the bot account | its identity check is dead without it |
-| `INBOX_ENABLED` | `"true"` only if the project has a shared inbox AND the Gmail read-only credential + an email MCP are wired **to the Helper's group** | `inbox-check` never fires without it — the correct default for the many projects with no shared inbox. Optional companions: `INBOX_QUERY` (default `is:unread newer_than:7d`), `INBOX_MAX_RESULTS` (default 25) |
-
-Plus in prose: default branch, label policy, **`docs_style`** (its
-`triage-rules.md` enforces it on every docs issue/PR it drafts, so an
-unrelayed answer means an unconfigured assumption), that it reports
-**everything through you** — it has no owner DM — and that its holding-ack
-wiring must cover the channels the community actually posts in (§5c).
-
-(`POSTHOG_PROJECT_ID`/`POSTHOG_HOST` would relay here too if
-`posthog-weekly-review` comes back — removed for now, see SKILLS-ADOPTION.md.)
-
-Plus in prose: the social profile URLs (read-only — it posts nowhere), and
-`target_audience` verbatim from step 4 so its reports say whether the project
-is reaching the people the owner named. **Do not relay content/brand/tone
-config** — nothing in this system writes content, so there is nothing for
-those to shape.
-
-A sub-agent whose goals were all declined in step 3 gets a dormancy note
-instead of config: "your goals aren't active for this project — stay idle,
-your tasks stay paused." Wait for confirmations from the active ones; chase
-what doesn't confirm.
-
-## 7. Walk the credential setup — then verify it, don't assume it
+## 6. Walk the credential setup — then verify it, don't assume it
 
 Two questions come first, in this order, before anything about vault entries
 — everything else in this step depends on both answers.
@@ -824,7 +539,7 @@ the *only* public voice for this project on both platforms, and a community
 member who sees two differently-named identities has no way to know they're
 the same bot. This is a suggestion to the owner, not something you can fix
 yourself — the Discord display name is set when the bot application is
-created (step 3), separate from anything you configure.
+created (`PREREQS.md` §1), separate from anything you configure.
 
 **Also recommend this account is used by nothing else** — not the owner's
 own tooling, not a different AI coding assistant or automation connected
@@ -840,25 +555,19 @@ these repos too, a **separate** GitHub identity for it removes the
 ambiguity entirely — say this plainly as a recommendation, not a
 requirement you can enforce.
 
-Now walk the setup itself. For every feature the owner enabled, tell them
-exactly what to set up — one message, only the rows that apply, pointing at
-`onecli_dashboard_url` for where to go. **Never ask for a raw key in chat** —
-keys go into the OneCLI vault dashboard only:
+Now walk the setup itself. Tell them exactly what to set up — one message,
+pointing at `onecli_dashboard_url` for where to go. **Never ask for a raw
+key in chat** — keys go into the OneCLI vault dashboard only:
 
 | Feature | Vault entry (host match) | Also needs |
 |---|---|---|
-| GitHub work (manager + sub-agents) | 3 scoped PATs on `api.github.com` | `selective` secret mode per agent, so each gets its own token |
-| Metrics-history push (`project-health`) | `github.com` (git) — a **separate entry class** from the REST host above | push access to `LEDGER_REPO`, for the Helper. Wiring only the REST host leaves `ledger.status` at `push-failed` while every other GitHub call works |
-| GA4 report | OAuth on `analyticsdata.googleapis.com` | sandbox allowlist entry for that host |
-| Social follower snapshot | none (public pages) | sandbox allowlist entries for the platform hosts (x.com, linkedin.com, …) |
-| Inbox check | provider OAuth (read-only scope) | an email MCP server added to **the Helper's group** — `inbox-check` is the Helper's task. A platform config change, not something you can do from in here; point the owner at the template README. Its gate also needs `INBOX_ENABLED="true"` relayed into the **Helper's** `config.env` — that part IS yours to write, and until it's set the task stays silent (correctly: most projects have no shared inbox) |
+| GitHub work (`github-first-response`, `project-context`, your live replies) | 1 fine-grained PAT on `api.github.com`, scoped to `COMMUNITY_REPOS` ∪ `CONTEXT_REPOS` | Issues read/write, Pull requests read/write, Contents read, Metadata read — see `PREREQS.md` §1b. A repo missing from the token's list fails silently, so check `CONTEXT_REPOS` is on it too |
 
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:
 walk them through the vault entries, then re-verify. Then **verify instead of
-assuming**: make one harmless read-only call per
-enabled service (e.g. fetch a repo's metadata, one GA4 row) and report each as
-working / not. Diagnose by symptom: `401/403` = vault entry missing or
+assuming**: make one harmless read-only call (fetch a repo's metadata) and
+report it as working / not. Diagnose by symptom: `401/403` = vault entry missing or
 host-mismatched; `502` = sandbox network policy, not the service.
 
 **For every GitHub token, check identity too, not just reachability**: call
@@ -874,123 +583,78 @@ until it's resolved.
 own "click here to connect this service" mechanism — that link is real and
 already correctly addressed by the gateway. Turn it into a Discord card button
 (never paste it bare; a bare URL is dead text in Discord, see
-`discord-mechanics.md`) and send it to the owner. Have the sub-agents run the
-same self-check for their own services and hand you any `connect_url` they
-receive — they have no channel to post a card through themselves.
+`discord-mechanics.md`) and send it to the owner.
 
-## 8. Set up the metrics-history publish — it is the only durable state
+## 7. State — nothing durable to set up
 
 **There is no workspace backup in this set, deliberately** — the system is
 meant to be rebuilt from the templates, and a restore nobody runs is a
-write-only cost.
+write-only cost. Everything you write is a cache that rebuilds itself:
+`release-state.csv` and `project-notes.md` on the next `project-context`
+run, cursors and seen-ledgers on the next run of their task. Your own
+ledgers (community questions, owner instructions) are deliberately never
+published — they contain people's words and the owner's private direction,
+which don't belong in a repo branch; `docs-gap-review` simply starts
+observing again after a rebuild.
 
-What exists instead is narrower and does get read: every `project-health`
-run commits only the files that genuinely cannot be rebuilt, into a branch of
-the project's repo, and reads today's row back to prove it landed. There are three, and the distinction is worth stating to the
-owner in one line each, because it is the difference between "we can
-regenerate that" and "that is gone":
-
-- **follower counts** — unrecoverable, full stop. Every platform exposes
-  today's number and nothing else. A day not recorded is gone.
-- **GA4 traffic** — re-queryable inside the property's retention window (14
-  months by default), permanently gone beyond it.
-- **repo metrics history** — reconstructible in theory, but only by paging
-  every stargazer and every issue's comments. Treat it as gone.
-
-Everything else each agent writes is a cache that rebuilds itself, and the
-manager's own ledgers (community questions, owner instructions) are deliberately
-never published — they contain people's words and the owner's private
-direction, which don't belong in a repo branch.
-
-To set it up: the owner confirms which repo to use (normally the marketing
-repo, never the product repo) and creates the `github.com` (git) vault entry
-with push access to it. Then relay `LEDGER_REPO`; the next `project-health`
-run publishes, and its `ledger.status` says whether the row landed
-(`published-and-verified`) or exactly why not (`push-failed`,
-`clone-failed`, `bad-config`, `not-configured`) — report that verbatim rather
-than "set up". The branch (`agent-metrics` by default) is created as an orphan
-branch, so it carries only these files and never touches the repo's default
-branch or its CI.
-
-### Existing history — ask about exactly one thing
-
-**Day one has no history files, and that is correct.** Nothing ships them:
+**Day one has no state files, and that is correct.** Nothing ships them:
 templates carry no `plugin-data`, and stamping never touches it. Each task
-creates its own file on first write. Do not ask the owner to supply anything
-the system can rebuild, and do not treat an empty series as a setup gap.
-
-| Series | Ask the owner? |
-|---|---|
-| **Follower counts** | **Yes — the one worth asking.** No API, page, or export anywhere reports what a follower count was last Tuesday. If they have any record of it, it is the only chance to keep that history. |
-| GA4 traffic | **No.** Re-queryable for past dates inside the property's retention window, so the system can fill it in itself. |
-| Repo metrics (stars/forks/issues) | **No.** Current values are always re-fetchable; the series just starts today and goes forward. Mention it in passing at most. |
-| Everything else | **Never.** Cursors, seen-ledgers and snapshots all regenerate on the next run. |
-
-If they do have follower history, it goes in as CSV, matching the schema in
-`project-health`'s task body exactly
-(`date,tw_f,fb_f,ig_f,li_f,dc_m,yt_o,yt_n,notes`). They drop it into the group
-folder on the host — `groups/<folder>/plugin-data/community-helper/` — before
-that task resumes, the same route as `config.env`; you cannot receive a file
-through chat. Then have the Helper **validate it before appending** (header
-match, dates ascending and parseable, no duplicate dates, counts integer or
-empty) and report problems rather than repairing them. Their copy may be the
-only copy, so a malformed file gets reported and left alone, never rewritten.
-
-One asymmetry worth stating to the owner in a line: a follower number not
-recorded today is gone permanently, whereas every other number here can be
-recovered. That is the whole reason this one task is worth activating even
-before the rest.
-
-## 9. Activation — one agent at a time, one task at a time, verified as you go
+creates its own file on first write. Do not ask the owner to supply anything,
+and do not treat an empty file as a setup gap.
+## 8. Activation — one task at a time, verified as you go
 
 **This replaces "resume everything on one final go."** A real install did
-exactly that — batch-resumed every task across all agents in one shot on an
-explicit "go" — and then nothing ran for the next ~18 hours anyway, because
-the owner moved on to other setup work and the resume step got lost in the
-noise of everything else happening that evening. Nobody found out until the
-next morning, asking "why didn't anything run overnight." **Never let
-activation depend on a single moment that's easy for the owner (or you) to
-lose track of.** Instead, activation is incremental and self-verifying:
+exactly that — batch-resumed every task in one shot on an explicit "go" —
+and then nothing ran for the next ~18 hours anyway, because the owner moved
+on to other setup work and the resume step got lost in the noise of
+everything else happening that evening. Nobody found out until the next
+morning, asking "why didn't anything run overnight." **Never let activation
+depend on a single moment that's easy for the owner (or you) to lose track
+of.** Instead, activation is incremental and self-verifying:
 
-For **each agent** in this order — **you (the manager) first, then the Helper**
-(skip it if not stamped):
-
-1. **State what this agent is and does**, one line, if you haven't already
-   in this conversation (you likely have, back in step 6 — don't repeat
-   yourself, just make sure the owner knows which agent you're now
-   activating).
-2. **Confirm its config is relayed and its own `setup-check.sh` is clean.**
-   If it isn't, stop here for this agent and surface exactly what's missing
-   — don't activate a task on top of a known gap.
-3. **For each of that agent's tasks that's eligible** (goal chosen, config +
-   credentials verified) — one at a time, not as a batch:
+1. **Confirm your config is written and your own `setup-check.sh` is
+   clean.** If it isn't, stop here and surface exactly what's missing —
+   don't activate a task on top of a known gap.
+2. **For each eligible task** (goal chosen, config + credentials verified) —
+   one at a time, not as a batch:
    - Resume it (`ncl tasks resume <id>`).
    - **Trigger it immediately** (`ncl tasks run <id>`) — don't wait for its
      schedule. Waiting means you won't know it's broken until its next
      natural fire, which for a daily/weekly task could be tomorrow or next
-     week.
+     week. `project-context`'s first run reports `baseline` — that is the
+     healthy first result, not a failure.
    - **Read the actual result** (`ncl tasks get <id>`) and report it to the
      owner **verbatim, not summarized as "resumed successfully."** A task
      can resume cleanly and still fail on its first real run — that's
      exactly what the outcome check is for.
-   - Only move to this agent's next task once the current one's real result
-     looks healthy (or the owner has seen a real failure and told you how
-     to proceed).
-4. **State plainly when this agent is fully healthy** — every eligible task
-   resumed, triggered, and its actual result checked — before moving to the
-   next agent. Tasks whose goal wasn't chosen stay paused; say so as part of
-   "healthy," not as a gap.
+   - Only move to the next task once the current one's real result looks
+     healthy (or the owner has seen a real failure and told you how to
+     proceed).
+3. **State plainly when you are fully healthy** — every eligible task
+   resumed, triggered, and its actual result checked. Tasks whose goal
+   wasn't chosen stay paused; say so as part of "healthy," not as a gap.
 
 If the owner wants to skip straight to activating everything at once anyway,
 that's their call to make explicitly — don't default to it.
-
-## 10. Close the loop
+## 9. Close the loop
 
 Report: what was saved and where, what's verified working, what was activated,
-and exactly what remains blocked and why. Also hand the owner the two DM
+and exactly what remains blocked and why. State what runs, in one list:
+
+- `unanswered-watch` — every 10 min, wakes you for a support message past the grace period
+- `github-first-response` — every 10 min, first reply on new, unanswered issues and PRs
+- `project-context` — daily, re-reads the repos and rewrites `release-state.csv`
+- `follow-up-nudge` — weekly, checks in on idle PRs and unanswered workarounds, offers the chat
+- `owner-tldr` — the one digest, 07:00 owner-local
+- `docs-gap-review` — weekly, proposes docs pages for repeat questions
+- `owner-instruction-watch` — weekly, instructions acked but never closed
+- `weekly-identity-integrity-check` — weekly, asks before it ever locks anything
+- `conversation-archive-prune` — daily housekeeping, never wakes the model
+
+Also hand the owner the two DM
 conventions they'll use forever: every instruction gets `Ack #N` and later
 `#N done` (closed with done/blocked/dropped, numbered against a ledger any session can
-read, watched by the health check for threads never closed), and `ping`
+read, watched by `owner-instruction-watch` for threads never closed), and `ping`
 always gets an instant `pong` —
 so they never have to guess whether the DM pipeline or you are the problem.
 The owner should end this conversation knowing the complete state of their
@@ -1010,7 +674,7 @@ directly; and **`/debug`**, run from the break-glass Claude CLI session
 level problem before manual log digging. Neither needs anything from this
 conversation — just worth the owner knowing they exist.
 
-## 11. Promote yourself to Sonnet — the last act, after everything else
+## 10. Promote yourself to Sonnet — the last act, after everything else
 
 This interview runs on **Haiku** by design (structured Q&A and CLI calls;
 the install pins it before you're ever DMed). Steady-state work is the
@@ -1019,7 +683,7 @@ makes, escalation calls — so the manager's standard tier is **Sonnet**, and
 switching is **yours to do, not the owner's to remember.**
 
 **Do this only when setup is genuinely finished** — every section above
-done, credentials verified, tasks activated, and §10's full summary already
+done, credentials verified, tasks activated, and §9's full summary already
 delivered. Not while anything is still blocked on a question, and never
 mid-interview: the restart ends this session, so anything you haven't said
 yet is lost.

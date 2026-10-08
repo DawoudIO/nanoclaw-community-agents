@@ -1,0 +1,6 @@
+review:changes_requested|cr.json
+is:pr+is:open+draft:false|stale.json
+/issues/501/comments|comments501.json
+/issues/501|issue501.json
+/issues/502/comments|comments502.json
+/issues/502|issue502.json

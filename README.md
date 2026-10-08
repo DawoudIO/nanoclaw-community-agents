@@ -1,21 +1,19 @@
 # Community Agent Set for NanoClaw
 
-Two agent templates that run an open-source project's community work as a
-pair, with **one public voice**. Together they watch, respond, catch
-problems early, and flag security issues — cheaply, before people give up
-on GitHub or Discord.
+One agent template that runs an open-source project's community work with
+**one public voice**. Its job is to help Discord and GitHub users with
+questions and answers — cheaply, before people give up on GitHub or Discord.
 
 | Template | Role | Model | Public voice |
 |---|---|---|---|
-| [`opensource/community-manager`](opensource/community-manager/) | Manager — replies, escalation, relays the sub-agents | Claude Sonnet | **Yes, the only full one** |
-| [`opensource/community-helper`](opensource/community-helper/) | Helper — issue/PR triage, security advisories, docs currency, and every number the project tracks (dev metrics, contributor health, traffic, followers); holds the line when the manager is rate-limited | Claude Haiku | Holding replies only |
+| [`opensource/community-manager`](opensource/community-manager/) | Manager — replies, escalation, first response on GitHub, a daily picture of what is released and what is coming | Claude Sonnet | **Yes** |
 
-The manager works standalone and stamps the Helper itself, during setup, once
-it knows which jobs you want. Each template's own README has the detail.
+The template's own README has the detail.
 
 **Nothing here writes content.** Posts, announcements and campaign copy stay
-with the project's owner; this set answers people, triages, measures, and
-reports.
+with the project's owner; this set answers people, triages, and reports.
+Project metrics are not an agent job either — they run as GitHub Actions in
+the project's own repos.
 
 ## Install
 
@@ -24,7 +22,7 @@ git clone https://github.com/DawoudIO/nanoclaw.git
 git clone https://github.com/DawoudIO/nanoclaw-community-agents.git
 
 cd nanoclaw-community-agents
-bash scripts/install-templates.sh     # copies the 2 templates into ../nanoclaw/templates/
+bash scripts/install-templates.sh     # copies the template into ../nanoclaw/templates/
 
 cd ../nanoclaw
 ./nanoclaw.sh                         # "From local templates" → opensource/community-manager
@@ -51,24 +49,30 @@ Read next, in this order:
   there's something to decide. `bash scripts/gen-task-table.sh` prints the
   current task table, generated straight from the task files so it can't
   go stale.
-- **One public voice, enforced structurally, not by instruction.** The
-  Helper has no channel access at all, with one exception: `unanswered-watch`,
-  its safety net for when the manager itself goes silent (rate-limited,
-  crashed, mis-wired). It watches support channels for a message that's sat
-  too long, then posts one fixed line, under the manager's own bot identity
-  so the community never sees a second voice. It can't write anything else.
-  It's a receipt, never a resolution — it answers nothing, it just proves
-  someone's still there.
+- **One public voice, enforced structurally, not by instruction.** There is
+  one agent and one bot identity; nothing else in the system can post.
+  `follow-up-nudge` checks in weekly on contributors who went quiet: a PR
+  idle a week, an issue where a posted workaround got no reply — one kind
+  comment, an offer of help, the team chat invite.
+  `unanswered-watch` is its safety net for a question that scrolled past —
+  the agent was busy, restarting, or in another channel. Every 10 minutes a
+  no-network gate checks whether the newest message in a support channel is
+  an inbound one that has sat past the grace period, and wakes the agent to
+  answer it for real. What it does not cover, honestly: the agent's own
+  usage window running out. It runs on the same credential, so an exhausted
+  window exhausts it too — see `docs/OPERATIONS.md` → Model budget for what
+  does protect against that.
 - **Agents never hold keys.** Every credential lives in the OneCLI vault and
   is injected at the egress proxy, outside the containers. An agent that
   asks you for a raw key is broken or compromised.
-- **Stateless by design.** Agents rebuild context from the project's repos
-  on cold start. A few things genuinely can't be reconstructed — follower
-  counts, GA4 traffic, repo metrics history — so the Helper publishes those
-  daily, append-only, to a branch in the project's own repo. The manager's
-  question ledger is different: it holds community members' words, so it's
-  never published at all. That loss is accepted on purpose — it just
-  rebuilds from live traffic over the following weeks.
+- **Stateless by design.** The agent rebuilds context from the project's
+  repos on cold start, and `project-context` keeps that picture current: once
+  a day it fetches what landed since yesterday, which agent skills and docs
+  changed, and what is released versus merged-but-unreleased, writes
+  `release-state.csv`, and wakes the agent only when something changed. Nothing
+  is published anywhere. The question ledger holds community members' words,
+  so it is never published either; losing it at a rebuild is accepted on
+  purpose — it rebuilds from live traffic over the following weeks.
 - **Setup is a conversation.** You DM the manager; its `welcome` skill
   interviews you, and configuration is runtime data, not a template edit.
 
@@ -96,5 +100,5 @@ pull/restamp/restore steps.
   community-agent deployment and generalized.
 
 > This README, `docs/`, and `UPSTREAM-ISSUES.md` are for this staging repo
-> only. A PR to `nanocoai/nanoclaw-templates` carries just the two template
-> directories — that catalog has its own README.
+> only. A PR to `nanocoai/nanoclaw-templates` carries just the template
+> directory — that catalog has its own README.

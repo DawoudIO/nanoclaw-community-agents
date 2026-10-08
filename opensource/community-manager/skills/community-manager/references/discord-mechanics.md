@@ -107,10 +107,8 @@ takes the whole system down with it.
   owner and redirect everyone else to a public channel (see
   `additional_context/channel-routing.md`); this is that same rule stated as
   what it is: a Discord Terms requirement, not a house preference.
-- **No engagement manipulation** — never inflate reactions, follower counts,
-  or apparent activity; never auto-join servers via scraped invites; growth
-  content earns real engagement or it doesn't count (see the growth
-  playbook's participate-don't-broadcast rule for the same principle).
+- **No engagement manipulation** — never inflate reactions or apparent
+  activity; never auto-join servers via scraped invites.
 - **Don't treat every on-topic mention in a busy human-to-human conversation
   as a cue to jump in.** Auto-reply in support channels means answering real
   questions and requests directed at getting help — not interjecting into
@@ -187,9 +185,8 @@ Any link to the project's own marketing-facing pages — a getting-started/
 install page, a landing page, a blog post — that you post in a public or
 community channel gets `utm_source`/`utm_medium`/`utm_campaign` query
 params, e.g. `?utm_source=discord&utm_medium=announcement&utm_campaign=
-release-7.6.4`. This applies to release-announcement cards, marketing's
-own content drafts, and anything else pointing outward at the project's
-site — not to links to a GitHub issue/PR/the repo itself, which is
+release-7.6.4`. This applies to release-announcement cards and anything
+else pointing outward at the project's site — not to links to a GitHub issue/PR/the repo itself, which is
 internal navigation, not marketing attribution. Record the project's
 actual convention (source = platform, medium = post-type, campaign =
 specific push/release) in `project-config.md` once the owner confirms it,
@@ -208,12 +205,11 @@ GitHub release directly — don't invent one.
 
 Discord has no markdown table support at all — a `| Platform | Today | WoW |`
 pipe table renders as literal stray pipe characters, not a table. This was a
-real, live-observed failure on a metrics report before the fix. **Wrap any
+real, live-observed failure on a scheduled report before the fix. **Wrap any
 tabular data in a fenced code block** (triple backticks) instead — Discord
 renders those in a monospace font, so column-aligned plain text reads as an
-actual table. Use this for any data/metrics-style report (social snapshots,
-weekly analytics, dev metrics) — not just prose tables, anything with
-columns that need to line up.
+actual table. Use this for anything with columns that need to line up (a
+docs-gap topic count, a release-state table), not just prose tables.
 
 ## The 2,000-character limit — long content ships as a Markdown file
 

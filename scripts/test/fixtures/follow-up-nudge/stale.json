@@ -1,0 +1,4 @@
+{"total_count":3,"items":[
+ {"number":412,"title":"Fix kiosk heartbeat","user":{"login":"pat","type":"User"},"html_url":"https://github.com/acme/demo/pull/412","author_association":"FIRST_TIME_CONTRIBUTOR","updated_at":"__STALE_ISO__","comments":2},
+ {"number":415,"title":"Maintainer refactor","user":{"login":"maint","type":"User"},"html_url":"https://github.com/acme/demo/pull/415","author_association":"MEMBER","updated_at":"__STALE_ISO__","comments":0},
+ {"number":416,"title":"Bump deps","user":{"login":"dependabot[bot]","type":"Bot"},"html_url":"https://github.com/acme/demo/pull/416","author_association":"NONE","updated_at":"__STALE_ISO__","comments":0}]}

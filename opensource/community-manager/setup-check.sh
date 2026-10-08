@@ -2,8 +2,7 @@
 set -uo pipefail
 # jq is required by this script itself (every check below is built with it) —
 # fail loud and jq-free rather than crashing cryptically on the first `add`
-# call. Baseline requirement across both community templates. Unlike the
-# headless sub-agents, the MANAGER must NOT self-install via install_packages:
+# call. The agent must NOT self-install via install_packages:
 # that rebuilds the image and restarts the container, killing any live owner
 # conversation (e.g. a welcome interview) and losing its answers. This is
 # meant to be installed host-side at stamp time — docs/INSTALL.md §1 (stamping).
@@ -13,7 +12,7 @@ if ! command -v jq >/dev/null 2>&1; then
 fi
 # On-demand, mechanical setup status check for the MANAGER's own config — run
 # whenever the owner asks "what's not set up". This checks only what a
-# script can verify; Discord wiring, sub-agent stamping, and the owner-DM
+# script can verify; Discord wiring and the owner-DM
 # round trip are NOT curl-testable and stay on the ready gate (CHECKPOINTS.md)
 # for a human/agent to confirm conversationally.
 DATA="/workspace/agent/plugin-data/community-manager"
@@ -49,7 +48,7 @@ if [ -d "/workspace/agent/.git" ]; then
     add "workspace_backup_configured" "missing" "git repo exists but no 'origin' remote — see README, Workspace backup setup"
   fi
 else
-  add "workspace_backup_configured" "missing" "no git repo in workspace yet — optional, but the follower-count series has nowhere durable to live without it"
+  add "workspace_backup_configured" "missing" "no git repo in workspace yet — optional; plugin-data (project notes, ledgers) is rebuilt from the web on a cold start"
 fi
 
 for k in github_bot_username security_contact escalation_backstop docs_style; do
@@ -61,7 +60,6 @@ for k in github_bot_username security_contact escalation_backstop docs_style; do
 done
 
 add "discord_wiring" "unknown" "not curl-testable from here — confirm with a live DM round trip (CHECKPOINTS.md, ready gate #1)"
-add "subagents_stamped" "unknown" "check via 'ncl groups list' or ask each sub-agent to run its own setup-check.sh"
 
 printf '{"status": %s, "checks": %s}\n' \
   "$(printf '%s' "$CHECKS" | jq 'if any(.[]; .status=="missing" or .status=="unreachable" or .status=="mismatch") then "incomplete" else "complete" end')" \

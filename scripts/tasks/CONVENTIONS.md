@@ -19,7 +19,7 @@ schema once, in the header.
   need one; never comma-bearing free text in a CSV file).
 
 **Exception:** `jq` is still the right tool for parsing an external API
-response (GitHub, GA4, `ncl --json`) — that input isn't ours to reshape.
+response (GitHub, `ncl --json`) — that input isn't ours to reshape.
 The rule is about files *we* write and read back, not about the world.
 
 Applies to every new gate script and task. Existing files get converted

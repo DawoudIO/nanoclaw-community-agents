@@ -1,45 +1,21 @@
 # Community Manager Agent Template
 
-The manager agent in a two-template set for running an open-source project's
-community: answer users and contributors on Discord and GitHub as one consistent
-identity, triage what comes in, and relay the work of one headless sub-agent —
-while being the only thing in the system with a **full** public voice.
-
-**This set:**
-
-| Template | Role | Public voice? |
-|---|---|---|
-| `opensource/community-manager` (this one) | Manager: community replies, GitHub triage, escalation, relays sub-agents | **Yes — the only full one** |
-| `opensource/community-helper` | The Helper: issue/PR triage, security advisories, repo and contributor health, and every number the project tracks | Holding acknowledgments only |
-
-The manager works standalone. Add the Helper when you want that work done
-without giving it a second identity.
+One agent for running an open-source project's community: help Discord and
+GitHub users with questions and answers, as one consistent identity, and
+triage what comes in. It is the only thing in the system with a public
+voice, and the only agent in the set.
 
 ## Why one voice
 
 Every extra identity that can post publicly is one more thing a reader has
 to trust, and one more target for an injected instruction — "reply as the
-other bot," "don't mention a sub-agent did this."
+other bot," "don't mention a sub-agent did this." There is no second agent
+here, so that class of attempt has nothing to aim at. Full reasoning in
+`skills/community-manager/references/single-voice-relay.md`.
 
-- **The Helper has no channel wiring**, except one case below — this class
-  of attempt fails structurally, not by an agent remembering a rule under
-  pressure.
-- **The one exception is `unanswered-watch`.** It holds a channel wiring
-  because a holding acknowledgment has to appear where the unanswered
-  message is — but its scope is fixed tight:
-
-  | Constraint | Value |
-  |---|---|
-  | Where it can post | Support channels only |
-  | Identity it posts as | The manager's own bot — no reader sees a new party |
-  | What it can say | One fixed line, never composed freely |
-
-  What it posts is a receipt, never a resolution — every real answer is
-  still only the manager's. Full reasoning in
-  `skills/community-manager/references/single-voice-relay.md`.
-- **That exception lives on a different agent on purpose:** an agent
-  sharing the manager's usage window can't also be the thing that covers
-  for that window running out.
+The cost of one agent is stated plainly in `unanswered-watch`: it runs on
+the same usage window as the replies it watches over, so it catches a
+question that scrolled past, not a window that has run out.
 
 ## Layout
 
@@ -55,12 +31,15 @@ community-manager/
 │   │   └── additional_context/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
-│   └── tasks/                                         # 6 tasks, all created paused
-│       ├── docs-gap-review.md                         # script-gated, proposes docs pages for repeat questions
-│       ├── github-first-response.md      # every 10 min: new, unanswered
-│       ├── owner-tldr.md                # the ONE daily digest to the owner
-│       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
+│   └── tasks/                                         # 9 tasks, all created paused
+│       ├── unanswered-watch.md                        # every 10 min: a support message past the grace period
+│       ├── github-first-response.md                   # every 10 min: new, unanswered issues and PRs
+│       ├── project-context.md                         # daily: what changed, what is released vs merged
+│       ├── follow-up-nudge.md                         # weekly: check in on idle PRs and unanswered workarounds
+│       ├── owner-tldr.md                              # the ONE daily digest to the owner
+│       ├── docs-gap-review.md                         # weekly, proposes docs pages for repeat questions
 │       ├── owner-instruction-watch.md                 # the dropped-ack watch the persona already promised
+│       ├── weekly-identity-integrity-check.md         # asks before it ever locks anything
 │       └── conversation-archive-prune.md              # pure housekeeping, never wakes the model
 ├── skills/
 │   ├── welcome/                               # first-contact onboarding interview (see below)
@@ -76,10 +55,12 @@ community-manager/
 └── README.md
 ```
 
-`docs-gap-review` lives here for a mechanical reason worth remembering before
-moving any task between agents: it reads `question-ledger.csv`, which only
-the manager writes, and no agent can read another agent's plugin-data — so in the
-Helper it was permanently dead.
+`project-context` is what keeps the answers true. Daily, it reads every repo
+in `CONTEXT_REPOS` for the commits since yesterday, which `.agents/skills/**`
+and docs files changed, the latest release tag against what is merged but
+unreleased, and the open milestones, then writes
+`plugin-data/community-manager/release-state.csv` so the agent answers "is X
+released?" from a file. It wakes the model only on change.
 
 **There is no health-check or workspace-backup task in this set, by design.**
 A health check that cannot fix what it finds, reporting via a heartbeat whose
@@ -87,9 +68,9 @@ A health check that cannot fix what it finds, reporting via a heartbeat whose
 container cannot report its own death anyway. A whole-workspace backup is a
 write-only cost when nothing ever restores from it, which is the case here:
 the system is rebuilt from the templates and nothing reimports container
-state. What covers the real risk instead is narrower: `project-health` (on the
-Helper) commits the series that genuinely cannot be rebuilt into a branch of
-the project's repo on every run, and reads them back.
+state. Every file this agent writes is a cache its task rebuilds on the next
+run. Project metrics are collected by GitHub Actions in the project's own
+repo, outside this agent.
 
 ## Channel tiers
 
@@ -100,7 +81,7 @@ tiers and fixes the engage behavior per tier, so it isn't a per-message judgment
 |---|---|---|
 | **Support** | Community members asking for help | **Auto-reply** — jumps in on real questions/requests; doesn't interject into cross-talk that merely mentions the project (see `channel-routing.md`) |
 | **Developer** | Contributors, maintainers, security | **Mention-only** — never volunteers into contributor discussion |
-| **Team lead** | Marketers, admins, project leads | **Mention-only**, plus receives scheduled reports |
+| **Team lead** | Marketers, admins, project leads | **Mention-only**, plus receives release announcements |
 
 Fill in your real channel names before going live. `example-mapping.md` shows a
 filled-in version from a real deployment.
@@ -113,49 +94,28 @@ On the owner's first DM, the `welcome` skill runs setup end to end:
 2. Asks for the project's GitHub repo, scopes the goals, infers and confirms
    the rest.
 3. Persists everything to `plugin-data/community-manager/`
-   (`project-config.md` + `config.env` — the latter carries
-   `COMMUNITY_REPOS` for the `github-first-response` gate).
-4. Relays each stamped sub-agent's config into *its own* `config.env`.
-5. Walks credential setup with real verification calls.
-6. Gates task activation on your explicit go.
+   (`project-config.md` + `config.env`).
+4. Walks credential setup with real verification calls.
+5. Gates task activation on your explicit go.
 
 **Every FILL-THIS-IN marker in this template is an optional pre-stamp
 default** — the conversational config in plugin-data always wins at
 runtime.
 
-The relay is not a convenience: an agent can only read
-`plugin-data/<its-own-name>/`, so every key has to be written into the owning
-agent's file — this is the one relay to get right:
+Scripts read only `config.env`; a key missing there is a task that silently
+never runs. These are all of them:
 
-| Sub-agent | Keys the manager relays |
-|---|---|
-| `opensource/community-helper` | `COMMUNITY_REPOS`, `ACK_GRACE_MINUTES`, `LEDGER_REPO`, `GA4_PROPERTIES` (+ optional `SECURITY_WATCH_REPOS`, `DOCS_REPO`, `LEDGER_BRANCH`, `LEDGER_PATH`, `HEALTH_POST_DOW`, `SOCIAL_DAILY`, `NUDGE_MAX_CHECKS`, `INBOX_ENABLED`, `INBOX_QUERY`, `INBOX_MAX_RESULTS`) |
+| Key | Required | Read by |
+|---|---|---|
+| `COMMUNITY_REPOS` | yes | `github-first-response`, `project-context` (when `CONTEXT_REPOS` is unset), `setup-check.sh` |
+| `CONTEXT_REPOS` | optional, defaults to `COMMUNITY_REPOS` | `project-context` — the repos whose daily changes the agent should follow, usually all of them including docs and marketing |
+| `ACK_GRACE_MINUTES` | optional, default `20` | `unanswered-watch` — bare integer minutes a support message may sit unanswered |
+| `CHAT_INVITE_URL` | optional | `follow-up-nudge` — the team chat invite offered to a contributor who has gone quiet; unset means no invite is offered |
+| `STALE_PR_DAYS`, `FOLLOWUP_DAYS`, `RENUDGE_DAYS` | optional, defaults `7`, `5`, `30` | `follow-up-nudge` — days a PR may sit idle, days of silence after a posted workaround, and the minimum gap between check-ins on the same item |
+| `OWNER_TZ` | optional, default `UTC` | `owner-tldr` — IANA zone, so the digest lands at 07:00 owner-local (`TLDR_LOCAL_HOUR` to move it) |
+| `GITHUB_BOT_USERNAME` | yes | `setup-check.sh`'s identity check — without it the check passes for any account, including the owner's own |
 
-There is only one relay now, and it carries nearly every key in the system —
-the Helper owns most of the tasks (run `bash scripts/gen-task-table.sh --counts`
-for the current split), so an unrelayed key here is the single largest source
-of "stamped and never does anything."
-
-This agent also owns its own `COMMUNITY_REPOS`. `GITHUB_BOT_USERNAME` is set
-in both agents.
-
-`inbox-check` is opt-in and off by default: its gate needs
-**`INBOX_ENABLED="true"`** before it will fire at all, which is the right
-default for the many projects with no shared inbox — unset, the task costs
-nothing forever instead of reporting a permanent 401 twice a day. Optional:
-`INBOX_QUERY` (default `is:unread newer_than:7d`), `INBOX_MAX_RESULTS`
-(25), `INBOX_RETRY_HOURS` (24), `INBOX_MAX_RETRIES` (2). The gate hands over
-**message IDs only** — never subjects, senders, or bodies: a shared inbox is
-where vulnerability disclosures arrive, and every gate's JSON is mirrored to
-a local telemetry log, so mail content there would persist to disk outside
-the agent's context. The agent reads the mail itself through its email MCP.
-
-**The manager keeps no copy of the metrics series.** The Helper owns those
-files and publishes them itself — two ledgers of the same numbers in two
-containers would drift apart, and then nobody knows which is right. The
-manager reports the numbers it's handed and stores none of them.
-
-**What the manager would still lose in a rebuild:**
+**What the manager would lose in a rebuild:**
 
 | File | What it holds | Why it's not published |
 |---|---|---|
@@ -177,25 +137,17 @@ ncl groups create --template opensource/community-manager --name "Community Mana
 #    install so both land in one restart (see docs/INSTALL.md §1).
 ncl groups config update --id <manager-id> --model claude-haiku-4-5
 
-# 3. Stamp the Helper, if you want its work done (stays on Haiku for good)
-ncl groups create --template opensource/community-helper --name "Community Helper"
+# 3. Wire the manager to your Discord channels, per your platform's channel
+#    management — see welcome/SKILL.md 5c for the exact commands.
+#    unanswered-watch reads the manager's own sessions, so no extra wiring.
 
-# 4. Wire it to the manager — agent-to-agent
-ncl destinations add --agent-group-id <helper-id>    --local-name parent --target-type agent --target-id <manager-id>
-ncl destinations add --agent-group-id <manager-id>      --local-name helper --target-type agent --target-id <helper-id>
-
-# 5. Wire the MANAGER to your Discord channels and GitHub repos, per your
-#    platform's channel management. The Helper additionally needs a SILENT
-#    wiring to each support channel so unanswered-watch can see messages and
-#    post its holding line — see welcome/SKILL.md 5c for the exact commands.
-
-# 6. Connect credentials in OneCLI (tables below), then review and resume tasks
+# 4. Connect credentials in OneCLI (tables below), then review and resume tasks
 ncl tasks list --status paused
 ncl tasks run <task-id>       # test scripted tasks first
 ncl tasks resume <task-id>
 
-# 7. The manager promotes ITSELF to Sonnet as the last act of the welcome
-#    interview (welcome/SKILL.md §11) and restarts to apply it — expect one
+# 5. The manager promotes ITSELF to Sonnet as the last act of the welcome
+#    interview (welcome/SKILL.md §10) and restarts to apply it — expect one
 #    short session drop, not a crash. These two lines are the manual
 #    fallback only. BOTH are needed: config update just writes the row, the
 #    restart is what applies it, or it reads Sonnet and still bills Haiku.
@@ -203,27 +155,25 @@ ncl groups config update --id <manager-id> --model claude-sonnet-5
 ncl groups restart --id <manager-id>
 ```
 
-Every task in both templates is created **paused**. Read each one, fill in
-the config its README lists, and resume deliberately — that's the
-rebuild-cheaply property: the whole system is a stamp plus a handful of
-`resume` calls, and tearing it down is deleting two groups.
+Every task is created **paused**. Read each one, fill in the config above,
+and resume deliberately — that's the rebuild-cheaply property: the whole
+system is a stamp plus a handful of `resume` calls, and tearing it down is
+deleting one group.
 
-**The manager has no triage digest of its own.** `github-first-response` is
-the fast path — it comments on new, unanswered issues — and the Helper's
-weekly `github-ops-triage` is the digest. Standalone, without the Helper, the
-manager still answers what comes in; nothing summarizes the week for it, and
-there is deliberately no second task that would report the same issues twice
-from two cursor files that can't see each other.
+**There is no triage digest.** `github-first-response` is the fast path — it
+comments on new, unanswered issues — and the agent answers what comes in.
+Nothing summarizes the week, deliberately: a digest would report the same
+issues a second time from a second cursor file.
 
 **There is no workspace backup anywhere in this set, by design.** See the note
-under *Configuration* above: the only state worth preserving is published by
-`project-health` on the Helper, and everything else is meant to be rebuilt.
+under *Configuration* above: everything is meant to be rebuilt.
 
 **Script dependencies:** `bash`, `curl`, `jq`, and `ncl`. Verify with `ncl
 tasks run <task-id>` before resuming.
-(`weekly-identity-integrity-check` reads `ncl tasks list --json` —
-without `ncl`, its gate wakes the agent for a manual check instead of
-failing.)
+(`weekly-identity-integrity-check` reads `ncl tasks list --json` and
+`unanswered-watch` reads the agent's own sessions through `ncl` — without
+it, the first wakes the agent for a manual check and the second reports
+`degraded` instead of failing.)
 
 **Cron lines are written UTC-relative; the group's actual timezone decides
 the wall-clock fire time.** `ncl groups config update --timezone <IANA id>`
@@ -241,7 +191,7 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 
 | Service | API host to match | Auth style | Permissions needed | Where to get it |
 |---|---|---|---|---|
-| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` — still needed here because `github-first-response` comments on new issues and the manager's live replies comment on PRs and file issues from chat bug reports: Issues read/write and Pull requests read/write, Contents read, Metadata read. The ledger repo is **not** in this agent's scope; that write belongs to the Helper's token. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
+| GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` plus `CONTEXT_REPOS`: Issues read/write (`github-first-response` comments on new issues; live replies comment and file issues from chat bug reports), Pull requests read/write (live replies comment on PRs), Contents read (`project-context` reads skills, docs and `compare`), Metadata read. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 
 **Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
 MCP server won't boot without the variable present; the real token is injected at
@@ -255,30 +205,20 @@ on a real deployment it lands in the **Custom** tab as a generic secret
 credential here uses. That's NanoClaw's own internal plumbing for its
 Discord adapter — not a step you perform yourself.
 
-**Give each agent its own least-privilege token:**
-
-| Agent | Token scope |
-|---|---|
-| Manager | Comments and files issues — the only one that does |
-| Helper | Read-only across `COMMUNITY_REPOS`, plus Contents+PRs write for draft security patches and Contents write on the ledger repo |
-
-Sharing one broad token across both defeats the point of splitting them.
-
-**Both tokens match the same host (`api.github.com`), so use OneCLI's
-`selective` secret mode** — in `all` mode, every agent whose requests match the
-host gets whichever secret matches first, which collapses your scoped tokens
-back into shared access. Set each agent to selective and assign it only its own
-secret:
+**Use OneCLI's `selective` secret mode** even with one agent — in `all`
+mode, any agent whose requests match the host gets whichever secret matches
+first, so a token added later for anything else on `api.github.com` would
+silently reach this agent too:
 
 ```bash
 onecli agents list                                              # find agent ids
-onecli agents set-secret-mode --id <agent-id> --mode selective  # per agent
-# then assign each agent its own GitHub secret in the OneCLI web UI
+onecli agents set-secret-mode --id <agent-id> --mode selective
+# then assign the agent its GitHub secret in the OneCLI web UI
 ```
 
 ### Hard approval gates for sensitive actions
 
-Standing instructions tell each agent what not to do — that's guidance the
+Standing instructions tell the agent what not to do — that's guidance the
 model follows, not enforcement. For anything you genuinely cannot allow,
 use OneCLI's request-hold/approval rules instead: they gate the **outbound
 HTTP request** itself (host + method + path) at the proxy, where no prompt

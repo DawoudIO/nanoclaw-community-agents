@@ -113,7 +113,7 @@ jq -Rn --rawfile raw "$LIVE" '
 # --- 2. fill the example template's `value` fields -------------------------
 # A leaf is fillable when its own `persists_to` names a config key, or when
 # the leaf's key matches a live config key case-insensitively (e.g.
-# ga4_property_id -> GA4_PROPERTY_ID). Metadata (_ask, _note, ...) is kept so
+# community_repos -> COMMUNITY_REPOS). Metadata (_ask, _note, ...) is kept so
 # the exported file is still self-documenting for editing.
 STAMP=$(date -u +%Y-%m-%dT%H:%M:%SZ)
 RESULT=$(jq --slurpfile live "$LIVE.json" --arg stamp "$STAMP" --arg src "$NCL_ROOT" '

@@ -19,21 +19,17 @@ is aimed at catching that mistake *before* it happens, not after.
 
 | Credential | Create it here | Notes |
 |---|---|---|
-| **Model access (what the agents think with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the manager simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. Both agents draw on this same window; a local (Ollama) model for the sub-agent is possible but not adopted — see [SKILLS-ADOPTION.md](SKILLS-ADOPTION.md) |
+| **Model access (what the agent thinks with)** | **Preferred: your Claude subscription.** The kit's first-boot wizard accepts *a subscription, an OAuth token, or an Anthropic API key* — pick subscription and there's no per-token bill. Alternative: `console.anthropic.com` → API Keys. Either way the credential lands in the OneCLI vault (**LLMs** tab), never in a file. | **Nothing works without this.** Symptom when missing, expired, or out of capacity: the manager simply never replies to your DM — no error surfaces anywhere you'd see it. **Read [OPERATIONS.md → Model budget — one shared window, and the trap in it](docs/OPERATIONS.md) before choosing**: a subscription shares one usage window with your own Claude Code sessions, which has a real failure mode attached. The one agent draws on this same window |
 | GitHub bot account | github.com → sign in as the bot, or create a new account | **Do this first** (after the model key) — every token below is cut from this account, not the owner's |
-| Manager GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS`. Not classic, not `read:org` |
-| Helper GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Read-only Issues+PRs over `COMMUNITY_REPOS`, + Dependabot alerts if enabling the sweep, + Contents/PRs write for draft security patches, + Contents write on `LEDGER_REPO` for `project-health`'s ledger push |
-| **`github.com` (git) credential** | same token, registered against the git host | A **separate vault entry class** from `api.github.com`. The Helper pushes the metrics-history branch with it every `project-health` run; wiring only the REST host leaves that run reporting `ledger.status: push-failed` while everything else works |
+| Manager GitHub PAT | `github.com/settings/personal-access-tokens/new` (fine-grained) | Issues+PRs read/write, Contents read, over `COMMUNITY_REPOS` plus `CONTEXT_REPOS`. Not classic, not `read:org` |
 | Discord bot | `discord.com/developers/applications` → New Application → Bot tab | Fresh application — never reuse a bot from a prior system |
-| GA4 OAuth | `console.cloud.google.com` → enable "Google Analytics Data API"; GA4 Admin → grant Viewer | Not the Admin API. **Belongs to the Helper** (`project-health`, post day only) — the manager gets no analytics access |
-| Gmail OAuth | `console.cloud.google.com` → Gmail API + OAuth consent | Scope `gmail.readonly` only |
 | Tailscale (optional, for remote dashboard access) | `tailscale.com/download` | See docs/INSTALL.md §2 for the exact `serve` command |
 
 **Never give any agent a key — everything goes through OneCLI.** Never paste
 a raw value into a chat with an agent, a template file, an env var, or
 anywhere but the vault (dashboard UI, or `onecli secrets create` below). The
-agents run with no credentials at all — the proxy injects auth outside their
-containers — and every agent's persona instructs it to refuse and report if
+agent runs with no credentials at all — the proxy injects auth outside its
+container — and its persona instructs it to refuse and report if
 anyone asks it to receive or reveal a key. An agent asking you for a key is
 misbehaving; the answer is the vault dashboard URL, never the key.
 
@@ -47,7 +43,7 @@ explicitly permitted to take. Regenerate the endpoint list any time with:
 grep -rhoE 'https://api\.github\.com/[^"]*' scripts/tasks/*/*.sh */*/setup-check.sh | sort -u
 ```
 
-**Use fine-grained PATs for both agents.** A classic `repo` scope is
+**Use a fine-grained PAT.** A classic `repo` scope is
 account-wide (every repo the bot can see, read *and* write); a fine-grained
 token is an allowlist of named repos with per-category permissions. Nothing
 here needs classic. Note that a fine-grained token's repo list gates
@@ -55,47 +51,21 @@ here needs classic. Note that a fine-grained token's repo list gates
 a repo left off the list fails silently rather than falling back to public
 access. That's the single most common misconfiguration in this system.
 
-**Almost every gate SCRIPT is a read** — `project-health`'s ledger push is
-the one exception, and it writes only to its own metrics branch. Everything else that
-writes does so in an agent's live actions after a gate wakes it, which is why,
-of the two tokens, write is narrow and unevenly distributed:
-
-- **Manager** — Issues and PRs write, for its own live replies: filing a bug
-  report from a Discord conversation, commenting, labelling.
-- **Helper** — Contents and PRs write, but only to open a
-  **draft** PR: a security-patch branch (`security-advisory-sweep`, confirmed
-  advisories only) or a version-tagged docs branch (`docs-currency-watch`).
-  It never marks a PR ready, never merges, and never pushes to a default
-  branch — see §1b's least-privilege table for the branch-protection
-  requirement this write scope depends on. Plus Contents write on the
-  ledger repo, for the metrics branch.
-
-So both hold some write, but only the manager's reaches a branch anyone reads day
-to day. The Helper's other writes reach only its own draft branches — never
-anything mergeable without a human — and its metrics write lands on a
-dedicated orphan branch that no human workflow builds from.
-
-There is exactly one `POST` in the whole system, it belongs to the Helper
-(`project-health`, post day only), and it is **not** a write:
-GA4's `analyticsdata.googleapis.com/v1beta/properties/{id}:runReport`. That
-API takes its query (date range, which metrics) as a JSON body, so Google
-made the query verb a POST — it returns rows and mutates nothing. The
-required GA4 role is **Viewer**, which is itself the proof: a read-only role
-can run it. The API that *can* change a property is
-`analyticsadmin.googleapis.com`, which this system never calls — **do not
-enable it in the Cloud project.** If you set up an OneCLI request-hold
-anywhere, match on host+path rather than HTTP method, or this harmless report
-gets gated.
+**Every gate SCRIPT is a read.** Everything that writes does so in the
+agent's live actions after a gate wakes it — Issues and PRs write, for its
+own replies: filing a bug report from a Discord conversation, commenting,
+labelling. No script pushes a branch, opens a PR, or sends a `POST`.
 
 ### Manager — `opensource/community-manager`
 
 | Permission | Level | Justified by |
 |---|---|---|
 | Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
-| Issues | **Read + Write** | reads `GET /search/issues` (`github-first-response`); writes = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
+| Issues | **Read + Write** | reads `GET /search/issues` and `GET /repos/{repo}/issues/comments` (`github-first-response`), `GET /repos/{repo}/milestones` (`project-context`), `GET /repos/{repo}/issues/{n}` and its `/comments` plus `search/issues … review:changes_requested` (`follow-up-nudge`); writes = one check-in comment per idle PR or silent issue (`follow-up-nudge`), = filing bug reports from Discord, commenting, labelling in its live replies (`github-bug-workflow.md`) |
 | Pull requests | Read + Write | commenting on PRs in those same live replies; the issues endpoint also returns PRs |
+| Contents | Read | `GET /repos/{repo}/commits`, `GET /repos/{repo}/releases/latest`, `GET /repos/{repo}/compare/{a}...{b}`, and raw file reads on the default branch for changed `.agents/skills/**` and docs files (`project-context`) |
 
-Repo list: everything in `COMMUNITY_REPOS`. **Never** `admin:*`,
+Repo list: everything in `COMMUNITY_REPOS` and `CONTEXT_REPOS`. **Never** `admin:*`,
 `delete_repo`, `read:org`, or workflow scopes — nothing reads org membership
 (listing an org's repos during onboarding needs no such scope) and nothing
 touches Actions.
@@ -104,82 +74,14 @@ One nuance on the Issues row worth knowing before you cut it smaller: the
 read is the smaller justification of the two. Even with `github-first-response`
 paused, the manager needs Issues and PRs write for its live replies.
 
-### Helper — `opensource/community-helper`
+Worth noticing what is *absent*: `unanswered-watch`, the task the
+responsiveness guarantee rests on, has no network access and no credential —
+it reads local session state only. A token problem cannot silence it,
+because it never had a token.
 
-**Read everywhere; write in exactly two narrow places — draft PRs, and its
-own metrics branch.** This agent drafts a dependency-bump PR when it confirms
-an advisory genuinely affects the project, so it needs enough write to create
-a branch and open a draft PR. Separately, `project-health` pushes a metrics
-branch to `LEDGER_REPO`. Nothing beyond those two.
-
-It carries nearly every task in the set, so this is the token whose repo list
-matters most — a repo left off it fails silently rather than falling back to
-public access.
-
-Worth noticing what is *absent* from every row below: `unanswered-watch`, the
-task the whole responsiveness guarantee rests on. It has no network access and
-no credential — it reads local session state only. That is exactly why it keeps
-working during the outage it exists to cover; a token problem cannot silence
-it, because it never had a token.
-
-| Permission | Level | Justified by |
-|---|---|---|
-| Metadata | Read | implied by everything; `GET /repos/{repo}` in setup-check |
-| Issues | Read | `GET /repos/{repo}/issues` and `GET /search/issues` (`github-ops-triage`, `project-health`) |
-| Contents | Read | `GET /repos/{repo}/releases` (download counts) and `/contributors` (`project-health`) |
-| Pull requests | Read | `GET /repos/{repo}/pulls` (`security-advisory-sweep` correlating open Dependabot PRs to alerts; `docs-currency-watch` reading merged PRs) |
-| Dependabot alerts | Read | `GET /repos/{repo}/dependabot/alerts` (`security-advisory-sweep`) — **omit this and the sweep 403s**; it's the one permission people forget |
-| Contents | **Write** | create the `security/<ghsa-id>` branch and commit the manifest/lockfile version bump (`security-advisory-sweep`); create the docs branch (`docs-currency-watch`) |
-| Pull requests | **Write** | `POST /repos/{repo}/pulls` with `draft: true` — the security patch, and the version-tagged docs PR |
-| Issues | Read → **also needed on `DOCS_REPO`** | `docs-currency-watch` reads merged PRs on the product repo and opens a PR on the docs repo |
-| Contents (**`LEDGER_REPO` only**) | **Write** | `project-health` pushes the metrics-history branch over `github.com` git — a *separate vault entry* from `api.github.com` |
-
-**Why this is still least-privilege.** Contents write is the permission that
-lets an agent change a repo, so it deserves the scrutiny: it is here because
-"you should upgrade lodash" is strictly less useful than a branch that already
-does it, and no smaller permission creates a branch. What bounds it is not the
-token but the combination of the token and **branch protection** — which is why
-the next paragraph is a requirement, not a suggestion.
-
-**Require branch protection on the default branch of every repo on this
-token.** The agent is instructed never to push to the default branch and never
-to mark a PR ready or merge it, but instructions are not a control. Protection
-is: require a PR and at least one approving review, and the agent physically
-cannot land anything on its own even if a prompt injection convinces it to try.
-If a repo on this token has no branch protection, this token should not have
-Contents write on it — drop to read there and accept that advisories on that
-repo get a report instead of a patch.
-
-**Note what it still cannot do**, and check these on the fine-grained form:
-no Administration, no Actions, no Secrets, no Workflows (a workflow-file write
-is remote code execution on your CI), no Issues *write* — it drafts issue text
-for the manager rather than opening issues itself.
-
-**Repo list: `COMMUNITY_REPOS` plus `DOCS_REPO`.** This is the one place the
-Helper's token reaches outside the triaged set, and it is easy to miss:
-fine-grained PATs are per-repository even for public data, so if the docs live
-in their own repo and it is not on this token's access list,
-`docs-currency-watch` fails to open its PR with a 403 and the whole
-docs-follows-release loop silently never runs. If the docs are a subdirectory
-of the product repo instead, no extra repo is needed — set `DOCS_PATH`.
-
-Most of this agent's tasks call `api.github.com` and so depend on this
-token: `github-ops-triage`, `security-advisory-sweep`, `docs-currency-watch`
-and `project-health`
-(`posthog-weekly-review` is removed for now — see SKILLS-ADOPTION.md if it
-comes back; it would run on its own PostHog credential, needing nothing
-here). Verify the list against
-`grep -l api.github.com scripts/tasks/helper/*.sh` rather than trusting
-this paragraph — it is the kind of list that goes stale on every split.
-
-**Two non-GitHub things also live on this agent and nowhere else**, both
-inside `project-health`: the GA4 OAuth connection
-(`analyticsdata.googleapis.com`, post day only),
-and the public social-profile reads (`x.com`, `www.linkedin.com`, …) which
-need **no credential at all** but do need sandbox allowlist entries plus a
-real page-reading capability in the container. If `agent-access` reports GA4
-reachable by the manager, that is a finding — see §3.
-
+Verify the endpoint list against `grep -l api.github.com
+scripts/tasks/manager/*.sh` rather than trusting this section — it is the
+kind of list that goes stale on every task change.
 
 ### Why PATs and not a GitHub App
 
@@ -193,8 +95,8 @@ outgrow the 5,000 req/hr primary limit — none of these tasks come close.
 
 ### Verify, don't assume
 
-After creating each token, confirm what it actually resolves to *and* that it
-can reach what it needs (§4 below, and each agent's `setup-check.sh`). The
+After creating the token, confirm what it actually resolves to *and* that it
+can reach what it needs (§4 below, and the agent's `setup-check.sh`). The
 identity check matters most: a token that works under the owner's own account
 is worse than one that fails, because every action it takes looks like the
 owner did it by hand.
@@ -205,9 +107,9 @@ The dashboard (docs/INSTALL.md §2) is the visual path. The CLI is scriptable an
 exactly as capable — real commands, not a paraphrase:
 
 ```bash
-# A generic secret (PostHog, LinkedIn, Discord bot token, anything host+header shaped)
-onecli secrets create --name "PostHog API Key" --type generic \
-  --value "<key>" --host-pattern "us.posthog.com" \
+# A generic secret (GitHub PAT, Discord bot token, anything host+header shaped)
+onecli secrets create --name "GitHub Bot PAT" --type generic \
+  --value "<token>" --host-pattern "api.github.com" \
   --header-name "Authorization" --value-format "Bearer {value}"
 
 # Dry-run first if you want to see the request without sending it
@@ -215,9 +117,9 @@ onecli secrets create --name "..." --type generic --value "..." \
   --host-pattern "..." --dry-run
 ```
 
-`--type` is `anthropic`, `openai`, or `generic` — GitHub/PostHog/Discord/GA4/
-Gmail are all `generic` with a host-pattern match; only the model provider key
-itself uses `anthropic`/`openai`.
+`--type` is `anthropic`, `openai`, or `generic` — GitHub and Discord are
+`generic` with a host-pattern match; only the model provider key itself uses
+`anthropic`/`openai`.
 
 ## 3 · Audit — verify what's connected, don't trust the tab count
 
@@ -228,7 +130,7 @@ the *right* 11. Run these and actually read the output:
 # Every Custom-tab secret: name, host/path match, when created
 onecli secrets list --fields name,hostPattern,pathPattern,createdAt
 
-# Every Apps-tab OAuth connection (Gmail, GitHub, GA4, ...), by provider
+# Every Apps-tab OAuth connection (GitHub, ...), by provider
 onecli apps connections list --fields provider,status,connectionId
 
 # The one that actually answers "does an agent have more access than it needs":
@@ -254,12 +156,12 @@ A real deployment's audit, applying the steps above:
 
 | Found | Verdict |
 |---|---|
-| GitHub (Apps tab), Gmail (Apps tab), Google Analytics (Apps tab) | ✅ expected — confirm identity with the `GET /user` check below regardless |
+| GitHub (Apps tab) | ✅ expected — confirm identity with the `GET /user` check below regardless |
+| Gmail (Apps tab), Google Analytics (Apps tab) | 🚩 **finding**: nothing in this template set reads mail or analytics any more — metrics moved to GitHub Actions in the project repo. Live OAuth grants with no task consuming them are unused surface; remove them |
 | GitHub App, GitLab, Google Drive, Google Calendar, Google Chat — all **not connected** | ✅ correct — nothing in this template set uses them; an unconnected integration sitting in the "Apps" list is not a requirement, don't connect it "just in case" |
-| PostHog API Key (Custom, host `us.posthog.com`) | 🚩 **finding**: `posthog-weekly-review` (the Helper's telemetry task) is removed for now — never got working end to end. A live PostHog key with no task consuming it is unused surface; remove it, or leave it if you plan to re-add the task soon |
+| PostHog API Key (Custom, host `us.posthog.com`) | 🚩 **finding**: no task here reads telemetry. A live PostHog key with no task consuming it is unused surface; remove it |
 | Discord Bot Token (Custom, host `discord.com`) | ✅ expected — `/add-discord`'s own registration, not a manual step |
-| LinkedIn Access Token (Custom, host `api.linkedin.com`) | 🚩 **finding**: this template's default LinkedIn posting is the free intent-URL flow, which needs no API credential at all. A live token here with nothing in the current design that calls it is exactly the kind of stale, unused-but-still-valid credential this audit exists to catch — confirm it's actually in use before carrying it forward; if not, remove it |
-| 4× Twitter/X secrets (`TWITTER_API_KEY`/`_SECRET`, `TWITTER_ACCESS_TOKEN`/`_SECRET`, all Custom, host `api.x.com`, OAuth 1.0a headers) | 🚩 **verify before reuse**: this is the legacy OAuth 1.0a posting flow. X's pricing changed in Feb 2026 to pay-per-use — confirm whether the *new* API uses this same auth scheme before assuming these four secrets still work; only relevant at all if the owner opts into paid X posting (default is free intent-URL, needing none of this) |
+| LinkedIn Access Token (Custom, host `api.linkedin.com`), 4× Twitter/X secrets (Custom, host `api.x.com`) | 🚩 **finding**: nothing in this template set posts or reads on either platform. Stale, unused-but-still-valid credentials are exactly what this audit exists to catch — remove them |
 | Anthropic Token (LLMs tab, host `api.anthropic.com`) | ✅ the model provider key, not an identity/posting credential — no rotation needed as part of any bot-identity cleanup |
 
 The flagged 🚩 rows are the actual value of running this audit: none is a
@@ -277,7 +179,7 @@ curl -s -H "Authorization: Bearer <same-value-as-the-vault-entry>" https://api.g
 
 Compare the printed `login` against the dedicated bot account's username —
 never the owner's own. This is exactly the check the welcome interview and
-every agent's setup self-check now run automatically (see docs/INSTALL.md §2,
+the agent's setup self-check now run automatically (see docs/INSTALL.md §2,
 "Confirm identity, don't assume it") — running it yourself here is the
 manual version, useful before you've even stamped an agent.
 
@@ -306,8 +208,8 @@ an agent makes. Confirm it rather than just trust it:
 1. Run the update.
 2. Re-run the identity check in step 4 with the *new* value — confirm it
    resolves to the account you meant.
-3. Have the relevant agent make one real read-only call (its own setup
-   self-check does this) and confirm success.
+3. Have the agent make one real read-only call (its own setup self-check
+   does this) and confirm success.
 
 **If you're specifically fixing a "this was authenticated as my own account"
 mistake**: cut the new bot-account token first, verify its identity with step
@@ -315,6 +217,6 @@ mistake**: cut the new bot-account token first, verify its identity with step
 value in place — the host/path binding and everything wired to that secret ID
 stays intact; only the account behind it changes.
 
-**Never rotate by editing a template file or an agent's persona** — credentials
+**Never rotate by editing a template file or the agent's persona** — credentials
 never lived there to begin with; this is entirely a vault operation, on the
 existing secret ID, and it's exactly why the design keeps them separate.

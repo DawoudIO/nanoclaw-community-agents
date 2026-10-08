@@ -1,0 +1,8 @@
+{"ahead_by":2,"total_commits":2,"commits":[
+ {"sha":"c2c2c2c2c2c2c2c2c2c2","commit":{"message":"Rename sTimeZone setting","committer":{"date":"__RECENT_ISO__"},"author":{"name":"Bo"}},"author":null},
+ {"sha":"bbbbbbbbbbbbbbbbbbbb","commit":{"message":"Fix kiosk heartbeat (#412)","committer":{"date":"__RECENT_ISO__"},"author":{"name":"Cy"}},"author":{"login":"cy"}}],
+ "files":[
+ {"filename":".agents/skills/acme/repo-health.md","status":"modified"},
+ {"filename":"docs/settings.md","status":"modified"},
+ {"filename":"CHANGELOG.md","status":"modified"},
+ {"filename":"src/Kiosk.php","status":"modified"}]}

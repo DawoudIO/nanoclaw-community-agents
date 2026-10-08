@@ -13,34 +13,31 @@ it](OPERATIONS.md) for what the install actually costs and which meter pays for
 it; the short version is that volume won't threaten a 5-hour window but a
 credential debugging loop will.
 
-## The ready gate — 15 points, do not call it live until every box is checked
+## The ready gate — 14 points, do not call it live until every box is checked
 
 Work through these in order after INSTALL.md §4's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
 
-Items 13–15 exist because an install could once pass every earlier check
-while the agent that owns most of the tasks (run
-`bash scripts/gen-task-table.sh --counts` for the current split) was absent,
-misconfigured, or silently billing to the shared window without anyone
-noticing.
+Items 12–14 exist because an install could once pass every earlier check
+while the agent was silently billing to the shared window at the wrong tier,
+or its safety net had never actually fired, without anyone noticing.
 
 | # | Test | How | Pass looks like |
 |---|---|---|---|
 | 1 | Owner DM round trip | DM the manager; ask it to proactively DM you back | Both directions arrive; replies come from the bot identity |
-| 2 | Bot identity on GitHub | Ask the manager "what's not set up?" — it runs its own `setup-check.sh` and has the Helper relay its own | **Both tokens** — one per agent — report `GET /user` login == the dedicated bot username, never yours. Two reports, not one: a missing one means the sub-agent didn't answer, which is itself the finding |
+| 2 | Bot identity on GitHub | Ask the manager "what's not set up?" — it runs its own `setup-check.sh` | The token reports `GET /user` login == the dedicated bot username, never yours |
 | 3 | Support-tier auto-reply | Post a question in a support channel from a **non-owner** account, no @mention | Unprompted reply within a couple of minutes. Silence here = the Message Content intent is off in the Discord dev portal |
 | 4 | Mention-only discipline | Post in a dev-tier channel *without* tagging the bot, then again *with* a tag | No reply to the first, a reply to the second |
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
-| 7 | Sub-agent relay | DM the manager: "ping the Helper and relay its answer" | It answers **through the manager** — that's its only outbound path for anything substantive. Its one channel wiring exists solely for the template-only holding acknowledgment it is forbidden to compose freely; nothing else it produces should ever appear in public |
-| 8 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
-| 9 | History publish actually pushed | `tasks get` on the first `project-health` run and read `data.ledger.status` (also mirrored in `plugin-data/community-helper/telemetry/project-health.jsonl`) | `published-and-verified` — the script pushed today's `metrics-history.csv` row to `LEDGER_REPO`'s `agent-metrics` branch **and read it back from GitHub**, so the read-back is automatic; you don't need to open the branch. `published-unverified` once is raw-content lag; twice is a finding. `not-configured`, `clone-failed`, `push-failed` or `bad-config` mean stop: this is the only durable state in the system, and a silent failure here costs data rather than a report |
-| 10 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
-| 11 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's per-agent footprint table; nothing extra |
-| 12 | Human backstop recorded | Ask the manager who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 13 | **Which meter the agents bill to, and at which tier** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key), then confirm which agents draw on it. Then run `ncl groups config get --id <manager-id>` and confirm `model` reads **sonnet** — not the haiku it was pinned to for setup | You can state which meter — **and that both agents bill to it** (a local-model provider is possible but not adopted; see SKILLS-ADOPTION.md). If subscription: you know the agents share one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. The manager promotes itself at the end of onboarding, but a tier change only applies after a restart — so a config updated and never restarted reads Sonnet while every wake still bills Haiku |
-| 14 | **`unanswered-watch` proven end to end** | Let one test message from a non-owner account sit in a support channel past `ACK_GRACE_MINUTES` (default 20) without the manager answering it | The holding acknowledgment appears in the channel. Do not accept "the gate returns clean JSON" as a substitute — this is the north star's safety net, and its two riskiest dependencies (channel wiring, message-list shape) only fail at the point where it has to actually post |
-| 15 | You can check liveness on demand | DM the manager exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices. Know that this proves only the *manager* is alive; a stopped sub-agent shows up as its reports going quiet instead |
+| 7 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
+| 8 | `project-context` took its baseline | `tasks run` it once by hand, then `tasks get`, and `cat plugin-data/community-manager/release-state.csv` in the container | `status: baseline`, `degraded_repos: []`, and one row per repo in `CONTEXT_REPOS` (or `COMMUNITY_REPOS`) with a `released_tag` where the repo has a release. Then ask the manager "what's the latest release?" — the answer must match that file, not its training data. A repo in `degraded_repos` is a token or repo-name problem; fix it now, because an unread repo is one the agent will answer about from memory |
+| 9 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
+| 10 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's footprint table; nothing extra |
+| 11 | Human backstop recorded | Ask the manager who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
+| 12 | **Which meter the agent bills to, and at which tier** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key). Then run `ncl groups config get --id <manager-id>` and confirm `model` reads **sonnet** — not the haiku it was pinned to for setup | You can state which meter (a local-model provider is possible but not adopted; see SKILLS-ADOPTION.md). If subscription: you know the agent shares one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. The manager promotes itself at the end of onboarding, but a tier change only applies after a restart — so a config updated and never restarted reads Sonnet while every wake still bills Haiku |
+| 13 | **`unanswered-watch` proven end to end** | Post one test message from a non-owner account in a support channel and immediately `ncl groups restart` the manager, so the live reply is lost with the in-flight turn. Wait past `ACK_GRACE_MINUTES` (default 20) plus one 10-minute tick | The manager answers the message anyway, from the gate wake, and `tasks get` on that run shows `status: unanswered`. Do not accept "the gate returns clean JSON" as a substitute — the riskiest dependency (the `ncl sessions` output shape) only fails at the point where it has to find the message. Know the honest limit while you test it: this proves a dropped message gets caught; it cannot cover an exhausted usage window, because it runs on the same credential |
+| 14 | You can check liveness on demand | DM the manager exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices |
 
 ## Day 2 — did the first unattended cycle actually run?
 
@@ -52,62 +49,50 @@ Ten minutes, the morning after go-live:
   week 3.
 - **No fetch-failed noise**: any `fetch-failed` wake overnight is a token or
   allowlist problem — the message itself says which (401/403 vs 502).
-- **Triage digest sanity**: the first digest arrived and describes issues
-  that actually exist. Spot-check one item against GitHub.
+- **`project-context` ran at 06:07**: `tasks get` on it shows `unchanged`
+  (0-token) or `changed` with a `since_last_run` that matches the repo's
+  real commits. If it reported `changed`, `project-notes.md` was rewritten
+  with today's date. Spot-check one commit subject against GitHub.
 - **Tone check on one real reply**: read the bot's first genuine
   support-channel answers. Correct register? Right language behavior? This
   is the cheapest moment to correct tone — one DM to the manager.
 - **No surprise wakes**: gated tasks that had nothing to say stayed silent.
   A gate waking on nothing is a bug worth reporting while it's fresh.
-- **Close out the unverified holding-ack risk.** It was flagged as needing a
-  real install before anyone could assert it, and it fails *quietly*, which is
-  why it belongs on a checklist rather than in a bug report you'd notice on
-  your own:
-  - **Can the manager and the Helper both wire to the same Discord
-    channel?** Still unverified. If the platform refuses the second wiring, or
-    the Helper's channel destination silently resolves to nothing,
-    `unanswered-watch` will do all its work and then have nowhere to put the
-    acknowledgment. Ready gate item 14 is the test; if you skipped it, do it
-    now.
-  - **Are `ncl sessions list` / `ncl sessions history --json` the shapes the
-    gate expects?** Also unverified — the output shape varies by NanoClaw
-    version. The gate is written to fail safe rather than fail quiet: an unrecognized shape makes it report `cannot-read-sessions`,
-    and no channel-backed session at all makes it report
-    `no-channel-sessions`, instead of concluding "nothing to do."
-    **So check for both statuses explicitly** (`./bin/ncl tasks get` on an
-    `unanswered-watch` run). Either one looks almost exactly like a healthy
-    quiet night, and means the safety net has been off the whole time —
-    `no-channel-sessions` specifically means the silent support-channel
-    wiring (§5c) never happened.
+- **Close out the unverified `unanswered-watch` risk.** It was flagged as
+  needing a real install before anyone could assert it, and it fails
+  *quietly*, which is why it belongs on a checklist rather than in a bug
+  report you'd notice on your own. **Are `ncl sessions list` /
+  `ncl sessions history --json` the shapes the gate expects?** Unverified —
+  the output shape varies by NanoClaw version. The gate is written to fail
+  safe rather than fail quiet: an unrecognized shape makes it report
+  `cannot-read-sessions`, and no channel-backed session at all makes it report
+  `no-channel-sessions`, instead of concluding "nothing to do." **So check for
+  both statuses explicitly** (`./bin/ncl tasks get` on an `unanswered-watch`
+  run). Either one looks almost exactly like a healthy quiet night, and means
+  the safety net has been off the whole time — `no-channel-sessions`
+  specifically means the support-channel wiring (§5c) never happened. Ready
+  gate item 13 is the end-to-end test; if you skipped it, do it now.
 
 ## Week 1 — the first full weekly cycle
 
-- **Heartbeat received**: the proof-of-life line arrived. If it didn't,
-  investigate now — this is your outage detector and it must be known-good.
-- **`project-health`'s first post landed and reads sane**: dev numbers
-  (stars/forks, first-response backlog, new contributors, contributor health,
-  return nudges) to the developer tier; social + GA4 traffic (if enabled) to
-  the team-lead tier. Deltas are labelled by their real elapsed time — "WoW"
-  only when there really is a week of daily rows behind it, "not enough
-  history yet" otherwise; `null`s are explained, never silently zero. A
-  repo in `degraded_repos` is a token or allowlist finding, not a quiet week;
-  "nothing changed" and "I cannot see" must never arrive sounding the same.
-- **The follower row landed, and then got published.** This one is worth
-  checking on both ends, because it's the only genuinely un-re-scrapable
-  series in the system. On collect days `project-health` appends one line to
-  `plugin-data/community-helper/social-metrics-history.csv`, and the same run
-  commits that file to `LEDGER_REPO`'s `agent-metrics` branch. Confirm the
-  line exists in the container's file *and* that `ledger.status` reads
-  `published-and-verified` for that run. **A row the model never wrote leaves
-  the ledger status green** — the read-back checks `metrics-history.csv`, not
-  the social file — so check both, or you haven't checked the thing that
-  matters.
+- **`follow-up-nudge` commented at most once per item**: `nudged.csv` has no
+  repo+number twice within 30 days, and every comment it left reads as a
+  check-in, not a review.
+- **`project-context` wakes only on change**: a week of
+  `plugin-data/community-manager/telemetry/project-context.jsonl` shows
+  `wakeAgent: true` only on days a repo actually moved. A wake on a day with
+  no commits and no release is a gate bug worth reporting; a repo that sat in
+  `degraded_repos` all week is a token finding, not a quiet week — "nothing
+  changed" and "I cannot see" must never arrive sounding the same. Ask the
+  manager about one fix you know merged this week: it must say "merged, not
+  yet released" or name the release, from `release-state.csv`.
+- **`github-first-response` is answering, not just logging**: every new issue
+  or PR this week has a first reply from the bot account within the grace
+  window, and `first-response-seen.csv` has a row for each. A row with no
+  reply on GitHub means the wake happened and the answer did not land.
 - **Integrity check is quiet**: `weekly-identity-integrity-check` baseline
   initialized on its first run and no drift alarm since — unless you edited
   a task, in which case you got asked about exactly that edit (good).
-- **Publish cadence**: the `agent-metrics` branch shows one commit per day —
-  `project-health` appends a dated row every run, so a day with no commit is
-  a miss, not a quiet day.
 - **Test the correction loop once, deliberately**: tell the manager to change
   one small behavior (e.g. "stop including X in the digest"). Verify it
   acks with a ledger number, applies it, and the change survives to the
@@ -121,36 +106,25 @@ Ten minutes, the morning after go-live:
 
 - **Token/plan usage vs budget**: check your provider's usage page against
   expectations ([OPERATIONS.md](OPERATIONS.md) → Model budget — one shared
-  window, and the trap in it). Over budget → pause in the documented order,
-  which is cloud-tier only; pausing local tasks saves nothing on that meter.
-  Never delete agents.
+  window, and the trap in it). Over budget → pause in the documented order.
+  Never delete the agent.
 - **Question ledger is accumulating**: `plugin-data/community-manager/question-ledger.csv`
   has one line per resolved support conversation. If it's empty after a
   month of real support traffic, the manager isn't logging — correct it. If
   `docs-gap-review` fired, its first docs proposal is the system's
-  load-reduction loop working; review it seriously. **The manager owns both
-  halves of this loop** — it writes the ledger and it runs `docs-gap-review`
-  against its own copy, so that path is a within-agent read. It hasn't always
-  been: the task previously lived with the Helper, where it read a file only
-  the manager writes, and since one agent cannot read another's `plugin-data` it
-  was permanently dead code that looked configured. Moving it to the manager is
-  the fix. If you see it silent, the cause is an empty ledger, not a wiring
-  fault.
-- **First return-nudges become possible**: the contributor ledger only
-  tracks people whose first contribution came *after* install, so
-  nudges start appearing from ~week 3 on. If one arrived, the follow-up it
-  suggested is yours to send — the highest-leverage community act this
-  system will ever hand you.
-- **Contribution concentration**: read the owner-private numbers. If the
-  top author share is where it was and candidates exist, month 1 is the
-  right time to make the first delegation offer — that's the point of the
-  metric.
+  load-reduction loop working; review it seriously. The manager writes the
+  ledger and reads it, so if you see the task silent the cause is an empty
+  ledger, not a wiring fault.
+- **`project-notes.md` still fits on one screen**: `project-context` rewrites
+  sections rather than appending, so a month in it should read as a current
+  summary per repo, not a changelog. If it has grown into one, correct the
+  manager — that's a tone correction, not a config rebuild.
 - **Re-run the vault audit** (PREREQS.md §3): `agent-access` diff against
   the footprint table again. New grants that appeared without a reason are
   findings.
-- **Prune and re-decide**: channels renamed or added? Paused optional tasks
-  (GA4, inbox) worth enabling now? Anything in UPSTREAM-ISSUES.md confirmed
-  and ready to file upstream?
+- **Prune and re-decide**: channels renamed or added? Is `CONTEXT_REPOS`
+  still the right set? Anything in UPSTREAM-ISSUES.md confirmed and ready to
+  file upstream?
 - **Platform currency**: check
   [`nanocoai/nanoclaw`'s releases](https://github.com/nanocoai/nanoclaw/releases)
   and `versions.json`'s `agent-image` digest by hand — there's no automated
@@ -160,10 +134,10 @@ Ten minutes, the morning after go-live:
 
 ## After month 1
 
-Steady state is: heartbeat weekly, reports on their cadence, the project
-repo's `repo-health` skill run on demand every quarter or so, and a vault
-re-audit whenever a credential changes.
-The recurring human jobs that never go away: approving drafts, sending the
-personal outreach the nudges suggest, and making the delegation decisions
-the concentration numbers surface — those are maintainer work, and the whole
-point of the system is to leave you time for exactly them.
+Steady state is: the morning digest when there is one, the project repo's
+`repo-health` skill run on demand every quarter or so, and a vault re-audit
+whenever a credential changes.
+The recurring human jobs that never go away: answering what the agent
+escalates to you, and acting on the docs gaps it proposes — those are
+maintainer work, and the whole point of the system is to leave you time for
+exactly them.

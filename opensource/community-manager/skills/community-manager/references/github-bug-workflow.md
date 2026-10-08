@@ -88,9 +88,9 @@ summarized back onto the issue before closing it.
 
 ## Stale issues
 
-An issue with no activity in a while is not yours to close. Include it in your
-next scheduled digest for a human to action; closing on your own judgment is a
-maintainer call.
+An issue with no activity in a while is not yours to close. Enqueue it for
+the owner's daily TLDR (`report-formats.md`) for a human to action; closing on
+your own judgment is a maintainer call.
 
 ## Duplicates
 

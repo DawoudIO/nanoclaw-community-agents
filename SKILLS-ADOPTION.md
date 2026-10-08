@@ -29,10 +29,9 @@ up front (the X posting path is the template for how to do that honestly).
 ## Selection principle: free, and no API keys (applied to the list below)
 
 Every "Adopt" row below is a pure-knowledge skill — markdown instructions with
-no service dependency, no API key, no paid tier. Three partial exceptions,
+no service dependency, no API key, no paid tier. Two partial exceptions,
 flagged so they're chosen knowingly: trailofbits `github-triage` drives the
-`gh` CLI (uses the bot's existing GitHub token — no NEW key); google's GA4
-skill teaches an API the analytics pillar only uses if the owner opts in; and
+`gh` CLI (uses the bot's existing GitHub token — no NEW key); and
 trailofbits `semgrep`/`codeql` invoke local scanners (free tools, no keys).
 Nothing here requires a paid subscription.
 
@@ -43,13 +42,12 @@ Nothing here requires a paid subscription.
 | Community | `github-triage` | trailofbits/skills (`plugins/github-triage/`) | CC-BY-SA-4.0 | Evidence-gated issue/PR triage; writes gated behind approval. Share-alike: keep its license file. **Adaptation required for NanoClaw**: it drives the `gh` CLI, which won't authenticate inside containers (the proxy injects, no local token) — port its `gh` calls to `curl` before vendoring; usable as-is only in Claude Code sessions |
 | Community | `ticket-triage`, `customer-escalation` | anthropics/knowledge-work-plugins | Apache-2.0 | Generic support triage/escalation; official |
 | Dev | `changelog-automation`, `postmortem-writing` | wshobson/agents | MIT | Conventional-commit changelogs; postmortems |
-| Analytics | `google-analytics-data-api-basics` | google/skills | Apache-2.0 | Official Google GA4 Data API skill — complements our scripted weekly gate |
 | Security | `security-review` | getsentry/skills | Apache-2.0 | Exploitable-vuln diff review (14K installs) — fills our secure-code-review gap |
 | Security | `semgrep`, `sharp-edges` (+`codeql`, `sarif-parsing`) | trailofbits/skills | CC-BY-SA-4.0 | Static-analysis + footgun review tooling |
 | Security | `ghsa` | gogs/gogs (`.agents/skills/ghsa/`) | MIT | Complete advisory-handling workflow in ~30 lines — parameterize the hardcoded repo |
 | Cross-cutting | `verification-before-completion`, `systematic-debugging`, `receiving-code-review` | obra/superpowers | MIT | Evidence-before-assertions; root-cause-first; verify-external-feedback |
-| Engineering | `ponytail` | dietrichgebert/ponytail (`skills/ponytail/`) | MIT | YAGNI/minimal-diff discipline — check reuse/stdlib/native-feature/one-liner before writing new code; explicitly preserves validation, error handling, security, and accessibility. Vendored unmodified at commit `2ed6c52`, owned by `community-helper` only (it is the only agent that writes code at all) |
-| Triage engine | `evaluate-pitches`, `monitor-beat` (references) | nanocoai/nanoclaw-templates (journalist) | MIT | Ledger + incremental batches + learn-from-overrules → issue triage; beat-monitoring → advisory digests |
+| Engineering | `ponytail` | dietrichgebert/ponytail (`skills/ponytail/`) | MIT | YAGNI/minimal-diff discipline — check reuse/stdlib/native-feature/one-liner before writing new code; explicitly preserves validation, error handling, security, and accessibility. Not currently vendored — no agent in this set writes code; re-vendor at a pinned commit if one ever does |
+| Triage engine | `evaluate-pitches`, `monitor-beat` (references) | nanocoai/nanoclaw-templates (journalist) | MIT | Ledger + incremental batches + learn-from-overrules → issue triage; beat-monitoring → `project-context`'s change notes |
 | Analytics | `pipeline-check`, `report-spec` | nanocoai/nanoclaw-templates (analyst) | MIT | "Exit-code-zero isn't healthy" telemetry checks; metric definitions |
 
 ## Install on deployment only (license blocks redistribution)
@@ -89,7 +87,7 @@ skipped as out of scope — Discord + GitHub + Claude is the design.
 
 | Skill | Trigger | Notes |
 |---|---|---|
-| `tavily` | An agent loses Claude's built-in search (i.e. is moved to a local model), or the manager needs structured page extraction | **Keyless** — fits default-to-free exactly; per-group scoping fits least-privilege. **Probably never needed**: these tasks don't search, they narrate what a gate already fetched, and the one task that reads pages itself (`project-health`, on collect days) opens *known* profile URLs — it needs no search index to find them. Adopt per-group only if a task ever has to *find* a page rather than open a named one; Claude-provider groups already have built-in search, so don't add it speculatively there either |
+| `tavily` | The agent loses Claude's built-in search (i.e. is moved to a local model), or needs structured page extraction | **Keyless** — fits default-to-free exactly. **Probably never needed**: these tasks don't search, they narrate what a gate already fetched, and the one task that reads repo files (`project-context`, re-reading changed skills and docs) opens *known* paths — it needs no search index to find them. Adopt only if a task ever has to *find* a page rather than open a named one; Claude-provider groups already have built-in search, so don't add it speculatively there either |
 | `ollama` (tools, distinct from the provider) | Bilingual reply volume gets expensive | Offloads translation/summarization to a local model as a tool while the agent stays on Claude — a scalpel where `ollama-provider` is a hammer |
 | `rtk` | Only if interactive manager sessions show heavy bash-output token burn | 60–90% savings on dev-command output via a PreToolUse hook — but our gates already strip the bulk of command output before any model sees it, so expect modest gains here. Per-group, Claude-only |
 | `macos-statusbar` | Host is a Mac running NanoClaw as a host service | Green/red menu-bar dot + start/stop/restart + launch-on-login — directly softens "the session IS the system." **Applies as-is** to a launchd-managed NanoClaw, which is how this deployment runs |
@@ -104,9 +102,7 @@ treat the dashboard pusher above), `migrate-from-v1`/`migrate-from-openclaw`
 (we deliberately have no migration path), `setup`/`first-agent`/`welcome`/
 `manage-channels`/`manage-mounts`/`self-customize`/`customize` (built-ins the
 install runbook already drives), `agent-browser`/`onecli`/`onecli-gateway`
-(built-ins we already depend on — the follower snapshot's page reads ride on
-agent-browser; verify it's enabled in the ready gate if snapshot fetches 502
-with the hosts correctly allowlisted).
+(built-ins we already depend on).
 
 ## Standing rule: provenance before the public voice
 
@@ -122,73 +118,68 @@ Ollama's own search for a "copywriting" category returns no models at all;
 there is no established specialised-writing shelf to pick from. Treat that as
 the answer rather than a gap to fill with the first result.
 
-## Decided: the acknowledger stays on the shared model, not a local one
+## Decided: `unanswered-watch` stays on the agent, not on a local backstop
 
-`unanswered-watch` (on the Helper) posts a holding reply when a human's
-message has gone unanswered past the grace window — normally because the manager
-exhausted its usage window and went silent, which for a public-facing support
-agent is the worst failure there is. Its *gate* costs nothing (no network, no
-credentials, local session state only), so detection survives a window
-exhaustion; the acknowledgment itself is a cheap model wake on the same shared
-window, so a fully exhausted window silences both.
+`unanswered-watch` wakes the manager when a human's support message has gone
+unanswered past the grace window — a question that scrolled past while the
+agent was busy, restarting, or in another channel. Its *gate* costs nothing
+(no network, no credentials, local session state only), and the wake is the
+agent answering for real, which is the job. What it does not cover is the
+agent's own usage window running out: it runs on the same credential, so an
+exhausted window exhausts it too, and nothing in this set posts in that case.
 
-Routing that one task to a local (Ollama) model would make the acknowledgment
-genuinely non-consuming, and the capability bar is almost nil — "seen it,
-logged it, a maintainer will follow up" would fit in a ~1 GB model, and the
-worst failure is a slightly awkward sentence rather than a confidently wrong
-judgment. It was set aside anyway: it needs host-level model runtime setup
-(Dockerfile plus `container.json` edits) that has to be re-applied on every
-rebuild, which is a real ongoing cost for one task.
+An off-window backstop — a second group on a local (Ollama) model posting a
+fixed "seen it, a maintainer will follow up" line — would make that failure
+visible instead of silent, and the capability bar is almost nil: a ~1 GB
+model would do, and the worst failure is an awkward sentence. It was set
+aside anyway: it needs host-level model runtime setup (Dockerfile plus
+`container.json` edits) that has to be re-applied on every rebuild, plus a
+second channel-wired identity to keep in scope, which is a real ongoing cost
+for one line of text.
 
-**The honest open question is whether an LLM belongs here at all.** The role
-needs so little intelligence that a plain scripted auto-reply would be more
-robust than any model. Within NanoClaw's agent-per-group model, a model wake is
-the available way to get a responder; if the platform ever exposes a scripted
-auto-reply, that beats this outright.
+**The honest open question is whether an LLM belongs in that backstop at
+all.** The role needs so little intelligence that a plain scripted auto-reply
+would be more robust than any model. If the platform ever exposes one, that
+beats a model wake outright.
 
 Note what none of this fixes: the underlying cause. **Pausing tasks and
-separating meters is what keeps the manager alive**; this is the safety net for
-when that fails, not a substitute for it.
+separating meters is what keeps the manager alive**; any backstop is for when
+that fails, not a substitute for it.
 
 
-## Decided: NO Ollama for the Helper — Haiku stays
+## Decided: NO local model for the scheduled tasks — Sonnet stays
 
-Compare Ollama against the Helper's actual Haiku-class workload rather than
-against Sonnet and the idea collapses. Worth writing down so it isn't
-re-proposed on vibes.
+Compare Ollama against the agent's actual gated workload and the idea
+collapses. Worth writing down so it isn't re-proposed on vibes.
 
-**1. The volume it would save is already tiny.** Nearly every task is
-script-gated, so the model wakes only when a gate found something to say —
-`github-ops-triage` on new or updated issues/PRs (~10–20/week),
-`security-advisory-sweep` only on a genuinely new advisory (~0–1),
-`project-health` for a small daily follower-count read plus one weekly post
-(~1 real composition). Run `bash scripts/gen-task-table.sh` for the full gated list.
-At a few thousand tokens of cached persona prefix per wake, on the cheapest
-tier, that isn't close to a budget problem — it *is* the noise floor.
+**1. The volume it would save is already tiny.** Every task is script-gated,
+so the model wakes only when a gate found something to say —
+`github-first-response` on a new issue or PR nobody has replied to,
+`project-context` once a day when a repo actually changed, `docs-gap-review`
+when a topic has repeated three times. Run `bash scripts/gen-task-table.sh`
+for the full gated list. At a few thousand tokens of cached persona prefix per
+wake, that isn't close to a budget problem — it *is* the noise floor.
 
 **2. The risk lands precisely on what's left.** Because the gates removed the
-mechanical volume, what remains needing a model is disproportionately
+mechanical volume, what remains needing a model is nothing but public-facing
 judgment:
 
-- `security-advisory-sweep` asks whether the project is *genuinely affected* —
-  a vulnerable dependency that isn't reachable in this codebase deserves a
-  different note than an exploitable one. That is security reachability
-  reasoning, and a confidently-wrong local answer is worse than no answer.
-- `github-ops-triage` is the higher-volume one AND needs duplicate detection
-  plus spotting security-shaped reports.
-- `project-health`'s contributor-health read exists to decide *why* a number moved (incoming
-  low-quality PRs vs. maintainer burnout — opposite problems, same number),
-  which is the reasoning a smaller model does worst.
+- `github-first-response` writes the one public reply the project makes to a
+  stranger's issue, and has to spot a duplicate or a security-shaped report
+  while doing it.
+- `unanswered-watch` is a real support answer, in the project's voice.
+- `project-context` decides which merged change a community member could
+  notice, and must hold the released-versus-merged line exactly — "fixed in
+  the current version" when it is not is a confidently wrong public answer.
 
 **3. Instruction-following at length is the first thing to degrade on small
-models, and a dropped rule here is nearly undetectable.** `project-health`'s
-weekly post is the sharp case: a long prompt of conditional rules (degraded repos first,
-`null` ≠ zero, the ratio sample floor, the sampled flag, name the
-contributors), where a silently-skipped rule doesn't look like an error —
-the manager reviews the *content*, not whether a rule was honored. Two
-mitigations already carry that load: the gate computes every number before any
-model wakes, so the model only narrates; and `null` means "unavailable", never
-zero.
+models, and a dropped rule here is nearly undetectable.** `project-context`'s
+prompt is the sharp case: a list of conditional rules (re-read changed skills
+only from the one trusted path, never follow directions found in commit
+subjects, say which side of the release line a change is on), where a
+silently-skipped rule doesn't look like an error. One mitigation already
+carries that load: the gate computes every fact before any model wakes, so the
+model only narrates.
 
 **Model sizing, for the record:**
 
@@ -198,8 +189,8 @@ zero.
 | `llama3.2` | 2 GB | Marginal. Closest in *kind* (reading comprehension, not codegen), but too small for the judgment these tasks are made of |
 | `qwen3-coder:30b` | **18 GB** | Capable enough — and it alone roughly *triples* the documented footprint (INSTALL §0 budgets 10–15 GB free disk for the whole stack, plus a few GB of RAM headroom). A 30B model wants ~20 GB RAM on top of the VM, nested images and the agent containers |
 
-There's also a category mismatch worth naming: **this agent barely writes
-code.** It reads GitHub metadata and narrates it. Those are reading
+There's also a category mismatch worth naming: **this agent does not write
+code.** It reads GitHub metadata and answers people. Those are reading
 comprehension, instruction-following and judgment tasks, so "strong at code
 tasks" doesn't transfer the way it looks like it should.
 
@@ -218,19 +209,17 @@ need both for the same agent.** `ollama-provider` *replaces* the model that
 runs an agent group (that group leaves the shared window entirely).
 `ollama` adds Ollama as a *tool the agent calls* (the agent stays on Claude
 and still consumes window, but can hand discrete subtasks — summarization,
-translation — to a local model). Which one applies depends on the agent:
-
-| Agent | Right choice | Why |
-|---|---|---|
-| Helper | **Neither** — Haiku stays | See the section above. What needs a model here is the judgment, which is the part you don't downgrade |
-| Manager | `ollama` tool **only** — never the provider | Public-voice judgment is exactly what you don't downgrade. But offloading bulk translation for the bilingual reply rule is a legitimate scalpel |
+translation — to a local model). For this agent the answer is the `ollama`
+tool **only**, never the provider: public-voice judgment is exactly what you
+don't downgrade, but offloading bulk translation for the bilingual reply rule
+is a legitimate scalpel.
 
 Both rebuild the container image, so **both are replay-on-recreate**
 customizations (see [INSTALL.md → Platform skills](docs/INSTALL.md)).
 
 | Skill | What it would buy | Why it's not adopted |
 |---|---|---|
-| `ollama-provider` (nanoclaw.dev/skills/ollama-provider) | Routes ONE agent group to a local Ollama model — zero shared-window consumption for that group | **Not approved for any group.** The skill does its own setup (`/add-ollama-provider` extends `ContainerConfig` with `env`/`blockedHosts`, writes the per-group `container.json`, and sets `blockedHosts: api.anthropic.com` as a spend guard), so the install work isn't the obstacle. What's open: (a) **you must supply Ollama yourself** — running on `:11434` with a model already pulled, on a host that can run it; (b) **unverified whether `host.docker.internal:11434` reaches the host from inside the sandbox VM's *inner* Docker daemon** — two network boundaries where the skill assumes one, so it needs a real test; (c) it **modifies the Dockerfile (chmod 777 for non-root host UIDs) and NanoClaw's source**, making it a replay-on-recreate customization to record deliberately. Counter-argument that matters on a shared subscription: the manager reviews sub-agent output, and that review costs window capacity — so the net saving is smaller than "zero tokens for one agent" implies, and it is not survivable at all for judgment the manager would have to redo |
+| `ollama-provider` (nanoclaw.dev/skills/ollama-provider) | Routes ONE agent group to a local Ollama model — zero shared-window consumption for that group | **Not approved for any group.** The skill does its own setup (`/add-ollama-provider` extends `ContainerConfig` with `env`/`blockedHosts`, writes the per-group `container.json`, and sets `blockedHosts: api.anthropic.com` as a spend guard), so the install work isn't the obstacle. What's open: (a) **you must supply Ollama yourself** — running on `:11434` with a model already pulled, on a host that can run it; (b) **unverified whether `host.docker.internal:11434` reaches the host from inside the sandbox VM's *inner* Docker daemon** — two network boundaries where the skill assumes one, so it needs a real test; (c) it **modifies the Dockerfile (chmod 777 for non-root host UIDs) and NanoClaw's source**, making it a replay-on-recreate customization to record deliberately. With one agent in the set, routing it off the window means routing the public voice itself to a local model — the one thing the section above rules out |
 | `ollama` (the TOOL, not the provider) | Lets an agent that stays on Claude delegate discrete subtasks to a local model — the realistic use here is bulk translation for the bilingual support-reply rule | **Also not approved.** Same host prerequisites as above plus the same unverified VM→host reachability, and it **rebuilds the container image** (stdio MCP server copied into the source tree, registered in the agent-runner's `mcpServers`), so it's replay-on-recreate too. Only worth it if bilingual reply volume turns out to be a real cost — which no one has measured. Revisit with usage data, not in advance |
 
 
@@ -246,33 +235,20 @@ customizations (see [INSTALL.md → Platform skills](docs/INSTALL.md)).
 ## Confirmed gaps — ours to own (already written in these templates)
 
 Nothing off-the-shelf exists for: **Discord support replies decoupled from a
-harness** (ours: `discord-mechanics.md`), **analytics-review → GitHub-issue
-drafting** (ours: the posthog/GA4 gated tasks; PostHog's internal "signals"
-model is the pattern, not public), and **advisory feed monitoring** (ours: the
-scripted sweep; clawsec covers the skill-supply-chain slice only). Our custom
-work sits exactly where the ecosystem is empty — keep maintaining it.
+harness** (ours: `discord-mechanics.md`) and **a released-versus-merged answer
+key kept current without a model** (ours: `project-context`'s
+`release-state.csv`). Our custom work sits exactly where the ecosystem is
+empty — keep maintaining it.
 
 ## Vendoring pass (to do, post-migration)
 
-1. Pin + read + copy the "Adopt" rows into the right template's `skills/`.
-   Allocation follows the tasks:
-   - **manager** — triage/support (`ticket-triage`, `customer-escalation`) +
-     `security-review`.
-   - **helper** — trailofbits (`semgrep`, `sharp-edges`) + `ghsa` for the
-     advisory work; google's `google-analytics-data-api-basics` alongside
-     `project-health` (metric definitions are exactly the guardrail a
-     narration task needs); the analyst pair (`pipeline-check`, `report-spec`)
-     if `posthog-weekly-review` ever returns.
+1. Pin + read + copy the "Adopt" rows into the template's `skills/`:
+   triage/support (`ticket-triage`, `customer-escalation`) +
+   `security-review` for routing security-shaped reports. The trailofbits
+   scanners and `ghsa` wait until an agent in this set does security work
+   again; the analyst pair (`pipeline-check`, `report-spec`) waits for a
+   task that reports numbers.
 2. Prefer the analyst template's many-small-skills layout over one mega-skill.
 3. Re-run `check-templates.mjs` (frontmatter + no-symlink rules apply to
    vendored skills too) and restamp.
-4. Consider optional `mcp.json` entries: a community GA4 MCP server and
-   PostHog's MCP — **GA4 on `local`, PostHog on the Helper**.
-   `project-health` and `posthog-weekly-review` both run there, and
-   local is the only agent holding the GA4 and PostHog credentials at all, so
-   an entry on any other agent would be an MCP server with nothing to
-   authenticate as. Placeholder credentials, and test whether OneCLI proxy
-   injection satisfies their boot checks. (`posthog-weekly-review` itself is
-   removed for now, 2026-08-24 — see the credential note above if it comes
-   back.)
 

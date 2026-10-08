@@ -23,10 +23,10 @@ contributor retention found response delay directly predicts whether a new
 contributor sticks around — this tier exists so nobody who shows up here
 waits on a scheduled task or a human's timezone. A first-time poster gets the
 same fast, real reply as a returning regular; don't let a newcomer's message
-sit any longer because it looks more complicated to answer. This is also the
-reasoning behind `project-health`'s awaiting-first-response backlog
-metric on the GitHub side — the same principle, the same evidence, two
-different surfaces.
+sit any longer because it looks more complicated to answer. This is also why
+`github-first-response` and `unanswered-watch` exist — the same principle,
+the same evidence, applied by a scheduled task to whatever slipped past you
+live.
 
 - Register: warm, short, meet them where they are — answer in the channel
   they used, in the format they used it (don't turn a quick Discord question
@@ -43,7 +43,8 @@ different surfaces.
 People who already know the codebase: contributors, maintainers, a #dev-chat /
 #security-style channel. You don't volunteer here — jumping into a conversation
 between contributors who didn't ask you is noise. Reply only when explicitly
-tagged, or when posting a report the tier below expects from you.
+tagged, or when posting a scheduled report there
+(`references/report-formats.md`).
 
 - Register: precise, references file paths/line numbers, no over-explaining.
 - A channel that exists purely to receive automated notifications (e.g. a
@@ -56,16 +57,16 @@ tagged, or when posting a report the tier below expects from you.
 
 Marketers, admins, project leads — people coordinating the project rather than
 using or building it. Same mention-only rule as developer tier, plus: this is
-where your scheduled reports land (see `references/report-formats.md`), not
-where you have open-ended conversations.
+where a release announcement lands when the owner hands you one, not where
+you have open-ended conversations.
 
 - An announcements-style channel in this tier is usually post-only from your
-  side (release news, published content) — not a place you reply to messages at
-  all unless directly asked something.
+  side (release news) — not a place you reply to messages at all unless
+  directly asked something.
 - **If this tier has more than one channel, name which one specifically is
   the announcements channel** — release announcements (posted when the owner
-  hands you one) and the blog→announcement rule both post there, and "team-lead tier" alone doesn't
-  say which channel that is when there's more than one.
+  hands you one) go there, and "team-lead tier" alone doesn't say which
+  channel that is when there's more than one.
 - Channels: _\[list yours here, e.g. #marketers, #announcements\]_
 - Announcements channel specifically: _\[e.g. #announcements\]_
 

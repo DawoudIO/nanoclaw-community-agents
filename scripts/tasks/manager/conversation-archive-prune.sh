@@ -24,7 +24,7 @@ case "$KEEP_DAYS" in
 esac
 
 # --- local telemetry (best-effort; never blocks the gate) -------------------
-# See github-ops-triage.sh for the full rationale. Placed before every exit
+# Placed before every exit
 # path in this script (including "no-directory") so no run is ever missed.
 # This gate never wakes the model, so its log is purely a "did it run, did
 # it error" record.

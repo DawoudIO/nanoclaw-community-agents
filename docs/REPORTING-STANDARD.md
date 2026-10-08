@@ -63,18 +63,18 @@ listing them. A list of nine is not a report, it's a queue dump.
 ### 3. Everything else — one line, rolled up
 
 ```
-12 other metrics steady. Full numbers in the ledger.
+12 other repos quiet. Full detail in the task output.
 ```
 
-Never enumerate what didn't change. The ledger has it if anyone wants it.
+Never enumerate what didn't change. `tasks get` has it if anyone wants it.
 
 ## The rules that keep it honest
 
 **Thresholds, not deltas.** A number is only worth reporting if it crossed a
 threshold stated *in advance*, in the gate script. If a task has no
 threshold, it has no business waking anyone. Where the threshold is
-arbitrary, say so once and pick a number — `project-health` refuses to compute
-`data.repos[].health.unmerged_ratio` under five closed PRs, and says why.
+arbitrary, say so once and pick a number — `docs-gap-review` refuses to
+propose a docs page until a topic has repeated three times, and says why.
 
 **No number without a comparison.** "5 issues awaiting first response" is
 noise. "5 awaiting first response, oldest 12 days, was 2 last week" is a
@@ -87,9 +87,9 @@ more numbers.
 
 **Never repeat silently.** A finding already reported says so and dates
 itself: *"still waiting, unchanged since the 3rd."* Better still, don't
-re-report at all — resurface on a slower cadence. `project-health` collects
-daily but posts weekly, so a month-old backlog is mentioned about four times
-rather than thirty.
+re-report at all — resurface on a slower cadence. `owner-tldr` queues findings
+and delivers them once, at the owner's morning hour, so a stale item is
+mentioned once a day rather than every two hours.
 
 **A quiet run is one line.** The strongest temptation in an automated report
 is padding to look thorough. Resist it — extra
@@ -105,21 +105,20 @@ what couldn't be read.
 `ALL CLEAR` and the report is over.
 
 **Say which you are doing: relaying a list, or making a call.** Some fields
-hand you a list the script already decided (`project-health`'s
-`data.nudges`, `data.repos[].new_contributors_7d`) and some hand you numbers
-that mean nothing until someone interprets them
-(`data.repos[].health.unmerged_ratio`,
-`data.repos[].health.concentration.top_author_share_pct`). "Unmerged ratio moved
-from 0.18 to 0.31" is a reading; "because contribution quality is dropping"
-is a diagnosis — and if you have not actually checked, say the cause is
-unverified rather than asserting it. A confident wrong diagnosis costs more
-than an honest handoff.
+hand you a list the script already decided (`github-first-response`'s new
+unanswered items, `project-context`'s `since_last_run.commits`) and some hand
+you facts that mean nothing until someone interprets them
+(`project-context`'s `unreleased.ahead_by`, a milestone's `open` count).
+"Forty commits merged since the last release" is a reading; "so a release is
+imminent" is a diagnosis — and if you have not actually checked, say so
+rather than asserting it. A confident wrong diagnosis costs more than an
+honest handoff.
 
 ## Before and after
 
-A real dev-metrics post from an earlier version of this set, and the same
-data — the shape `project-health` now hands the model on its post day —
-under this standard:
+A real dev-metrics post from an earlier version of this set (metrics are no
+longer an agent job here, but the lesson transfers to every report), and the
+same data under this standard:
 
 **Before** — 140 words, no verdict, exception buried:
 
@@ -139,12 +138,11 @@ under this standard:
 > First response is the strongest predictor of whether someone comes back,
 > and this is up from 2 last week. Suggest triaging the oldest three today.
 >
-> 8 other metrics steady (stars +12, forks +3). Full numbers in the ledger.
+> 8 other metrics steady (stars +12, forks +3). Full numbers in the task output.
 
 The second one is shorter, and it is the only one a busy maintainer will
-actually act on. Note what happened to the concentration numbers: they are
-still in the payload (`data.repos[].health.concentration`), but they need a
-judgment — read against `distinct_authors_90d`, about a named person — so
+actually act on. Note what happened to the concentration numbers: they were
+still in the payload, but they needed a judgment about a named person — so
 they get their own line or none, and never dilute the verdict.
 
 ## Reviewing the reports themselves

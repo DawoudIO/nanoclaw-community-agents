@@ -6,14 +6,11 @@ set -uo pipefail
 # nobody has replied to yet. Not triage, not a digest, not a backlog sweep —
 # just "someone showed up and nobody has said anything."
 #
-# WHY THIS IS SEPARATE FROM github-ops-triage.
-# Triage runs every 6 hours and produces a digest; that cadence is right for
-# deciding duplicates and staleness, and wrong for first response. Time-to-
-# first-response is the strongest predictor of whether a contributor comes
-# back, so a 6-hour floor on it is the single biggest gap in the north star.
-# But making the triage DIGEST 10-minutely would mean up to 144 digests a day,
-# which is the notification stream we deliberately removed. So: fast and
-# narrow here, slow and thorough there.
+# WHY THIS TASK IS NARROW. Time-to-first-response is the strongest predictor
+# of whether a contributor comes back, so this runs every 10 minutes and does
+# one thing: make sure a new issue or PR gets a real first reply. Duplicate
+# hunting, staleness and labelling are not done here or on any schedule —
+# the owner asks for them when wanted.
 #
 # Discord needs no equivalent — the manager answers Discord live through its
 # channel wiring, event-driven, and unanswered-watch is the safety net for when
@@ -24,7 +21,7 @@ mkdir -p "$DATA"
 # --- local telemetry (best-effort; never blocks the gate) -------------------
 # Mirrors this gate's one-line JSON output to a local per-task log so the
 # owner can review wake/error patterns weekly and adjust gates or budgets.
-# Not published anywhere (unlike project-health's series) and not a source
+# Not published anywhere and not a source
 # of truth -- a background pipe means a very fast exit can occasionally drop
 # the last line, an accepted trade for never risking the gate's real output
 # or exit code.
@@ -126,6 +123,7 @@ for REPO in $REPOS; do
              | {
              number, title: (.title[0:140]), author: .user.login, url: .html_url,
              type: (if .pull_request then "pr" else "issue" end),
+             first_time: ((.author_association // "NONE") | IN("FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER")),
              kind: "new", created_at,
              age_min: ((($now - ((.created_at | fromdateiso8601?) // $now)) / 60) | floor)}]}
         else {repo: $r, ok: false, items: [], reason: "unexpected response shape"} end' <<< "$RESP" 2>/dev/null || echo "")

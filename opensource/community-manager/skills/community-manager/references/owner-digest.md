@@ -25,7 +25,7 @@ words, then the single most important fact:
 
 ```
 ALL CLEAR — 12 routine items, nothing needs you.
-WATCHING  — unmerged-PR ratio up to 0.31 (was 0.18); one more week to confirm.
+WATCHING  — csv-import asked 4 times this week, no docs page yet; one more week to confirm.
 NEEDS YOU — PR #412 approved 34 days ago, still open.
 ```
 
@@ -38,24 +38,24 @@ comparison, not the bare number), what it means — or explicitly "unknown, need
 a human" — what to do, and who. More than three, write `+4 more, same shape`
 rather than listing them. A list of nine is a queue dump, not a report.
 
-**3. Everything else — one line.** `12 other metrics steady.` Never enumerate
-what didn't change; the ledger has it.
+**3. Everything else — one line.** `12 other routine items, nothing changed.`
+Never enumerate what didn't change; the queue has it.
 
 ## Judgment, not aggregation
 
 **This is the one task where you are explicitly asked to drop things.** A
-sub-agent reporting "mirror synced, nothing notable" fourteen times is fourteen
-queue entries and zero digest lines.
+task reporting "nothing notable" fourteen times is fourteen queue entries and
+zero digest lines.
 
 If nothing in the batch needs the owner, the correct output is one line:
 `ALL CLEAR — 12 routine items, nothing needs you.` A digest that lists
 everything has failed at its only job.
 
-Rank by **what happens if the owner never sees it**. An approved PR sitting 30
-days outranks a follower count. A degraded fetch outranks both, because it means
-we are blind rather than fine.
+Rank by **what happens if the owner never sees it**. A question still
+unanswered after a day outranks a routine docs-gap note. A degraded fetch
+outranks both, because it means we are blind rather than fine.
 
-Never organise the digest by agent. The owner does not care which agent noticed
+Never organise the digest by task. The owner does not care which task noticed
 something; they care what needs them. `by_source` is grouped to help you read
 the batch, not as an output template.
 

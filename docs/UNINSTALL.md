@@ -123,7 +123,7 @@ or they stay live:
 | GitHub PATs (one per agent) | github.com → Settings → Developer settings |
 | Anthropic / Claude credential | your Anthropic account |
 | NanoClaw registry account | created for the hardened-image pull |
-| GA4 / Google OAuth grant | Google account permissions, if you wired analytics |
+| GA4 / Google OAuth grant (older installs only) | Google account permissions — nothing in the current set uses it; revoke if present |
 | The workspace backup repo | it holds the agent's config and history |
 | `tailscale serve` config | if you exposed the OneCLI dashboard over a tailnet |
 

@@ -1,3 +1,0 @@
-releases/latest|release.json
-/pulls/|files.json
-is:merged|merged.json

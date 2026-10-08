@@ -8,11 +8,11 @@ script: |
   # THE DIGEST GATE. Work cadence and delivery cadence are different things, and
   # conflating them is what turned this system into a notification stream.
   #
-  # Sub-agent tasks report whenever their gates fire — many of them, on
-  # their own schedules, for good reasons (a mirror sync every 15 minutes, an
-  # advisory sweep every 4 hours). But the OWNER should not hear from us 21 times.
-  # So the manager no longer relays each report as it arrives: it appends a one-line
-  # entry to a queue, and this task turns the queue into ONE digest.
+  # Scheduled tasks report whenever their gates fire — several of them, on
+  # their own schedules, for good reasons. But the OWNER should not hear from us
+  # a dozen times a day. So the agent no longer sends each report as it arrives:
+  # it appends a one-line entry to a queue, and this task turns the queue into
+  # ONE digest.
   #
   # THREE TIERS, because "how often" has three different right answers:
   #
@@ -43,7 +43,7 @@ script: |
   # --- local telemetry (best-effort; never blocks the gate) -------------------
   # Mirrors this gate's one-line JSON output to a local per-task log so the
   # owner can review wake/error patterns weekly and adjust gates or budgets.
-  # Not published anywhere (unlike project-health's series) and not a source
+  # Not published anywhere and not a source
   # of truth -- a background pipe means a very fast exit can occasionally drop
   # the last line, an accepted trade for never risking the gate's real output
   # or exit code.
@@ -112,7 +112,7 @@ script: |
 
   if [ ! -s "${PROC:-/nonexistent}" ]; then
     # Nothing queued. This is the common case and it must cost nothing —
-    # a day where no sub-agent had anything to say is a good day, not a gap.
+    # a day where no task had anything to say is a good day, not a gap.
     rm -f "$PROC"; : > "$DEFER_F"
     echo '{"wakeAgent": false, "data": {"status": "nothing-queued"}}'
     exit 0
@@ -241,7 +241,7 @@ script: |
 ---
 
 **One message a day, at 07:00 the owner's local time — the only routine report
-they get.** Everything the sub-agents produced since the last digest is in
+they get.** Everything your scheduled tasks produced since the last digest is in
 `by_source`, grouped and counted.
 
 **The shape, in full:** a verdict line (`ALL CLEAR` / `WATCHING` / `NEEDS YOU`)

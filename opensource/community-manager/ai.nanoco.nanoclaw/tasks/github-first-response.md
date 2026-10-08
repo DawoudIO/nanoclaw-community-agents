@@ -9,14 +9,11 @@ script: |
   # nobody has replied to yet. Not triage, not a digest, not a backlog sweep —
   # just "someone showed up and nobody has said anything."
   #
-  # WHY THIS IS SEPARATE FROM github-ops-triage.
-  # Triage runs every 6 hours and produces a digest; that cadence is right for
-  # deciding duplicates and staleness, and wrong for first response. Time-to-
-  # first-response is the strongest predictor of whether a contributor comes
-  # back, so a 6-hour floor on it is the single biggest gap in the north star.
-  # But making the triage DIGEST 10-minutely would mean up to 144 digests a day,
-  # which is the notification stream we deliberately removed. So: fast and
-  # narrow here, slow and thorough there.
+  # WHY THIS TASK IS NARROW. Time-to-first-response is the strongest predictor
+  # of whether a contributor comes back, so this runs every 10 minutes and does
+  # one thing: make sure a new issue or PR gets a real first reply. Duplicate
+  # hunting, staleness and labelling are not done here or on any schedule —
+  # the owner asks for them when wanted.
   #
   # Discord needs no equivalent — the manager answers Discord live through its
   # channel wiring, event-driven, and unanswered-watch is the safety net for when
@@ -27,7 +24,7 @@ script: |
   # --- local telemetry (best-effort; never blocks the gate) -------------------
   # Mirrors this gate's one-line JSON output to a local per-task log so the
   # owner can review wake/error patterns weekly and adjust gates or budgets.
-  # Not published anywhere (unlike project-health's series) and not a source
+  # Not published anywhere and not a source
   # of truth -- a background pipe means a very fast exit can occasionally drop
   # the last line, an accepted trade for never risking the gate's real output
   # or exit code.
@@ -129,6 +126,7 @@ script: |
                | {
                number, title: (.title[0:140]), author: .user.login, url: .html_url,
                type: (if .pull_request then "pr" else "issue" end),
+               first_time: ((.author_association // "NONE") | IN("FIRST_TIME_CONTRIBUTOR", "FIRST_TIMER")),
                kind: "new", created_at,
                age_min: ((($now - ((.created_at | fromdateiso8601?) // $now)) / 60) | floor)}]}
           else {repo: $r, ok: false, items: [], reason: "unexpected response shape"} end' <<< "$RESP" 2>/dev/null || echo "")
@@ -260,7 +258,10 @@ already handed to you — `scriptOutput.items` has repo, number, title, author,
 url, type, `kind` and `age_min`. Maintainers' own items are filtered out; so
 are bots and your own account.
 
-- `kind: "new"` — a fresh issue or PR with no comments yet.
+- `kind: "new"` — a fresh issue or PR with no comments yet. `first_time: true`
+  means GitHub says this is the author's first contribution to this repo (or
+  their first anywhere) — welcome them as a newcomer, by name, before
+  anything else.
 - `kind: "follow-up"` — an outsider wrote the latest comment on a thread
   (`url` points at that comment) and nobody answered since. Read the whole
   thread first: did they supply what was asked? Then move it forward — confirm
@@ -288,32 +289,41 @@ actually respond:
 - **Read the item first.** Open it, read the linked code or error, check whether
   an existing issue already covers it. A reply that shows you read it is worth
   more than a fast reply that doesn't.
+- **Vague issue? Collect what is missing.** A report with no version, no
+  steps, no expected-vs-actual, or no log is not answerable yet. Ask for
+  exactly the pieces you need, as a short list, and say why each helps —
+  one round, not a form. Never close or label it "needs info"; that is a
+  maintainer's call.
 - **Answer if you can.** Point at the doc, name the fix, link the duplicate.
+  **When you post a fix, a recommendation or a workaround**, append
+  `repo,number,YYYY-MM-DD,fix|recommendation|workaround` to
+  `plugin-data/community-manager/issue-followups.csv` — `follow-up-nudge`
+  reads it and checks back with the reporter if they go silent.
 - **If you can't answer, say what happens next** — and be concrete. "This needs
   a maintainer who knows the import path; I've flagged it" beats "thanks for
   reporting."
-- **PRs**: thank them specifically for what they did, say whether it needs a
-  maintainer review, and never approve or merge.
+- **PRs**: thank them specifically for what they did, and tell them what
+  happens next: the project's code-review agent posts its findings on the PR,
+  then a maintainer reviews. **You do not review code** — not a line, not a
+  nit, not an approval. Your job on a PR is the person: a first-timer gets a
+  real welcome and a pointer to the contributing guide; anyone whose PR has
+  sat without a reply gets told honestly where it stands. Never approve,
+  request changes, or merge.
+- **Keep people engaged.** A newcomer who hears nothing does not come back.
+  If your reply has to be "a maintainer needs to look at this", say when
+  they can expect to hear more and mean it — enqueue it for the owner's TLDR
+  so it is actually followed up.
 
 Time-to-first-response is the strongest predictor of whether someone comes
-back, which is why this runs every ten minutes instead of waiting for the
-6-hourly triage digest. Speed is the point — but a fast reply that reads as
+back, which is why this runs every ten minutes. Speed is the point — but a fast reply that reads as
 automated does more damage than an hour's delay, so don't trade the read for
 the clock.
 
 ## What not to do
 
-- **Don't triage here.** Duplicate hunting, staleness, labelling and the digest
-  belong to `github-ops-triage` — **that task lives on the helper
-  (Helper), not on you**. You have no triage task of your own.
-  **Before creating a `github-ops-triage`-named task on yourself because you
-  don't see one in your own task list**: check whether the helper
-  already has it — ask it directly, or have it confirm via its own task list —
-  rather than assuming absence-from-your-list means absence entirely. A real
-  install ended up with this task duplicated on both the manager and Helper
-  because the manager didn't check the other agent before creating one. If you
-  notice something triage-shaped in the meantime, leave it for that task
-  rather than doing both jobs badly.
+- **Don't triage here.** Duplicate hunting, staleness and labelling are not
+  this task's job and no scheduled task does them — the owner asks for a
+  triage pass when they want one. Reply, then move on.
 - **Security-shaped items get the redirect, nothing more.** If the item looks
   like a vulnerability report, reply only with the neutral private-disclosure
   redirect from `references/escalation-paths.md` — no confirmation, no denial,
@@ -326,10 +336,14 @@ the clock.
 
 ## Reporting
 
-Do **not** queue these individually for the owner's digest; a reply you sent is
-the project working normally, not news. Once a day, the count is worth one
-digest line (`"replied first to 4 new issues"`) — enqueue that as part of your
-routine wrap-up, not per item.
+The owner wants to see, once a day in the TLDR, what you did on GitHub.
+Enqueue one digest line per action, severity `info`, `source:
+github-first-response`, naming the item and what you did:
+`"welcomed first-time contributor @pat on PR #412; waiting on review"`,
+`"asked #418 for version + steps (vague report)"`,
+`"posted workaround on #420; logged for follow-up"`. `owner-tldr` groups
+and counts them into the one daily message — you never DM the owner per
+item.
 
 `degraded_repos` is different: it means we may be blind to new issues. Enqueue
 that as `attention` so it escalates rather than waiting for the evening slot.

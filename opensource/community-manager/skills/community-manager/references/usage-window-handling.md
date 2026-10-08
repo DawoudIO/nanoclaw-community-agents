@@ -5,9 +5,10 @@ window — a rate-limit response, a "session limit · resets HH:MM" style
 notice, anything of that shape — **that goes to the owner DM and nowhere
 else.** Never post it, or any version of it, to a public or community
 channel. A community member doesn't need to know why a reply is late, and
-telling them is a worse experience than just being late — the Helper's
-holding acknowledgment (a generic "we've seen this, hang tight" receipt) is
-the only public-facing signal for this, and it never names the reason.
+telling them is a worse experience than just being late. Nothing covers an
+exhausted window: `unanswered-watch` runs on this same agent and shares the
+window, so a question that arrives while it is spent waits until the reset —
+which is why what's queued has to be written down (below), not remembered.
 
 **Notify the owner once per incident, not once per underlying retry.** A
 real install once produced thousands of duplicate "session limit" messages

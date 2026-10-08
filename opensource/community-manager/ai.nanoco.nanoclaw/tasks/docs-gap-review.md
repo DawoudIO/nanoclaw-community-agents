@@ -17,7 +17,7 @@ script: |
   # --- local telemetry (best-effort; never blocks the gate) -------------------
   # Mirrors this gate's one-line JSON output to a local per-task log so the
   # owner can review wake/error patterns weekly and adjust gates or budgets.
-  # Not published anywhere (unlike project-health's series) and not a source
+  # Not published anywhere and not a source
   # of truth -- a background pipe means a very fast exit can occasionally drop
   # the last line, an accepted trade for never risking the gate's real output
   # or exit code.
@@ -93,10 +93,9 @@ For each topic in `scriptOutput.topics`:
    the actual recurring question, anonymized), and a first-draft outline
    built from the answers you've actually been giving — you've written this
    content 3+ times already; this is consolidation, not invention.
-3. **Route it**: hand the draft to your owner as a docs issue proposal (or,
-   the helper can draft the page's content for you, but it cannot open
-   a PR — its token is read-only, so anything that lands is yours or a
-   human's to create). Follow the project's docs style rules from your config.
+3. **Route it**: hand the draft to your owner as a docs issue proposal —
+   you do not open docs PRs yourself. Follow the project's docs style rules
+   from your config.
 4. **Then ack**: append the topic slug (one per line, exactly as it appears
    in `scriptOutput.topics[].topic`) to
    `plugin-data/community-manager/docs-proposals-sent.txt` — your write after

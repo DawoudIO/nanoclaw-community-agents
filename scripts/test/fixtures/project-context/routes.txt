@@ -1,0 +1,6 @@
+/commits?per_page=1|head.json
+releases/latest|release.json
+/milestones|milestones.json
+/compare/v1.2.0...|unreleased.json
+/compare/0000000|delta.json
+/compare/|delta.json

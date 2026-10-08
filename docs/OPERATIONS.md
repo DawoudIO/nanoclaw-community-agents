@@ -26,13 +26,6 @@ Deliberately, there is **no heartbeat task** that reports "all healthy" on a
 schedule. An alarm that fires by *not* arriving needs a human to notice the
 absence, which nobody reliably does — and a per-container "my environment is
 fine" signal is easily mistaken for system-wide health, which it never is.
-Note the honest limit of `ping`: it proves the *manager* is alive. A sub-agent
-that has stopped shows up instead as its reports going quiet.
-  Two consequences of that chain worth knowing: the *detection* half runs on
-  no model at all and so keeps working when the Claude window is gone, but the
-  *delivery* half goes through the manager. A missing heartbeat therefore means
-  "something upstream of your DM is broken" — a dead sandbox, or a manager that
-  can't speak — which is exactly the set of things you want to be told about.
 
 ## Model budget — one shared window, and the trap in it
 
@@ -58,27 +51,24 @@ the failure looks like silence rather than an error.
 The precedent is real and it's this project's own: the v1 deployment
 **exhausted its plan limits running 4 agents** — four *cloud-backed* agents,
 all on the one window. **This template set has a reduced version of the same
-exposure**: both agents draw on that one window. Retiring the fourth
-(narration) agent removed a whole container's worth of both memory and
-wakes, which is part of why that consolidation happened at all — but it did
-not change the fundamental shape: three cloud agents, one meter. A
-local-model provider for a sub-agent (which would take it off the window
-entirely, the way v1's design should have) was evaluated and set aside — too
-much host setup to get the system working end to end first; see
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). Aggressive gating is doing more
-of the mitigation work than it would otherwise need to, until that's
-revisited. Treat the shared window as a resource with a hostile-neighbour
-problem, not an abstraction — and count neighbours by meter, not by agent.
+exposure**: one agent, but it still draws on that one window, and every
+consolidation since has removed containers and wakes without changing the
+shape: one cloud agent, one meter. A local-model provider (which would take
+the agent off the window entirely, the way v1's design should have) was
+evaluated and set aside — the public voice is exactly what you don't move to
+a smaller model; see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). Aggressive
+gating is doing most of the mitigation work. Treat the shared window as a
+resource with a hostile-neighbour problem, not an abstraction — and count
+neighbours by meter, not by agent.
 
 Four defenses, in order of effectiveness:
 
-1. **Separate the meters where it counts.** If you can, put the agents on
-   their own subscription (or an API key) and keep your personal Claude Code
+1. **Separate the meters where it counts.** If you can, put the agent on
+   its own subscription (or an API key) and keep your personal Claude Code
    on yours. Full stop — this removes the failure mode instead of managing it.
-2. **Pause tasks, don't downgrade models.** Moving the helper to local
-   Ollama was evaluated and rejected — it saves little (the gates already cut
-   the helper to ~20–50 wakes/week on the cheapest tier) and shifts work onto the
-   Sonnet-class manager that reviews its output. See
+2. **Pause tasks, don't downgrade the model.** A local model was evaluated
+   and rejected — the gates already cut the scheduled wakes to a handful a
+   day, and what is left is public-facing judgment. See
    [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). The pause-order list below is
    the real throttle.
 3. **Keep the pause-order list to hand** (below). It's not a nice-to-have on
@@ -88,22 +78,17 @@ Four defenses, in order of effectiveness:
 
 **And know what hitting it looks like**: the manager stops answering Discord
 altogether — the community gets silence, which for a public-facing support
-agent is the worst failure mode there is. The safety net for exactly this now
-ships: the Helper's `unanswered-watch` **gate** runs every 10 minutes,
-sees only local session state (no network, no credentials), and costs
-nothing regardless of the shared window's state — so the *detection* survives
-a window exhaustion. **The acknowledgment itself does not**, for this phase:
-posting it is still a model wake on the Helper, which shares the same
-cloud window as the manager. If the window is fully exhausted, both the manager and
-the acknowledger go quiet together. This is a real, reduced version of the
-safety net compared to an off-window local model — see
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) for why Ollama was set aside and
-what adopting it later would restore. It does not remove the need for the
-four defenses above — a receipt is not a resolution — it just makes the
-failure visible and polite instead of silent, when the window allows it. Two pieces of its wiring are
-still **unverified** until a real install (whether two groups can share one
-Discord channel, and the `ncl messages list --json` output shape); see
-[CHECKPOINTS.md](CHECKPOINTS.md) for how to prove both.
+agent is the worst failure mode there is. **Nothing in this set covers that
+case.** `unanswered-watch` runs every 10 minutes and its gate costs nothing
+(local session state, no network, no credentials), but it wakes the same
+agent on the same credential: it catches a question that scrolled past while
+the agent was busy, restarting, or in another channel, and that is all. An
+exhausted window exhausts it too. A backstop that survives exhaustion would
+need its own credential or an off-window model, and this deployment
+deliberately runs one agent on one credential — so the four defenses above
+are the whole protection, not a fallback to one. One piece of the gate is
+still **unverified** until a real install (the `ncl sessions list --json`
+output shape); see [CHECKPOINTS.md](CHECKPOINTS.md) for how to prove it.
 
 ### What the install itself costs
 
@@ -114,13 +99,14 @@ window**, so budget them together:
   guided flow and reading each `templateReport`. Modest.
 - **Welcome interview**: the biggest single line item — ~15K context per turn
   over 8–15 turns, heavily cache-discounted after the first.
-- **Sub-agent relay + each `setup-check.sh`**: ~2–3 turns each, small.
-- **Gate testing**: most script-gated tasks exit `not-configured` with no
-  model wake at all on a fresh install — those are free (run
-  `bash scripts/gen-task-table.sh --counts` for the current split).
+- **`setup-check.sh`**: ~2–3 turns, small.
+- **Gate testing**: the GitHub-facing gates exit `not-configured` with no
+  model wake at all until `COMMUNITY_REPOS` is set — those are free (run
+  `bash scripts/gen-task-table.sh --counts` for the current count).
   `docs-gap-review` exits `no-ledger-yet` (also free, and stays that way for
   weeks), and `conversation-archive-prune` never wakes a model at any point
-  in its life. Only the gates you actually configured can cost you anything.
+  in its life. Only the gates you actually configured can cost you anything;
+  `project-context`'s first run always wakes once, to take its baseline.
 - **Smoke tests**: 3–4 real manager interactions.
 
 ### Measured context floors (per model wake, this template set)
@@ -131,18 +117,14 @@ persona plus whatever skill loads:
 | Agent | Persona + context | With its main skill |
 |---|---|---|
 | Manager | ~8.6K tokens | ~18.8K (community-manager) · ~15K (welcome) |
-| Helper | ~3.2K | ~6.2K |
 
-**Re-measure the Helper's row** before trusting it for budget: it carries nearly
-every task in the set, so its floor is the one that matters most here, and
-these numbers were taken against a smaller persona. Measure the same way they
-were: persona + context on a cold wake. See
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md).
+**Re-measure before trusting it for budget**: these numbers were taken before
+`project-context` and `unanswered-watch` joined this agent. Measure the same
+way they were: persona + context on a cold wake.
 
-Task prompt bodies add ~400 tokens on average. The manager is the expensive one
-and always will be — it carries the public-facing judgment. Prompt caching
-makes repeat wakes much cheaper than these numbers suggest, since the persona
-prefix is byte-identical every time.
+Task prompt bodies add ~400 tokens on average. Prompt caching makes repeat
+wakes much cheaper than these numbers suggest, since the persona prefix is
+byte-identical every time.
 
 ### Will a single 5-hour window carry the install?
 
@@ -200,63 +182,44 @@ per-turn cost once a conversation's context crosses that size, but it
 doesn't undo tokens already spent and doesn't cap turn count directly — it
 softens the problem, it doesn't solve it.
 
-## Right-sizing the agents
+## Right-sizing the agent
 
-**Both agents currently draw on your window** (see the trap section
-above — a local-model provider was evaluated and set aside for this phase).
-Burn comes from model *wakes*, not from agents existing: a stamped agent
-whose tasks are paused costs nothing. Nearly all tasks are script-gated (run
-`bash scripts/gen-task-table.sh --counts` for the exact split), so quiet
-periods cost near zero regardless of agent count. The two highest-frequency
-gates are also the two
+**The agent draws on your window** (see the trap section above — a
+local-model provider was evaluated and set aside for this phase). Burn comes
+from model *wakes*, not from the agent existing: a stamped agent whose tasks
+are paused costs nothing. Every task is script-gated (run
+`bash scripts/gen-task-table.sh --counts` for the exact count), so quiet
+periods cost near zero. The two highest-frequency gates are also the two
 cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
 minutes (`*/10`)**, and its *gate* is the cheapest thing in the system on
 every axis at once — no network call, no credentials, nothing but local
-session state. Its acknowledgment does cost a Haiku wake on the Helper,
-which shares this window; the detection is what stays free. That combination
-is the point: the task the north star depends on had to be the one thing
-that can't be knocked over by an outage, even if it can be slowed by an
-exhausted window. And the daily
-`project-health` does every fetch in bash and wakes the model only for what
-bash can't read — the social follower pages — plus one weekly post; set
-`SOCIAL_DAILY=false` and six days out of seven are 0-token. That makes the team
-elastic: stamp what you need, then tune budget by which tasks you activate —
-never by deleting agents.
+session state. `github-first-response` polls GitHub every 10 minutes in bash
+and wakes only on a genuinely new, unanswered item. And the daily
+`project-context` does every fetch in bash and wakes the model only when a
+repo actually changed since yesterday — on a quiet day it is 0-token. Tune
+budget by which tasks you activate, never by deleting the agent.
 
-**Two agents is the floor, not a starting point to trim further.** A real
-deployment exhausted its **subscription** limits running four cloud-backed
-agents, which is why agent count is treated as a budget item here at all. Two
-still share one meter, so the pause-order list below is your throttle.
+**Keep the public voice on the capable tier.** Cheap work done wrong in
+public costs more than expensive work done right, and everything this agent
+does is public-facing.
 
-Two rules worth keeping:
-
-- **Don't merge the last two to save tokens.** The savings are small (gated
-  tasks already cost ~nothing when idle) and you would lose the thing that
-  actually protects you: separate credential scoping, and a single public
-  voice that a sub-agent structurally cannot speak with.
-- **Keep the public voice on the capable tier.** The split is by *model tier*
-  for a reason. Cheap work done wrong in public costs more than expensive work
-  done right — which is exactly why the Helper's one public-facing task is
-  restricted to a fixed template it cannot compose freely.
-
-**Model defaults per agent** (confirmed at cold start by the welcome flow —
-the owner can change them there or later via group config):
+**Model default** (confirmed at cold start by the welcome flow — the owner
+can change it there or later via group config):
 
 | Agent | Default | Why |
 |---|---|---|
-| Manager | Sonnet-class **in steady state, Haiku-class during setup** | Public-facing judgment: tone, escalation calls, security routing. The welcome interview is structured Q&A and CLI calls, so it runs on Haiku and the manager promotes itself at the end of onboarding (`welcome/SKILL.md` §11) |
-| Helper | Haiku-class | Triage/digest judgment with skills to guide it, and everything it produces is reviewed by the manager before publishing — except the one fixed holding line it may post itself, which it cannot compose freely. Upgrade only if quality disappoints |
+| Manager | Sonnet-class **in steady state, Haiku-class during setup** | Public-facing judgment: tone, escalation calls, security routing. The welcome interview is structured Q&A and CLI calls, so it runs on Haiku and the manager promotes itself at the end of onboarding (`welcome/SKILL.md` §10) |
 
-**Neither tier is automatic — pin both, and restart.** Two separate traps
+**The tier is not automatic — pin it, and restart.** Two separate traps
 here, each invisible from the outside:
 
 1. **An unpinned group is not Haiku.** With no model of its own it falls
    back to `NANOCLAW_DEFAULT_MODEL`, which no installer sets; unset, the
    platform sends no model and the provider SDK picks its own default — a
    Sonnet-class one (`src/config.ts`: "Unset means the provider SDK's own
-   default, which is what every existing install gets"). So an unpinned
-   Helper bills Sonnet rates against every figure on this page.
+   default, which is what every existing install gets"). So a setup interview
+   on an unpinned group bills Sonnet rates for every turn.
 2. **A pin does nothing until a restart.** `ncl groups config update
    --model …` only writes the row (the platform's own CLI help says so).
    Without `ncl groups restart` the config reads one tier while every wake
@@ -266,77 +229,52 @@ Check the effective value with `ncl groups config get --id <group-id>`
 after any tier change — it is the only thing that reports what a group will
 actually run on.
 
-**Decided: no local model for the Helper — Haiku stays.** Compared against
-Haiku (not Sonnet), the case collapses: the Helper's tasks together wake
-only a few dozen times a week because the gates already suppress the rest, so
-there is little left to save on the cheapest tier — while the risk lands
-precisely on what's left, which is nothing but judgment: advisory reachability
-assessment and triage duplicate detection. Because the Sonnet-class manager reviews
-every Helper output, degrading the Helper shifts work onto the *more*
-expensive tier. And the only local model plausibly good enough
-(`qwen3-coder:30b`, 18 GB) does not fit alongside everything else on a 16 GB
-host at all. Full reasoning, wake-volume table, and model comparison:
-[SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md). Note the contrast with the
-agent, which took the mechanical work *away* from this tier rather than
-degrading the tier itself — that's the move that generalizes.
-
 **A hard rule regardless of tier: never Opus-class on a scheduled task.**
 Wakes are frequent; premium models belong in interactive sessions, not cron.
 
 **If you hit the window ceiling** (on a shared subscription this also
-restores your own Claude Code access): **both agents draw on that
-meter** — there is no off-meter tier to lean on right now. The Helper
-costs less per-wake than the manager (cheapest cloud tier, aggressively gated),
-so its tasks are lower priority to pause than genuinely expensive ones, but
-pausing them is a real lever. If a local-model provider is adopted later (see
+restores your own Claude Code access): there is no off-meter tier to lean on
+right now. If a local-model provider is adopted later (see
 [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)), this section's advice shifts:
-whichever agent moved off the window would cost host memory instead of window
-budget.
+the agent would cost host memory instead of window budget.
 
-Pause in this order — lowest value first, across both agents:
+Pause in this order — lowest value first:
 
-1. `inbox-check` — now gated (it wakes only on unread mail nobody has handed
-   over yet), but it is still the manager's task, so each wake it *does* take
-   is a Sonnet-tier one. Pause it early if the shared inbox is busy;
-   `INBOX_QUERY` narrowing it is the softer option.
-2. `project-health` → set `SOCIAL_DAILY=false`. That turns off the one small
-   collect-day wake (reading follower pages) and leaves the weekly post; the
-   bash fetches, the CSV rows and the ledger push carry on at zero tokens.
-   Weekly follower resolution is enough for most projects. **Slow it, never
-   pause it** — see below.
-3. `security-advisory-sweep` → reduce to 2×/day. Last of the cloud tier
-   deliberately: a late advisory is a worse outcome than a late digest.
+0. `follow-up-nudge` — weekly, one wake at most; pausing it only delays a
+   check-in by a week.
+1. `project-context` — the one task that reliably wakes on an active repo
+   (once a day, briefly, whenever something merged). Pausing it saves that
+   wake and costs currency: the agent answers "is X released?" from the last
+   `release-state.csv` it wrote, and says so. Resume it before anything else
+   when the window recovers.
+2. `docs-gap-review` — weekly, and it wakes only when a topic has repeated
+   three times. Pausing it defers a docs proposal, nothing more.
 
-`github-ops-triage`, `docs-gap-review` and `weekly-identity-integrity-check`
-are weekly and gated to near-silence, so pausing them is effort without
-savings.
+`owner-instruction-watch` and `weekly-identity-integrity-check` are weekly
+and gated to near-silence, so pausing them is effort without savings.
 
-**Never pause, at any ceiling — cheap and irreplaceable, even though they now
-share the meter:**
+**Never pause, at any ceiling — cheap and irreplaceable:**
 
-- **`unanswered-watch`.** It is the north star's safety net. Its *gate* has no
-  network call, no credentials, and costs nothing regardless of window state
-  — only the acknowledgment wake itself is a (cheap, gated) model call. For
-  this phase that wake shares the window with everything else, so it is not
-  literally free, but it's one of the cheapest wakes in the set (Haiku,
-  templated, only fires when something's actually unanswered) and pausing it
-  removes the one thing that keeps a window exhaustion from reading to the
-  community as silence. There is no budget argument for pausing it.
-- **`project-health`.** With `SOCIAL_DAILY=false` its collect days cost
-  nothing, so pausing saves one Haiku wake a week — while every paused day is
-  a day with no row in the follower series (nothing can re-read yesterday's
-  count) and no ledger push. This is the clearest "no upside" pause in the
-  set.
-- **`conversation-archive-prune`** (all agents). Never wakes a model, and
-  it is what keeps a known platform bug from filling the container's disk (see
+- **`unanswered-watch`.** Its *gate* has no network call, no credentials, and
+  costs nothing regardless of window state; the wake only fires when a
+  support question has actually sat unanswered past the grace period, and
+  answering it is the job.
+- **`github-first-response`.** Same shape: a 10-minute bash poll that wakes
+  only on a new issue or PR nobody has replied to. First response is the
+  strongest predictor of whether a contributor comes back.
+- **`owner-tldr`.** It is the only routine path to the owner, it wakes only
+  when its queue is non-empty, and pausing it means findings pile up unseen.
+- **`conversation-archive-prune`.** Never wakes a model, and it is what keeps
+  a known platform bug from filling the container's disk (see
   UPSTREAM-ISSUES.md #38). Pausing it trades nothing for an eventual crash
   loop.
 - **Community replies.** They are the job.
 
 Approved-but-unmerged PRs, stale good-first-issues and missing
-community-health files are no longer scheduled at all — they are
-point-in-time checks, so they live in the project repo's `repo-health`
-skill and run on demand, by whatever agent you point at it.
+community-health files are not scheduled at all — they are point-in-time
+checks, so they live in the project repo's `repo-health` skill and run on
+demand. Project metrics are not an agent job either: they run as GitHub
+Actions in the project's own repos.
 
 ## How fast each surface actually is
 
@@ -346,9 +284,9 @@ have different mechanics:
 | Surface | Path | Speed |
 |---|---|---|
 | **Discord** | **Live.** The manager is wired to the channels and answers events as they arrive — no cron involved | realtime |
-| Discord, when the manager is down | `unanswered-watch` on the Helper posts a holding ack | ≤10 min; detection is free, the ack itself is a cheap Haiku wake sharing the window for this phase |
+| Discord, when a question scrolled past | `unanswered-watch` wakes the manager to answer it | ≤10 min + `ACK_GRACE_MINUTES`; detection is free, the answer is one wake |
 | **GitHub** | No live wiring in this design, so it polls: `github-first-response` finds new unanswered items | ≤10 min + grace |
-| GitHub triage (duplicates, staleness, labels) | `github-ops-triage` digest | weekly (Mon 14:35 UTC) — deliberately slow; `github-first-response` is the fast path |
+| "Is X released yet?" | answered from `release-state.csv`, which `project-context` rewrites daily | ≤24h behind the repo; no fetch at answer time |
 | Everything else | its own gated schedule, posted to the channel that cares | see the table below |
 | **The owner's DM** | `owner-tldr` digest, plus urgent bypass | **07:00 the owner's local time**, or ~4h for "we may be blind" while they're awake |
 
@@ -360,9 +298,9 @@ maintenance, and an unresolvable zone is reported rather than silently becoming
 UTC (`tz_resolved: false`).
 
 The two things worth internalising: **Discord is realtime and GitHub is a
-10-minute poll**, and **most reports never reach the owner at all** — they go to
-the developer/security/announcement channels where the people who act on them
-live. The owner's DM is for what needs the owner, which is a much shorter list.
+10-minute poll**, and **most of what the agent does never reaches the owner at
+all** — it answers people where they asked. The owner's DM is for what needs
+the owner, which is a much shorter list.
 
 ## Reference: every task, required vs optional
 
@@ -378,36 +316,22 @@ is exactly why the generator now exists.
 
 Reading the columns: "silent skip" = safe to resume unconfigured (gate exits
 `not-configured` at zero cost). "Leave paused" = ungated, so resuming
-unconfigured burns turns on every fire. And **"wakes model" means a different
-meter depending on the agent** — a Local-ops wake spends host RAM, never the
-shared Claude window.
+unconfigured burns turns on every fire.
 
-**Manager** (`opensource/community-manager`) — 6 tasks, the only agent with a full
-public voice:
+**Manager** (`opensource/community-manager`) — every task; config in
+`plugin-data/community-manager/config.env`:
 
 | Task | Wakes model | Needs | Unconfigured |
 |---|---|---|---|
-| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
-| `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
-| `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner — sub-agent reports are queued, not relayed |
-| `inbox-check` (2×/day) | only on unread mail not yet handed over (or a fetch failure — a broken mailbox fetch must never read as an empty inbox) | `INBOX_ENABLED="true"` + Gmail OAuth (`gmail.readonly`) + allowlist, plus an email MCP in the **Helper's** group to read the mail itself | silent skip — unset `INBOX_ENABLED` means the task never fires |
-| `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
-
-**Helper** (`opensource/community-helper`) — read-only except for drafting
-security patch PRs and docs PRs (branch + draft PR, never merged), never posts
-publicly. Config in `plugin-data/community-helper/config.env`.
-`project-health` keeps the *interpretation* half of the numbers on a model
-wake — the same unmerged-PR ratio means opposite things depending on why it
-moved, and naming a delegation candidate is a judgment about a person — but
-only once a week; every fetch and every CSV row is bash.
-
-| Task | Wakes model | Needs | Unconfigured |
-|---|---|---|---|
-| `docs-currency-watch` (every 6h) | only on merged PRs not yet assessed | helper PAT (Contents+PRs **write**) + `PRODUCT_REPO`/`COMMUNITY_REPOS` + `DOCS_REPO` | silent skip — no `DOCS_REPO` means the project has no docs site and the task never fires |
-| `github-ops-triage` (Mon) | only on new/updated items | helper PAT + `COMMUNITY_REPOS` | silent skip |
-| `security-advisory-sweep` (6×/day) | on new alerts — correlated to any open Dependabot PR, so it records that PR rather than opening a duplicate (the PR itself is reviewed by a GitHub Actions workflow in the project repo, not by an agent) | helper PAT + Dependabot alerts (read) permission + `COMMUNITY_REPOS` (+ optional `SECURITY_WATCH_REPOS` to scope the sweep to a subset) | silent skip |
-| `project-health` (daily; posts on `HEALTH_POST_DOW`, default Mon) | collect days: one small wake to read follower pages (`SOCIAL_DAILY=false` → never); post day: always; any day a repo's fetch failed | helper PAT + `COMMUNITY_REPOS`. Optional, each adding a series: `LEDGER_REPO` (+ `LEDGER_BRANCH`, `LEDGER_PATH`) with a `github.com` (git) push credential for durable history; `GA4_PROPERTIES` + GA4 OAuth for traffic; allowlisted social hosts + a page-reading capability for followers. `NUDGE_MAX_CHECKS` caps return-nudge lookups | silent skip without `COMMUNITY_REPOS`. Without `LEDGER_REPO` it runs but reports `ledger.status: not-configured` — every series then lives only in this container |
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
+| `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
+| `follow-up-nudge` (Wed) | only when an outsider's PR has sat idle `STALE_PR_DAYS` (7) days, or an issue the agent answered with a fix/workaround has had no reply for `FOLLOWUP_DAYS` (5) — one check-in per item per `RENUDGE_DAYS` (30), with `CHAT_INVITE_URL` offered if set | manager PAT + `COMMUNITY_REPOS`; the agent's own `issue-followups.csv` and `nudged.csv` | safe — quiet until something has gone silent |
+| `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
+| `owner-instruction-watch` (Mon) | only when an owner instruction was acked `received` and never closed | nothing (`jq` over the instruction ledger) | safe |
+| `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner |
+| `project-context` (daily, 06:07) | only when a repo changed since yesterday (new commits, a new release, changed `.agents/skills/**` or docs), on the first run (`baseline`), or when a repo could not be read | manager PAT + `CONTEXT_REPOS` (defaults to `COMMUNITY_REPOS`). Writes `release-state.csv` every run; the agent keeps `project-notes.md` | silent skip |
+| `unanswered-watch` (**every 10m**) | only when the newest message in a support channel is inbound and older than `ACK_GRACE_MINUTES` (default 20) — then the manager answers it for real | `ncl`+`jq` — **no network, no credentials**; the support channels must be wired to this agent | reports `no-channel-sessions` until the channels are wired — check for it, it looks like a quiet night |
+| `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 
 **Shipped times (written in UTC; fire in each group's configured
 timezone) — deliberately staggered.** The cron lines below are as written
@@ -422,27 +346,23 @@ fails). So don't assume these times land in UTC on your install; check
 each group's actual timezone before reading this table as wall-clock time.
 
 On a memory-constrained host (a 16 GB Mac mini is the reference) every task
-firing at :00 means several agent containers spinning up at once. These
-are offset so no two tasks share a minute, and `unanswered-watch` keeps
-the round minutes because it's the task the north star depends on:
+firing at :00 means several gate scripts spinning up at once. These are
+offset so no two tasks share a minute, and `unanswered-watch` keeps the
+round minutes because it's the task the north star depends on:
 
 | Task | Agent | Cadence | When (UTC) | Gated |
 |------|-------|---------|------------|-------|
 | `conversation-archive-prune` | Manager | **daily** | 05:17 | yes |
 | `docs-gap-review` | Manager | **weekly** | 15:15, Tue | yes |
+| `follow-up-nudge` | Manager | **weekly** | 15:25, Wed | yes |
 | `github-first-response` | Manager | **6× hourly** | :4/14/24/34/44/54 each hour | yes |
 | `owner-instruction-watch` | Manager | **weekly** | 16:23, Mon | yes |
 | `owner-tldr` | Manager | **every 2h** | every 2h at :41 | yes |
+| `project-context` | Manager | **daily** | 06:07 | yes |
+| `unanswered-watch` | Manager | **every 10 min** | on the 10-minute mark | yes |
 | `weekly-identity-integrity-check` | Manager | **weekly** | 15:45, Mon | yes |
-| `conversation-archive-prune` | Helper | **daily** | 05:38 | yes |
-| `docs-currency-watch` | Helper | **every 6h** | every 6h at :29 | yes |
-| `github-ops-triage` | Helper | **weekly** | 14:35, Mon | yes |
-| `inbox-check` | Helper | **2× daily** | 06:55, 16:55 | yes |
-| `project-health` | Helper | **daily** | 13:17 | yes |
-| `security-advisory-sweep` | Helper | **every 4h** | every 4h at :45 | yes |
-| `unanswered-watch` | Helper | **every 10 min** | on the 10-minute mark | yes |
 
-_13 tasks across 2 agents; 13 script-gated_
+_9 tasks on one agent; 9 script-gated_
 _Generated by `scripts/gen-task-table.sh` — do not hand-edit._
 
 **This table is generated — do not hand-edit it.** It was hand-maintained
@@ -464,41 +384,38 @@ day-of-week:
 bash scripts/test/run.sh        # fails on any two tasks sharing a firing slot
 ```
 
-Rules of thumb: put the
-integrity check before your own workday, `project-health` ahead of your dev
-channel's hours on its post day, inbox checks at your real start/end of day.
+Rules of thumb: put the integrity check before your own workday, and
+`project-context` before your community's day starts, so the agent answers
+from today's repo state rather than yesterday's.
 
-**No task wakes its model on every fire.** The closest is `project-health`:
-on collect days it wakes once, briefly, to read follower counts off profile
-pages — the one thing a bash gate can't do — and `SOCIAL_DAILY=false` turns
-even that off; on its post day it wakes by design, because the deliverable
-is the weekly status (one Haiku wake/week).
+**No task wakes its model on every fire.** The closest is `project-context`:
+it wakes whenever a repo changed since yesterday, so on a repo with daily
+commits expect roughly one short wake a day; on a quiet day it is 0-token.
 
-Everything else is 0-token when there's nothing to judge — **all 13 tasks
-are gated, and ~99% of all scheduled runs cost nothing**, because the two
+Everything else is 0-token when there's nothing to judge — **all 9 tasks are
+gated, and ~99% of all scheduled runs cost nothing**, because the two
 highest-frequency tasks are both gated: `unanswered-watch` at 144×/day and
-`github-first-response` at 144×/day, plus `owner-tldr` at 12× and
-`security-advisory-sweep` at 6×, all costing nothing on the runs where the
-gate finds nothing to say. Out of ~320 scheduled executions a day, at most
-one is guaranteed to spend tokens.
+`github-first-response` at 144×/day, plus `owner-tldr` at 12×, all costing
+nothing on the runs where the gate finds nothing to say. Out of ~300
+scheduled executions a day, none is guaranteed to spend tokens.
 
 ## Local telemetry — one file per task, worth a weekly look
 
 Every gate script mirrors its own one-line JSON output to a local file:
-`plugin-data/<agent-folder>/telemetry/<task-name>.jsonl`, one line per run.
-This is **not** part of the ledger `project-health` publishes — it's local,
-disposable, and exists purely so you can see wake/error patterns over time
-and adjust a gate's threshold, cadence, or config if something looks off.
+`plugin-data/community-manager/telemetry/<task-name>.jsonl`, one line per run.
+It is local, disposable, published nowhere, and exists purely so you can see
+wake/error patterns over time and adjust a gate's threshold, cadence, or
+config if something looks off.
 
 ```bash
-# how often did each task actually wake the model this week, in one agent?
+# how often did each task actually wake the model this week?
 jq -s 'group_by(.task) | map({task: .[0].task, runs: length,
   wakes: (map(select(.wakeAgent == true)) | length)})' \
-  groups/<folder>/plugin-data/community-helper/telemetry/*.jsonl
+  groups/<folder>/plugin-data/community-manager/telemetry/*.jsonl
 
 # any errors (fetch-failed, script crash) surfaced this week?
 jq -s '[.[] | select(.data.status | test("fail|error"; "i"))]' \
-  groups/<folder>/plugin-data/community-helper/telemetry/*.jsonl
+  groups/<folder>/plugin-data/community-manager/telemetry/*.jsonl
 ```
 
 It's written via a background pipe inside each script, so on a very fast
@@ -529,12 +446,12 @@ install and writes its configuration back out in the shape
 absent for now, deferred until closer to a real test pass — see
 SKILLS-ADOPTION.md; the script fails with a clear message if you run it
 before recreating one). This closes the round trip: onboarding can
-be done conversationally, which is friendlier but scatters the answers across
-both agents' `config.env` files with no single editable record. Export gives
-you that record, so **changing one value means editing one line and rebuilding
-instead of redoing the interview** — and it's what to run *before* tearing an
-install down for a recreate. Two limits to know: it recovers every
-`config.env` key the templates actually read, preserves each agent's
+be done conversationally, which is friendlier but leaves the answers in
+`config.env` and `project-config.md` with no single editable record. Export
+gives you that record, so **changing one value means editing one line and
+rebuilding instead of redoing the interview** — and it's what to run *before*
+tearing an install down for a recreate. Two limits to know: it recovers every
+`config.env` key the template actually reads, preserves
 `project-config.md` verbatim rather than pretending to parse prose, and cannot
 recover anything that never lands in `config.env` (free-text tone guidance
 stays null with its `_ask` text intact). **It refuses to write the file at all
@@ -562,7 +479,7 @@ the team — see
 ## `token-audit.sh` — the one tool that ships INSIDE the agent, not beside it
 
 Unlike the three scripts above, `token-audit.sh` isn't something you run —
-it's a template-root file (next to `setup-check.sh`) that stamps into every
+it's a template-root file (next to `setup-check.sh`) that stamps into the
 group's folder and runs **in the agent's own container**, invoked by the
 agent itself via Bash when the owner asks "where is our budget going."
 
@@ -604,10 +521,9 @@ can grant one, and the agent never receives a key at any layer.
    with a `--host-pattern` matching the new host (`--type openai` for an
    OpenAI-compatible LLM, `generic` for most others), or the dashboard. The
    proxy injects it; the key never enters an agent container.
-3. **Selective grant** (if keyed): assign the new secret to **only** the
-   agent whose job needs it, then update your copy of the per-agent
-   footprint table (INSTALL.md §2) so the next `agent-access` audit doesn't
-   flag the grant as unexplained.
+3. **Selective grant** (if keyed): assign the new secret to the agent, then
+   update your copy of the footprint table (INSTALL.md §2) so the next
+   `agent-access` audit doesn't flag the grant as unexplained.
 
 Two policy gates on top, when they apply:
 
@@ -636,9 +552,10 @@ the same digest is byte-for-byte the same tested package everywhere. Pull by
 digest, never by tag, when you actually upgrade.
 
 The system is built to make that upgrade path cheap: **cattle, not pets**.
-Because almost nothing is stateful (context rebuilds from the web, config is a
-conversation, the one durable file lives in the git backup), updating the
-platform = recreating the install — the same runbook you used to build it.
+Because almost nothing is stateful (context rebuilds from the repos, config
+is a conversation, and everything the agent keeps sits in one directory),
+updating the platform = recreating the install — the same runbook you used to
+build it.
 
 **Noticing updates is a manual job.** There is no automated watcher for the
 image digest — check
@@ -648,47 +565,30 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
 
 **The refresh procedure** (~1 hour, mostly waiting on pulls):
 
-1. **Confirm the metrics branch is current, and understand that it is the
-   only thing that survives.** There is no workspace backup in this set, by
-   design: a restore nobody runs is a write-only cost. What persists is what
-   `project-health` pushed to `LEDGER_REPO`'s `agent-metrics` branch
-   (`LEDGER_BRANCH`), under `agent-metrics/` (`LEDGER_PATH`):
-   - `social-metrics-history.csv`, plus the frozen pre-CSV archive
-     `social-metrics-history.jsonl` — the follower series. Unrecoverable by
-     any other means: every platform exposes today's count and nothing else.
-   - `traffic-history-<label>.csv` — GA4 traffic. Re-queryable inside the
-     property's retention window (14 months by default), gone beyond it.
-   - `metrics-history.csv` and `contributor-health-history.csv` — repo
-     metrics. Rebuildable only by paging every stargazer and every issue's
-     comments; treat as gone.
+1. **Decide what, if anything, to copy out of
+   `plugin-data/community-manager/`.** Nothing is published anywhere and
+   there is no workspace backup in this set, by design: a restore nobody runs
+   is a write-only cost. That one directory is everything the agent keeps,
+   and it dies with the container:
+   - `project-config.md` — re-created by the welcome interview, or instantly
+     from `onboarding-answers.json` (see step 6).
+   - Dedup caches (`acknowledged.txt`, `docs-proposals-sent.txt`,
+     `first-response-seen.csv`, `context-heads.csv`) — losing these is noise,
+     not data loss: the system re-answers a message it already answered, once,
+     and `project-context` takes a fresh baseline on its next run.
+   - `release-state.csv` and `project-notes.md` — rewritten by the next
+     `project-context` run; nothing to save.
+   - `question-ledger.csv` — `docs-gap-review`'s only input. It rebuilds from
+     live traffic over weeks, so a rebuild resets that clock.
+   - `owner-instructions.jsonl`, `digest-queue.jsonl` and `public-actions.log`
+     — the ack, digest and public-action records. These are deliberately
+     never published: they contain community members' words and the owner's
+     private direction, which don't belong in a repo branch. They only need to
+     outlive a session, not a repave.
 
-   Check the branch's last commit date before you tear anything down — or
-   `tasks get` on the last `project-health` run and read `ledger.status`: it
-   reads today's row back from GitHub itself, so anything other than
-   `published-and-verified` means the branch is behind. If it has been
-   failing quietly, this is the moment that costs you — not the moment you
-   notice.
-
-   **Everything else is accepted loss, deliberately.** Each agent's
-   `plugin-data/` dies with its container:
-   - `project-config.md` per agent — re-created by the welcome interview, or
-     instantly from `onboarding-answers.json` (see step 6).
-   - Dedup ledgers (`nudge-sent-*.txt`, `known-contributors-*.txt`,
-     `acknowledged.txt`, `docs-proposals-sent.txt`, `seen-advisories.txt`) —
-     losing these is noise, not data loss: the system re-nudges someone it
-     already nudged and re-acknowledges a message it already acknowledged,
-     once.
-   - `question-ledger.csv` (the manager) — `docs-gap-review`'s only input. It
-     rebuilds from live traffic over weeks, so a rebuild resets that clock.
-   - `owner-instructions.jsonl` and `public-actions.log` (the manager) — the ack
-     and public-action records. These are deliberately never published: they
-     contain community members' words and the owner's private direction, which
-     don't belong in a repo branch. They only need to outlive a session, not a
-     repave.
-
-   If you decide you *do* want one of those preserved, copy it out by hand
-   before the recreate — but decide that deliberately rather than assuming a
-   backup exists.
+   If you decide you *do* want one of those preserved, `cp -r` the directory
+   out by hand before the recreate — but decide that deliberately rather than
+   assuming a backup exists.
 2. Check for a new NanoClaw release and a new agent image digest
    (`versions.json`'s `agent-image` field, or the hardened-image registry).
    Verify it's what you intend (release notes, no open security advisories),
@@ -708,19 +608,16 @@ and `versions.json`'s `agent-image` field by hand, periodically, and update
    [INSTALL.md → Platform skills](INSTALL.md) — clidash, and anything you
    adopted since (dashboard). A fresh VM has none of them, and nothing
    detects their absence for you. (If you've since adopted a local-model
-   provider for a sub-agent — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md)
-   — re-apply and re-verify that too; it isn't part of this phase's default.)
-5. Re-enter the 2 GitHub PATs in the fresh vault, selective mode (~5 min) —
-   one per agent — plus the `github.com` (git) secret the Helper pushes the
-   metrics branch with. No rotation needed — refresh isn't compromise.
+   provider — see [SKILLS-ADOPTION.md](../SKILLS-ADOPTION.md) — re-apply and
+   re-verify that too; it isn't part of this phase's default.)
+5. Re-enter the GitHub PAT in the fresh vault, selective mode (~5 min). No
+   rotation needed — refresh isn't compromise.
 6. **Don't restore plugin-data — re-interview instead.** Hand the manager your
-   filled `onboarding-answers.json` and it re-creates each agent's config; if
-   the live install predates that file, run
-   `bash scripts/export-answers.sh` to reconstruct one *before* you tear the
-   install down. The history series need no restore step at all: they live in
-   the ledger repo, and the next `project-health` run appends to what is
-   already there rather than starting over — as long as `LEDGER_REPO` points
-   at the same repo and branch it did before.
+   filled `onboarding-answers.json` and it re-creates its config; if the live
+   install predates that file, run `bash scripts/export-answers.sh` to
+   reconstruct one *before* you tear the install down. `project-context`
+   needs no restore step: its first run after the recreate takes a new
+   baseline and rewrites `release-state.csv`.
 7. Smoke tests per INSTALL.md §4, and re-test anything in UPSTREAM-ISSUES.md
    against the new build before closing the watch issue.
 

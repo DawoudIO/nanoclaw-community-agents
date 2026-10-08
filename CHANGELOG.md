@@ -13,6 +13,86 @@ not just commits to this repo — a version isn't "current" until an
 `docs/OPERATIONS.md` for the model-tier and restart-required caveats that
 make this distinction matter.
 
+## [0.13.0] — 2026-10-08 (pending: not yet stamped)
+
+One agent. The owner's framing, verbatim: "the goal focus of the manager is
+to help Discord and GitHub users with questions and answers." Everything that
+did not serve that was moved out of the agent — metrics now run as GitHub
+Actions in the project's own repos — and the Helper, whose last remaining
+job was to cover for the Manager's exhausted usage window, could not do
+that either: both groups share one credential, so one window.
+
+### Breaking
+
+- **Agent count: 2 → 1.** `community-helper` is removed from the templates,
+  not paused. Every Helper task, its plugin-data, its token and its
+  setup-check are gone. An install stamps `community-manager` and nothing
+  else.
+- **The setup interview no longer asks about** metrics, the ledger repo,
+  GA4, social follower history, security-advisory sweeps, proactive
+  detection, the shared inbox, the docs repo, CI notifications, or
+  stamping a sub-agent. Owner's standing decision; the interview must not
+  re-ask.
+- **Env vars removed:** `GA4_PROPERTIES`, `GA4_PROPERTY_ID`, `LEDGER_REPO`,
+  `LEDGER_BRANCH`, `LEDGER_PATH`, `SECURITY_WATCH_REPOS`, `DOCS_REPO`,
+  `DOCS_PATH`, `PRODUCT_REPO`, `INBOX_*`, `HEALTH_POST_DOW`, `SOCIAL_DAILY`,
+  `NUDGE_MAX_CHECKS`, `RELEASE_WATCH_REPOS`. Remaining: `COMMUNITY_REPOS`,
+  `CONTEXT_REPOS` (new), `ACK_GRACE_MINUTES`, `GITHUB_BOT_USERNAME`.
+
+### Added
+
+- **`project-context`** (daily). The repos change every day; the agent's
+  picture of them was whatever it remembered from stamp day. For every repo
+  in `CONTEXT_REPOS` (default `COMMUNITY_REPOS`) the gate fetches what
+  landed since yesterday (commits and files, with changed
+  `.agents/skills/**` and docs files called out so the agent re-reads
+  exactly those), the latest release tag versus what is merged but
+  unreleased, and the open milestones. It rewrites
+  `plugin-data/community-manager/release-state.csv` on every run so "is X
+  released?" is answered from a file with no fetch, and wakes the model
+  only when a repo changed or a release shipped. A force-pushed branch is
+  reported as `history-rewritten`, never as "no change". The prompt draws
+  the line the agent answers by: past the release tag means "merged,
+  coming in the next release", never "available".
+
+- **`follow-up-nudge`** (weekly). Two kinds of silence that cost a project a
+  person: a contributor's PR idle for a week, and an issue where the agent
+  posted a fix or workaround and the reporter went quiet. One check-in per
+  item per 30 days — where it stands, do you need help, here is the team
+  chat (`CHAT_INVITE_URL`). Never a review, approval, label or close; the
+  project's code-review agent and the maintainers own that. Issue
+  follow-ups come from `issue-followups.csv`, which `github-first-response`
+  now appends to whenever it posts a fix.
+- **`github-first-response` collects requirements** on a vague issue (one
+  round, specific asks) and welcomes first-time contributors by name
+  (`first_time` from GitHub's author association).
+- **Daily TLDR shows GitHub work.** Every reply, welcome, requirements ask,
+  workaround and check-in is enqueued as one digest line; `owner-tldr`
+  folds them into the single daily message.
+
+### Changed
+
+- **`unanswered-watch` moved to the Manager and now answers.** It was the
+  Helper's backstop for a rate-limited Manager, posting a holding line. On
+  the Manager it wakes the agent to answer the question properly, as
+  itself. Honest limit, stated in the task: it shares the agent's usage
+  window, so an exhausted window is covered by nothing; what it catches is
+  a question that scrolled past.
+- **`github-first-response` prose:** no scheduled triage exists anywhere;
+  the owner asks for a triage pass when wanted.
+- **Tooling is single-agent:** `gen-task-table.sh`, `sync-tasks.sh`, the
+  test harness and setup-check no longer know a `helper` group; the drift
+  check flags "two agents" as stale.
+
+### Removed
+
+- Every Helper task: `project-health`, `security-advisory-sweep`,
+  `github-ops-triage`, `docs-currency-watch`, `inbox-check`, with their
+  fixtures and tests. `project-health` never ran in production — declined
+  at setup; its hardening from the 0.12.0 security review (parse-not-source
+  `config.env`, jq-built JSON, validated repo strings) is kept in every
+  surviving gate.
+
 ## [0.12.0] — 2026-09-21 (pending: stamp scheduled for 2026-09-22)
 
 The gap between 0.10.0 and this release is unusually large because 0.10.0
