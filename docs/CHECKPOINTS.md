@@ -13,7 +13,7 @@ it](OPERATIONS.md) for what the install actually costs and which meter pays for
 it; the short version is that volume won't threaten a 5-hour window but a
 credential debugging loop will.
 
-## The ready gate — 13 points, do not call it live until every box is checked
+## The ready gate — 14 points, do not call it live until every box is checked
 
 Work through these in order after INSTALL.md §4's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
@@ -31,6 +31,7 @@ or its safety net had never actually fired, without anyone noticing.
 | 5 | Non-owner DM redirect | DM the bot from a second account | Warm redirect to the public channels; no support answer, no instructions accepted |
 | 6 | No per-sender prompts | Have that second account post in a public channel | You do **not** get a "new sender — allow?" approval ask (if you do, the wiring is missing `--sender-scope all`) |
 | 7 | Every gate emits clean JSON | `./bin/ncl tasks run <id>` + `tasks get <id>` for each configured task | Single-line JSON, `not-configured` for things you skipped, real data for things you set up |
+| 7b | `gh` works through the proxy | In the container: `gh api user --jq .login` | Prints the bot's GitHub username. A `401` means the proxy did not override the placeholder token; a `502` means the proxy refused the route — fix before anything GitHub-facing is activated |
 | 8 | `project-context` took its baseline | `tasks run` it once by hand, then `tasks get`, and `cat plugin-data/community-manager/release-state.csv` in the container | `status: baseline`, `degraded_repos: []`, and one row per repo in `CONTEXT_REPOS` (or `COMMUNITY_REPOS`) with a `released_tag` where the repo has a release. Then ask the manager "what's the latest release?" — the answer must match that file, not its training data. A repo in `degraded_repos` is a token or repo-name problem; fix it now, because an unread repo is one the agent will answer about from memory |
 | 9 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 10 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's footprint table; nothing extra |

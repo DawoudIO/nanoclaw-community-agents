@@ -319,6 +319,10 @@ back, which is why this runs every five minutes with no grace. Speed is the poin
 automated does more damage than an hour's delay, so don't trade the read for
 the clock.
 
+Read the thread with `gh issue view N -R repo --comments` (or `gh pr view`),
+reply with `gh issue comment` / `gh pr comment` and `--body-file`, always
+with `-R repo`.
+
 ## What not to do
 
 - **Don't triage here.** Duplicate hunting, staleness and labelling are not

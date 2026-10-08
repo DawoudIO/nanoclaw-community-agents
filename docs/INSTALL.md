@@ -141,6 +141,12 @@ pick anything readable, e.g. `"Acme Manager"`.
 # rebuilds the image and restarts the container on approval, which would kill
 # the welcome interview mid-conversation.
 ./bin/ncl groups config add-package --id <manager-id> --apt jq
+# gh is how the agent talks to GitHub (every comment, PR and read). It will not
+# start without a token, and the container must hold none, so give it a
+# placeholder: the OneCLI proxy injects the real credential on the way out.
+# Set GH_TOKEN=placeholder in the group's environment (`ncl groups config
+# update --help` lists the env flag for your NanoClaw version).
+./bin/ncl groups config add-package --id <manager-id> --apt gh
 # Run the SETUP interview on Haiku, not Sonnet. The interview is structured
 # Q&A plus CLI calls — it does not need the manager's steady-state model, and
 # onboarding is long enough (credentials, wiring, per-task activation) that
@@ -521,7 +527,7 @@ CHECKPOINTS.md item 12 describes — it only shows up when a live reply was
 missed, so it is the behavior most likely to be quietly broken without
 anything else looking wrong.
 
-**"Resumed" is not "ready."** Walk the 13-point ready gate in
+**"Resumed" is not "ready."** Walk the 14-point ready gate in
 [CHECKPOINTS.md](CHECKPOINTS.md) before calling it live. Everything after
 — token budget, the task reference, the update policy, teardown — is in
 [OPERATIONS.md](OPERATIONS.md) and [UNINSTALL.md](UNINSTALL.md).

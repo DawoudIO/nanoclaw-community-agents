@@ -479,7 +479,7 @@ key in chat** — keys go into the OneCLI vault dashboard only:
 If this interview runs before the owner has registered credentials (the
 normal order — DM wiring comes first), expect verification to fail cleanly:
 walk them through the vault entries, then re-verify. Then **verify instead of
-assuming**: make one harmless read-only call (fetch a repo's metadata) and
+assuming**: run `gh api user --jq .login` (it must print the bot account) and
 report it as working / not. Diagnose by symptom: `401/403` = vault entry missing or
 host-mismatched; `502` = sandbox network policy, not the service.
 

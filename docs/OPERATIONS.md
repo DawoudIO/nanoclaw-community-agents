@@ -304,6 +304,26 @@ The two things worth internalising: **Discord is realtime and GitHub is a
 all** — it answers people where they asked. The owner's DM is for what needs
 the owner, which is a much shorter list.
 
+## A 502 from a GitHub call
+
+A `502` here is the OneCLI proxy, not GitHub. GitHub itself almost never
+returns one; the proxy does when it refuses the route (host not allowlisted
+for this agent), cannot match a credential to it, or fails upstream. Three
+things to check, in order:
+
+1. **Which call.** With `gh`, the exact command is in the transcript; for a
+   gate, the task's telemetry line names the status. `GH_DEBUG=api gh …`
+   prints the request the proxy saw.
+2. **The proxy's own request log** (OneCLI dashboard → the agent's
+   connection) for that minute: a denied host or an unmatched credential is
+   logged there, with the hostname. Anything other than `api.github.com`
+   (an uploads or raw host, GraphQL at a different path) is the usual cause.
+3. **Rate limiting looks different**: GitHub answers `403` with
+   `x-ratelimit-remaining: 0`, never `502`.
+
+One `502` is a transient; the same call failing three runs in a row is a
+policy problem, and the agent is told to report it rather than retry.
+
 ## Reference: every task, required vs optional
 
 **Agent and schedule columns are generated, not hand-written.** Run

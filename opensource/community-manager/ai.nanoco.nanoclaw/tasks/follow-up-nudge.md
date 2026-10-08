@@ -167,6 +167,10 @@ reply after all, leave it to `github-first-response`. Otherwise, one comment:
   need to go further. Offer the chat if `chat_invite` is set.
 - Never close the issue yourself.
 
+Post every comment with `gh pr comment N -R repo --body-file f` or
+`gh issue comment N -R repo --body-file f`; read threads with `gh pr view` /
+`gh issue view --comments`.
+
 ## After each comment
 
 Append `repo,number,YYYY-MM-DD` to `plugin-data/community-manager/nudged.csv`

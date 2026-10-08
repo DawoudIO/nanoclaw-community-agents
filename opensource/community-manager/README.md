@@ -22,7 +22,7 @@ question that scrolled past, not a window that has run out.
 ```
 community-manager/
 ├── plugin.json
-├── mcp.json                                          # GitHub MCP, placeholder token
+├── mcp.json                                          # empty — GitHub goes through the gh CLI
 ├── setup-check.sh                                    # run via Bash: mechanical setup self-check
 ├── token-audit.sh                                    # run via Bash: zero-token usage/cost breakdown
 ├── ai.nanoco.nanoclaw/
@@ -190,9 +190,13 @@ no token ever sits in `mcp.json`, the container env, or chat context.
 |---|---|---|---|---|
 | GitHub | `api.github.com` | `Authorization: Bearer` | **Fine-grained**, scoped to `COMMUNITY_REPOS` plus `CONTEXT_REPOS`, plus Contents **write** on the docs repo only (`docs-gap-review` opens docs PRs on a `docs/*` branch, never the default branch): Issues read/write (`github-first-response` comments on new issues; live replies comment and file issues from chat bug reports), Pull requests read/write (live replies comment on PRs), Contents read (`project-context` reads skills, docs and `compare`), Metadata read. Never `read:org`, `admin:*`, or `delete_repo`. Full per-endpoint justification in [PREREQS.md §1b](../../PREREQS.md). | Settings → Developer settings → Personal access tokens (fine-grained) |
 
-**Leave `GITHUB_PERSONAL_ACCESS_TOKEN: "placeholder"` in `mcp.json` as-is.** The
-MCP server won't boot without the variable present; the real token is injected at
-request time. Never replace it with a real value.
+**All GitHub interaction is the `gh` CLI**, not an MCP server and not
+hand-built API calls. The container has no token; `gh` refuses to start
+without one, so `GH_TOKEN=placeholder` is set in the group's environment at
+stamp time and the real credential is injected by the OneCLI proxy on the
+way out. The ready gate verifies this once with `gh api user`. Every call
+the agent makes is then a readable command in the transcript, which is also
+how a `502` gets diagnosed (OPERATIONS.md → "A 502 from a GitHub call").
 
 **Discord's bot token isn't something you add to the vault by hand** —
 `/add-discord` registers it as part of wiring the bot, not through this

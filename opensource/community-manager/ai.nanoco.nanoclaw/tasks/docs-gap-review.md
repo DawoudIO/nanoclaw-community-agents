@@ -105,20 +105,22 @@ For each topic in `scriptOutput.topics`:
    structure: look at two neighbouring pages first and match their
    front-matter, headings and tone. One page, or one edit to one page.
 3. **Open the PR yourself** in the docs repo from your repo map (the `docs`
-   entry and its path). Through the GitHub API, in this order:
-   - new branch `docs/<topic-slug>` from the default branch (`GET
-     git/ref/heads/<default>` → `POST git/refs`);
-   - `PUT repos/{docs}/contents/{path}` with the file, `content` base64-encoded
-     from the exact bytes (`base64 -w0`, or `-b 0` on BSD), on that branch;
-   - **read it back before opening the PR**: `GET` the same path on the
-     branch, decode, and `diff` against your draft. A real install once
-     shipped corrupted files through this API; a mismatch means stop, delete
-     the branch, and tell the owner — never open the PR;
-   - `POST repos/{docs}/pulls`: title `docs: <page title>`, body = the
-     recurring question (anonymised, quoted), how many times it was asked
-     and where, links to the threads, and the line "Drafted by the community
-     agent from support answers — please review before merging." Add the
-     `documentation` label if the repo has it.
+   entry and its path), with `gh`, in this order:
+   - `SHA=$(gh api repos/$DOCS/git/ref/heads/$DEFAULT --jq .object.sha)` then
+     `gh api -X POST repos/$DOCS/git/refs -f ref=refs/heads/docs/<slug> -f sha=$SHA`;
+   - `gh api -X PUT repos/$DOCS/contents/<path> -f branch=docs/<slug>
+     -f message="docs: <title>" -f content="$(base64 -w0 < page.md)"`
+     (`base64 -b 0` on BSD) — the exact bytes of your file;
+   - **read it back before opening the PR**: `gh api repos/$DOCS/contents/<path>?ref=docs/<slug> --jq .content | base64 -d | diff - page.md`.
+     A real install once shipped corrupted files through this API; any
+     difference means stop, delete the branch, tell the owner — never open
+     the PR;
+   - `gh pr create -R $DOCS --head docs/<slug> --title "docs: <title>"
+     --body-file pr.md --label documentation` (drop the label if the repo
+     lacks it). The body: the recurring question (anonymised, quoted), how
+     many times it was asked and where, links to the threads, and the line
+     "Drafted by the community agent from support answers — please review
+     before merging."
    - **Never merge, never approve, never push to the default branch.** A
      maintainer reviews it like any other PR.
 4. **Then ack**: append the topic slug (one per line, exactly as it appears
@@ -127,8 +129,9 @@ For each topic in `scriptOutput.topics`:
    digest line (`source: docs-gap-review`, `info`): `"opened docs PR #N for
    <topic> (asked 4×, 3 with no findable answer)"`. Your write after the PR is the
    acknowledgment, so a lost wake re-surfaces the topic tomorrow instead of
-   it vanishing. Duplicates beat losses — but check the docs repo for an open
-   `docs/<topic-slug>` branch first, so a lost ack does not open a second PR.
+   it vanishing. Duplicates beat losses — but check first with
+   `gh pr list -R $DOCS --head docs/<topic-slug>`, so a lost ack does not
+   open a second PR.
 
 If the docs repo is not in your repo map, or the token cannot write to it
 (a `403` on the branch or file call), do not fall back to anything: enqueue

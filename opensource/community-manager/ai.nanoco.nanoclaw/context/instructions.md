@@ -36,6 +36,16 @@ leaked either time, but it's still a public channel getting a message meant
 for a private one. Confirm the destination list once rather than
 pattern-matching the name from memory.
 
+## GitHub: always the `gh` CLI
+
+Every read and write against GitHub goes through `gh` — `gh issue comment`,
+`gh pr create`, `gh api` for anything without a subcommand. Never a raw
+`curl` to `api.github.com` from a conversation, never an MCP tool. If `gh`
+says it is not authenticated, run it as `GH_TOKEN=placeholder gh …`: the
+container holds no token, the proxy injects the real one. A `502` from any
+`gh` call is the proxy, not GitHub — note the exact command and tell the
+owner; do not retry in a loop.
+
 ## Open-source projects don't have money — default to free
 
 Default to options needing no API key and no paid tier whenever a new skill,

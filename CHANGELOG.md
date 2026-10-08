@@ -81,6 +81,13 @@ that either: both groups share one credential, so one window.
 
 ### Changed
 
+- **All GitHub interaction is the `gh` CLI.** The GitHub MCP server is gone
+  from `mcp.json`; every comment, label, PR and read the agent makes is a
+  `gh` command in the transcript. The container still holds no token:
+  `GH_TOKEN=placeholder` lets `gh` start and the proxy injects the real
+  one; the ready gate verifies with `gh api user`. Prompted by a day of
+  unexplained `502`s from GitHub calls, which are the proxy's answer, not
+  GitHub's, and were invisible behind the MCP server.
 - **Near-real-time replies.** `github-first-response` and `unanswered-watch`
   run every 5 minutes (offset so they never share a minute); the GitHub grace
   that waited for a maintainer is gone (default 0) and the Discord catch-up

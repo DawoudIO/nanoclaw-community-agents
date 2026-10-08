@@ -1,5 +1,15 @@
 # Bug report → GitHub issue workflow
 
+All of it through `gh`, with `-R owner/repo` on every command so the cwd can
+never redirect a write:
+
+```bash
+gh search issues -R "$REPO" "<key terms>" --state all --limit 10     # step 2
+gh issue create -R "$REPO" --title "…" --body-file body.md --label bug # step 3
+gh issue comment "$N" -R "$REPO" --body-file reply.md                  # replies
+gh issue edit "$N" -R "$REPO" --add-label "…"                          # labels
+```
+
 ## Taking a bug report from chat to an issue
 
 1. Before creating anything, make sure you have: steps to reproduce, the
