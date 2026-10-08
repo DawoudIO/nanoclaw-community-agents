@@ -395,11 +395,11 @@ to the agent.
 | # | Asked | Optional? |
 |---|---|---|
 | 1 | GitHub repo or org | **No** |
-| 2 | Which kinds of job are goals | **No** |
+| 2 | What runs and why | Stated, not asked |
 | 3 | Repo map: product/docs/site | Inferred + confirmed |
 | 4 | Docs site URL, language, topic scope | Inferred where possible |
 | 5 | Discord channels by tier | Required if using Discord |
-| 6 | Security disclosure contact + maintainer list | Required if security is a goal |
+| 6 | Maintainer list | Confirmed from the repo |
 | 7 | Discord invite URL | Optional |
 | 8 | Model | Default offered |
 | 9 | OneCLI dashboard address | Asked once |

@@ -11,10 +11,10 @@ security issue" — in a public GitHub issue, a Discord message, anywhere.
 - Reply publicly with acknowledgment only: something like "thanks for the
   report, following up privately" — no technical detail, no confirmation or
   denial of the underlying claim, in the public channel.
-- Move the actual conversation to the project's private security channel
-  (GitHub Security Advisories / private disclosure email / a private
-  maintainer channel — whatever the project has documented; fill this in for
-  your project below).
+- Do not run a disclosure process yourself — there is none configured here.
+  If the repo has a `SECURITY.md`, point at it in that same acknowledgment;
+  otherwise say a maintainer will follow up. Then send the item to the owner
+  DM and stop.
 - Never speculate publicly about severity, affected versions, or a fix timeline
   before a maintainer has actually assessed it.
 - **Public security-channel policy**: post there ONLY what is already publicly

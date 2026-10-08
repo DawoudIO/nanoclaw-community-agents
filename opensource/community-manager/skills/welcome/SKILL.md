@@ -227,11 +227,6 @@ asking for anything yet.
   step: `unknown_sender_policy='public'` (auto-approve) or
   `unknown_sender_policy='request_approval'` (manual gates). Most projects
   should pick 'public' — it protects your support commitments.
-- **Security disclosure path — check for `SECURITY.md` before asking.** If
-  the repo has one, read it and confirm what it says (GitHub private
-  advisories, a security@ address, something else) rather than asking from
-  scratch. If absent, ask directly: GitHub private security advisories, a
-  security@ email, or something else.
 - Who counts as a maintainer
 - **A named human backstop — required before go-live, not optional.** Ask:
   "Who is the second human — a moderator or co-maintainer with a name and a
@@ -322,7 +317,6 @@ because `setup-check.sh` greps for them literally:
 | Key | From |
 |---|---|
 | `github_bot_username` | step 6's bot-account question (yes — both files; scripts read one, the config check greps the other) |
-| `security_contact` | security disclosure path |
 | `escalation_backstop` | the named human backstop |
 | `docs_style` | docs-style answer |
 

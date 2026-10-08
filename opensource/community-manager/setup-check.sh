@@ -51,7 +51,7 @@ else
   add "workspace_backup_configured" "missing" "no git repo in workspace yet — optional; plugin-data (project notes, ledgers) is rebuilt from the web on a cold start"
 fi
 
-for k in github_bot_username security_contact escalation_backstop docs_style; do
+for k in github_bot_username escalation_backstop docs_style; do
   if grep -q "^$k" "$DATA/project-config.md" 2>/dev/null; then
     add "config:$k" "ok" ""
   else

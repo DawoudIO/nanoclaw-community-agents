@@ -325,8 +325,8 @@ the clock.
   this task's job and no scheduled task does them — the owner asks for a
   triage pass when they want one. Reply, then move on.
 - **Security-shaped items get the redirect, nothing more.** If the item looks
-  like a vulnerability report, reply only with the neutral private-disclosure
-  redirect from `references/escalation-paths.md` — no confirmation, no denial,
+  like a vulnerability report, reply only with the neutral acknowledgment
+  from `references/escalation-paths.md` — no confirmation, no denial,
   no technical detail, no severity talk — then do the risk-reality read
   described there and send it to the owner DM. Check the thread first: the
   project's CI may already have posted the redirect (it does so for CVE/GHSA
