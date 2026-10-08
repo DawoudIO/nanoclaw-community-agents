@@ -376,7 +376,7 @@ You answer once, in the owner DM; the manager writes the task parameters to
 |---|---|
 | `COMMUNITY_REPOS` | the repos `github-first-response` watches, and the default for `CONTEXT_REPOS` |
 | `CONTEXT_REPOS` *(optional)* | the repos `project-context` follows, when they differ from `COMMUNITY_REPOS` |
-| `ACK_GRACE_MINUTES` | how long a support message may sit before `unanswered-watch` wakes the agent (default 20) |
+| `ACK_GRACE_MINUTES` | how long a support message may sit before `unanswered-watch` wakes the agent (default 5) |
 | `CHAT_INVITE_URL` *(optional)* | the team chat invite `follow-up-nudge` offers a contributor who has gone quiet |
 | `STALE_PR_DAYS` / `FOLLOWUP_DAYS` / `RENUDGE_DAYS` *(optional)* | `follow-up-nudge` thresholds; defaults 7 / 5 / 30 days |
 | `GITHUB_BOT_USERNAME` | the bot account the agent verifies it is acting as |
@@ -460,7 +460,7 @@ The conversational path ends with credential verification and one explicit
 
 Resume order, safe → side-effect-adjacent:
 
-1. **No credentials, no network first**: `unanswered-watch` (every 10 min —
+1. **No credentials, no network first**: `unanswered-watch` (every 5 min —
    catches a support question that scrolled past), `owner-tldr` and
    `weekly-identity-integrity-check` (jq only), and
    `conversation-archive-prune`, which is pure filesystem housekeeping and

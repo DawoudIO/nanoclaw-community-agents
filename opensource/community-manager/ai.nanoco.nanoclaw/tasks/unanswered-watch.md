@@ -1,11 +1,11 @@
 ---
-schedule: "*/10 * * * *"
+schedule: "*/5 * * * *"
 script: |
   #!/bin/bash
   set -euo pipefail
   # Deps: bash, jq, ncl (NanoClaw CLI, read-only session listing). No network.
   #
-  # UNANSWERED WATCH — every 10 minutes. Response delay is the one failure a
+  # UNANSWERED WATCH — every 5 minutes. Response delay is the one failure a
   # community notices immediately. This gate looks at every channel-backed
   # session this agent is wired to and asks one question: is the newest
   # message an inbound human message that has sat unanswered longer than the
@@ -21,7 +21,7 @@ script: |
   #
   # Nothing here calls any API. It reads this agent's own sessions, which it
   # is always allowed to see, and a local ack file so the same still-unanswered
-  # message never re-wakes the model every 10 minutes.
+  # message never re-wakes the model every 5 minutes.
   DATA="/workspace/agent/plugin-data/community-manager"
   mkdir -p "$DATA"
 
@@ -46,12 +46,12 @@ script: |
   # MUST be a bare integer. It is used inside $(( )), where bash resolves a bare
   # name recursively as an arithmetic variable — so a human-friendly value like
   # "20 minutes" makes bash look up `minutes`, which under `set -u` is a FATAL
-  # error that produces no output at all. This gate runs every 10 minutes and is
+  # error that produces no output at all. This gate runs every 5 minutes and is
   # the only thing that catches a missed question, so it
   # must never die on a config typo: fall back to the default instead.
-  GRACE="${ACK_GRACE_MINUTES:-20}"
+  GRACE="${ACK_GRACE_MINUTES:-5}"
   case "$GRACE" in
-    ''|*[!0-9]*) GRACE=20;;
+    ''|*[!0-9]*) GRACE=5;;
   esac
   SEEN="$DATA/acknowledged.txt"
   touch "$SEEN"
@@ -97,7 +97,7 @@ script: |
     [ "$IS_UNANSWERED" != "true" ] && continue
 
     # Dedup key: session + the exact timestamp of the unanswered message, so
-    # the same still-unanswered message isn't re-acknowledged every 10 minutes,
+    # the same still-unanswered message isn't re-acknowledged every 5 minutes,
     # but a NEW unanswered message in the same channel later still surfaces.
     KEY="${SID}:$(jq -r '.timestamp' <<< "$LAST")"
     if grep -qxF "$KEY" "$SEEN" 2>/dev/null; then continue; fi
@@ -133,7 +133,7 @@ For each entry in `scriptOutput.data.messages`:
    owner DM — never post the detail publicly, never assess a security report.
 3. **Ack it.** Append the entry's `key` verbatim as one line to
    `plugin-data/community-manager/acknowledged.txt`. The gate reads that file
-   so the same message does not wake you again every 10 minutes; a genuinely
+   so the same message does not wake you again every 5 minutes; a genuinely
    new message in the same channel still will.
 4. **Log the topic** in `question-ledger.csv` like any other resolved
    support conversation, so `docs-gap-review` sees repeat questions.

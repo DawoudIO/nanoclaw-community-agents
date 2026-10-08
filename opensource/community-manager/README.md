@@ -32,8 +32,8 @@ community-manager/
 │   │       ├── channel-routing.md                     # the 3 audience tiers — FILL THIS IN
 │   │       └── example-mapping.md                     # worked example, delete or replace
 │   └── tasks/                                         # 9 tasks, all created paused
-│       ├── unanswered-watch.md                        # every 10 min: a support message past the grace period
-│       ├── github-first-response.md                   # every 10 min: new, unanswered issues and PRs
+│       ├── unanswered-watch.md                        # every 5 min: a support message past the grace period
+│       ├── github-first-response.md                   # every 5 min: new, unanswered issues and PRs
 │       ├── project-context.md                         # daily: what changed, what is released vs merged
 │       ├── follow-up-nudge.md                         # weekly: check in on idle PRs and unanswered workarounds
 │       ├── owner-tldr.md                              # the ONE daily digest to the owner
@@ -109,7 +109,7 @@ never runs. These are all of them:
 |---|---|---|
 | `COMMUNITY_REPOS` | yes | `github-first-response`, `project-context` (when `CONTEXT_REPOS` is unset), `setup-check.sh` |
 | `CONTEXT_REPOS` | optional, defaults to `COMMUNITY_REPOS` | `project-context` — the repos whose daily changes the agent should follow, usually all of them including docs and marketing |
-| `ACK_GRACE_MINUTES` | optional, default `20` | `unanswered-watch` — bare integer minutes a support message may sit unanswered |
+| `ACK_GRACE_MINUTES` | optional, default `5` | `unanswered-watch` — bare integer minutes a support message may sit unanswered |
 | `CHAT_INVITE_URL` | optional | `follow-up-nudge` — the team chat invite offered to a contributor who has gone quiet; unset means no invite is offered |
 | `STALE_PR_DAYS`, `FOLLOWUP_DAYS`, `RENUDGE_DAYS` | optional, defaults `7`, `5`, `30` | `follow-up-nudge` — days a PR may sit idle, days of silence after a posted workaround, and the minimum gap between check-ins on the same item |
 | `OWNER_TZ` | optional, default `UTC` | `owner-tldr` — IANA zone, so the digest lands at 07:00 owner-local (`TLDR_LOCAL_HOUR` to move it) |

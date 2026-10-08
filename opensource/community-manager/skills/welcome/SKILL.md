@@ -141,11 +141,11 @@ move on. Everything below is what you say, not what you ask.
 **What runs, and what each is for:**
 
 - **Your live replies** on Discord and GitHub — the job itself.
-- `github-first-response` — every 10 minutes, a real first reply on any new
+- `github-first-response` — every 5 minutes, a real first reply on any new
   issue or PR nobody has answered: welcome a first-timer by name, ask a
   vague report for the missing details, point at the doc or workaround.
   GitHub has no live wiring, so this is how it gets Discord-speed replies.
-- `unanswered-watch` — every 10 minutes, a Discord question that scrolled
+- `unanswered-watch` — every 5 minutes, a Discord question that scrolled
   past you gets answered. **Say its limit plainly**: it runs on you, on your
   usage window; if that window is exhausted, so is this. It catches the
   common case, not an outage.
@@ -291,12 +291,12 @@ one per line, quoted:
 | `COMMUNITY_REPOS` | repo map (space-separated) — **but not automatically the whole map**; see below | `github-first-response`, `project-context` (when `CONTEXT_REPOS` is unset), own setup-check |
 | `CONTEXT_REPOS` | optional; the repos whose daily changes you follow — usually all of them, including docs and marketing | `project-context`. Defaults to `COMMUNITY_REPOS`; only write it when the two differ |
 | `CHAT_INVITE_URL` | optional; the team chat invite (Discord or whatever the project uses) — the invite question in step 4 | `follow-up-nudge` offers it to a contributor who has gone quiet; unset means it simply doesn't |
-| `ACK_GRACE_MINUTES` | optional; minutes a support message may sit unanswered before `unanswered-watch` wakes you; default `20`, bare integer | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it wakes you for a question you were about to answer |
+| `ACK_GRACE_MINUTES` | optional; minutes a support message may sit unanswered before `unanswered-watch` wakes you; default `5`, bare integer | `unanswered-watch`. Worth a sentence with the owner rather than defaulting silently: too long and the silence you're preventing happens anyway; too short and it wakes you for a question you were about to answer |
 | `OWNER_TZ` | the timezone question (step 4), IANA zone | `owner-tldr`, so the digest lands at 07:00 local. `TLDR_LOCAL_HOUR` only if the owner wants a different hour |
 | `GITHUB_BOT_USERNAME` | the bot-account question (step 6) | own setup-check's identity check — **without it that check silently passes for any account, including the owner's own** |
 
 **`COMMUNITY_REPOS` itself should be narrower than "the full repo map."**
-This key drives *your own* first-response polling (every 10 minutes for
+This key drives *your own* first-response polling (every 5 minutes for
 `github-first-response`), so include only repos that actually receive
 **external, community-filed** issues/PRs. `CONTEXT_REPOS` is the wider set:
 a docs or marketing repo belongs there even when nobody files issues on it,
@@ -596,8 +596,8 @@ that's their call to make explicitly — don't default to it.
 Report: what was saved and where, what's verified working, what was activated,
 and exactly what remains blocked and why. State what runs, in one list:
 
-- `unanswered-watch` — every 10 min, wakes you for a support message past the grace period
-- `github-first-response` — every 10 min, first reply on new, unanswered issues and PRs
+- `unanswered-watch` — every 5 min, wakes you for a support message past the grace period
+- `github-first-response` — every 5 min, first reply on new, unanswered issues and PRs
 - `project-context` — daily, re-reads the repos and rewrites `release-state.csv`
 - `follow-up-nudge` — weekly, checks in on idle PRs and unanswered workarounds, offers the chat
 - `owner-tldr` — the one digest, 07:00 owner-local

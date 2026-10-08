@@ -1,5 +1,5 @@
 ---
-schedule: "4,14,24,34,44,54 * * * *"
+schedule: "2,7,12,17,22,27,32,37,42,47,52,57 * * * *"
 script: |
   #!/bin/bash
   set -uo pipefail
@@ -10,7 +10,7 @@ script: |
   # just "someone showed up and nobody has said anything."
   #
   # WHY THIS TASK IS NARROW. Time-to-first-response is the strongest predictor
-  # of whether a contributor comes back, so this runs every 10 minutes and does
+  # of whether a contributor comes back, so this runs every 5 minutes and does
   # one thing: make sure a new issue or PR gets a real first reply. Duplicate
   # hunting, staleness and labelling are not done here or on any schedule —
   # the owner asks for them when wanted.
@@ -43,11 +43,11 @@ script: |
     echo '{"wakeAgent": false, "data": {"status": "not-configured", "hint": "set COMMUNITY_REPOS in plugin-data/community-manager/config.env"}}'
     exit 0
   fi
-  # Grace period before we consider something unanswered. Exists so we do not
-  # beat a human maintainer who is already typing — replying 40 seconds after
-  # someone opens an issue reads as a bot, not as attention.
-  GRACE_MIN="${FIRST_RESPONSE_GRACE_MINUTES:-15}"
-  case "$GRACE_MIN" in ''|*[!0-9]*) GRACE_MIN=15;; esac
+  # Grace before an item counts as unanswered. Default 0: the owner wants a
+  # reply as close to real time as the poll allows while the person is still
+  # there — a maintainer who was about to reply can simply add to it.
+  GRACE_MIN="${FIRST_RESPONSE_GRACE_MINUTES:-0}"
+  case "$GRACE_MIN" in ''|*[!0-9]*) GRACE_MIN=0;; esac
 
   # Bounded retry: how long to wait, and how many times to retry, before
   # re-surfacing an item that was already handed to the agent once. Exists
@@ -73,7 +73,7 @@ script: |
   NOW_EPOCH=$(date +%s)
   # Only look at the last 3 days. Anything older that is still unanswered is a
   # backlog problem, and backlog belongs to triage — this task must not
-  # re-litigate old items every 10 minutes.
+  # re-litigate old items every 5 minutes.
   SINCE=$(date -u -d "@$((NOW_EPOCH - 259200))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null \
        || date -u -r "$((NOW_EPOCH - 259200))" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || echo "")
   if [ -z "$SINCE" ]; then
@@ -219,7 +219,7 @@ script: |
   WAKE=false
   if [ "$COUNT" -gt 0 ] || [ "$HAS_DEGRADED" = "true" ]; then WAKE=true; fi
 
-  # Ack BEFORE handing over, deliberately: this task runs every 10 minutes, so a
+  # Ack BEFORE handing over, deliberately: this task runs every 5 minutes, so a
   # lost wake costs one missed first response, while a failure to ack would mean
   # re-waking the agent for the same issue 144 times a day. That is the opposite
   # trade-off from the slower gates, and it is the right one at this cadence.
@@ -315,7 +315,7 @@ actually respond:
   so it is actually followed up.
 
 Time-to-first-response is the strongest predictor of whether someone comes
-back, which is why this runs every ten minutes. Speed is the point — but a fast reply that reads as
+back, which is why this runs every five minutes with no grace. Speed is the point — but a fast reply that reads as
 automated does more damage than an hour's delay, so don't trade the read for
 the clock.
 

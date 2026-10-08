@@ -79,7 +79,7 @@ Four defenses, in order of effectiveness:
 **And know what hitting it looks like**: the manager stops answering Discord
 altogether — the community gets silence, which for a public-facing support
 agent is the worst failure mode there is. **Nothing in this set covers that
-case.** `unanswered-watch` runs every 10 minutes and its gate costs nothing
+case.** `unanswered-watch` runs every 5 minutes and its gate costs nothing
 (local session state, no network, no credentials), but it wakes the same
 agent on the same credential: it catches a question that scrolled past while
 the agent was busy, restarting, or in another channel, and that is all. An
@@ -194,7 +194,7 @@ cheapest, which is not a coincidence — frequency was traded for cheapness
 deliberately. **`unanswered-watch` is the most frequent of all: every 10
 minutes (`*/10`)**, and its *gate* is the cheapest thing in the system on
 every axis at once — no network call, no credentials, nothing but local
-session state. `github-first-response` polls GitHub every 10 minutes in bash
+session state. `github-first-response` polls GitHub every 5 minutes in bash
 and wakes only on a genuinely new, unanswered item. And the daily
 `project-context` does every fetch in bash and wakes the model only when a
 repo actually changed since yesterday — on a quiet day it is 0-token. Tune
@@ -259,7 +259,7 @@ and gated to near-silence, so pausing them is effort without savings.
   costs nothing regardless of window state; the wake only fires when a
   support question has actually sat unanswered past the grace period, and
   answering it is the job.
-- **`github-first-response`.** Same shape: a 10-minute bash poll that wakes
+- **`github-first-response`.** Same shape: a 5-minute bash poll that wakes
   only on a new issue or PR nobody has replied to. First response is the
   strongest predictor of whether a contributor comes back.
 - **`owner-tldr`.** It is the only routine path to the owner, it wakes only
@@ -284,7 +284,7 @@ have different mechanics:
 | Surface | Path | Speed |
 |---|---|---|
 | **Discord** | **Live.** The manager is wired to the channels and answers events as they arrive — no cron involved | realtime |
-| Discord, when a question scrolled past | `unanswered-watch` wakes the manager to answer it | ≤10 min + `ACK_GRACE_MINUTES`; detection is free, the answer is one wake |
+| Discord, when a question scrolled past | `unanswered-watch` wakes the manager to answer it | ≤5 min + `ACK_GRACE_MINUTES` (default 5); detection is free, the answer is one wake |
 | **GitHub** | No live wiring in this design, so it polls: `github-first-response` finds new unanswered items | ≤10 min + grace |
 | "Is X released yet?" | answered from `release-state.csv`, which `project-context` rewrites daily | ≤24h behind the repo; no fetch at answer time |
 | Everything else | its own gated schedule, posted to the channel that cares | see the table below |
@@ -298,7 +298,7 @@ maintenance, and an unresolvable zone is reported rather than silently becoming
 UTC (`tz_resolved: false`).
 
 The two things worth internalising: **Discord is realtime and GitHub is a
-10-minute poll**, and **most of what the agent does never reaches the owner at
+5-minute poll**, and **most of what the agent does never reaches the owner at
 all** — it answers people where they asked. The owner's DM is for what needs
 the owner, which is a much shorter list.
 
@@ -326,11 +326,11 @@ unconfigured burns turns on every fire.
 | `conversation-archive-prune` (daily) | **never** | nothing | safe |
 | `docs-gap-review` (Tue) | only when a support topic repeats 3+ times | the manager's own `plugin-data/community-manager/question-ledger.csv`, built up by normal support work | safe — quiet until the ledger has data |
 | `follow-up-nudge` (Wed) | only when an outsider's PR has sat idle `STALE_PR_DAYS` (7) days, or an issue the agent answered with a fix/workaround has had no reply for `FOLLOWUP_DAYS` (5) — one check-in per item per `RENUDGE_DAYS` (30), with `CHAT_INVITE_URL` offered if set | manager PAT + `COMMUNITY_REPOS`; the agent's own `issue-followups.csv` and `nudged.csv` | safe — quiet until something has gone silent |
-| `github-first-response` (**every 10m**) | only on a brand-new issue/PR nobody has replied to, past the grace window | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
+| `github-first-response` (**every 5m**) | only on a brand-new issue/PR nobody has replied to — no grace by default, the owner wants near-real-time while the person is still there | manager PAT + `COMMUNITY_REPOS` (+ optional `FIRST_RESPONSE_GRACE_MINUTES`, default 15) | silent skip |
 | `owner-instruction-watch` (Mon) | only when an owner instruction was acked `received` and never closed | nothing (`jq` over the instruction ledger) | safe |
 | `owner-tldr` (**07:00 owner-local**) | only when the digest queue is non-empty, and only at the owner's morning hour — `attention` items escalate within ~4h during their waking window; urgent bypasses the queue entirely | `jq` only — **no network, no credentials** (+ `OWNER_TZ`, `TLDR_LOCAL_HOUR`) | safe, but set `OWNER_TZ`: without it the digest runs on UTC, which for most owners is the wrong morning. This is the ONLY routine path to the owner |
 | `project-context` (daily, 06:07) | only when a repo changed since yesterday (new commits, a new release, changed `.agents/skills/**` or docs), on the first run (`baseline`), or when a repo could not be read | manager PAT + `CONTEXT_REPOS` (defaults to `COMMUNITY_REPOS`). Writes `release-state.csv` every run; the agent keeps `project-notes.md` | silent skip |
-| `unanswered-watch` (**every 10m**) | only when the newest message in a support channel is inbound and older than `ACK_GRACE_MINUTES` (default 20) — then the manager answers it for real | `ncl`+`jq` — **no network, no credentials**; the support channels must be wired to this agent | reports `no-channel-sessions` until the channels are wired — check for it, it looks like a quiet night |
+| `unanswered-watch` (**every 5m**) | only when the newest message in a support channel is inbound and older than `ACK_GRACE_MINUTES` (default 5) — then the manager answers it for real | `ncl`+`jq` — **no network, no credentials**; the support channels must be wired to this agent | reports `no-channel-sessions` until the channels are wired — check for it, it looks like a quiet night |
 | `weekly-identity-integrity-check` (Mon) | only on prompt drift (hash gate) | nothing (`ncl`+`jq`; falls back to a manual-pass wake) | safe |
 
 **Shipped times (written in UTC; fire in each group's configured
@@ -355,11 +355,11 @@ round minutes because it's the task the north star depends on:
 | `conversation-archive-prune` | Manager | **daily** | 05:17 | yes |
 | `docs-gap-review` | Manager | **weekly** | 15:15, Tue | yes |
 | `follow-up-nudge` | Manager | **weekly** | 15:25, Wed | yes |
-| `github-first-response` | Manager | **6× hourly** | :4/14/24/34/44/54 each hour | yes |
+| `github-first-response` | Manager | **12× hourly** | :2/7/12/17/22/27/32/37/42/47/52/57 each hour | yes |
 | `owner-instruction-watch` | Manager | **weekly** | 16:23, Mon | yes |
 | `owner-tldr` | Manager | **every 2h** | every 2h at :41 | yes |
 | `project-context` | Manager | **daily** | 06:07 | yes |
-| `unanswered-watch` | Manager | **every 10 min** | on the 10-minute mark | yes |
+| `unanswered-watch` | Manager | **every 5 min** | on the 5-minute mark | yes |
 | `weekly-identity-integrity-check` | Manager | **weekly** | 15:45, Mon | yes |
 
 _9 tasks on one agent; 9 script-gated_

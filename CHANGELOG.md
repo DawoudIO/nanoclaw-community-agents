@@ -72,6 +72,11 @@ that either: both groups share one credential, so one window.
 
 ### Changed
 
+- **Near-real-time replies.** `github-first-response` and `unanswered-watch`
+  run every 5 minutes (offset so they never share a minute); the GitHub grace
+  that waited for a maintainer is gone (default 0) and the Discord catch-up
+  grace is 5 minutes. The owner's words: as near real time as we can while
+  the person is still there. Both gates are bash and free when quiet.
 - **`unanswered-watch` moved to the Manager and now answers.** It was the
   Helper's backstop for a rate-limited Manager, posting a holding line. On
   the Manager it wakes the agent to answer the question properly, as

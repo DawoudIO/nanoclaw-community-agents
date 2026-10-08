@@ -698,10 +698,11 @@ assert_scenario "$ROOT/scripts/tasks/manager/owner-tldr.sh" no-fixtures true \
   '.data.status == "queue-unparseable"' '' 1 \
   'D="$SANDBOX/plugin-data/community-manager"; mkdir -p "$D";
    printf "not json at all\n" >> "$D/digest-queue.jsonl"'
-# github-first-response: two brand-new unanswered items, but only ONE is past
-# the 15-minute grace. The fresh one must NOT surface — replying 2 minutes
-# after someone opens a PR reads as a bot, which is the whole reason the grace
-# exists. A third item opened by the OWNER is present and must never surface:
+# github-first-response: grace is 0 by default (reply as soon as the poll sees
+# it), so the one real new item surfaces at once. The future-dated item (clock
+# skew or a bad timestamp) has negative age and must NOT surface — never
+# reply to something that "hasn't happened yet". A third item opened by the
+# OWNER is present and must never surface:
 # maintainers' own issues are not waiting for a first reply. Asserts the
 # filter, not just the fetch.
 assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-response-new true \
@@ -709,7 +710,7 @@ assert_scenario "$ROOT/scripts/tasks/manager/github-first-response.sh" first-res
    and (.data.count == 1)
    and (.data.items[0].number == 501)
    and (.data.items[0].type == "issue")
-   and (.data.grace_minutes == 15)
+   and (.data.grace_minutes == 0)
    and (.data.degraded_repos | length == 0)' \
   'COMMUNITY_REPOS="acme/crm"'
 
