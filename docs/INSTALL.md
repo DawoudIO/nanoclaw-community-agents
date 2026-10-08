@@ -406,7 +406,6 @@ to the agent.
 | 10 | Docs style (current-state vs version-history) | Enforced on every draft |
 | 11 | Audience, in your words | Optional — shapes how replies are pitched |
 | 12 | Bot's GitHub username | **No** |
-| 13 | Human backstop for when you're unreachable | **Asked always** — recorded as open risk if none |
 
 After this, the agent walks credential setup, verifies each with a real
 call, and asks one explicit "go" before activating anything.
@@ -518,11 +517,11 @@ Smoke-test: post in a support-tier channel (expect an unprompted reply),
 @mention the manager in a dev-tier channel (expect a reply only because you
 tagged it), and ask it what the latest release is (expect an answer read from
 `release-state.csv`, not from memory). Test `unanswered-watch` once, the way
-CHECKPOINTS.md item 13 describes — it only shows up when a live reply was
+CHECKPOINTS.md item 12 describes — it only shows up when a live reply was
 missed, so it is the behavior most likely to be quietly broken without
 anything else looking wrong.
 
-**"Resumed" is not "ready."** Walk the 14-point ready gate in
+**"Resumed" is not "ready."** Walk the 13-point ready gate in
 [CHECKPOINTS.md](CHECKPOINTS.md) before calling it live. Everything after
 — token budget, the task reference, the update policy, teardown — is in
 [OPERATIONS.md](OPERATIONS.md) and [UNINSTALL.md](UNINSTALL.md).

@@ -13,12 +13,12 @@ it](OPERATIONS.md) for what the install actually costs and which meter pays for
 it; the short version is that volume won't threaten a 5-hour window but a
 credential debugging loop will.
 
-## The ready gate — 14 points, do not call it live until every box is checked
+## The ready gate — 13 points, do not call it live until every box is checked
 
 Work through these in order after INSTALL.md §4's resume sequence. Each has
 an expected result; a miss means stop and fix, not proceed.
 
-Items 12–14 exist because an install could once pass every earlier check
+Items 11–13 exist because an install could once pass every earlier check
 while the agent was silently billing to the shared window at the wrong tier,
 or its safety net had never actually fired, without anyone noticing.
 
@@ -34,10 +34,9 @@ or its safety net had never actually fired, without anyone noticing.
 | 8 | `project-context` took its baseline | `tasks run` it once by hand, then `tasks get`, and `cat plugin-data/community-manager/release-state.csv` in the container | `status: baseline`, `degraded_repos: []`, and one row per repo in `CONTEXT_REPOS` (or `COMMUNITY_REPOS`) with a `released_tag` where the repo has a release. Then ask the manager "what's the latest release?" — the answer must match that file, not its training data. A repo in `degraded_repos` is a token or repo-name problem; fix it now, because an unread repo is one the agent will answer about from memory |
 | 9 | Credential approval flow | Trigger one action that hits an OneCLI request-hold (if configured) | The approve/deny button appears and works — you've seen the flow once before it matters |
 | 10 | Vault audit clean | `onecli apps connections agent-access` per provider (PREREQS.md §3) | Every grant matches a row in INSTALL.md §2's footprint table; nothing extra |
-| 11 | Human backstop recorded | Ask the manager who the escalation backstop is | It names the person from the welcome interview — or plainly states the recorded open risk |
-| 12 | **Which meter the agent bills to, and at which tier** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key). Then run `ncl groups config get --id <manager-id>` and confirm `model` reads **sonnet** — not the haiku it was pinned to for setup | You can state which meter (a local-model provider is possible but not adopted; see SKILLS-ADOPTION.md). If subscription: you know the agent shares one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. The manager promotes itself at the end of onboarding, but a tier change only applies after a restart — so a config updated and never restarted reads Sonnet while every wake still bills Haiku |
-| 13 | **`unanswered-watch` proven end to end** | Post one test message from a non-owner account in a support channel and immediately `ncl groups restart` the manager, so the live reply is lost with the in-flight turn. Wait past `ACK_GRACE_MINUTES` (default 5) plus one 5-minute tick | The manager answers the message anyway, from the gate wake, and `tasks get` on that run shows `status: unanswered`. Do not accept "the gate returns clean JSON" as a substitute — the riskiest dependency (the `ncl sessions` output shape) only fails at the point where it has to find the message. Know the honest limit while you test it: this proves a dropped message gets caught; it cannot cover an exhausted usage window, because it runs on the same credential |
-| 14 | You can check liveness on demand | DM the manager exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices |
+| 11 | **Which meter the agent bills to, and at which tier** | Confirm what the first-boot wizard configured (subscription, OAuth token, or API key). Then run `ncl groups config get --id <manager-id>` and confirm `model` reads **sonnet** — not the haiku it was pinned to for setup | You can state which meter (a local-model provider is possible but not adopted; see SKILLS-ADOPTION.md). If subscription: you know the agent shares one window with your own Claude Code, including the break-glass recovery session — see OPERATIONS.md → Model budget for the four defenses. The manager promotes itself at the end of onboarding, but a tier change only applies after a restart — so a config updated and never restarted reads Sonnet while every wake still bills Haiku |
+| 12 | **`unanswered-watch` proven end to end** | Post one test message from a non-owner account in a support channel and immediately `ncl groups restart` the manager, so the live reply is lost with the in-flight turn. Wait past `ACK_GRACE_MINUTES` (default 5) plus one 5-minute tick | The manager answers the message anyway, from the gate wake, and `tasks get` on that run shows `status: unanswered`. Do not accept "the gate returns clean JSON" as a substitute — the riskiest dependency (the `ncl sessions` output shape) only fails at the point where it has to find the message. Know the honest limit while you test it: this proves a dropped message gets caught; it cannot cover an exhausted usage window, because it runs on the same credential |
+| 13 | You can check liveness on demand | DM the manager exactly `ping` | You get `pong #<last-ledger-id> <UTC time>` back in seconds, and nothing else. **This replaced a weekly heartbeat task** whose absence was supposed to be the outage alarm — an alarm that fires by not arriving is one nobody reliably notices |
 
 ## Day 2 — did the first unattended cycle actually run?
 
